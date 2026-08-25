@@ -1,0 +1,71 @@
+{
+  "id": "appseguimiento",
+  "name": "AppSeguimiento",
+  "short_name": "AppSeguimiento",
+  "description": "Sistema de gestión de casos ART: seguimiento de derivaciones, reportes, calendario de citas, notas y estadísticas. Instalable y funciona sin conexión.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#0f1520",
+  "theme_color": "#0f1520",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "health"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nuevo caso",
+      "short_name": "Nuevo caso",
+      "description": "Crear un caso nuevo rápidamente",
+      "url": "./#nuevo-caso",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Panel principal",
+      "short_name": "Panel",
+      "description": "Abrir el panel principal",
+      "url": "./#dashboard",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

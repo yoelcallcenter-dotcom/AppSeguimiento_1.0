@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# PWA: no indexar rutas internas de la aplicación
+Disallow: /#/

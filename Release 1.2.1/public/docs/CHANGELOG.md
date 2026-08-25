@@ -1,0 +1,571 @@
+# Changelog
+
+Todas las novedades, correcciones y mejoras de AppSeguimiento (antes "Seguimiento de Derivaciones").
+
+Nomenclatura de versiones:
+- 1.0.0 — Release principal
+- 1.0.x — Bug fixes y cambios de UI sin alterar funciones
+- 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.2.4] - 2026-08-24
+
+### Correcciones
+
+- Útiles → Condicionales: las filas de cada estudio se ordenan correctamente por Aseguradora y las columnas (Condición, Aseguradora, Observaciones, Acciones) quedan alineadas.
+- Útiles → Speechs: se eliminó la edición duplicada en la tarjeta; ahora solo se edita desde el modal (ícono de lápiz).
+- Útiles → Estudios Jurídicos: la celda de dirección muestra por defecto la primera dirección cargada y la tabla tiene columnas más legibles.
+
+### Mejoras
+
+- Útiles → Condicionales:
+  - Los grupos por estudio quedan comprimidos por defecto, con botón para expandir/colapsar cada grupo o todos a la vez.
+  - Al crear una condición se pueden cargar varios estudios y varias aseguradoras (Enter o +): se genera automáticamente una condición por cada combinación, omitiendo las que ya existen.
+- Útiles → Objeciones: nueva portada alineada con Speechs — búsqueda en tiempo real, vista tarjetas/lista, orden alfabético A-Z/Z-A y tamaño de letra (se recuerda entre sesiones).
+- Útiles → Aseguradoras: el listado de ART y Tránsito se muestra ordenado alfabéticamente sin alterar el orden guardado de los datos.
+- Útiles → Tránsito: la selección de píldoras por aseguradora ahora se guarda y sobrevive a cambios de vista, recargas y se incluye en los backups.
+
+## [1.2.3] - 2026-08-24
+
+### Correcciones
+
+- Mi Espacio: se eliminó el sonido que se reproducía automáticamente al entrar a la vista.
+
+### Mejoras
+
+- Mi Espacio:
+  - Tarjeta de bienvenida más compacta y equilibrada: el estado del día pasa a la fila del título, el saludo ocupa una sola línea con la fecha a la derecha y los datos rápidos (jornada, meta, días efectivos) se agrupan en una tira compacta.
+  - Mi disponibilidad: pestañas con contador de registros, resumen de períodos próximos al ingresar, edición de cada registro existente (botón lápiz) y estados vacíos con acción directa.
+  - Accesos personales: tarjetas compactas con acciones visibles (ver, copiar, editar, eliminar), botón "Agregar acceso" siempre visible y contraseña visible solo cuando se solicita.
+
+## [1.2.2] - 2026-08-24
+
+### Funciones nuevas
+
+- La aplicación pasa a llamarse **AppSeguimiento** en toda la interfaz, instalador PWA, backups y documentación.
+- Importación rediseñada (Configuración → Avanzado → Importación):
+  - Checklist de elementos importables (Casos CSV, Útiles JSON, Notas y Calendario JSON, Backup completo). Al desactivar uno, su botón de importación en General → Datos queda deshabilitado.
+  - Casos CSV: mapeo de columnas (automático / preguntar / plantilla guardada), estrategia de duplicados (preguntar cada vez / omitir / actualizar existentes / crear duplicados), modo de importación (agregar a los existentes o reemplazar los meses presentes en el archivo) y validaciones configurables.
+  - Útiles JSON: selección por categoría de qué se reemplaza al importar (pasos, tips, links, speechs, objeciones, ART, tránsito, lesiones, estudios, condicionales, etc.).
+  - Notas y Calendario JSON: elegir si se importan notas, eventos y qué hacer con duplicados.
+  - Backup completo: elegir qué restaurar por defecto (casos, notas, eventos, configuración), ajustable al confirmar cada restauración.
+- Frecuencia de backup automático configurable en General → Datos: Manual, Diario, Semanal o Mensual.
+
+### Mejoras
+
+- Se conectaron todas las preferencias que estaban "sueltas" (el interruptor existía pero no tenía efecto):
+  - Sugerencias inteligentes: ahora aparecen también en el widget de productividad del Dashboard.
+  - Micro-interacciones: apaga las animaciones de felicitación y los sonidos de acción en toda la app.
+  - Mostrar resumen de jornada y Mostrar ritmo necesario: ocultan esas secciones de Mi Espacio.
+  - Recordatorios de jornada: aviso discreto cuando faltan 30 minutos para el cierre habitual.
+  - Recordatorios de metas: aviso cuando estás cerca de cumplir la meta diaria.
+  - Microinteracciones de objetivos: celebración al cumplir la meta diaria de casos.
+- Configuración reorganizada: las secciones Sistema y Avanzado se unificaron en un solo grupo **Avanzado**; se quitó la pestaña "Operador" (los datos personales viven en Mi Espacio).
+- El orden personalizado de pestañas/widgets del Dashboard, Tablero, Tabla, Reportes y Útiles ahora **se conserva al recargar la app**.
+- Las vistas del Dashboard usan el color de acento del tema activo.
+- El buscador global vuelve a leer la configuración cada vez que se abre (sin recargar).
+
+### Correcciones
+
+- Texto del recordatorio de backup apuntaba a una pantalla inexistente ("General > Perfil"); ahora referencia General → Datos.
+- Texto de la sección Columnas sugería reordenar arrastrando, algo que la lista no permite.
+- Se eliminó código muerto (PerfilView).
+
+## [1.2.1] - 2026-08-20
+
+### Mejoras
+
+- Orden fijo de pestañas: **Mi Espacio | Dashboard | Tablero | Tabla | Reportes | Útiles**.
+- La aplicación abre siempre en **Mi Espacio** con un mensaje de bienvenida destacado.
+- Mi Espacio:
+  - 10 saludos de bienvenida aleatorios (cambian cada día) que usan el día, la hora y el nombre corto del operador.
+  - La pestaña "Mi Espacio" se resalta en todos los temas.
+  - Interfaz visual de las secciones mejorada (tarjetas con icono, activo resaltado y escala sutil).
+  - Mejor visibilidad de los Accesos Personales: tarjetas con borde de acento, campos resaltados y URLs clicables.
+  - Si la meta diaria no se cumplió, 10 mensajes de aliento aleatorios (con día, hora y nombre corto) aparecen los últimos 15 minutos antes del cierre de la jornada.
+- Metas corregidas:
+  - La meta diaria muestra correctamente si se alcanzó el objetivo en casos y reportes.
+  - La meta mensual se mide con las firmas (estados "Firmo") además de casos y reportes, con su propia meta configurable (por defecto 14 firmas).
+  - Se corrigió el error `perDay is not defined` en Mis Metas.
+- Dashboard:
+  - La Meta Diaria y la Micro-analítica se muestran dentro de la pestaña Analítica (debajo de los gráficos) y son coherentes con el filtro de día seleccionado.
+  - Los días configurados como no disponibles en Mi Espacio (inasistencias, vacaciones, feriados y días no laborables) se renderizan en el filtro de día y en las estadísticas, para no dejar espacios vacíos sin justificación.
+- Útiles → Condicionales: se agrupan por estudio (un estudio puede tener varias condiciones con varias aseguradoras). Columnas: Estudio | Condición | Aseguradora | Observaciones. Ya no se requieren Tipo de ingreso ni Lesión.
+- Útiles → Speechs: se editan directamente desde el modal, con su icono de lápiz y botón "Guardar cambios".
+- Notas: ya no se autoguardan; se guardan con el botón "Guardar" (resaltado cuando hay cambios sin guardar).
+- Respuestas visuales y sonoras en las funciones nuevas: sonido de bienvenida, sonido y aviso visual al cumplir la meta diaria, sonido al guardar notas, speechs y condicionales.
+
+### Correcciones
+
+- Error `perDay is not defined` en la sección "Mis Metas" de Mi Espacio (Referencia de GoalsSection).
+
+## [1.2.0] - 2026-08-20
+
+### Funciones nuevas
+
+- **Mi Espacio** (pestaña nueva en el menú principal): centro personal del operador con:
+  - Perfil: nombre, rol, empresa, localidad, contacto y jornada habitual (horario de inicio y fin, con soporte de jornadas que cruzan la medianoche) y días laborables configurables.
+  - Resumen de la jornada: estado del día (en jornada, meta cumplida, jornada finalizada, no laborable, vacaciones, feriado, inasistencia), progreso de la meta diaria de casos y reportes, y ritmo necesario por día para alcanzar la meta mensual.
+  - Disponibilidad: vacaciones (por rango de fechas con normalización de rangos invertidos), feriados, inasistencias y días no laborables personalizados. Los días efectivos del mes excluyen estas ausencias para los cálculos de productividad.
+  - Metas: objetivo mensual de casos y reportes, además de la meta diaria. El progreso se calcula sobre los días efectivos (descontando vacaciones, feriados, inasistencias y días no laborables).
+  - Accesos y credenciales personales (localmente en el dispositivo, nunca se exportan ni se incluyen en respaldos): usuarios, contraseñas, URLs y notas de acceso a sistemas del trabajo.
+  - Sugerencias inteligentes personales: avisos de meta cercana, fin de jornada, vacaciones próximas y ritmo mensual necesario.
+- El calendario ahora puede mostrar la disponibilidad personal (vacaciones, feriados, inasistencias y días no laborables) con un botón "Disponibilidad" en la barra de herramientas para mostrarla u ocultarla.
+- Configuración → Productividad: nueva sección "Mi Espacio (personal)" con interruptores para mostrar resumen de jornada, ritmo necesario, disponibilidad en calendario, recordatorios de jornada y de metas, microinteracciones de objetivos y sugerencias inteligentes personales.
+- La meta diaria de casos de la app ahora se lee de las metas del operador (con migración automática de la meta diaria previa de productividad).
+
+### Correcciones
+
+- `isInRange` normaliza rangos de vacaciones con fecha final anterior a la inicial (se trata como un único día).
+
+## [1.1.2] - 2026-08-07
+
+### Funciones nuevas
+
+- Funciones de productividad personal (opcionales y configurables):
+  - Memoria operativa (`userContextMemory`): registro de últimos casos vistos y botón "Continuar donde lo dejaste".
+  - Objetivos personales: meta diaria configurable de casos cargados (por defecto 5) con barra de progreso y reseteo diario automático.
+  - La meta de reportes diaria se calcula automáticamente según los casos cargados el día hábil anterior (ignora fines de semana y días sin casos).
+  - Micro-analítica personal: seguimiento acumulativo de movimientos y cambios de estado diarios.
+  - Plantilla de carga estructurada en Nuevo Caso: panel desplegable para pegar fichas con formato de lista específico (`NOMBRE`, `TELEFONO`, `LOCALIDAD`, `ART`, `PROFESION`, `INGRESO`, `LESION`, `CITA`, `OBSERVACIONES`, `TAGS`, `COMENTARIOS`) con ejemplo visible y parseo automático.
+- Configuración de Productividad: nueva sección en Configuración para activar/desactivar individualmente memoria operativa, sugerencias inteligentes, objetivos, micro-analítica y micro-interacciones.
+
+## [1.1.1] - 2026-08-06
+
+### Funciones nuevas
+
+- Ayuda y guías actualizadas.
+  - Tour interactivo único y completo (13 pasos) que recorre todas las funciones
+    y vistas en detalle: Dashboard con sus 6 pestañas, Tablero, Tabla, Reportes,
+    Útiles, Búsqueda, Nuevo Caso, Carga de reporte, Calendario, Bloc de Notas,
+    Configuración, Notificaciones y Ayuda.
+  - El tour se inicia desde Ayuda → Tour interactivo y desde Cómo usar.
+  - Se agregaron marcadores de tour a los botones de Calendario, Bloc de Notas y Ayuda.
+  - "Acerca de Vistas" actualizado: vista previa de importación paginada, reparación
+    de columnas CSV y detalle de las 6 pestañas del Dashboard (incluida Analítica).
+  - FAQ ampliada: importación CSV, búsqueda con #etiqueta y @comentario, tour
+    interactivo, personalización y alertas del Dashboard, y descarga de la guía.
+  - Glosario ampliado: funnel de conversión, insight, alerta automática, búsqueda
+    global, importación, vista previa y métricas configurables.
+  - Guía de Usuario reescrita: Dashboard 2.0, importación CSV, búsqueda avanzada,
+    atajos corregidos (Ctrl+1-5) y solución de problemas ampliada.
+
+### Correcciones
+
+- Botón "Imprimir / PDF" de la guía: no abría la ventana de impresión por la feature
+  "noopener" de window.open (que según el spec devuelve null). Ahora se corta la
+  relación con el opener manualmente y la ventana funciona.
+- Se corrigió el texto literal "{APP_VERSION}" que aparecía en el pie de la guía
+  impresa (ahora muestra el número de versión real).
+- Se eliminó código muerto en Ayuda y Guías que referenciaba variables inexistentes.
+- Atajos Ctrl+1-5 ahora cambian correctamente entre Dashboard, Tablero, Tabla,
+  Reportes y Útiles (antes mapeaban a vistas inexistentes como "estadisticas").
+- Los acordeones de "Acerca de Vistas" ahora arrancan plegados (antes abiertos).
+- Se corrigió el toggle "Confirmaciones antes de acciones": respetaba el valor por
+  defecto (desactivado) y ahora aplica a las eliminaciones de casos, notas, eventos
+  y datos (si está apagado, las acciones se ejecutan directamente).
+- Se corrigió el toggle "Confirmaciones" en Configuración → Sistema → UX, que
+  aparecía activado por defecto de forma inconsistente con Ajustes Generales.
+
+### Mejoras
+
+- Las notificaciones ahora se muestran únicamente como toasts dentro de la
+  aplicación. Se eliminaron las notificaciones de escritorio (API Notification)
+  y el archivo de sonido externo /notification.mp3; los sonidos se generan con
+  Web Audio API. Se quitó el canal "Escritorio" de Configuración → Notificaciones.
+- Se agregó el Modo Bajo Consumo en Configuración → Sistema → UX: desactiva
+  animaciones, microinteracciones y transiciones para priorizar el rendimiento.
+- Las opciones de UX ahora se aplican globalmente: "Animaciones y transiciones"
+  y "Microinteracciones" controlan las clases CSS de toda la aplicación.
+- Nuevos sonidos de acción: crear caso, guardar, eliminar, copiar al portapapeles
+  y completar el tour (sonidos cortos generados por Web Audio API).
+- Microinteracciones en botones: efecto de presión (press) al hacer clic.
+- Scroll-chaining corregido: los modales y overlays contienen su scroll y no
+  propagan el desplazamiento al fondo de la página.
+- Configuración reorganizada: General | Apariencia | Notificaciones | Búsqueda |
+  Sistema | Avanzado.
+- Felicitaciones con confeti y sonido al mover o cargar un caso a "Firmo" o
+  "Pendiente", y al alcanzar el Logro de Objetivos del mes (14 firmas).
+- Unificación del sistema de notificaciones: los toasts y la tarjeta de celebración
+  se apilan en una sola columna inferior derecha para evitar superposiciones.
+- Animación de deslizamiento horizontal para todas las notificaciones: entrada de
+  derecha a izquierda y salida de izquierda a derecha.
+- Sonido sutil de deslizamiento (ramp de frecuencia corta) al aparecer notificaciones.
+- Los sonidos de acción ahora también se aplican al cargar/editar/eliminar
+  reportes, comentarios y etiquetas, y a las eliminaciones de Configuración
+  (casos por mes, notas, eventos, backups y todos los datos).
+- Bloqueo de scroll de fondo corregido en overlays de pantalla completa
+  (Configuración, Ayuda/Cómo usar, Búsqueda Global, Búsqueda de Notas y Centro
+  de Notificaciones): ahora bloquea html + body con un contador que soporta
+  varios overlays abiertos a la vez.
+
+### Funciones nuevas
+
+- Importación CSV robusta con reparación de columnas.
+  - Nuevo parser compartido (`src/utils/csvParse.js`) que respeta comillas, comillas
+    escapadas (`""`) y saltos de línea dentro de campos, y normaliza finales de línea
+    (CRLF/CR/LF) y BOM.
+  - Si una fila trae más celdas que columnas (por ejemplo, textos con comas "peladas"
+    sin comillas, típico de CSVs re-editados en Excel o exportados por otros sistemas),
+    el excedente se fusiona en la última columna conservando los datos en lugar de
+    desplazar las columnas.
+  - El mismo parser se usa en la Vista previa de importación, en el Asistente de
+    importación (CSV) y en la importación directa desde la copia de seguridad.
+  - Se eliminó el importador CSV obsoleto de `ExportarExcel` que cortaba los campos con
+    `split(",")` y no soportaba comillas.
+- Vista previa de importación con paginación y scroll persistente.
+  - La tabla de la vista previa de casos ahora muestra 50 casos por página con
+    controles Anterior / Siguiente para revisar archivos con muchos casos.
+  - La vista previa de importación de Útiles (configuración) muestra los valores de
+    forma legible: arreglos y objetos se resumen con conteos y fragmentos JSON en vez
+    de mostrar "[object Object]".
+  - En ambas vistas previas las barras de desplazamiento horizontal y vertical son
+    estables y siempre visibles cuando hace falta (gutter reservado con
+    `scrollbar-gutter: stable`), incluso con tablas anchas.
+- Documentación en Ayuda y Guías más accesible.
+  - La vista de documentos ahora usa pestañas accesibles (tablist/tab/tabpanel) con
+    estado seleccionado, navegación por flechas y roving tabindex.
+  - El README se muestra por defecto en lugar de un estado vacío.
+  - Se eliminó el documento LICENSE.md (Licencia MIT) de la documentación de usuario
+    y el mensaje "Selecciona un documento para ver su contenido".
+  - El contenido tiene scroll vertical/horizontal estable y reserva de gutter.
+
+### Funciones nuevas
+
+- Sistema de easter eggs visuales basado en el uso real de la app.
+  - Detecta patrones de comportamiento del operador (cambios de filtro, movimientos de
+    casos en el tablero, análisis con drill-down, edición de casos, navegación entre
+    vistas, sesión larga o inactividad) y muestra mensajes breves con iconos.
+  - Son 20 easter eggs distintos con niveles sutil / normal / notable; cada uno se
+    dispara una sola vez por sesión y dura unos 4 segundos, sin bloquear el trabajo.
+  - Se pueden activar o desactivar desde Configuración → Apariencia → "Efectos visuales
+    y easter eggs" (guardado en `app_ui_settings`). Requieren el flag de build
+    `REACT_APP_EASTER_EGGS=true`.
+
+### Funciones nuevas
+
+- Búsqueda por etiquetas (`#`) y comentarios (`@`).
+  - El motor de búsqueda indexa las etiquetas de casos, notas y eventos y la primera
+    palabra de los comentarios de los casos.
+  - Para buscar por etiqueta escribí `#etiqueta` (por ejemplo `#amable` o `#desconfiado`):
+    se muestran solo los casos, notas y eventos con esa etiqueta.
+  - Para buscar por comentario escribí `@texto` (por ejemplo `@Desconfiada con la
+    virtualidad`): se muestran los casos cuyo comentario empieza con ese texto.
+  - La barra de búsqueda del header y la Búsqueda Global (Ctrl+K) ahora comparten el
+    mismo motor y la misma lógica, tanto para texto libre como para `#` y `@`.
+  - Las etiquetas también se ven como pills en las tarjetas, modales, listas,
+    calendario y en los resultados de búsqueda, con el prefijo `#`.
+
+- Etiquetas en el calendario.
+  - Los eventos del calendario ahora admiten etiquetas (`#`), se muestran como pills en la
+    lista de eventos y son buscables desde el buscador.
+
+- Estadísticas sin fines de semana.
+  - La serie "Evolución últimos 30 días" ignora sábados y domingos (días hábiles).
+  - El gráfico agrega separadores por semana (S1, S2, …) para identificar a qué semana
+    pertenece cada pico; el tooltip indica el número de semana.
+
+### Correcciones
+
+- Fechas de casos importados por CSV ya no caen en 2001.
+  - Al importar un CSV, la columna "Fecha" podía llegar en formato `DD/MM/YYYY` o `DD/MM`
+    (formato argentino). JavaScript interpreta esas cadenas en formato estadounidense
+    (`MM/DD`), por lo que "15/07/2026" se volvía inválida y "07/08" se convertía en
+    julio de 2001.
+  - Ahora el importador normaliza las fechas a ISO (`YYYY-MM-DD`): "15/07/2026" queda como
+    `2026-07-15` y "07/08" como `08/07` del año en curso. Lo mismo aplica a `fechaFirma`.
+  - Los filtros y las estadísticas (mes, día, evolución de los últimos 30 días, casos
+    vencidos, tiempo promedio a firma) también corrigen fechas viejas ya guardadas en
+    formato `DD/MM/YYYY` o `DD/MM`: las leen correctamente en vez de tratarlas como 2001.
+  - La normalización cubre las tres vías de importación (Importar CSV de la vista de
+    importación, backups y restauración de casos).
+
+### Correcciones de interfaz y usabilidad
+
+- Tooltips de los gráficos en modo oscuro (Analítica).
+  - Los gráficos "Casos por provincia" y "Casos por estudio" mostraban el tooltip con
+    el texto en color negro (ilegible en tema oscuro) y repetían el nombre del grupo dos
+    veces. Ahora el tooltip usa los colores del tema y muestra el dato una sola vez.
+- Actividad reciente limitada.
+  - La lista "Actividad reciente" mostraba todos los movimientos; ahora muestra los
+    últimos 5 con un botón "Ver todo" para desplegar el resto.
+- Tarjetas de Performance y Tiempo (Rendimiento).
+  - Muestran el valor correcto (con la unidad, por ejemplo "días") y una descripción de
+    la estadística oculta detrás de un botón de información dentro de cada tarjeta.
+  - "Tiempo promedio a firma" ahora usa la fecha de firma real (o el último reporte) en
+    lugar de la fecha de hoy, y "Tiempo sin actividad" normaliza las fechas `DD/MM`.
+- Título duplicado en Logro de Objetivos.
+  - Se eliminó el título repetido que se veía en el widget del dashboard.
+- Filtro de tarjetas consistente en el Dashboard.
+  - Todas las tarjetas de métricas de todas las pestañas (Resumen, Rendimiento,
+    Geografía y Estudios) aplican el mismo filtro/drill-down que las tarjetas de
+    Analítica, y las pestañas mantienen un orden consistente (tarjetas primero).
+- Tarjeta "incluido por reporte" en el Tablero.
+  - El borde punteado ya no "popa" al pasar el mouse: el hover es más sutil y coherente
+    con el tema.
+- Bordes de color del modal de caso en tema claro.
+  - El modal de detalle muestra correctamente el borde de color del estado (con sombra
+    del tema) también en tema claro.
+- Headers de modales rediseñados.
+  - "Nuevo caso", "Editar caso" y "Cargar reporte" tienen un header acorde al tema (sin
+    fondo de color fijo), título más grande y la pill del estado bien visible.
+- Editar/eliminar reportes desde "Cargar reporte".
+  - El modal de reporte rápido permite editar o eliminar los reportes existentes además
+    de cargar uno nuevo.
+- Selector de día multi-selección.
+  - El filtro "Día" permite elegir varios días a la vez y solo muestra los días que
+    tienen casos en el mes seleccionado (los vacíos no se muestran). Tiene el mismo alto
+    que el filtro de mes, sin barra de desplazamiento, y un botón "Todos" para limpiar la
+    selección.
+  - Al seleccionar un día, los demás días con casos siguen visibles para poder combinar
+    varios (ya no desaparecen las demás opciones).
+
+### Mejoras de Analítica y Dashboard
+
+- Dashboard reorganizado.
+  - La pestaña Analítica se enfoca solo en gráficos y tarjetas: KPIs, insights,
+    distribución por estado y categoría, evolución de 30 días, provincias, estudios,
+    tipo de ingreso, el funnel de conversión y la actividad de los últimos 7 días.
+  - El funnel de conversión y la actividad semanal son exclusivos de Analítica.
+  - Las alertas, la actividad reciente y los últimos casos se muestran en la pestaña
+    Resumen.
+- Nuevos gráficos en Analítica.
+  - "Distribución por categoría" (activos, firmados, perdidos y sin reporte).
+  - "Casos por tipo de ingreso".
+  - "Evolución semanal": casos, firmas y tasa de conversión agregados por semana de los
+    últimos 30 días hábiles.
+  - "Casos por aseguradora" y "Casos por localidad": barras apiladas con el desglose por
+    categoría del pipeline (firmados, en contacto, pendientes y perdidos).
+  - "Conversión por estudio": compara la tasa de conversión de cada estudio jurídico con
+    colores según el nivel (verde, ámbar o rojo).
+- Gráficos con descripción y mejor legibilidad.
+  - Todos los gráficos de Analítica tienen un botón de información que muestra una breve
+    descripción de la estadística, con el mismo patrón que las tarjetas de métricas.
+  - Los gráficos se ven mejor en tema claro y oscuro: colores, tooltips y fondos de hover
+    adaptados al tema.
+- Documentos sin asteriscos de negrita.
+  - README, CHANGELOG y LICENCIA dejan de usar asteriscos para remarcar texto: al
+    mostrarse en texto plano dentro de la app, los asteriscos se veían como caracteres
+    sueltos.
+
+## [1.1.0] - 2026-08-05
+
+### Funciones nuevas
+
+- Condicionales de Estudios Jurídicos.
+  - Nueva sección en Útiles que registra qué estudios no toman todas las aseguradoras
+    o las toman con condiciones específicas de ingreso y lesión.
+  - Cada condición se asocia a un estudio y una aseguradora, con tipo de ingreso, lesión
+    y observación opcionales, y se clasifica como "No toma" o "Con condiciones".
+  - Búsqueda por estudio, aseguradora, lesión u observación, y filtro por tipo de condición.
+
+- Estudios Jurídicos rediseñado.
+  - Se agregó el campo Dirección con un desplegable: cada estudio puede tener
+    varias direcciones (una por sucursal/ciudad) y el operador puede visualizarlas todas,
+    agregar nuevas, editarlas o eliminarlas.
+  - Carga Prolegal y Entrevistador se eliminaron de "Estudios Jurídicos": esos campos
+    ahora son exclusivos de la vista Prolegal.
+
+- Vista Prolegal simplificada.
+  - La vista Prolegal muestra una lista con tres columnas: Estudio Jurídico,
+    Carga Prolegal y Entrevistador, con opción de agregar y eliminar estudios.
+  - Se quitaron las tarjetas, sucursales, localidades y direcciones de esta vista.
+
+- Etiquetas legibles.
+  - Las etiquetas del modal de edición de caso se muestran como texto plano (ya no como
+    pills), para una mejor visualización.
+
+- Configuración Avanzada.
+  - Nuevo grupo "Avanzado" en Configuración con: Dashboard, Estados de Caso,
+    Tipos de Ingreso e Importación.
+  - Estados de Caso configurables con nombre, color y peso. El peso se usa para
+    corregir las estadísticas: un estado con peso 0 no suma en los totales del dashboard.
+  - Tipos de Ingreso editables: se agregan, renombran o eliminan las categorías
+    disponibles al cargar un caso.
+
+- Casos en el mes del último reporte.
+  - Un caso aparece en un mes si se creó en ese mes o si su último reporte fue en ese mes.
+  - Los meses disponibles consideran también los reportes.
+  - En el tablero (Kanban) y en Reportes, los casos que aparecen por su último reporte se
+    marcan con un borde punteado y la etiqueta "por reporte".
+
+### Correcciones
+
+- Estadísticas y gráficos del Dashboard corregidos.
+  - Las métricas del tablero analítico ahora respetan los estados y categorías configurados
+    (colores y clasificaciones personalizadas) y usan el peso de cada estado en los
+    totales ponderados.
+  - El funnel de conversión ya no usa nombres de estado fijos; deriva las etapas de las
+    categorías configuradas.
+  - La distinción entre meses con actividad se conserva al pasar por los filtros globales.
+
+- Evolución últimos 30 días corregida.
+  - El gráfico ahora lee las firmas y las cuenta el día en que se cargó el reporte de la
+    firma (último reporte del caso). Si el caso no tiene reporte, usa la fecha de firma.
+  - Antes solo usaba `fechaFirma`, que suele estar vacía cuando la firma se registra cargando
+    un reporte, por lo que la línea de firmas salía en cero y el gráfico era incorrecto.
+
+### Exportación / Importación
+
+- Los backups y la exportación/importación de configuración incluyen automáticamente las
+  nuevas condicionales, los estados con peso y los tipos de ingreso.
+
+## [1.0.4] - 2026-08-03
+
+### Correcciones
+
+- Filtros de mes y día unificados entre el Dashboard y las demás vistas.
+  - El Dashboard (Analítica) usaba su propio filtro de mes/día, con propiedades y
+    comportamiento distintos al resto de la app (Kanban, Tabla y Reportes).
+  - Ahora el Dashboard usa el mismo filtro global de mes y día que las demás vistas:
+    mismas opciones ("Todos los meses" o un mes específico), mismo selector de día,
+    mismas reglas de filtrado y mismo estado compartido. Al cambiar el mes o el día en
+    el Dashboard, se refleja en las demás vistas (y viceversa), y el total de casos
+    coincide en todas ellas.
+
+## [1.0.3] - 2026-08-03
+
+### Correcciones
+
+- Versión de caché del service worker (PWA) actualizada.
+  - La caché del service worker quedaba fija entre versiones, por lo que la app instalada
+    como PWA podía seguir sirviendo archivos viejos (por ejemplo, documentación
+    desactualizada) aunque se hubiera publicado una versión nueva.
+  - Al cambiar el nombre de la caché, la PWA instalada detecta la actualización, precarga
+    los archivos nuevos y elimina las cachés antiguas al activarse.
+
+## [1.0.2] - 2026-08-03
+
+### Correcciones
+
+- La vista de Documentación siempre muestra los archivos de `src/docs`.
+  - La documentación (README.md, CHANGELOG.md y LICENSE.md) se integra a la aplicación
+    directamente desde `src/docs` al compilar, en lugar de copias duplicadas que podían
+    quedar desactualizadas.
+  - Un script (`scripts/build-docs.js`) genera los contenidos en cada `npm start` y
+    `npm run build`, de modo que la interfaz refleja siempre la última versión de los
+    documentos. Se eliminó la dependencia de la red (fetch) para mostrarlos.
+
+## [1.0.1] - 2026-08-03
+
+### Correcciones
+
+- Corrección del sistema de backups
+  - La restauración de un backup completo ya no se pierde al recargar la app: antes, el
+    estado de la aplicación en memoria sobrescribía los datos recién restaurados (pasaba
+    tanto en la restauración manual desde archivo como en el historial de backups
+    automáticos). Ahora la restauración es consistente y conserva los datos del respaldo.
+  - Al restaurar un backup se eliminan correctamente las claves de configuración viejas
+    que no forman parte del respaldo, sin dejar restos de versiones previas.
+  - Importar la configuración desde `configuracion_derivaciones_*.json` ya no rompe los
+    campos de configuración: los valores faltantes se completan con los valores por defecto.
+  - Se agregaron tests de regresión para la exportación/importación de backups y el merge
+    de configuración.
+
+## [1.0.0] - 2026-08-03
+
+### Release principal
+
+Primera versión estable de la nueva base. Reúne todas las funciones de la aplicación.
+
+### Gestión de casos
+
+- Crear, editar, eliminar y duplicar casos con validación de datos obligatorios.
+- Deshacer la última acción (crear, editar, eliminar, cambiar estado, cargar reporte).
+- Búsqueda en tiempo real por nombre, teléfono, localidad y aseguradora.
+- Filtros por mes, día, estado y categorías (activos, pendientes, hoy, firmados, perdidos).
+- Estados de caso configurables con colores personalizados por estado.
+- Ver caso completo con historial de reportes, comentarios, notas y agenda vinculadas.
+
+### Vista Kanban
+
+- Tablero con columnas por estado y arrastre de tarjetas entre estados.
+- Pipeline visual de conversión y tarjetas con datos clave del caso.
+
+### Vista Tabla
+
+- Tabla con columnas personalizables, ordenamiento y paginación configurable.
+- Selección múltiple y exportación de casos seleccionados en PDF.
+
+### Reportes
+
+- Carga de reportes rápida y plantillas de reportes configurables.
+- Historial completo de reportes por caso con exportación a PDF.
+- Logro de objetivos: seguimiento de 14 firmas por mes.
+
+### Estadísticas y Dashboard
+
+- KPIs (total, activos, firmados, sin reporte, no viables) con tarjetas configurables.
+- Funnel de conversión, gráfico de actividad semanal y distribución por estado.
+- Análisis por geografía (provincias), estudios jurídicos y estados.
+- Mapa de casos por localidad, tareas del día y últimos casos agregados.
+- Widgets personalizables (actividad, eventos, sin reporte, notas, resumen) e insights automáticos.
+
+### Notas
+
+- Bloc de Notas con editor de texto enriquecido.
+- Historial de versiones por nota y búsqueda en notas.
+- Notas vinculadas a casos con navegación directa.
+
+### Calendario
+
+- Calendario de citas y eventos con creación desde el caso o desde una nota.
+- Vistas y filtros por fecha, eventos vinculados a casos.
+
+### Útiles de trabajo
+
+- Speechs: guiones predefinidos para llamadas con copia al portapapeles.
+- Objeciones: respuestas para objeciones comunes.
+- Conversaciones Sugeridas: plantillas por categoría con variables ({OPERADOR}, {NOMBRE}, {HORARIO}).
+- Aseguradoras: gestión de ART y Tránsito.
+- Lesiones: categorización por tipo (Accidente Laboral, Enfermedad Profesional, No Viable).
+- Pasos a Seguir: protocolo de trabajo editable.
+- Tips para llamados y Links útiles de referencia.
+- Estudios Jurídicos: mapeo por localidad con filtros y observaciones de tránsito.
+
+### Importación y exportación
+
+- Importador inteligente de CSV con mapeo de columnas, detección de duplicados y vista previa.
+- Exportar/Importar configuración y útiles en un solo archivo JSON.
+- Exportar notas y calendario en JSON.
+- Exportar casos en PDF (individuales o seleccionados).
+
+### Sistema de respaldo
+
+- Backup completo en JSON con verificación de integridad (checksum) e importación
+  atómica con rollback ante errores.
+- Backup automático local con historial rotativo (diario/semanal) y avisos si hace
+  mucho que no se respalda.
+- Restauración desde archivo o desde el historial de backups automáticos.
+
+### Personalización y apariencia
+
+- Temas oscuro, claro y personalizado con colores base (primario, secundario, terciario)
+  que generan toda la paleta.
+- Colores por estado de caso personalizables.
+- Tamaño de fuente (pequeño, mediano, grande), animaciones y microinteracciones configurables.
+- Configuración completa de la app (perfil de operador, formato de fecha y teléfono,
+  casos por página, columnas visibles, búsqueda, importación).
+
+### Notificaciones
+
+- Centro de notificaciones persistente con historial y filtros.
+- Canales in-app, sonido y escritorio con reglas de prioridad y modo no molestar.
+- Agrupación de eventos para evitar spam y campana con contador de no leídas.
+
+### Ayuda y onboarding
+
+- Tour de bienvenida y guías interactivas de uso.
+- Panel de ayuda con documentación integrada (guía, atajos de teclado, ejemplos, feedback).
+- Formulario de feedback con datos de versión.
+
+### Atajos de teclado
+
+- Nuevo caso, cargar reporte, buscar, duplicar, exportar, cambiar de vista, búsqueda global (Ctrl+K) y más.
+
+### Plataforma
+
+- PWA: instalable en PC y celular, funciona sin conexión y se actualiza sola
+  con aviso de nueva versión.
+- Shortcuts de acción rápida (Panel principal, Nuevo caso).
+- Almacenamiento 100 % local (IndexedDB + localStorage), sin servicios externos.
+- Sistema de monitoreo de salud del almacenamiento con avisos de cuota y estado en línea/offline.
