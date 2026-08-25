@@ -21,3 +21,7 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# Releases locales no versionados
+Release 1.0.4/
+Release 1.3/
