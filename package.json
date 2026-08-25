@@ -1,0 +1,63 @@
+{
+  "name": "appseguimiento",
+  "version": "1.3.0",
+  "private": true,
+  "description": "Sistema de gestión de casos ART - AppSeguimiento",
+  "author": "Yoel Callcenter",
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@tiptap/extension-link": "^3.29.1",
+    "@tiptap/extension-placeholder": "^3.29.1",
+    "@tiptap/extension-underline": "^3.29.1",
+    "@tiptap/pm": "^3.29.1",
+    "@tiptap/react": "^3.29.1",
+    "@tiptap/starter-kit": "^3.29.1",
+    "@tiptap/suggestion": "^3.29.1",
+    "dexie": "^4.4.4",
+    "dompurify": "^3.0.5",
+    "es-abstract": "^1.24.2",
+    "fuse.js": "^7.5.0",
+    "lucide-react": "^0.263.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "recharts": "^3.10.1",
+    "tailwindcss": "^3.3.0",
+    "zustand": "^5.0.14"
+  },
+  "scripts": {
+    "prestart": "node scripts/build-docs.js",
+    "start": "react-scripts start",
+    "prebuild": "node scripts/build-docs.js",
+    "build": "react-scripts build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "autoprefixer": "^10.5.4",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.0.1",
+    "postcss": "^8.5.25",
+    "vitest": "^4.1.10"
+  }
+}
