@@ -84,6 +84,16 @@ export function GoalsSection({ goals, updateGoals, daily, monthly, pace, effecti
             onToggle={(v) => setDaily("reports", { enabled: v })}
             onTarget={(v) => setDaily("reports", { target: Number(v) || 0 })}
           />
+          <GoalRow
+            label="Firmas por día"
+            enabled={daily.firmas.enabled}
+            target={daily.firmas.target}
+            current={daily.firmas.current}
+            percent={daily.firmas.percent}
+            met={daily.firmas.met}
+            onToggle={(v) => setDaily("firmas", { enabled: v })}
+            onTarget={(v) => setDaily("firmas", { target: Number(v) || 0 })}
+          />
         </div>
       </div>
 

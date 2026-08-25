@@ -240,6 +240,14 @@ export function countReportsOnDay(cases, isoDate) {
   ).length;
 }
 
+export function countSignedOnDay(cases, isoDate) {
+  return cases.filter((c) => {
+    if (c.estado !== "Firmo") return false;
+    const d = normalizeDate(c.fecha);
+    return d === isoDate;
+  }).length;
+}
+
 export function countReportsInMonth(cases, year, month) {
   return cases.reduce((acc, c) => {
     const count = (c.reporteHistory || []).filter((r) => {
@@ -270,12 +278,15 @@ export function getDailyGoalProgress(goals = {}, cases = [], todayISO) {
   const daily = goals.daily || {};
   const casesGoal = daily.cases || {};
   const reportsGoal = daily.reports || {};
+  const firmasGoal = daily.firmas || {};
 
   const casesCurrent = casesGoal.enabled ? countCasesOnDay(cases, today) : 0;
   const reportsCurrent = reportsGoal.enabled ? countReportsOnDay(cases, today) : 0;
+  const firmasCurrent = firmasGoal.enabled ? countSignedOnDay(cases, today) : 0;
 
   const casesTarget = casesGoal.enabled ? Number(casesGoal.target) || 0 : 0;
   const reportsTarget = reportsGoal.enabled ? Number(reportsGoal.target) || 0 : 0;
+  const firmasTarget = firmasGoal.enabled ? Number(firmasGoal.target) || 0 : 0;
 
   return {
     date: today,
@@ -292,6 +303,13 @@ export function getDailyGoalProgress(goals = {}, cases = [], todayISO) {
       target: reportsTarget,
       percent: reportsTarget > 0 ? Math.min(100, Math.round((reportsCurrent / reportsTarget) * 100)) : 0,
       met: reportsTarget > 0 && reportsCurrent >= reportsTarget,
+    },
+    firmas: {
+      enabled: Boolean(firmasGoal.enabled),
+      current: firmasCurrent,
+      target: firmasTarget,
+      percent: firmasTarget > 0 ? Math.min(100, Math.round((firmasCurrent / firmasTarget) * 100)) : 0,
+      met: firmasTarget > 0 && firmasCurrent >= firmasTarget,
     },
   };
 }

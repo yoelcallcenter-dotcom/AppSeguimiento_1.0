@@ -4,18 +4,50 @@
  * Lógica pura y testeable. Usa día, hora y nombre corto del operador.
  */
 
-export const GREETINGS = [
-  { id: "g1", text: (n) => `¡Hola{name}! ¡Feliz {day}! Que tengas un excelente comienzo de jornada.` },
-  { id: "g2", text: (n) => `Buen día{name}, {day} es un gran día para alcanzar tus metas.` },
-  { id: "g3", text: (n) => `¡Arrancamos{name}! Hoy es {day} y vas a lograr grandes cosas.` },
-  { id: "g4", text: (n) => `Hola{name}. {day}: un nuevo desafío te espera. ¡Vamos con todo!` },
-  { id: "g5", text: (n) => `Que tengas un día productivo{name}. Hoy es {day} y todo es posible.` },
-  { id: "g6", text: (n) => `Bienvenido{name}. {day} es perfecto para superar tus metas.` },
-  { id: "g7", text: (n) => `¡Hola{name}! Es {day}, un buen momento para enfocarte en tus objetivos.` },
-  { id: "g8", text: (n) => `Día de logros{name}: {day} es tuyo. ¡Adelante!` },
-  { id: "g9", text: (n) => `Buenos momentos se construyen con constancia{name}. Hoy es {day}.` },
-  { id: "g10", text: (n) => `¡{day} de éxito{name}! Cada caso cuenta y vos lo sabés.` },
+// ---- MAÑANA (6–12hs) ----
+export const MORNING_GREETINGS = [
+  { id: "gm1", text: (n) => `Buenos días{name}. Arrancá con buena energía que hoy hay cosas por hacer.` },
+  { id: "gm2", text: (n) => `¡Hola{name}! ¿Lista la agenda? A comenzar el día.` },
+  { id: "gm3", text: (n) => `Buen día{name}. El café listo y el primer caso también. ¡Vamos!` },
+  { id: "gm4", text: (n) => `¡Arrancamos{name}! Hoy es {day} y hay mucho por delante.` },
+  { id: "gm5", text: (n) => `Hola{name}, buen {day}. Pongámosle pilas desde temprano.` },
+  { id: "gm6", text: (n) => `Buenos días{name}. Un {day} nuevo para sumar resultados.` },
+  { id: "gm7", text: (n) => `¡{day} por delante{name}! Empecemos con todo.` },
+  { id: "gm8", text: (n) => `Hola{name}, es {day}. A ponerse las pilas y adelante.` },
+  { id: "gm9", text: (n) => `Buen día{name}. Hoy toca dar lo mejor en cada llamado.` },
+  { id: "gm10", text: (n) => `¡Buenos días{name}! Empezá el día con foco que después todo fluye.` },
 ];
+
+// ---- TARDE (12–19hs) ----
+export const AFTERNOON_GREETINGS = [
+  { id: "gt1", text: (n) => `Hola{name}, ya estamos a mitad del día. ¿Cómo viene la cosa?` },
+  { id: "gt2", text: (n) => `Buenas{name}. ¿Cómo va la tarde? Aprovechar lo que queda.` },
+  { id: "gt3", text: (n) => `Hola{name}, ya estamos en la recta final del día. ¡Dale que se puede!` },
+  { id: "gt4", text: (n) => `Buenas tardes{name}. ¿Cómo van los números de hoy? ¡Seguí así!` },
+  { id: "gt5", text: (n) => `Hola{name}, tarde de {day}. Metiéndole con todo, que ya falta poco.` },
+  { id: "gt6", text: (n) => `Buenas{name}. El día avanza, pero vos también. ¡Dale!` },
+  { id: "gt7", text: (n) => `Hola{name}, ya pasamos el mediodía. ¿Cómo viene la jornada?` },
+  { id: "gt8", text: (n) => `Tarde de {day}{name}. Seguí que estás en buena racha.` },
+  { id: "gt9", text: (n) => `Buenas{name}. Aprovechá la segunda mitad del día para cerrar fuerte.` },
+  { id: "gt10", text: (n) => `Hola{name}, {day} a full. ¿Cómo viene todo? ¡No pares!` },
+];
+
+// ---- NOCHE (19–6hs) ----
+export const EVENING_GREETINGS = [
+  { id: "gn1", text: (n) => `Buenas noches{name}. ¿Cómo te fue hoy? Espero que bien.` },
+  { id: "gn2", text: (n) => `Hola{name}, ya es de noche. ¿Qué tal el {day}?` },
+  { id: "gn3", text: (n) => `Buenas{name}. ¿Terminaste la jornada? ¿Cómo te fue?` },
+  { id: "gn4", text: (n) => `Hola{name}, {day} nocturno. Si todavía estás, ¡buen laburo!` },
+  { id: "gn5", text: (n) => `Buenas noches{name}. ¿Cómo cerraste el día? Espero que bien.` },
+  { id: "gn6", text: (n) => `Hola{name}, ya es tarde. ¿Cómo te fue hoy? ¡Descansá!` },
+  { id: "gn7", text: (n) => `Buenas{name}. Si estás trabajando, que sea el último empujón del día.` },
+  { id: "gn8", text: (n) => `Hola{name}, {day} de noche. ¿Cómo te fue? Contame.` },
+  { id: "gn9", text: (n) => `Buenas noches{name}. Espero que hayas cerrado bien el día.` },
+  { id: "gn10", text: (n) => `Hola{name}, ya es hora de descansar. ¿Cómo te fue hoy?` },
+];
+
+// Compatibilidad: exportar como GREETINGS (array combinado para retrocompatibilidad)
+export const GREETINGS = [...MORNING_GREETINGS, ...AFTERNOON_GREETINGS, ...EVENING_GREETINGS];
 
 export const ENCOURAGEMENTS = [
   { id: "e1", text: (n) => `Falta poco para el cierre{name}. ¡Un esfuerzo más y llegás a tu meta!` },
@@ -67,22 +99,31 @@ function fill(template, ctx) {
 }
 
 /**
+ * Selecciona el saludo correcto según la hora del día.
+ * Mañana (6-12), Tarde (12-19), Noche (19-6).
+ */
+function getTimePeriodGreetings(hour) {
+  if (hour >= 6 && hour < 12) return MORNING_GREETINGS;
+  if (hour >= 12 && hour < 19) return AFTERNOON_GREETINGS;
+  return EVENING_GREETINGS;
+}
+
+/**
  * Saludo del día. Elegido por fecha (estable todo el día) y hora (mañana/tarde/noche).
  * El índice se deriva del hash de la fecha para que sea aleatorio pero estable.
  */
-export function getDailyGreeting({ profile = {}, date = new Date(), greetings = GREETINGS } = {}) {
-  const list = greetings.length ? greetings : GREETINGS;
+export function getDailyGreeting({ profile = {}, date = new Date(), greetings } = {}) {
   const ctx = buildContext({ profile, date });
+  const hour = date.getHours();
+  const list = greetings || getTimePeriodGreetings(hour);
   const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   let hash = 0;
   for (let i = 0; i < dayKey.length; i++) {
     hash = (hash * 31 + dayKey.charCodeAt(i)) >>> 0;
   }
-  const hour = date.getHours();
-  const periodIndex = hour < 12 ? 0 : hour < 19 ? 1 : 2;
-  const index = (hash + periodIndex) % list.length;
+  const index = hash % list.length;
   const msg = fill(list[index].text(""), ctx);
-  return { id: list[index].id, text: msg, index, periodIndex };
+  return { id: list[index].id, text: msg, index, periodIndex: hour < 12 ? 0 : hour < 19 ? 1 : 2 };
 }
 
 /**

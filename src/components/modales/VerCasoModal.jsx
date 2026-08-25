@@ -3,6 +3,7 @@ import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, Che
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
+import { OrigenBadge } from "../common/OrigenBadge";
 import { ComentariosUI } from "./ComentariosUI";
 import { sanitizeString } from "../../utils/sanitize";
 import { formatDateWithConfig, formatPhoneWithConfig } from "../../utils/configFormatters";
@@ -289,7 +290,8 @@ export function VerCasoModal({
                   <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--color-accent)" }}>
                     [{sanitizeString(r.fecha)}]
                   </span>
-                  <span>{sanitizeString(r.texto)}</span>
+                  <span className="flex-1">{sanitizeString(r.texto)}</span>
+                  {r.origen && <OrigenBadge origen={r.origen} />}
                 </div>
               ))}
             </div>

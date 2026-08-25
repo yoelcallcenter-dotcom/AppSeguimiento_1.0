@@ -43,7 +43,7 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
     () =>
       buildEncouragementMessage({
         profile,
-        dailyMet: daily.cases.met && daily.reports.met,
+        dailyMet: (daily.cases.enabled ? daily.cases.met : true) && (daily.reports.enabled ? daily.reports.met : true) && (daily.firmas?.enabled ? daily.firmas.met : true),
         now,
       }),
     [profile, daily.cases.met, daily.reports.met, now]
@@ -104,7 +104,7 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
     showToast,
   ]);
 
-  const metaDiariaCumplida = daily.cases.enabled && daily.cases.met && daily.reports.enabled && daily.reports.met;
+  const metaDiariaCumplida = (daily.cases.enabled && daily.cases.met) && (daily.reports.enabled && daily.reports.met) && (!daily.firmas?.enabled || daily.firmas.met);
 
   const sections = [
     { key: "hoy", label: "Mi Jornada", icon: Sun },
@@ -217,8 +217,9 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
           )}
           <span className="flex items-center gap-1.5" style={{ color: "var(--color-text)" }}>
             <Target size={13} color="var(--color-accent)" />
-            Meta diaria: {daily.cases.enabled ? `${daily.cases.current} / ${daily.cases.target}` : "—"} ·{" "}
-            {daily.reports.enabled ? `${daily.reports.current} / ${daily.reports.target}` : "—"}
+            Meta diaria: {daily.cases.enabled ? `${daily.cases.current}/${daily.cases.target}` : "—"} ·{" "}
+            {daily.reports.enabled ? `${daily.reports.current}/${daily.reports.target}` : "—"} ·{" "}
+            {daily.firmas?.enabled ? `${daily.firmas.current}/${daily.firmas.target}` : "—"}
           </span>
           <span className="flex items-center gap-1.5" style={{ color: "var(--color-text)" }}>
             <CalendarDays size={13} color="var(--color-accent)" />

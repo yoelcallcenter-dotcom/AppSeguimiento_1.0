@@ -203,45 +203,74 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
               {TAB_META[tab].empty}
             </div>
           )}
-          {list.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start gap-1 p-2.5 rounded-md transition-colors hover:border-[var(--color-accent)]"
-              style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)" }}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
-                  {itemTitle(tab, item)}
-                </div>
-                <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-                  {itemSubtitle(tab, item)}
-                </div>
-                {(item.note || item.motivo) && (
-                  <div className="text-[11px] mt-0.5 truncate" style={{ color: "var(--color-text-muted)" }}>
-                    {item.note || item.motivo}
+          {list.map((item) => {
+            const tabMeta = TAB_META[tab];
+            const isActive = item.end ? (item.end >= todayISO) : (item.date >= todayISO);
+            return (
+              <div
+                key={item.id}
+                className={`flex items-start gap-1.5 p-2.5 rounded-md transition-all ${isActive ? "ring-1" : "opacity-60"}`}
+                style={{
+                  backgroundColor: isActive ? "var(--color-surface2)" : "var(--color-surface)",
+                  border: isActive ? `1px solid ${tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)'}44` : "1px solid var(--color-border)",
+                  ringColor: isActive ? (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)') : 'transparent',
+                }}
+              >
+                <div
+                  className="w-1 self-stretch rounded-full flex-shrink-0 mt-0.5"
+                  style={{
+                    backgroundColor: isActive
+                      ? (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)')
+                      : 'var(--color-border)',
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                      {itemTitle(tab, item)}
+                    </span>
+                    {isActive && (
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)') + '22',
+                          color: (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)'),
+                        }}
+                      >
+                        {tab === 'vacaciones' ? 'FUERA' : tab === 'feriados' ? 'FERIADO' : tab === 'inasistencias' ? 'AUSENTE' : 'NO LAB.'}
+                      </span>
+                    )}
                   </div>
-                )}
+                  <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                    {itemSubtitle(tab, item)}
+                  </div>
+                  {(item.note || item.motivo) && (
+                    <div className="text-[11px] mt-0.5 truncate" style={{ color: "var(--color-text-muted)" }}>
+                      {item.note || item.motivo}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setEditing({ ...item })}
+                  className="p-1 rounded hover:opacity-70 transition-opacity"
+                  style={{ color: "var(--color-text-muted)" }}
+                  aria-label="Editar registro"
+                  title="Editar registro"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => removeItem(item.id)}
+                  className="p-1 rounded hover:opacity-70 transition-opacity"
+                  style={{ color: "var(--color-danger)" }}
+                  aria-label="Eliminar registro"
+                  title="Eliminar registro"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
-              <button
-                onClick={() => setEditing({ ...item })}
-                className="p-1 rounded hover:opacity-70 transition-opacity"
-                style={{ color: "var(--color-text-muted)" }}
-                aria-label="Editar registro"
-                title="Editar registro"
-              >
-                <Pencil size={13} />
-              </button>
-              <button
-                onClick={() => removeItem(item.id)}
-                className="p-1 rounded hover:opacity-70 transition-opacity"
-                style={{ color: "var(--color-danger)" }}
-                aria-label="Eliminar registro"
-                title="Eliminar registro"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

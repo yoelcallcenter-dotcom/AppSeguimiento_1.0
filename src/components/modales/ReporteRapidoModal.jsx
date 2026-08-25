@@ -18,6 +18,7 @@ import { TextInput } from "../common/TextInput";
 import { TextArea } from "../common/TextArea";
 import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
+import { OrigenBadge, OrigenSelector, ORIGEN_OPTIONS } from "../common/OrigenBadge";
 import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
 import { hoyDDMM } from "../../utils/dateUtils";
@@ -33,9 +34,11 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   const [estado, setEstado] = useState("Cita virtual");
   const [fecha, setFecha] = useState("");
   const [texto, setTexto] = useState("");
+  const [origen, setOrigen] = useState("Operador");
   const [editIndex, setEditIndex] = useState(null);
   const [editFecha, setEditFecha] = useState("");
   const [editTexto, setEditTexto] = useState("");
+  const [editOrigen, setEditOrigen] = useState("Operador");
   const originalLenRef = useRef(0);
 
   // Pre-select case if casoInicial is provided
@@ -79,6 +82,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     setEditIndex(index);
     setEditFecha(r.fecha || "");
     setEditTexto(r.texto || "");
+    setEditOrigen(r.origen || "Operador");
   };
 
   const guardarEdicion = () => {
@@ -90,6 +94,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     entradas[editIndex] = {
       fecha: editFecha.trim() || hoyDDMM(),
       texto: capitalizarSiMayus(sanitizeString(editTexto)),
+      origen: editOrigen || "Operador",
     };
     actualizarHistorial(entradas);
     setEditIndex(null);
@@ -105,16 +110,17 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   };
 
   const parseReportText = (text) => {
+    const ORIGEN_MAP = { "Operador": "Operador", "Primera Atención": "Primera Atención", "Estudio Jurídico": "Estudio Jurídico" };
     const parts = text.split('//').map(s => s.trim()).filter(Boolean);
     if (parts.length > 1) {
       return parts.map(p => {
-        const m = p.match(/^\((\d{2}\/\d{2})\)\s*(.*)/);
-        if (m) return { fecha: m[1], texto: m[2] || p };
-        return { fecha: '', texto: p };
+        const m = p.match(/^\((\d{2}\/\d{2})\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
+        if (m) return { fecha: m[1], texto: m[3] || p, origen: m[2] && ORIGEN_MAP[m[2]] ? ORIGEN_MAP[m[2]] : origen };
+        return { fecha: '', texto: p, origen };
       });
     }
-    const m = text.match(/^\((\d{2}\/\d{2})\)\s*(.*)/);
-    if (m) return [{ fecha: m[1], texto: m[2] || '' }];
+    const m = text.match(/^\((\d{2}\/\d{2})\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
+    if (m) return [{ fecha: m[1], texto: m[3] || '', origen: m[2] && ORIGEN_MAP[m[2]] ? ORIGEN_MAP[m[2]] : origen }];
     return null;
   };
 
@@ -132,13 +138,14 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       const parsed = parseReportText(texto.trim());
       if (parsed) {
         parsed.forEach(p => {
-          entradas = [
-            ...entradas,
-            {
-              fecha: p.fecha || fecha.trim() || hoyDDMM(),
-              texto: capitalizarSiMayus(sanitizeString(p.texto)),
-            },
-          ];
+        entradas = [
+          ...entradas,
+          {
+            fecha: p.fecha || fecha.trim() || hoyDDMM(),
+            texto: capitalizarSiMayus(sanitizeString(p.texto)),
+            origen: origen || "Operador",
+          },
+        ];
         });
       } else {
         entradas = [
@@ -146,6 +153,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           {
             fecha: fecha.trim() || hoyDDMM(),
             texto: capitalizarSiMayus(sanitizeString(texto)),
+            origen: origen || "Operador",
           },
         ];
       }
@@ -186,8 +194,8 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
             id="reporte-rapido-title"
             style={{ color: "var(--color-text)" }}
           >
-            <ClipboardList size={18} color="var(--color-accent)" /> Cargar
-            Reporte
+            <ClipboardList size={18} color="var(--color-accent)" /> NUEVO
+            REPORTE
           </div>
           <button
             onClick={onClose}
@@ -361,6 +369,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                 </Field>
               </div>
 
+              <Field label="Origen del reporte" className="mt-3">
+                <OrigenSelector value={origen} onChange={setOrigen} />
+              </Field>
+
               <Field label="Texto del reporte" className="mt-3">
                 <TextArea
                   rows={3}
@@ -412,6 +424,9 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                     onChange={(e) => setEditTexto(e.target.value)}
                                   />
                                 </div>
+                                <div className="flex gap-1.5">
+                                  <OrigenSelector value={editOrigen} onChange={setEditOrigen} />
+                                </div>
                                 <div className="flex gap-2">
                                   <Btn onClick={guardarEdicion} size="sm" color="var(--color-success)">
                                     Guardar
@@ -436,6 +451,9 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                 <span className="flex-1" style={{ color: "var(--color-text)" }}>
                                   {sanitizeString(r.texto)}
                                 </span>
+                                {r.origen && (
+                                  <OrigenBadge origen={r.origen} />
+                                )}
                                 <div className="flex gap-1 flex-shrink-0">
                                   <button
                                     onClick={() => iniciarEdicion(i)}
@@ -484,7 +502,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
             Cancelar
           </BtnOutline>
           <Btn onClick={guardar} disabled={!seleccionado} icon={Save} size="sm">
-            Cargar reporte
+            NUEVO REPORTE
           </Btn>
         </div>
       </div>

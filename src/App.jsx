@@ -1059,7 +1059,7 @@ function AppContent() {
               variant="accent"
               data-tour="cargar-reporte"
             >
-              Cargar Reporte
+              NUEVO REPORTE
             </Btn>
             <Btn
               onClick={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
@@ -1067,7 +1067,7 @@ function AppContent() {
               size="sm"
               data-tour="nuevo-caso"
             >
-              Nuevo caso
+              NUEVO CASO
             </Btn>
           </div>
 

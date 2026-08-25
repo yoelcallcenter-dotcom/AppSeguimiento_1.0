@@ -20,6 +20,7 @@ import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { TagsManager } from "../common/TagsManager";
+import { OrigenBadge, OrigenSelector } from "../common/OrigenBadge";
 import { sanitizeString } from "../../utils/sanitize";
 import {
   parseFicha,
@@ -53,9 +54,11 @@ export function CasoEditModal({
   const [estudioAuto, setEstudioAuto] = useState(!casoInicial.estudioJuridico);
   const [nuevoReporteTexto, setNuevoReporteTexto] = useState("");
   const [nuevoReporteFecha, setNuevoReporteFecha] = useState("");
+  const [nuevoReporteOrigen, setNuevoReporteOrigen] = useState("Operador");
   const [editandoReporteIndex, setEditandoReporteIndex] = useState(null);
   const [editandoReporteTexto, setEditandoReporteTexto] = useState("");
   const [editandoReporteFecha, setEditandoReporteFecha] = useState("");
+  const [editandoReporteOrigen, setEditandoReporteOrigen] = useState("Operador");
   const [confirmEliminar, setConfirmEliminar] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [confirmEliminarReporte, setConfirmEliminarReporte] = useState(null);
@@ -98,11 +101,13 @@ export function CasoEditModal({
       {
         fecha: nuevoReporteFecha.trim() || hoyDDMM(),
         texto: capitalizarSiMayus(sanitizeString(nuevoReporteTexto)),
+        origen: nuevoReporteOrigen || "Operador",
       },
     ];
     setCaso((c) => ({ ...c, reporteHistory: entradas }));
     setNuevoReporteTexto("");
     setNuevoReporteFecha("");
+    setNuevoReporteOrigen("Operador");
     soundSystem.playAction("save");
     showToast("Reporte agregado correctamente", "success");
   };
@@ -113,6 +118,7 @@ export function CasoEditModal({
     setEditandoReporteIndex(index);
     setEditandoReporteTexto(reporte.texto);
     setEditandoReporteFecha(reporte.fecha || "");
+    setEditandoReporteOrigen(reporte.origen || "Operador");
   };
 
   const guardarEdicionReporte = () => {
@@ -124,6 +130,7 @@ export function CasoEditModal({
     entradas[editandoReporteIndex] = {
       fecha: editandoReporteFecha.trim() || hoyDDMM(),
       texto: capitalizarSiMayus(sanitizeString(editandoReporteTexto)),
+      origen: editandoReporteOrigen || "Operador",
     };
     setCaso((c) => ({ ...c, reporteHistory: entradas }));
     cancelarEdicionReporte();
@@ -135,6 +142,7 @@ export function CasoEditModal({
     setEditandoReporteIndex(null);
     setEditandoReporteTexto("");
     setEditandoReporteFecha("");
+    setEditandoReporteOrigen("Operador");
   };
 
   const eliminarReporte = (index) => {
@@ -508,6 +516,7 @@ COMENTARIOS:`}
                               }
                             />
                           </div>
+                          <OrigenSelector value={editandoReporteOrigen} onChange={setEditandoReporteOrigen} />
                           <div className="flex gap-2">
                             <Btn
                               onClick={guardarEdicionReporte}
@@ -534,6 +543,7 @@ COMENTARIOS:`}
                             <span style={{ color: "var(--color-text)" }}>
                               {sanitizeString(r.texto)}
                             </span>
+                            {r.origen && <OrigenBadge origen={r.origen} />}
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
                             <button
@@ -560,28 +570,31 @@ COMENTARIOS:`}
                 })}
             </div>
 
-            <div className="flex gap-2">
-              <TextInput
-                placeholder="DD/MM"
-                style={{ width: 100 }}
-                value={nuevoReporteFecha}
-                onChange={(e) => setNuevoReporteFecha(e.target.value)}
-              />
-              <TextInput
-                className="flex-1"
-                placeholder="Agregar novedad..."
-                value={nuevoReporteTexto}
-                onChange={(e) => setNuevoReporteTexto(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    agregarReporte();
-                  }
-                }}
-              />
-              <Btn onClick={agregarReporte} size="sm" icon={Plus}>
-                Agregar
-              </Btn>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <TextInput
+                  placeholder="DD/MM"
+                  style={{ width: 100 }}
+                  value={nuevoReporteFecha}
+                  onChange={(e) => setNuevoReporteFecha(e.target.value)}
+                />
+                <TextInput
+                  className="flex-1"
+                  placeholder="Agregar novedad..."
+                  value={nuevoReporteTexto}
+                  onChange={(e) => setNuevoReporteTexto(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      agregarReporte();
+                    }
+                  }}
+                />
+                <Btn onClick={agregarReporte} size="sm" icon={Plus}>
+                  Agregar
+                </Btn>
+              </div>
+              <OrigenSelector value={nuevoReporteOrigen} onChange={setNuevoReporteOrigen} />
             </div>
           </div>
         </div>

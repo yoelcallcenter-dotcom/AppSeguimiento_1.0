@@ -24,18 +24,18 @@ export function TodaySummary({ profile, availability, goals, cases, dayState, da
           <SummaryTile icon={Clock} label="Jornada" value={`${profile.workSchedule?.start || "—"} — ${profile.workSchedule?.end || "—"}`} />
           <SummaryTile icon={Target} label="Casos" value={daily.cases.enabled ? `${daily.cases.current} / ${daily.cases.target}` : "—"} color={daily.cases.met ? "var(--color-success)" : undefined} />
           <SummaryTile icon={FileText} label="Reportes" value={daily.reports.enabled ? `${daily.reports.current} / ${daily.reports.target}` : "—"} color={daily.reports.met ? "var(--color-success)" : undefined} />
-          <SummaryTile icon={CalendarClock} label="Próximo evento" value={upcomingEvents || "—"} />
+          <SummaryTile icon={Target} label="Firmas" value={daily.firmas?.enabled ? `${daily.firmas.current} / ${daily.firmas.target}` : "—"} color={daily.firmas?.met ? "var(--color-success)" : undefined} />
         </div>
         <div className="mt-3">
           <ProgressBars daily={daily} />
         </div>
-        {daily.cases.enabled && daily.cases.met && daily.reports.enabled && daily.reports.met && (
+        {(daily.cases.enabled && daily.cases.met) && (daily.reports.enabled && daily.reports.met) && (!daily.firmas?.enabled || daily.firmas.met) && (
           <div
             className="mt-3 flex items-center gap-2 text-[11px] font-semibold rounded-md px-3 py-2"
             style={{ backgroundColor: "var(--color-success)11", color: "var(--color-success)", border: "1px solid var(--color-success)44" }}
           >
             <CheckCircle2 size={13} />
-            ¡Objetivo diario cumplido! Completaste tus metas de casos y reportes de hoy.
+            ¡Objetivo diario cumplido! Completaste tus metas del día.
           </div>
         )}
         {effective.effective > 0 && (
@@ -143,6 +143,7 @@ function ProgressBars({ daily }) {
     <div className="space-y-2">
       {daily.cases.enabled && <Bar label="Casos" p={daily.cases} />}
       {daily.reports.enabled && <Bar label="Reportes" p={daily.reports} />}
+      {daily.firmas?.enabled && <Bar label="Firmas" p={daily.firmas} />}
     </div>
   );
 }

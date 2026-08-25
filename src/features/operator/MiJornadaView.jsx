@@ -225,6 +225,7 @@ function DailyGoalsCard({ daily, paceMetrics, showPace, showProjection }) {
   const goals = [
     daily.cases.enabled ? { label: "Casos", ...daily.cases } : null,
     daily.reports.enabled ? { label: "Reportes", ...daily.reports } : null,
+    daily.firmas?.enabled ? { label: "Firmas", ...daily.firmas } : null,
   ].filter(Boolean);
 
   if (goals.length === 0) return null;

@@ -1,6 +1,7 @@
 import React from "react";
 import { Phone, MapPin, Building2, FileText } from "lucide-react";
 import { getEstados } from "../../utils/catalogos";
+import { OrigenBadge } from "../common/OrigenBadge";
 import { IconLabelMemo } from "../common/IconLabel";
 import { sanitizeString } from "../../utils/sanitize";
 import { formatPhoneWithConfig } from "../../utils/configFormatters";
@@ -112,7 +113,7 @@ export const CasoCard = React.memo(
         </div>
         {ultimoReporte && (
           <div
-            className="mt-2 pt-2 text-[11px] leading-snug line-clamp-2"
+            className="mt-2 pt-2 text-[11px] leading-snug line-clamp-2 flex items-start gap-1"
             style={{
               borderTop: "1px dashed var(--color-border)",
               color: "var(--color-text)",
@@ -121,7 +122,10 @@ export const CasoCard = React.memo(
             <span style={{ color: "var(--color-accent)" }}>
               ({sanitizeString(ultimoReporte.fecha)}){" "}
             </span>
-            {sanitizeString(ultimoReporte.texto)}
+            <span className="flex-1">{sanitizeString(ultimoReporte.texto)}</span>
+            {ultimoReporte.origen && (
+              <OrigenBadge origen={ultimoReporte.origen} />
+            )}
           </div>
         )}
       </div>

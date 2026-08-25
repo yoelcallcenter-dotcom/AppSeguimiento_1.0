@@ -31,6 +31,7 @@ export const DEFAULT_GOALS = {
   daily: {
     cases: { enabled: true, target: 5 },
     reports: { enabled: true, target: 5 },
+    firmas: { enabled: false, target: 1 },
   },
   weekly: {
     cases: { enabled: false, target: 25 },

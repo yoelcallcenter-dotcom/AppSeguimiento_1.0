@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { MonthDayFilterBar } from "../common/MonthDayFilterBar";
 import { Paginacion } from "../common/Paginacion";
 import { PipelineBar } from "../kanban/PipelineBar";
+import { OrigenBadge } from "../common/OrigenBadge";
 import { sanitizeString } from "../../utils/sanitize";
 import { formatPhoneWithConfig } from "../../utils/configFormatters";
 import { useStorage } from "../../hooks/useStorage";
@@ -113,7 +114,7 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
                       {c.estado}
                     </span>
                   </div>
-                  <div className="mt-2 pt-2 space-y-1.5 max-h-32 overflow-y-auto" style={{ borderTop: "1px solid var(--color-border)" }}>
+                      <div className="mt-2 pt-2 space-y-1.5 max-h-32 overflow-y-auto" style={{ borderTop: "1px solid var(--color-border)" }}>
                     {!ultimoReporte ? (
                       <div
                         className="text-xs italic"
@@ -123,13 +124,16 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
                       </div>
                     ) : (
                       <div
-                        className="text-xs leading-relaxed"
+                        className="text-xs leading-relaxed flex items-start gap-1.5"
                         style={{ color: "var(--color-text)" }}
                       >
                         <span style={{ color: estadoColor }}>
                           ▸ {sanitizeString(ultimoReporte.fecha)}{" "}
                         </span>
-                        {sanitizeString(ultimoReporte.texto)}
+                        <span className="flex-1">{sanitizeString(ultimoReporte.texto)}</span>
+                        {ultimoReporte.origen && (
+                          <OrigenBadge origen={ultimoReporte.origen} size="md" />
+                        )}
                       </div>
                     )}
                   </div>

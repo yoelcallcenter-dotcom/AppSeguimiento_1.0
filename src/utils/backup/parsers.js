@@ -90,19 +90,24 @@ export function parseCSVLine(line) {
 export function parseReportesString(str) {
   if (!str || typeof str !== "string") return [];
 
+  const ORIGEN_MAP = { "Operador": "Operador", "Primera Atención": "Primera Atención", "Estudio Jurídico": "Estudio Jurídico" };
+
   const items = str.split("//").filter((s) => s.trim());
   return items
     .map((item) => {
-      const match = item.trim().match(/^\(([^)]+)\)\s*(.*)/);
+      const match = item.trim().match(/^\(([^)]+)\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
       if (match) {
+        const origen = match[2] && ORIGEN_MAP[match[2]] ? ORIGEN_MAP[match[2]] : "Operador";
         return {
           fecha: match[1].trim(),
-          texto: match[2].trim(),
+          texto: match[3].trim(),
+          origen,
         };
       }
       return {
         fecha: "",
         texto: item.trim(),
+        origen: "Operador",
       };
     })
     .filter((r) => r.texto);
@@ -325,7 +330,10 @@ export async function generateCSVFromCases(cases) {
 
   const formatearReportes = (reportes) => {
     if (!reportes || reportes.length === 0) return "";
-    return reportes.map((r) => `(${r.fecha}) ${r.texto}`).join(" // ");
+    return reportes.map((r) => {
+      const origenTag = r.origen && r.origen !== "Operador" ? ` [${r.origen}]` : "";
+      return `(${r.fecha})${origenTag} ${r.texto}`;
+    }).join(" // ");
   };
 
   const formatearComentarios = (comentarios) => {
