@@ -1,0 +1,779 @@
+/* ================================================================ */
+/* ==================== TAILWIND (compilado local) ================= */
+/* ================================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ================================================================ */
+/* ======================== VARIABLES CSS ========================= */
+/* ================================================================ */
+
+/* ========== BASE TOKENS: DARK THEME (default) ========== */
+:root,
+[data-theme="dark"] {
+  --bg: #0F172A;
+  --surface: #111827;
+  --surface-2: #1F2937;
+  --surface-3: #0F172A;
+  --text: #E5E7EB;
+  --text-muted: #9CA3AF;
+  --border: #374151;
+  --danger: #EF4444;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --color-shadow: rgba(0, 0, 0, 0.4);
+  --color-scrollbar: #374151;
+  --color-scrollbar-hover: #4B5563;
+}
+
+/* ========== BASE TOKENS: LIGHT THEME ========== */
+[data-theme="light"] {
+  --bg: #FFFFFF;
+  --surface: #F9FAFB;
+  --surface-2: #F3F4F6;
+  --surface-3: #E5E7EB;
+  --text: #111827;
+  --text-muted: #6B7280;
+  --border: #E5E7EB;
+  --danger: #DC2626;
+  --success: #059669;
+  --warning: #D97706;
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-scrollbar: #D1D5DB;
+  --color-scrollbar-hover: #9CA3AF;
+}
+
+/* ========== DEFAULT PALETTE (when no data-palette set) ========== */
+:root {
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --accent: #60A5FA;
+  --ring: rgba(59, 130, 246, 0.35);
+}
+
+/* ========== PALETTE TOKENS (override :root when data-palette is set) ========== */
+[data-palette="default"] {
+  --primary: #3B82F6;
+  --primary-hover: #2563EB;
+  --accent: #60A5FA;
+  --ring: rgba(59, 130, 246, 0.35);
+}
+[data-palette="violet"] {
+  --primary: #7C3AED;
+  --primary-hover: #6D28D9;
+  --accent: #A78BFA;
+  --ring: rgba(124, 58, 237, 0.35);
+}
+[data-palette="emerald"] {
+  --primary: #10B981;
+  --primary-hover: #059669;
+  --accent: #34D399;
+  --ring: rgba(16, 185, 129, 0.35);
+}
+[data-palette="sunset"] {
+  --primary: #F59E0B;
+  --primary-hover: #D97706;
+  --accent: #FBBF24;
+  --ring: rgba(245, 158, 11, 0.35);
+}
+[data-palette="mono"] {
+  --primary: #6B7280;
+  --primary-hover: #4B5563;
+  --accent: #9CA3AF;
+  --ring: rgba(107, 114, 128, 0.35);
+}
+[data-palette="rose"] {
+  --primary: #E11D48;
+  --primary-hover: #BE123C;
+  --accent: #FB7185;
+  --ring: rgba(225, 29, 72, 0.35);
+}
+[data-palette="cyan"] {
+  --primary: #06B6D4;
+  --primary-hover: #0891B2;
+  --accent: #22D3EE;
+  --ring: rgba(6, 182, 212, 0.35);
+}
+
+/* ========== BACKWARD COMPATIBILITY ALIASES ========== */
+:root {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface-2);
+  --color-surface3: var(--surface-3);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-muted);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-light: var(--border);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* ========== TAMAÑOS DE FUENTE (Jerarquía consistente) ========== */
+  --font-size-base: 16px;
+  --font-size-xs: 0.65rem;
+  --font-size-sm: 0.75rem;
+  --font-size-md: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.125rem;
+  --font-size-2xl: 1.25rem;
+  --font-size-3xl: 1.5rem;
+  --font-size-4xl: 2rem;
+
+  /* Design System font-size spec */
+  --font-size-ds-xs: 0.75rem;
+  --font-size-ds-sm: 0.875rem;
+  --font-size-ds-base: 1rem;
+
+  /* ========== PESOS DE FUENTE ========== */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Design System border-radius */
+  --radius-ds-sm: 0.75rem;
+
+  /* ========== OTRAS VARIABLES ========== */
+  --transition-speed: 0.3s;
+  --transition-fast: 0.15s;
+  --font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --card-padding: 1rem;
+  --card-gap: 0.75rem;
+  --input-height: 2.5rem;
+  --button-height: 2.5rem;
+  --border-radius: 0.5rem;
+
+  /* ========== SHADOWS ========== */
+  --shadow-sm: 0 1px 3px var(--color-shadow);
+  --shadow-md: 0 4px 12px var(--color-shadow);
+  --shadow-lg: 0 8px 32px var(--color-shadow);
+}
+
+
+
+/* ================================================================ */
+/* ======================== COLORES DE ESTADO ===================== */
+/* ================================================================ */
+:root {
+  --color-estado-Cita-virtual: #3b82f6;
+  --color-estado-Cita-presencial: #6366f1;
+  --color-estado-No-responde: #f59e0b;
+  --color-estado-Lo-piensa: #fcd34d;
+  --color-estado-Reprogramado: #f97316;
+  --color-estado-2do-Llamado: #f97316;
+  --color-estado-Tiene-Abogado: #8b5cf6;
+  --color-estado-No-le-interesa: #ef4444;
+  --color-estado-No-viable: #dc2626;
+  --color-estado-Incontactable: #e11d48;
+  --color-estado-Pendiente: #10b981;
+  --color-estado-Firmo: #059669;
+  --color-estado-Sin-reporte: #6b7280;
+}
+
+/* ================================================================ */
+/* ======================== RESET Y BASE ========================== */
+/* ================================================================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--font-size-base);
+  transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+  overflow-y: scroll;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ================================================================ */
+/* ======================== JERARQUÍA DE TEXTOS =================== */
+/* ================================================================ */
+
+/* Títulos principales (h1) */
+h1 {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-extrabold);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Títulos de sección (h2) */
+h2 {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Subtítulos (h3) */
+h3 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+}
+
+/* Títulos de tarjetas/secciones (h4) */
+h4 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+}
+
+/* ================================================================ */
+/* ======================== SCROLLBAR ============================= */
+/* ================================================================ */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+
+/* Chrome/Safari/Edge */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-scrollbar);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-scrollbar-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Contenedor de scroll persistente (barras siempre visibles/estables) */
+.preview-scroll {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.preview-scroll .preview-table {
+  min-width: max-content;
+}
+
+/* ================================================================ */
+/* ======================== UTILIDADES ============================ */
+/* ================================================================ */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6);
+  cursor: pointer;
+}
+
+/* ================================================================ */
+/* ======================== APLICACIÓN EN COMPONENTES ============= */
+/* ================================================================ */
+
+/* ======================== HEADERS ======================== */
+
+/* App header (main navigation bar) */
+.app-header {
+  background-color: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 0 1rem;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  z-index: 40;
+}
+
+/* Modal header (tema-consistente, sin fondo de color fijo) */
+.modal-header {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+/* Evita el scroll-chaining: cuando un modal/overlay llega al borde de su
+   scroll interno, no se propaga el scroll al fondo de la pagina. */
+.fixed.inset-0,
+.fixed.inset-0 > div {
+  overscroll-behavior: contain;
+}
+
+/* Touch targets mínimos en dispositivos táctiles (WCAG 2.5.5): 44x44px.
+   Solo se aplica en pantallas con puntero táctil (móvil/tablet). */
+@media (pointer: coarse) {
+  .app-header button,
+  .modal-header button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.config-section-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* ================================================================ */
+/* ======================== RESPONSIVE ============================ */
+/* ================================================================ */
+@media (max-width: 768px) {
+  :root {
+    --card-padding: 0.75rem;
+    --card-gap: 0.5rem;
+    --input-height: 2.25rem;
+    --button-height: 2.25rem;
+    --font-size-base: 15px;
+  }
+
+  h1 {
+    font-size: var(--font-size-3xl);
+  }
+  h2 {
+    font-size: var(--font-size-2xl);
+  }
+  h3 {
+    font-size: var(--font-size-xl);
+  }
+  h4 {
+    font-size: var(--font-size-lg);
+  }
+  .text-xs {
+    font-size: 0.6rem;
+  }
+  .text-sm {
+    font-size: 0.7rem;
+  }
+  .text-base {
+    font-size: 0.8rem;
+  }
+  .text-lg {
+    font-size: 0.9rem;
+  }
+  .text-xl {
+    font-size: 1rem;
+  }
+  .p-6 {
+    padding: 0.75rem;
+  }
+  .px-6 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .py-6 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  .gap-3 {
+    gap: 0.5rem;
+  }
+  .gap-4 {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --font-size-base: 14px;
+  }
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  .grid-cols-5 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .flex-wrap {
+    flex-direction: column;
+  }
+  .hidden-xs {
+    display: none;
+  }
+}
+
+/* ================================================================ */
+/* ======================== CONFIGURACIÓN ========================= */
+/* ================================================================ */
+.config-section {
+  border-radius: var(--border-radius);
+  padding: var(--card-padding);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+/* ================================================================ */
+/* ======================== CATEGORY TABS ========================= */
+/* ================================================================ */
+.category-tab {
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+  user-select: none;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.category-tab.active {
+  background-color: var(--color-accent);
+  color: #14181f;
+  border-color: var(--color-accent);
+}
+
+.category-tab:hover:not(.active) {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+}
+
+/* ================================================================ */
+/* ======================== BOTONES =============================== */
+/* ================================================================ */
+
+/* Base button styles */
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-ds-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast) ease;
+  outline: none;
+  border: 1.5px solid transparent;
+  user-select: none;
+}
+.btn-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-base:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Sizes */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--font-size-ds-xs);
+  min-height: 2rem;
+}
+.btn-md {
+  padding: 0.5rem 1rem;
+  font-size: var(--font-size-ds-sm);
+  min-height: 2.5rem;
+}
+.btn-lg {
+  padding: 0.625rem 1.25rem;
+  font-size: var(--font-size-ds-base);
+  min-height: 3rem;
+}
+
+/* Variants */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-surface);
+  border-color: var(--color-text-muted);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-danger:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-accent {
+  background-color: var(--color-accent);
+  color: #14181f;
+  border-color: transparent;
+}
+.btn-accent:hover:not(:disabled) {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-accent:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-outline-accent {
+  background-color: transparent;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.btn-outline-accent:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: #14181f;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-outline-accent:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  background-color: var(--color-surface2);
+}
+.btn-outline:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ================================================================ */
+/* ======================== PILL ================================== */
+/* ================================================================ */
+.pill-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  padding: 0.2rem 0.6rem;
+  font-size: var(--font-size-xs);
+}
+
+/* Inputs y selects optimizados */
+.input-optimized {
+  height: var(--input-height);
+  padding: 0 0.75rem;
+  border-radius: var(--border-radius);
+  background-color: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.input-optimized:focus {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.pl-8 {
+  padding-left: 2rem;
+}
+
+/* ================================================================ */
+/* ======================== ANIMACIONES =========================== */
+/* ================================================================ */
+.animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+/* Deslizamiento horizontal de notificaciones: entrada der→izq, salida izq→der */
+.animate-toast-in { animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-toast-out { animation: toast-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-fade-in { animation: fade-in 0.25s ease-out; }
+.animate-scale-in { animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.animate-spin { animation: spin 0.8s linear infinite; }
+.animate-stagger > * { animation: fade-in 0.25s ease-out both; }
+.animate-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.animate-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.animate-stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.animate-stagger > *:nth-child(4) { animation-delay: 0.11s; }
+.animate-stagger > *:nth-child(5) { animation-delay: 0.14s; }
+.animate-stagger > *:nth-child(6) { animation-delay: 0.17s; }
+.animate-stagger > *:nth-child(7) { animation-delay: 0.20s; }
+.animate-stagger > *:nth-child(8) { animation-delay: 0.23s; }
+.animate-stagger > *:nth-child(9) { animation-delay: 0.26s; }
+.animate-stagger > *:nth-child(10) { animation-delay: 0.29s; }
+.no-animations * { animation: none !important; transition: none !important; }
+
+/* Microinteracciones desactivadas: sin hover-effects ni transform en presion. */
+.no-micro * { transition: none !important; }
+.no-micro button:hover { transform: none !important; }
+.no-micro button:active { transform: none !important; }
+.no-micro [class*="hover:scale"]:hover { transform: none !important; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(120%); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120%); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+/* Microinteraccion: feedback tactil al presionar botones */
+.animate-press { transition: transform 0.08s ease; }
+.animate-press:hover:not(:disabled) { transform: translateY(-1px); }
+.animate-press:active:not(:disabled) { transform: scale(0.97); }
+
+/* ============ Celebración (confeti + banner de felicitación) ============ */
+.celebrate-piece {
+  animation-name: celebrate-burst;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes celebrate-burst {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)); opacity: 0; }
+}
+.animate-celebrate-in { animation: celebrate-in 0.35s ease-out both; }
+@keyframes celebrate-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-celebrate-bounce { animation: celebrate-bounce 1.1s ease-in-out infinite; }
+@keyframes celebrate-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* ================================================================ */
+/* ================= EASTER EGGS: efectos visuales leves =========== */
+/* ================================================================ */
+.ee-flash {
+  animation: ee-flash 0.6s ease-out;
+}
+@keyframes ee-flash {
+  0% { box-shadow: inset 0 0 0 3px rgba(129, 140, 248, 0.45); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+.ee-highlight {
+  animation: ee-highlight 0.9s ease-out;
+}
+@keyframes ee-highlight {
+  0% { background-color: rgba(129, 140, 248, 0.10); }
+  100% { background-color: transparent; }
+}
+.ee-pulse {
+  animation: ee-pulse 0.28s ease-out;
+}
+@keyframes ee-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+.ee-glow {
+  animation: ee-glow 0.28s ease-out;
+}
+@keyframes ee-glow {
+  0% { box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.4); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ================================================================ */
+/* ======================== TRANSICIONES GENERALES ================ */
+/* ================================================================ */
+* {
+  transition: background-color var(--transition-speed),
+    color var(--transition-speed), border-color var(--transition-speed);
+}
+button:hover {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
