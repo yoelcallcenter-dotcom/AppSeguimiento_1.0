@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { UserCircle2, CalendarDays, Target, KeyRound, Lightbulb, Sun, ArrowRight, Clock, CalendarClock, Sparkles, MessagesSquare, Trophy, Zap } from "lucide-react";
+import { UserCircle2, CalendarDays, Target, KeyRound, Lightbulb, Sun, ArrowRight, Clock, CalendarClock, Sparkles, MessagesSquare, Trophy, Zap, FileDown } from "lucide-react";
 import useCelebrationStore from "../../core/celebrations/celebrationStore";
 import { useOperatorState } from "./useOperatorState";
 import { getDayState, getDailyGoalProgress, getMonthlyGoalProgress, getRequiredDailyPace, getEffectiveWorkDays, getAvailabilitySummary, buildPersonalSuggestions, getPerEffectiveDayMetrics } from "./operatorMetrics";
@@ -10,6 +10,7 @@ import { AvailabilityCard } from "./components/AvailabilityCard";
 import { GoalsSection } from "./components/GoalsSection";
 import { CredentialsSection } from "./components/CredentialsSection";
 import { MiJornadaView } from "./MiJornadaView";
+import { PdfExportModal } from "./PdfExportModal";
 import { readOperatorCases } from "./operatorStore";
 
 export function OperatorView({ config, casos, showToast, onChangeView }) {
@@ -17,6 +18,7 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
   const { profile, availability, goals, settings } = state;
 
   const [activeSection, setActiveSection] = useState("hoy");
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   const allCases = useMemo(() => {
     const stored = readOperatorCases();
@@ -159,6 +161,18 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
               {dayState.label}
             </span>
           )}
+          <button
+            onClick={() => setShowPdfModal(true)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text-muted)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <FileDown size={12} />
+            Exportar PDF
+          </button>
         </div>
 
         <div
@@ -254,7 +268,7 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
             <button
               key={s.key}
               onClick={() => setActiveSection(s.key)}
-              className={`flex flex-col items-center gap-1.5 text-xs font-semibold px-3 py-3 rounded-xl transition-all ${
+              className={`flex flex-col items-center gap-1.5 text-xs font-semibold px-3 py-3 rounded-xl transition-shadow transition-transform transition-colors ${
                 active
                   ? "text-[#14181F] shadow-md scale-[1.03]"
                   : "text-[var(--color-text-muted)] hover:opacity-80 hover:scale-[1.02]"
@@ -290,6 +304,7 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
             showToast={showToast}
             showPace={settings.showPace !== false}
             settings={settings}
+            showInsight={config?.insightEnJornada !== false}
           />
         )}
         {activeSection === "perfil" && (
@@ -325,6 +340,14 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
           />
         )}
       </div>
+
+      <PdfExportModal
+        open={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        config={config}
+        casos={allCases}
+        showToast={showToast}
+      />
     </div>
   );
 }

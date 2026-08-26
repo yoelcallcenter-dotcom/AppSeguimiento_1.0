@@ -19,7 +19,7 @@ export function ConfirmDialog({
 
   const handleConfirm = () => {
     if (showToast) {
-      showToast("Acción confirmada", "success");
+      showToast("Accion confirmada", "success");
     }
     onConfirm();
   };
@@ -28,7 +28,7 @@ export function ConfirmDialog({
     <div
       ref={dialogRef}
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
-      style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
       onClick={(e) => {
         e.stopPropagation();
         onCancel();
@@ -39,7 +39,7 @@ export function ConfirmDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-xl p-5"
+        className="w-full max-w-sm rounded-xl p-5 animate-scale-in"
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
@@ -64,8 +64,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3.5 py-2 rounded-md text-xs font-semibold transition-colors hover:opacity-70"
-            style={{ color: "var(--color-text-muted)" }}
+            className="btn-base btn-ghost btn-sm"
             aria-label="Cancelar"
           >
             Cancelar
@@ -73,7 +72,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold transition-colors hover:opacity-80"
+            className="btn-base btn-sm"
             style={{ backgroundColor: confirmColor, color: "#14181F" }}
             aria-label={confirmLabel}
           >

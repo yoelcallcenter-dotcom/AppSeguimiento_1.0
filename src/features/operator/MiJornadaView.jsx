@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sun,
   Clock,
@@ -25,6 +25,14 @@ import {
   getEffectiveWorkDays,
 } from "./operatorMetrics";
 import { getLastRunTime, getJornadaBackupSchedule, getBackupFrequency, daysSinceLastBackup } from "../../services/autoBackup";
+import { getPeriodRange } from "../analytics/periodUtils";
+import {
+  computeResumenPeriodo,
+  promedioPersonalReciente,
+  proyeccionObjetivos,
+} from "../analytics/analyticsEngine";
+import { generarInsightsAnaliticos } from "../analytics/smartInsights";
+import { Sparkles, ArrowRight } from "lucide-react";
 
 export function MiJornadaView({
   profile,
@@ -42,10 +50,17 @@ export function MiJornadaView({
   showToast,
   showPace = true,
   settings = {},
+  showInsight = true,
 }) {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const paceMetrics = useMemo(
     () => getDayPaceMetrics(goals, cases, profile, availability, year, month, todayISO),
@@ -63,6 +78,44 @@ export function MiJornadaView({
   );
 
   const backupStatus = useMemo(() => getBackupStatus(), []);
+
+  // Insight destacado (1.3.2): un único mensaje de mayor prioridad.
+  // Se calcula con el mismo motor de Analítica; nunca se persiste.
+  const insightDestacado = useMemo(() => {
+    if (!showInsight) return null;
+    try {
+      const rango = getPeriodRange("30d");
+      const workingDays =
+        profile.workingDays?.length > 0 ? profile.workingDays : [1, 2, 3, 4, 5];
+      const resumen = computeResumenPeriodo(cases, rango, workingDays, {});
+      const promPersonal = promedioPersonalReciente(cases, {});
+      let proyeccion = null;
+      proyeccion = proyeccionObjetivos({
+        goals,
+        casos: cases,
+        profile,
+        availability,
+        year,
+        month,
+        todayISO,
+        workingDays,
+      });
+      const { insights } = generarInsightsAnaliticos({
+        totalCasos: cases.length,
+        resumen,
+        tendencia: null,
+        horas: null,
+        aseguradoras: [],
+        estudios: [],
+        sinSeguimientoCount: 0,
+        promedioPersonal: promPersonal,
+        proyeccion,
+      });
+      return insights[0] || null;
+    } catch {
+      return null;
+    }
+  }, [showInsight, cases, goals, profile, availability, year, month, todayISO]);
 
   const dayLabel = DAY_LABELS[now.getDay()];
   const formattedDate = `${dayLabel} ${now.getDate()} de ${now.toLocaleDateString("es-AR", { month: "long" })}`;
@@ -131,6 +184,37 @@ export function MiJornadaView({
           {formattedTime} hs
         </div>
       </div>
+
+      {/* INSIGHT DESTACADO (1.3.2): un solo mensaje, acceso a Analítica */}
+      {insightDestacado && (
+        <div
+          className="rounded-lg px-4 py-3 flex items-start gap-2.5"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: `1px solid var(--color-border)`,
+            borderLeft: "3px solid var(--color-accent)",
+          }}
+        >
+          <Sparkles size={14} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-accent)" }} aria-hidden="true" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+              {insightDestacado.titulo}
+            </div>
+            <div className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--color-text-muted)" }}>
+              {insightDestacado.detalle}
+            </div>
+          </div>
+          {onChangeView && (
+            <button
+              onClick={() => onChangeView("dashboard")}
+              className="flex items-center gap-1 flex-shrink-0 text-[11px] font-semibold hover:opacity-70 transition-opacity"
+              style={{ color: "var(--color-accent)" }}
+            >
+              Ver análisis <ArrowRight size={11} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* OBJETIVOS DIARIOS */}
       <DailyGoalsCard
@@ -208,7 +292,7 @@ function TimeProgressBar({ elapsed, total }) {
   return (
     <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface2)" }}>
       <div
-        className="h-full rounded-full transition-all"
+        className="h-full rounded-full transition-[width]"
         style={{
           width: `${pct}%`,
           backgroundColor:
@@ -281,7 +365,7 @@ function GoalProgressRow({ goal }) {
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface2)" }}>
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-[width]"
           style={{ width: `${goal.percent}%`, backgroundColor: statusColor }}
         />
       </div>
@@ -407,7 +491,7 @@ function WeeklyGoalsCard({ weeklyProgress }) {
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface2)" }}>
               <div
-                className="h-full rounded-full transition-all"
+                className="h-full rounded-full transition-[width]"
                 style={{
                   width: `${g.percent}%`,
                   backgroundColor: g.met ? "var(--color-success)" : "var(--color-accent)",

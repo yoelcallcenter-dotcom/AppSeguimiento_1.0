@@ -2,6 +2,7 @@ import appDB from '../../core/db/appDB';
 import { reportError } from '../../core/error/reportError';
 import { touchVersion, assertNoConflict } from '../../core/db/versioning';
 import { notifyChange, SYNC_EVENTS } from '../../core/sync/syncService';
+import { recordEventLinkedForCases } from '../../core/cases/caseHistory';
 
 export async function createEvent(data) {
   try {
@@ -19,6 +20,14 @@ export async function createEvent(data) {
     });
     const id = await appDB.events.add(event);
     notifyChange(SYNC_EVENTS.EVENTS_UPDATED, { action: 'create', id });
+    // Historial: el evento de calendario vinculado queda registrado por caso.
+    if ((event.relatedCaseIds || []).length > 0) {
+      recordEventLinkedForCases(event.relatedCaseIds, {
+        eventId: id,
+        title: event.title,
+        startDate: event.startDate,
+      });
+    }
     return { ...event, id };
   } catch (error) {
     reportError(error, { operation: 'createEvent', data });

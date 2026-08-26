@@ -134,6 +134,7 @@ export function ConfiguracionView({
   const backupFileInputRef = useRef(null);
   const [pendingRestore, setPendingRestore] = useState(null);
   const [restoreConfirmText, setRestoreConfirmText] = useState("");
+  const [bloqueoVaciado, setBloqueoVaciado] = useState(null);
   const [backupStats, setBackupStats] = useState(null);
   const [backupHistory, setBackupHistory] = useState([]);
   const [backupHistoryLoading, setBackupHistoryLoading] = useState(false);
@@ -756,42 +757,63 @@ export function ConfiguracionView({
     reader.readAsText(file);
   };
 
-  const handleConfirmRestore = async () => {
+  const handleConfirmRestore = async (forzarVaciado = false) => {
     if (!pendingRestore) return;
     if (restoreConfirmText.trim().toUpperCase() !== "RESTAURAR") {
       showToast("Escribí RESTAURAR para confirmar la restauración", "warning");
       return;
     }
     setLoading(true);
+    let retenerPendiente = false;
     try {
       const result = await backupService.importBackup(pendingRestore, {
         casos: config.importRestoreCasos !== false,
         notas: config.importRestoreNotas !== false,
         eventos: config.importRestoreEventos !== false,
         config: config.importRestoreConfig !== false,
+        permitirVaciar: forzarVaciado === true,
       });
+      const partes = [];
+      if (result.counts?.cases != null) partes.push(`${result.counts.cases} casos`);
+      if (result.counts?.notes != null) partes.push(`${result.counts.notes} notas`);
+      if (result.counts?.events != null) partes.push(`${result.counts.events} eventos`);
+      const detalle = partes.length > 0 ? ` (${partes.join(", ")})` : "";
+      let mensaje = `Backup restaurado correctamente${detalle}.`;
+      if (result.safeguardId) mensaje += " Se creó una copia de seguridad previa en el Historial.";
+      if (Array.isArray(result.warnings) && result.warnings.length > 0) {
+        showToast(`${mensaje} Advertencias: ${result.warnings.join(" ")}`, "warning", 6000);
+      }
       if (result.migration && result.migration.applied.length > 0) {
         showToast(
           `Backup actualizado desde versión anterior (${result.migration.applied.map(m => `${m.from}→${m.to}`).join(', ')}). Restaurado correctamente. Recargando...`,
           "success"
         );
       } else {
-        showToast("Backup restaurado correctamente. Recargando...", "success");
+        showToast(`${mensaje} Recargando...`, "success");
       }
       sessionStorage.setItem("import-complete", "true");
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
-      showToast(err.message || "Error al restaurar backup", "error");
+      const msg = err.message || "Error al restaurar backup";
+      if (/bloqueada por integridad/i.test(msg)) {
+        setBloqueoVaciado({ mensaje: msg });
+        retenerPendiente = true;
+      } else {
+        showToast(msg, "error");
+      }
     } finally {
       setLoading(false);
-      setPendingRestore(null);
-      setRestoreConfirmText("");
+      if (!retenerPendiente) {
+        setPendingRestore(null);
+        setRestoreConfirmText("");
+      }
     }
   };
 
   const handleCancelRestore = () => {
     setPendingRestore(null);
     setRestoreConfirmText("");
+    setBloqueoVaciado(null);
   };
 
   // ============ ELIMINAR ÚTILES ============
@@ -1410,6 +1432,7 @@ export function ConfiguracionView({
                   { key: "widgetMiDia", label: "Mi día" },
                   { key: "widgetLogroObjetivos", label: "Logro de Objetivos" },
                   { key: "widgetVistaMapa", label: "Mapa de casos" },
+                  { key: "insightEnJornada", label: "Insight destacado en Mi Jornada" },
                 ].map(({ key, label }) => (
                   <Toggle key={key} checked={config[key] !== false} onChange={(v) => actualizarConfig(key, v)} label={label} />
                 ))}
@@ -1432,7 +1455,7 @@ export function ConfiguracionView({
                         const isActive = estados.includes(e.v);
                         return (
                           <button key={e.v} onClick={() => updateCategoria(cat, isActive ? e.v : null, isActive ? null : e.v)}
-                            className="text-[10px] px-2 py-1 rounded-full transition-all"
+                            className="text-[10px] px-2 py-1 rounded-full transition-colors"
                             style={{ backgroundColor: isActive ? `${e.accent}33` : 'var(--color-surface)', color: isActive ? e.accent : 'var(--color-text-muted)', border: `1px solid ${isActive ? e.accent : 'var(--color-border)'}` }}>
                             {e.v}
                           </button>
@@ -1992,7 +2015,7 @@ export function ConfiguracionView({
                   </div>
                   <div className="flex gap-2">
                     <Btn
-                      onClick={handleConfirmRestore}
+                      onClick={() => handleConfirmRestore(false)}
                       size="sm"
                       color="var(--color-danger)"
                       icon={AlertTriangle}
@@ -2004,6 +2027,39 @@ export function ConfiguracionView({
                       Cancelar
                     </BtnOutline>
                   </div>
+
+                  {bloqueoVaciado && (
+                    <div
+                      className="mt-3 rounded-lg p-3"
+                      style={{ backgroundColor: "var(--color-danger)22", border: "1px solid var(--color-danger)66" }}
+                      role="alert"
+                    >
+                      <div className="text-xs font-bold mb-1" style={{ color: "var(--color-danger)" }}>
+                        Operación bloqueada por integridad de datos
+                      </div>
+                      <div className="text-[11px] mb-2" style={{ color: "var(--color-text)" }}>
+                        {bloqueoVaciado.mensaje}
+                      </div>
+                      <div className="flex gap-2">
+                        <Btn
+                          onClick={() => { setBloqueoVaciado(null); handleConfirmRestore(true); }}
+                          size="sm"
+                          color="var(--color-danger)"
+                          icon={AlertTriangle}
+                          disabled={loading}
+                        >
+                          Vaciar y restaurar igualmente
+                        </Btn>
+                        <BtnOutline
+                          onClick={() => setBloqueoVaciado(null)}
+                          size="sm"
+                          color="var(--color-text-muted)"
+                        >
+                          No vaciar
+                        </BtnOutline>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -3261,7 +3317,7 @@ function DashboardTabOrderEditor() {
               onDrop={(e) => handleDrop(e, 'tab', idx)}
               onDragEnd={handleDragEnd}
               onClick={() => hasWidgets && setExpandedTab(isExpanded ? null : id)}
-              className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-all duration-150"
+              className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-opacity transition-transform duration-150"
               style={{
                 backgroundColor: 'var(--color-surface2)',
                 border: isOver ? '2px solid var(--color-accent)' : '1px solid transparent',
@@ -3291,7 +3347,7 @@ function DashboardTabOrderEditor() {
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, 'widget', wIdx, id)}
                       onDragEnd={handleDragEnd}
-                      className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-all duration-150"
+                      className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-opacity transition-transform duration-150"
                       style={{
                         backgroundColor: 'var(--color-surface2)',
                         border: isWOver ? '2px solid var(--color-accent)' : '1px solid transparent',
@@ -3339,7 +3395,7 @@ function ViewSectionEditor({ items, setItems, labels }) {
             onDragLeave={() => setDragOverIdx(null)}
             onDrop={(e) => { e.preventDefault(); moveItem(dragIdx, idx); setDragIdx(null); setDragOverIdx(null); }}
             onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
-            className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-all duration-150"
+            className="flex items-center gap-2 p-1.5 rounded cursor-grab active:cursor-grabbing select-none transition-opacity transition-transform duration-150"
             style={{
               backgroundColor: 'var(--color-surface2)',
               border: isOver ? '2px solid var(--color-accent)' : '1px solid transparent',

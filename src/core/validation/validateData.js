@@ -3,7 +3,7 @@ import { reportError } from '../error/reportError';
 const VALID_STATES = [
   'Cita virtual', 'Cita presencial', 'No responde', 'Lo piensa',
   'Reprogramado', '2do Llamado', 'Tiene Abogado', 'No le interesa',
-  'No viable', 'Incontactable', 'Pendiente', 'Firmo', 'Sin reporte',
+  'No viable', 'Incontactable', 'Baja', 'Pendiente', 'Firmo', 'Sin reporte',
 ];
 
 export function validateCaseStructure(caso) {

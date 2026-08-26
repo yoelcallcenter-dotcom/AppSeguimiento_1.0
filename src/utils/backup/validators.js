@@ -47,7 +47,14 @@ export function normalizeCase(caso) {
 
   // Asegurar fecha: normaliza DD/MM/YYYY y DD/MM a ISO para evitar que
   // `new Date("07/08")` las interprete como año 2001 o intercambie mes/día.
-  normalized.fecha = normalizeDate(normalized.fecha) || new Date().toISOString().slice(0, 10);
+  // Integridad (1.3.3): una fecha irrecuperable NUNCA se reemplaza por la
+  // fecha actual — se conserva el valor original para revisión del usuario.
+  const fechaIso = normalizeDate(normalized.fecha);
+  if (fechaIso) {
+    normalized.fecha = fechaIso;
+  } else if (!normalized.fecha || typeof normalized.fecha !== "string") {
+    normalized.fecha = "";
+  }
 
   if (normalized.fechaFirma) {
     normalized.fechaFirma = normalizeDate(normalized.fechaFirma) || normalized.fechaFirma;

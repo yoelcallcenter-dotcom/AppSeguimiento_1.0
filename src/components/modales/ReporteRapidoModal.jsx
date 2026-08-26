@@ -5,7 +5,7 @@ import {
   ClipboardList,
   Search,
   User,
-  Phone,
+
   MapPin,
   FileText,
   Edit3,
@@ -19,6 +19,7 @@ import { TextArea } from "../common/TextArea";
 import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
 import { OrigenBadge, OrigenSelector, ORIGEN_OPTIONS } from "../common/OrigenBadge";
+import { PhoneLink } from "../common/PhoneLink";
 import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
 import { hoyDDMM } from "../../utils/dateUtils";
@@ -194,8 +195,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
             id="reporte-rapido-title"
             style={{ color: "var(--color-text)" }}
           >
-            <ClipboardList size={18} color="var(--color-accent)" /> NUEVO
-            REPORTE
+            <ClipboardList size={18} color="var(--color-accent)" /> Nuevo reporte
           </div>
           <button
             onClick={onClose}
@@ -243,7 +243,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                 <button
                   key={c.id}
                   onClick={() => elegir(c)}
-                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-all flex items-center justify-between border-t"
+                  className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center justify-between border-t"
                   style={{
                     borderColor: "var(--color-border)",
                     backgroundColor: "var(--color-surface)",
@@ -261,7 +261,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                       style={{ color: "var(--color-text-muted)" }}
                     >
                       <span className="flex items-center gap-1">
-                        <Phone size={11} /> {sanitizeString(c.telefono || "—")}
+                        <PhoneLink telefono={c.telefono} />
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin size={11} />{" "}
@@ -327,8 +327,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     <span className="flex items-center gap-1">
-                      <Phone size={12} />{" "}
-                      {sanitizeString(seleccionado.telefono || "—")}
+                      <PhoneLink telefono={seleccionado.telefono} size="md" />
                     </span>
                     <span className="flex items-center gap-1">
                       <MapPin size={12} />{" "}
@@ -441,7 +440,8 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-start gap-2">
+                              <div className="flex items-center gap-2">
+                                <OrigenBadge origen={r.origen} />
                                 <span
                                   className="text-[10px] font-medium whitespace-nowrap"
                                   style={{ color: "var(--color-accent)" }}
@@ -451,9 +451,6 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                 <span className="flex-1" style={{ color: "var(--color-text)" }}>
                                   {sanitizeString(r.texto)}
                                 </span>
-                                {r.origen && (
-                                  <OrigenBadge origen={r.origen} />
-                                )}
                                 <div className="flex gap-1 flex-shrink-0">
                                   <button
                                     onClick={() => iniciarEdicion(i)}

@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Target, ArrowRight, Play, TrendingUp, FileText, Lightbulb } from 'lucide-react';
 import { getGoalsState, getContextMemory, getProductivitySettings } from './productivityStore';
+import { PhoneLink } from '../../components/common/PhoneLink';
 import {
   getOperatorProfile,
   getOperatorAvailability,
@@ -86,7 +87,7 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
           </div>
           <div className="w-full rounded-full h-2 overflow-hidden mb-2" style={{ backgroundColor: 'var(--color-border)' }}>
             <div
-              className="h-full transition-all duration-300"
+              className="h-full transition-[width] duration-300"
               style={{
                 width: `${casesProgress}%`,
                 backgroundColor: casesProgress >= 100 ? 'var(--color-success)' : 'var(--color-accent)',
@@ -109,7 +110,7 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
           </div>
           <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'var(--color-border)' }}>
             <div
-              className="h-full transition-all duration-300"
+              className="h-full transition-[width] duration-300"
               style={{
                 width: `${reportsProgress}%`,
                 backgroundColor: reportsProgress >= 100 ? 'var(--color-success)' : 'var(--color-accent)',
@@ -140,7 +141,7 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
                 {lastCase.nombre}
               </div>
               <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                {lastCase.estado} • {lastCase.telefono || 'Sin teléfono'}
+                {lastCase.estado} • <PhoneLink telefono={lastCase.telefono} />
               </div>
             </div>
             <ArrowRight size={14} style={{ color: 'var(--color-accent)' }} />

@@ -1,10 +1,10 @@
 import React from "react";
-import { Phone, MapPin, Building2, FileText } from "lucide-react";
+import { MapPin, Building2, FileText } from "lucide-react";
 import { getEstados } from "../../utils/catalogos";
 import { OrigenBadge } from "../common/OrigenBadge";
 import { IconLabelMemo } from "../common/IconLabel";
+import { PhoneLink } from "../common/PhoneLink";
 import { sanitizeString } from "../../utils/sanitize";
-import { formatPhoneWithConfig } from "../../utils/configFormatters";
 import { useTheme } from "../../context/ThemeContext";
 
 export const CasoCard = React.memo(
@@ -19,23 +19,11 @@ export const CasoCard = React.memo(
     const estadoColor =
       theme.getEstadoColor(caso.estado) || estadoInfo.accent || "#6B7280";
 
-    // Obtener el último reporte por FECHA (no por orden de creación)
-    const obtenerUltimoReporte = () => {
-      if (!caso.reporteHistory || caso.reporteHistory.length === 0) return null;
-
-      // Ordenar por fecha de reporte (formato DD/MM)
-      return [...caso.reporteHistory].sort((a, b) => {
-        // Convertir DD/MM a comparación
-        const [aDia, aMes] = (a.fecha || "00/00").split("/").map(Number);
-        const [bDia, bMes] = (b.fecha || "00/00").split("/").map(Number);
-
-        // Primero comparar por mes, luego por día
-        if (aMes !== bMes) return bMes - aMes;
-        return bDia - aDia;
-      })[0];
-    };
-
-    const ultimoReporte = obtenerUltimoReporte();
+    // Último reporte: el más recientemente cargado (último del array).
+    const ultimoReporte =
+      caso.reporteHistory?.length > 0
+        ? caso.reporteHistory[caso.reporteHistory.length - 1]
+        : null;
 
     return (
       <div
@@ -77,9 +65,7 @@ export const CasoCard = React.memo(
           <IconLabelMemo icon={Building2} color="var(--color-accent)" strong>
             {sanitizeString(caso.estudioJuridico || "Sin estudio")}
           </IconLabelMemo>
-          <IconLabelMemo icon={Phone} color="var(--color-text-muted)">
-            {formatPhoneWithConfig(caso.telefono) || "—"}
-          </IconLabelMemo>
+          <PhoneLink telefono={caso.telefono} />
           <IconLabelMemo icon={MapPin} color="var(--color-text-muted)">
             {sanitizeString(caso.localidad || "—")}
           </IconLabelMemo>
@@ -113,19 +99,17 @@ export const CasoCard = React.memo(
         </div>
         {ultimoReporte && (
           <div
-            className="mt-2 pt-2 text-[11px] leading-snug line-clamp-2 flex items-start gap-1"
+            className="mt-2 pt-2 text-[11px] leading-snug line-clamp-2 flex items-center gap-1"
             style={{
               borderTop: "1px dashed var(--color-border)",
               color: "var(--color-text)",
             }}
           >
+            <OrigenBadge origen={ultimoReporte.origen} />
             <span style={{ color: "var(--color-accent)" }}>
               ({sanitizeString(ultimoReporte.fecha)}){" "}
             </span>
             <span className="flex-1">{sanitizeString(ultimoReporte.texto)}</span>
-            {ultimoReporte.origen && (
-              <OrigenBadge origen={ultimoReporte.origen} />
-            )}
           </div>
         )}
       </div>

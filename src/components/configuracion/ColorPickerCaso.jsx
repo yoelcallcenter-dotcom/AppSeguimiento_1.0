@@ -68,6 +68,7 @@ export function ColorPickerCaso({ estado, color, onChange }) {
     "No le interesa": "#EF4444",
     "No viable": "#DC2626",
     Incontactable: "#E11D48",
+    Baja: "#991B1B",
     Pendiente: "#10B981",
     Firmo: "#059669",
     "Sin reporte": "#6B7280",
@@ -85,7 +86,7 @@ export function ColorPickerCaso({ estado, color, onChange }) {
     <div className="relative" ref={pickerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium transition-all hover:opacity-80"
+        className="flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium transition-opacity hover:opacity-80"
         style={{
           backgroundColor: selectedColor + "22",
           color: selectedColor,
@@ -140,7 +141,7 @@ export function ColorPickerCaso({ estado, color, onChange }) {
               <button
                 key={c}
                 onClick={() => handleSelect(c)}
-                className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
+                className="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
                 style={{
                   backgroundColor: c,
                   borderColor: selectedColor === c ? "#FFFFFF" : "transparent",

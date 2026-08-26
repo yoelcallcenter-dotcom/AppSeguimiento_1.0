@@ -95,6 +95,7 @@ export const defaultEstadoColors = {
   "No le interesa": "#EF4444",
   "No viable": "#DC2626",
   Incontactable: "#E11D48",
+  Baja: "#991B1B",
   Pendiente: "#10B981",
   Firmo: "#059669",
   "Sin reporte": "#6B7280",

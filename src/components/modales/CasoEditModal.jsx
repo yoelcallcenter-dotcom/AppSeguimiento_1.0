@@ -535,15 +535,15 @@ COMENTARIOS:`}
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 flex items-center gap-1 flex-wrap">
+                            <OrigenBadge origen={r.origen} />
                             <span style={{ color: "var(--color-accent)" }}>
                               ({sanitizeString(r.fecha)}){" "}
                             </span>
                             <span style={{ color: "var(--color-text)" }}>
                               {sanitizeString(r.texto)}
                             </span>
-                            {r.origen && <OrigenBadge origen={r.origen} />}
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
                             <button

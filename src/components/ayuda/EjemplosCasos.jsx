@@ -134,7 +134,7 @@ OBSERVACIONES: ${ejemplo.observaciones}`;
         {EJEMPLOS.map((ejemplo, index) => (
           <div
             key={index}
-            className="rounded-lg p-3 transition-all hover:shadow-lg"
+            className="rounded-lg p-3 transition-shadow hover:shadow-lg"
             style={{
               backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",

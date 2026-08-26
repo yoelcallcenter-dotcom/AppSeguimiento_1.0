@@ -331,7 +331,7 @@ export async function generateCSVFromCases(cases) {
   const formatearReportes = (reportes) => {
     if (!reportes || reportes.length === 0) return "";
     return reportes.map((r) => {
-      const origenTag = r.origen && r.origen !== "Operador" ? ` [${r.origen}]` : "";
+      const origenTag = r.origen ? ` [${r.origen}]` : "";
       return `(${r.fecha})${origenTag} ${r.texto}`;
     }).join(" // ");
   };

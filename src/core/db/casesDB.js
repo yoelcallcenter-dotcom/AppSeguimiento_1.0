@@ -21,6 +21,14 @@ casesDB.version(2).stores({
   });
 });
 
+// v3: historial y seguimiento de casos (Release 1.3.1). Cambio aditivo:
+// agrega la tabla case_history indexada por caso y fecha; no modifica datos
+// existentes ni requiere acción del usuario.
+casesDB.version(3).stores({
+  cases: 'id, fecha, estado, nombre, updatedAt',
+  case_history: '++id, caseId, timestamp, type',
+});
+
 setupDexieLifecycle(casesDB, { name: 'CasesDB' });
 
 export default casesDB;

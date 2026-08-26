@@ -201,3 +201,151 @@ describe('v1.1.0: nuevos campos (condicionales, estados, tipos de ingreso, direc
     expect(config.tiposIngreso).toEqual(DATOS_NUEVOS['config-art-tracker'].tiposIngreso);
   });
 });
+
+// ============================================================
+// Release 1.3.3 — Integridad de datos
+// ============================================================
+describe('1.3.3: protección contra reemplazos que vacían datos', () => {
+  it('un backup con 0 casos NO vacía los casos existentes (bloqueo CRITICAL)', async () => {
+    await casesDB.cases.bulkPut([
+      { id: 'c1', nombre: 'Ana', telefono: '2615550001', estado: 'Pendiente', fecha: '2026-07-01' },
+      { id: 'c2', nombre: 'Bruno', telefono: '2615550002', estado: 'Pendiente', fecha: '2026-07-02' },
+    ]);
+
+    // Backup legítimo pero cuya sección de casos quedó vacía.
+    await appDB.notes.add({ title: 'N', content: '', tags: [], createdAt: new Date().toISOString() });
+    const backup = await exportBackup();
+    backup.data.db.cases = [];
+    const { computeChecksum } = await import('../../services/backupService');
+    backup.checksum = await computeChecksum(backup.data);
+
+    await expect(importBackup(backup)).rejects.toThrow(/bloqueada por integridad/i);
+
+    // Los datos siguen intactos y NO se creó salvaguarda (no se escribió nada).
+    const casos = await casesDB.cases.toArray();
+    expect(casos).toHaveLength(2);
+  });
+
+  it('el override explícito permitirVaciar sí permite el reemplazo por vacío', async () => {
+    await casesDB.cases.bulkPut([
+      { id: 'c1', nombre: 'Ana', telefono: '2615550001', estado: 'Pendiente', fecha: '2026-07-01' },
+    ]);
+    const backup = await exportBackup();
+    await casesDB.cases.bulkPut([
+      { id: 'extra', nombre: 'Extra', telefono: '2615550009', estado: 'Pendiente', fecha: '2026-07-05' },
+    ]);
+    // Vaciamos manualmente la sección de casos del snapshot para simular
+    // "archivo con 0 casos" ya confirmado por el usuario.
+    backup.data.db.cases = [];
+    const { computeChecksum } = await import('../../services/backupService');
+
+    backup.checksum = await computeChecksum(backup.data);
+    const result = await importBackup(backup, { permitirVaciar: true });
+
+    const casos = await casesDB.cases.toArray();
+    expect(casos).toHaveLength(0);
+    expect(result.safeguardId).toBeTruthy(); // quedó salvaguarda previa
+    // La salvaguarda conserva los datos que había antes del vaciado.
+    const safeguard = (await import('../../core/db/appDB')).default.auto_backups;
+    const registro = await safeguard.get(result.safeguardId);
+    expect(registro.backup.data.db.cases).toHaveLength(2);
+  });
+
+  it('sección de notas ausente omite el bloque y preserva las notas actuales', async () => {
+    await casesDB.cases.bulkPut([
+      { id: 'c1', nombre: 'Ana', telefono: '2615550001', estado: 'Pendiente', fecha: '2026-07-01' },
+    ]);
+    await appDB.notes.add({ id: 'n1', title: 'N1', content: '', tags: [], createdAt: new Date().toISOString() });
+    const backup = await exportBackup();
+
+    delete backup.data.db.notes;
+    const { computeChecksum } = await import('../../services/backupService');
+    backup.checksum = await computeChecksum(backup.data);
+
+    const result = await importBackup(backup);
+
+    // Casos restaurados; las notas actuales NO fueron borradas.
+    expect(await casesDB.cases.count()).toBe(1);
+    expect(await appDB.notes.count()).toBe(1);
+    expect(await appDB.notes.get('n1')).toBeTruthy();
+    expect(result.warnings.some((w) => w.includes('"notes"'))).toBe(true);
+  });
+
+  it('filas con estructura inválida dentro de una sección se omiten con advertencia', async () => {
+    const backupVacio = await exportBackup();
+    backupVacio.data.db.cases = [
+      { id: 'ok1', nombre: 'Valido', telefono: '2615550001', estado: 'Pendiente', fecha: '2026-07-01' },
+      'fila-corrupta-no-objeto',
+      42,
+    ];
+    const { computeChecksum } = await import('../../services/backupService');
+    backupVacio.checksum = await computeChecksum(backupVacio.data);
+
+    const result = await importBackup(backupVacio);
+    expect(result.counts.cases).toBe(3);
+    expect(result.warnings.some((w) => w.startsWith('casos:'))).toBe(true);
+    const casos = await casesDB.cases.toArray();
+    expect(casos).toHaveLength(1);
+    expect(casos[0].nombre).toBe('Valido');
+  });
+});
+
+describe('1.3.3: round-trip sin pérdida (campos desconocidos y tránsito-selección)', () => {
+  it('campos desconocidos/futuros de un caso se preservan en backup→restaurar', async () => {
+    const casoFuturo = {
+      id: 'futuro',
+      nombre: 'CASO FUTURO',
+      telefono: '2615550777',
+      estado: 'Pendiente',
+      fecha: '2026-08-01',
+      campoDeVersionFutura: { anidado: [1, 2, { profundo: true }] },
+    };
+    await casesDB.cases.put(casoFuturo);
+
+    const backup = await exportBackup();
+    await casesDB.cases.clear();
+    await importBackup(backup);
+
+    const restaurado = await casesDB.cases.get('futuro');
+    expect(restaurado.campoDeVersionFutura).toEqual({ anidado: [1, 2, { profundo: true }] });
+    expect(restaurado.nombre).toBe('CASO FUTURO');
+  });
+
+  it('transito-seleccion-art-tracker sobrevive al roundtrip completo', async () => {
+    localStorageAdapter.set('transito-seleccion-art-tracker', ['AGROSALTA', 'RIVER PLATE']);
+    sembrarUtiles();
+
+    const backup = await exportBackup();
+    localStorage.clear();
+    await importBackup(backup);
+
+    expect(localStorageAdapter.get('transito-seleccion-art-tracker')).toEqual([
+      'AGROSALTA',
+      'RIVER PLATE',
+    ]);
+  });
+
+  it('roundtrip completo casos+notas+eventos+historial sin pérdidas', async () => {
+    await casesDB.cases.bulkPut([
+      { id: 'rc1', nombre: 'CARLA', telefono: '2615550011', estado: 'Firmo', fecha: '2026-07-10' },
+    ]);
+    await casesDB.case_history.add({
+      caseId: 'rc1', type: 'case_created', title: 'Caso creado', description: '',
+      metadata: null, source: 'automatic', timestamp: new Date().toISOString(),
+    });
+    await appDB.notes.add({ id: 'rn1', title: 'Nota RT', content: '<p>hola</p>', tags: [], relatedCaseIds: ['rc1'], createdAt: new Date().toISOString() });
+    await appDB.events.add({ id: 're1', title: 'Cita RT', startDate: '2026-08-30', status: 'pending', relatedNoteId: null, relatedCaseIds: ['rc1'], createdAt: new Date().toISOString() });
+
+    const backup = await exportBackup();
+    await limpiar();
+    await casesDB.case_history.clear();
+    await importBackup(backup);
+
+    expect(await casesDB.cases.count()).toBe(1);
+    expect(await casesDB.case_history.count()).toBe(1);
+    expect(await appDB.notes.count()).toBe(1);
+    expect(await appDB.events.count()).toBe(1);
+    const nota = await appDB.notes.get('rn1');
+    expect(nota.relatedCaseIds).toEqual(['rc1']); // referencia intacta
+  });
+});

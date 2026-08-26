@@ -12,13 +12,18 @@ import { ESTADOS, TIPOS_INGRESO_SUGERIDOS } from "./constants";
  * Devuelve la lista de estados configurada. Cada entrada: { v, accent, peso }.
  * Si `config.estados` está vacío o no es un array con elementos válidos,
  * se usa la lista por defecto.
+ * Si faltan estados del default (por actualizaciones), se agregan al final
+ * manteniendo los que el usuario ya tiene.
  */
 export function getEstados(config) {
   const list = config?.estados;
-  if (Array.isArray(list) && list.length > 0) {
-    return list;
+  if (!Array.isArray(list) || list.length === 0) {
+    return ESTADOS;
   }
-  return ESTADOS;
+  const existing = new Set(list.map((e) => e.v));
+  const missing = ESTADOS.filter((e) => !existing.has(e.v));
+  if (missing.length === 0) return list;
+  return [...list, ...missing];
 }
 
 /**

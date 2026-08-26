@@ -112,9 +112,12 @@ const normalizeJSONorText = (value, textParser) => {
 
 function normalizeCase(c) {
   const id = sanitizarValor(c.id) || generateId();
+  // Integridad (1.3.3): fecha irrecuperable se conserva (o queda vacía);
+  // nunca se inventa la fecha actual.
+  const fechaIso = normalizeDate(c.fecha);
   return {
     id,
-    fecha: normalizeDate(c.fecha) || new Date().toISOString().slice(0, 10),
+    fecha: fechaIso || (typeof c.fecha === 'string' ? c.fecha.trim() : ''),
     nombre: sanitizarValor(c.nombre || ''),
     telefono: sanitizarValor(c.telefono || ''),
     localidad: sanitizarValor(c.localidad || ''),

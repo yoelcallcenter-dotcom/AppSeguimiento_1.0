@@ -7,7 +7,8 @@ import { sanitizeString } from "../../utils/sanitize";
 import { useUX } from "../../context/UXContext";
 import { COLUMNAS_DISPONIBLES } from "../../utils/constants";
 import { getOrigenConfig } from "../common/OrigenBadge";
-import { formatDateWithConfig, formatPhoneWithConfig } from "../../utils/configFormatters";
+import { formatDateWithConfig } from "../../utils/configFormatters";
+import { PhoneLink } from "../common/PhoneLink";
 import { getEstados } from "../../utils/catalogos";
 import { trackEvent } from "../../utils/behaviorEngine";
 import useAppStore from '../../core/store/useAppStore';
@@ -189,7 +190,7 @@ export function TablaView({
                     case 'nombre':
                       return <td key={key} className="px-3 py-2.5 font-medium whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.nombre)}</td>;
                     case 'telefono':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{formatPhoneWithConfig(c.telefono, config)}</td>;
+                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PhoneLink telefono={c.telefono} config={config} /></td>;
                     case 'localidad':
                       return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.localidad)}</td>;
                     case 'aseguradora':
@@ -203,9 +204,12 @@ export function TablaView({
                     case 'estado':
                       return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PillMemo estado={c.estado} small estados={getEstados(config)} /></td>;
                     case 'reporte':
-                      return <td key={key} className="px-3 py-2.5 max-w-[240px] text-xs" style={{ color: "var(--color-text)" }} title={c.reporteHistory?.map((r) => `(${r.fecha}) ${r.texto}${r.origen && r.origen !== 'Operador' ? ' [' + r.origen + ']' : ''}`).join(" // ")}><span className="line-clamp-2">{c.reporteHistory?.length > 0 ? c.reporteHistory.map((r) => {
-                        const origenCfg = r.origen && r.origen !== 'Operador' ? getOrigenConfig(r.origen) : null;
-                        return `(${sanitizeString(r.fecha)}) ${sanitizeString(r.texto)}${origenCfg ? ' [' + origenCfg.abbr + ']' : ''}`;
+                      return <td key={key} className="px-3 py-2.5 max-w-[240px] text-xs" style={{ color: "var(--color-text)" }} title={c.reporteHistory?.map((r) => {
+                        const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
+                        return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${r.fecha}) ${r.texto}`;
+                      }).join(" // ")}><span className="line-clamp-2">{c.reporteHistory?.length > 0 ? c.reporteHistory.map((r) => {
+                        const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
+                        return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${sanitizeString(r.fecha)}) ${sanitizeString(r.texto)}`;
                       }).join(" // ") : <span style={{ color: "var(--color-text-muted)" }}>{"\u2014"}</span>}</span></td>;
                     default:
                       return null;

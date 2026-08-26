@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search, User } from 'lucide-react';
+import { PhoneLink } from './PhoneLink';
 
 export function CaseLinker({ casos = [], selectedIds = [], onChange }) {
   const [query, setQuery] = useState('');
@@ -89,7 +90,7 @@ export function CaseLinker({ casos = [], selectedIds = [], onChange }) {
                   <User size={12} style={{ color: 'var(--color-text-muted)' }} />
                   <span className="font-medium">{c.nombre || 'Sin nombre'}</span>
                   {c.telefono && (
-                    <span style={{ color: 'var(--color-text-muted)' }}>{c.telefono}</span>
+                    <PhoneLink telefono={c.telefono} />
                   )}
                 </button>
               ))

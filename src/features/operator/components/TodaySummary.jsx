@@ -159,7 +159,7 @@ function Bar({ label, p }) {
       </div>
       <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface2)" }}>
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-[width]"
           style={{ width: `${p.percent}%`, backgroundColor: p.met ? "var(--color-success)" : "var(--color-accent)" }}
         />
       </div>

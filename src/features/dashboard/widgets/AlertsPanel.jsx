@@ -1,5 +1,6 @@
 import React from 'react';
-import { Bell, AlertTriangle, Clock, UserX, FileWarning } from 'lucide-react';
+import { Bell, AlertTriangle, Clock, UserX, FileWarning, CheckCircle2 } from 'lucide-react';
+import { EmptyState } from '../../../components/common/EmptyState';
 
 const SEVERITY = {
   danger: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
@@ -52,7 +53,7 @@ export default function AlertsPanel({ metrics, onDrill }) {
         <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Alertas</span>
       </div>
       {items.length === 0 ? (
-        <div className="text-sm py-6 text-center" style={{ color: 'var(--color-text-muted)' }}>Todo bajo control. Sin alertas activas.</div>
+        <EmptyState icon={CheckCircle2} message="Todo bajo control" submessage="Sin alertas activas" size="sm" />
       ) : (
         <div className="space-y-2">
           {items.map((item) => {

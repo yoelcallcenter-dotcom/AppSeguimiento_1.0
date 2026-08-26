@@ -333,7 +333,7 @@ Navegador: ${navigator.userAgent}
                 key={c.value}
                 type="button"
                 onClick={() => setCategoria(c.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:scale-[1.02] ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors transition-transform hover:scale-[1.02] ${
                   categoria === c.value
                     ? "bg-[var(--color-accent)] text-[#14181F]"
                     : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
@@ -359,7 +359,7 @@ Navegador: ${navigator.userAgent}
                 key={p.value}
                 type="button"
                 onClick={() => setPuntuacion(p.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:scale-[1.02] ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors transition-transform hover:scale-[1.02] ${
                   puntuacion === p.value
                     ? "bg-[var(--color-accent)] text-[#14181F]"
                     : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"

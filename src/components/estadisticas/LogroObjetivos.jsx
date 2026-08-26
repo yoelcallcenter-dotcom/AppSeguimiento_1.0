@@ -16,7 +16,7 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
       const [year, month] = fecha.split("-").map(Number);
       return year === selectedYear && month === selectedMonth + 1;
     });
-    const firmados = casosMes.filter((c) => c.estado === "Firmo").length;
+    const firmados = casosMes.filter((c) => c.estado === "Firmo").length - casosMes.filter((c) => c.estado === "Baja").length;
     const pendientes = casosMes.filter(
       (c) =>
         c.estado === "Cita virtual" ||
@@ -159,7 +159,7 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
           style={{ backgroundColor: "var(--color-border)" }}
         >
           <div
-            className="h-full rounded-full transition-all duration-500"
+            className="h-full rounded-full transition-[width] duration-500"
             style={{
               width: `${statsMes.progreso}%`,
               backgroundColor: statsMes.cumplido

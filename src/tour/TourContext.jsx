@@ -110,7 +110,7 @@ export function TourProvider({ children }) {
     el.style.outline = "3px solid var(--color-accent)";
     el.style.outlineOffset = "6px";
     el.style.zIndex = "1001";
-    el.style.transition = "box-shadow 0.3s ease";
+    el.style.transition = "box-shadow var(--duration-slow, 0.35s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))";
     el.style.boxShadow = "0 0 24px rgba(217, 164, 65, 0.4)";
     highlightEl.current = el;
   }, [clearHighlight]);
@@ -211,7 +211,7 @@ export function TourProvider({ children }) {
           className="fixed inset-0 z-[999] pointer-events-none"
           width="100%"
           height="100%"
-          style={{ transition: "opacity 0.3s ease" }}
+          style={{ transition: "opacity var(--duration-slow, 0.35s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))" }}
         >
           <defs>
             <mask id={maskIdRef.current}>
@@ -240,7 +240,7 @@ export function TourProvider({ children }) {
             width: "92%",
             opacity: animating ? 0 : 1,
             transform: animating ? "translateY(10px)" : "translateY(0)",
-            transition: "opacity 0.25s ease, transform 0.3s ease",
+            transition: "opacity var(--duration-normal, 0.25s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1)), transform var(--duration-slow, 0.35s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
           }}
         >
           <div
@@ -325,7 +325,7 @@ export function TourProvider({ children }) {
               {state.steps.map((_, index) => (
                 <div
                   key={index}
-                  className="h-1 rounded-full flex-1 transition-all duration-300"
+                  className="h-1 rounded-full flex-1 transition-colors transition-[height] duration-300"
                   style={{
                     backgroundColor: index === state.currentStep ? "var(--color-accent)" : "var(--color-border)",
                     height: index === state.currentStep ? "3px" : "1px",
@@ -353,7 +353,7 @@ export function TourProvider({ children }) {
                 </button>
                 <button
                   onClick={nextStep}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded transition-all hover:opacity-80"
+                  className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded transition-opacity hover:opacity-80"
                   style={{ backgroundColor: "var(--color-accent)", color: "#14181F" }}
                 >
                   {isLast ? (
@@ -381,7 +381,7 @@ export function TourProvider({ children }) {
             </div>
             <button
               onClick={() => endTour()}
-              className="text-xs font-semibold px-4 py-2 rounded transition-all hover:opacity-80"
+              className="text-xs font-semibold px-4 py-2 rounded transition-opacity hover:opacity-80"
               style={{ backgroundColor: "var(--color-accent)", color: "#14181F" }}
             >
               Empezar

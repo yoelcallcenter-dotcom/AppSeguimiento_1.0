@@ -35,11 +35,11 @@ export function PipelineBar({ casos, config, activeFilter }) {
               key={e.v}
               title={`${e.v}: ${count} — clic para filtrar`}
               onClick={() => handleFilter(e.v)}
-              className="cursor-pointer transition-all hover:brightness-125"
+              className="cursor-pointer transition-opacity hover:brightness-125"
               style={{
                 width: `${(count / total) * 100}%`,
                 backgroundColor: color,
-                transition: "width 0.3s ease",
+                transition: "width var(--duration-slow, 0.35s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
                 opacity: quickFilter && !active ? 0.3 : 1,
                 outline: active ? `2px solid ${color}` : "none",
                 outlineOffset: "-1px",
@@ -58,7 +58,7 @@ export function PipelineBar({ casos, config, activeFilter }) {
             <button
               key={e.v}
               onClick={() => handleFilter(e.v)}
-              className="flex items-center gap-1.5 text-[11px] rounded px-1 py-0.5 transition-all hover:bg-white/5"
+              className="flex items-center gap-1.5 text-[11px] rounded px-1 py-0.5 transition-opacity hover:bg-white/5"
               style={{
                 color: "var(--color-text-muted)",
                 opacity: quickFilter && !active ? 0.4 : 1,

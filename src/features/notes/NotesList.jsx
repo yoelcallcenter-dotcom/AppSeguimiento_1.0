@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, Clock, Tag } from 'lucide-react';
+import { Search, Trash2, Clock, Tag, FileText } from 'lucide-react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { TextInput } from '../../components/common/TextInput';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export default function NotesList({
   notes,
@@ -61,9 +62,12 @@ export default function NotesList({
 
       <div className="flex-1 overflow-y-auto space-y-1">
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {query ? 'Sin resultados' : 'Sin notas. Crea una nueva.'}
-          </div>
+          <EmptyState
+            icon={FileText}
+            message={query ? 'Sin resultados' : 'Sin notas'}
+            submessage={query ? 'Probá con otro termino' : 'Crea una nueva para comenzar'}
+            size="sm"
+          />
         )}
         {filtered.map(note => {
           const isSelected = note.id === selectedId;

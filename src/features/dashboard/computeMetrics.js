@@ -110,7 +110,8 @@ function groupByField(cases, field, cats, { max = 10 } = {}) {
 // Convierte la fecha de un reporte (DD/MM[/YYYY] o ISO) a ISO (YYYY-MM-DD).
 // Para fechas DD/MM sin año usa el año actual; si la fecha caería demasiado en
 // el futuro (más de 30 días) pertenece al año anterior.
-function reporteFechaIso(fechaStr, today) {
+// (Exportada para reuso en features/analytics sin duplicar la lógica.)
+export function reporteFechaIso(fechaStr, today) {
   if (!fechaStr) return null;
   const s = String(fechaStr).trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
@@ -134,7 +135,8 @@ function reporteFechaIso(fechaStr, today) {
 }
 
 // Clave de semana ISO (año-semana) para agrupar la serie por semanas.
-function isoWeekKey(d) {
+// (Exportada para reuso en features/analytics.)
+export function isoWeekKey(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);

@@ -4,7 +4,7 @@ import { Lightbulb, X, ArrowRight } from "lucide-react";
 export function HintCard({ hint, onDismiss, onAction }) {
   return (
     <div
-      className="rounded-xl p-4 relative group transition-all hover:shadow-md"
+      className="rounded-xl p-4 relative group transition-shadow hover:shadow-md"
       style={{
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",

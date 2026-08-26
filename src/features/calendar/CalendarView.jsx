@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Calendar } from 'lucide-react';
 import { useCalendarService } from './calendarService';
 import {
   createEvent,
@@ -11,6 +12,7 @@ import {
 import CalendarToolbar from './CalendarToolbar';
 import EventModal from './EventModal';
 import TagsPills from '../../components/common/TagsPills';
+import { EmptyState } from '../../components/common/EmptyState';
 import { getAllNotes } from '../notes/notesStore';
 import { reportError } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
@@ -467,9 +469,7 @@ export default function CalendarView({ showToast, onClose, casos = [] }) {
   const renderListView = () => {
     if (events.length === 0) {
       return (
-        <div className="text-center py-12" style={{ color: 'var(--color-text-muted)' }}>
-          No hay eventos registrados
-        </div>
+        <EmptyState icon={Calendar} message="No hay eventos registrados" size="md" />
       );
     }
 

@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from "react";
+import { FileText } from "lucide-react";
 import { MonthDayFilterBar } from "../common/MonthDayFilterBar";
 import { Paginacion } from "../common/Paginacion";
 import { PipelineBar } from "../kanban/PipelineBar";
 import { OrigenBadge } from "../common/OrigenBadge";
 import { sanitizeString } from "../../utils/sanitize";
-import { formatPhoneWithConfig } from "../../utils/configFormatters";
+import { PhoneLink } from "../common/PhoneLink";
+import { EmptyState } from "../common/EmptyState";
 import { useStorage } from "../../hooks/useStorage";
 import { ESTADOS } from "../../utils/constants";
 import { casoVieneDeReporte } from "../../utils/dateFilters";
@@ -17,16 +19,10 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
   const [config] = useStorage("config-art-tracker", {});
   const casosPorPagina = config.casosPorPagina || 50;
 
-  // Función para obtener el último reporte por fecha
+  // Último reporte: el más recientemente cargado (último del array)
   const obtenerUltimoReporte = (reporteHistory) => {
     if (!reporteHistory || reporteHistory.length === 0) return null;
-
-    return [...reporteHistory].sort((a, b) => {
-      const [aDia, aMes] = (a.fecha || "00/00").split("/").map(Number);
-      const [bDia, bMes] = (b.fecha || "00/00").split("/").map(Number);
-      if (aMes !== bMes) return bMes - aMes;
-      return bDia - aDia;
-    })[0];
+    return reporteHistory[reporteHistory.length - 1];
   };
 
   const handleMonthChange = useCallback(() => {
@@ -45,12 +41,7 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
     lista: () => (
       <div className="space-y-3">
         {casosPagina.length === 0 ? (
-          <div
-            className="text-sm py-8 text-center"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            No hay casos para mostrar.
-          </div>
+          <EmptyState icon={FileText} message="No hay casos para mostrar." size="sm" />
         ) : (
           casosPagina.map((c) => {
             const ultimoReporte = obtenerUltimoReporte(c.reporteHistory);
@@ -62,7 +53,7 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
             return (
               <div
                 key={c.id}
-                className="rounded-lg overflow-hidden cursor-pointer transition-all duration-150"
+                className="rounded-lg overflow-hidden cursor-pointer transition-colors duration-150"
                 style={{
                   backgroundColor: "var(--color-surface)",
                   border: vieneDeReporte
@@ -89,30 +80,32 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
                           className="flex-shrink-0 w-1.5 h-1.5 rounded-full"
                           style={{ backgroundColor: c.leido === false ? estadoColor : 'transparent' }}
                         />
-                        {vieneDeReporte && (
-                          <span
-                            className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
-                            style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px dashed var(--color-accent)66" }}
-                            title="Aparece en este mes por su último reporte"
-                          >
-                            por reporte
-                          </span>
-                        )}
                       </div>
                       <div
                         className="flex items-center gap-3 text-xs mt-0.5"
                         style={{ color: "var(--color-text-muted)" }}
                       >
-                        <span>{formatPhoneWithConfig(c.telefono, config) || "—"}</span>
+                        <PhoneLink telefono={c.telefono} config={config} />
                         <span>{sanitizeString(c.localidad || "—")}</span>
                       </div>
                     </div>
-                    <span
-                      className="flex-shrink-0 self-start px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider"
-                      style={{ backgroundColor: `${estadoColor}14`, color: estadoColor, border: `1px solid ${estadoColor}22` }}
-                    >
-                      {c.estado}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0 self-start">
+                      {vieneDeReporte && (
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+                          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px dashed var(--color-accent)66" }}
+                          title="Aparece en este mes por su último reporte"
+                        >
+                          por reporte
+                        </span>
+                      )}
+                      <span
+                        className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider"
+                        style={{ backgroundColor: `${estadoColor}14`, color: estadoColor, border: `1px solid ${estadoColor}22` }}
+                      >
+                        {c.estado}
+                      </span>
+                    </div>
                   </div>
                       <div className="mt-2 pt-2 space-y-1.5 max-h-32 overflow-y-auto" style={{ borderTop: "1px solid var(--color-border)" }}>
                     {!ultimoReporte ? (
@@ -124,16 +117,14 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
                       </div>
                     ) : (
                       <div
-                        className="text-xs leading-relaxed flex items-start gap-1.5"
+                        className="text-xs leading-relaxed flex items-center gap-1.5"
                         style={{ color: "var(--color-text)" }}
                       >
+                        <OrigenBadge origen={ultimoReporte.origen} size="md" />
                         <span style={{ color: estadoColor }}>
                           ▸ {sanitizeString(ultimoReporte.fecha)}{" "}
                         </span>
                         <span className="flex-1">{sanitizeString(ultimoReporte.texto)}</span>
-                        {ultimoReporte.origen && (
-                          <OrigenBadge origen={ultimoReporte.origen} size="md" />
-                        )}
                       </div>
                     )}
                   </div>

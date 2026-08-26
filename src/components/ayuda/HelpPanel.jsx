@@ -44,7 +44,7 @@ import { DOC_README, DOC_CHANGELOG } from "../../docs/docsContent";
 function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
   const [abierto, setAbierto] = useState(false);
   return (
-    <div id={id} className="rounded-lg overflow-hidden transition-all duration-200" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+    <div id={id} className="rounded-lg overflow-hidden transition-[height,opacity] duration-200" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
       <button
         onClick={() => setAbierto(!abierto)}
         className="flex items-center gap-2 w-full p-3 text-left transition-colors hover:bg-white/5 group"
@@ -64,7 +64,7 @@ function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
         />
       </button>
       <div
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${abierto ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
+        className={`transition-[height,opacity] duration-300 ease-in-out overflow-hidden ${abierto ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
       >
         <div className="p-3 pt-0">{children}</div>
       </div>
@@ -124,7 +124,7 @@ export default function HelpPanel({ showToast, onClose }) {
 
               <button
                 onClick={() => { startTour("onboarding"); onClose(); }}
-                className="mt-3 px-4 py-2 rounded-md text-xs font-semibold transition-all hover:opacity-80"
+                className="mt-3 px-4 py-2 rounded-md text-xs font-semibold transition-opacity hover:opacity-80"
                 style={{
                   backgroundColor: "var(--color-accent)",
                   color: "#14181F",
@@ -256,7 +256,7 @@ export default function HelpPanel({ showToast, onClose }) {
                   key={sid}
                   href={`#${sid}`}
                   onClick={(e) => { e.preventDefault(); document.getElementById(sid)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
-                  className="flex flex-col items-center gap-1 p-2 rounded-lg text-center transition-all duration-150 hover:scale-105"
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg text-center transition-transform transition-colors duration-150 hover:scale-105"
                   style={{ backgroundColor: SURF2, border: `1px solid ${BORD}` }}
                 >
                   <I size={14} color={ACCENT} />

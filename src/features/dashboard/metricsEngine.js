@@ -6,7 +6,7 @@ import { normalizeDate } from "../../utils/dateFilters";
 export const CATEGORIAS_DEFAULT = {
   success: ['Firmo'],
   contact: ['Cita virtual', 'Cita presencial', 'Lo piensa', 'Pendiente', '2do Llamado'],
-  lost: ['No le interesa', 'Tiene Abogado', 'Incontactable', 'No viable'],
+  lost: ['No le interesa', 'Tiene Abogado', 'Incontactable', 'No viable', 'Baja'],
   pending: ['No responde', 'Reprogramado', 'Sin reporte'],
 };
 

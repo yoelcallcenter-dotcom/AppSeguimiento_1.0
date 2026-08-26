@@ -14,6 +14,8 @@ import {
   Activity,
   AlertCircle,
   UserCircle2,
+  Download,
+  FilePlus,
 } from "lucide-react";
 
 // Constants
@@ -63,6 +65,7 @@ import { ToastContainer } from "./components/notifications/ToastContainer";
 import { NotificationCenter } from "./components/notifications/NotificationCenter";
 import { PersistentAlertContainer } from "./components/notifications/PersistentAlert";
 import { UndoBanner } from "./components/common/UndoBanner";
+import { CsvExportModal } from "./features/export/CsvExportModal";
 import useCelebrationStore from "./core/celebrations/celebrationStore";
 import useNotificationStore from "./core/notifications/notificationStore";
 
@@ -89,6 +92,8 @@ function celebrarLogroSiCorresponde(casos, caso) {
   if (!mes) return;
   const firmas = casos.filter(
     (c) => (c.fecha || "").startsWith(mes) && c.estado === "Firmo"
+  ).length - casos.filter(
+    (c) => (c.fecha || "").startsWith(mes) && c.estado === "Baja"
   ).length;
   if (firmas < META_FIRMAS_MES) return;
   try {
@@ -118,6 +123,12 @@ const CSVImporter = lazy(() => import("./features/import/CSVImporter"));
 import useAppStore from "./core/store/useAppStore";
 import { initTheme } from "./core/theme/themeManager";
 import { startAlertSystem } from "./features/alerts/alertsSystem";
+import {
+  computeCaseChanges,
+  recordCaseChanges,
+  deleteCaseHistory,
+} from "./core/cases/caseHistory";
+import { runIntegrityCheck } from "./core/integrity/integrityService";
 
 // Components - Views (lazy)
 const KanbanView = lazy(() => import("./components/kanban/KanbanView").then((m) => ({ default: m.KanbanView })));
@@ -183,36 +194,46 @@ function AppTitle() {
 
 function ViewTabs({ tabs, selectedView, onSelect }) {
   const { t } = useI18n();
+  const grupoPrincipal = tabs.filter(([k]) => k === "mi-espacio" || k === "dashboard");
+  const grupoSecundario = tabs.filter(([k]) => k !== "mi-espacio" && k !== "dashboard");
+
+  const renderBtn = ([k, label, Icon]) => {
+    const isActive = selectedView === k;
+    const isMiEspacio = k === "mi-espacio";
+    return (
+      <button
+        key={k}
+        onClick={() => onSelect(k)}
+        onMouseDown={(e) => e.preventDefault()}
+        data-tour={k}
+        className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow ${
+          isActive
+            ? isMiEspacio
+              ? "text-[#14181F] shadow-md"
+              : "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
+            : isMiEspacio
+              ? "bg-[var(--color-accent)] text-[#14181F] shadow-sm"
+              : "text-[var(--color-text-muted)] hover:opacity-70"
+        }`}
+        style={
+          isActive && isMiEspacio
+            ? { backgroundColor: "var(--color-accent)", border: "1px solid var(--color-accent)" }
+            : undefined
+        }
+      >
+        <Icon size={13} />
+        <span className="hidden xs:inline">{t(`tabs.${k}`, label)}</span>
+      </button>
+    );
+  };
+
   return (
-    <div className="flex flex-wrap gap-0.5 pb-2 animate-stagger">
-      {tabs.map(([k, label, Icon]) => {
-        const isActive = selectedView === k;
-        const isMiEspacio = k === "mi-espacio";
-        return (
-          <button
-            key={k}
-            onClick={() => onSelect(k)}
-            data-tour={k}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-all ${
-              isActive
-                ? isMiEspacio
-                  ? "text-[#14181F] shadow-md"
-                  : "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
-                : isMiEspacio
-                  ? "bg-[var(--color-accent)] text-[#14181F] shadow-sm"
-                  : "text-[var(--color-text-muted)] hover:opacity-70"
-            }`}
-            style={
-              isActive && isMiEspacio
-                ? { backgroundColor: "var(--color-accent)", border: "1px solid var(--color-accent)" }
-                : undefined
-            }
-          >
-            <Icon size={13} />
-            <span className="hidden xs:inline">{t(`tabs.${k}`, label)}</span>
-          </button>
-        );
-      })}
+    <div className="flex flex-wrap items-center gap-0.5 pb-2 animate-stagger">
+      <div className="flex gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5">
+        {grupoPrincipal.map(renderBtn)}
+      </div>
+      <div className="w-px h-5 mx-1" style={{ backgroundColor: "var(--color-border)" }} />
+      {grupoSecundario.map(renderBtn)}
     </div>
   );
 }
@@ -282,6 +303,7 @@ function AppContent() {
   const [overlayOpen, setOverlayOpen] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBlocNotas, setShowBlocNotas] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
   const [pendingNoteId, setPendingNoteId] = useState(null);
   // Deshacer: snapshot previo de casos para revertir la última mutación.
   const [undoState, setUndoState] = useState(null);
@@ -345,6 +367,20 @@ function AppContent() {
     } catch {}
     const stopAutoBackup = setupAutoBackupWatcher();
     const stopStatusMonitor = startSystemStatusMonitor();
+    // Integridad (1.3.3): verificación ligera al iniciar. Silenciosa salvo
+    // problemas CRITICAL; jamás bloquea el arranque.
+    runIntegrityCheck({ completo: false })
+      .then((informe) => {
+        const criticos = (informe.problemas || []).filter((p) => p.nivel === "critical");
+        if (criticos.length > 0) {
+          showToast(
+            `Integridad de datos: ${criticos[0].mensaje}. Revisá Configuración > Sistema > Diagnóstico.`,
+            "error",
+            8000
+          );
+        }
+      })
+      .catch(() => {});
     return () => {
       stopAutoBackup();
       stopStatusMonitor();
@@ -614,25 +650,35 @@ function AppContent() {
         showToast(`Errores: ${validation.errors.join(", ")}`, "error");
         return;
       }
-      const isNew = !caso.id || !casos.some((c) => c.id === caso.id);
-      const prev = casos.find((c) => c.id === caso.id)?.estado;
+      const prev = casos.find((c) => c.id === caso.id);
+      const isNew = !caso.id || !prev;
+      // Historial (1.3.1): solo actividad real genera eventos y actualiza
+      // la última actividad; guardar sin cambios no registra nada.
+      const cambios = isNew ? [] : computeCaseChanges(prev, caso);
+      const huboActividad = isNew || cambios.length > 0;
+      const casoFinal = huboActividad
+        ? { ...caso, lastActivityAt: new Date().toISOString() }
+        : caso;
       pushUndo(isNew ? "Caso creado" : "Caso actualizado");
       setCasos((list) => {
-        const updated = list.some((c) => c.id === caso.id)
-          ? list.map((c) => (c.id === caso.id ? caso : c))
-          : [...list, caso];
+        const updated = list.some((c) => c.id === casoFinal.id)
+          ? list.map((c) => (c.id === casoFinal.id ? casoFinal : c))
+          : [...list, casoFinal];
         if (isNew) {
           trackEvent("CASE_CREATED");
-          eventBus.emit(AppEvents.CASE_CREATED, { type: "success", title: "Caso creado", message: `${caso.nombre} fue agregado`, source: "cases" });
+          eventBus.emit(AppEvents.CASE_CREATED, { type: "success", title: "Caso creado", message: `${casoFinal.nombre} fue agregado`, source: "cases" });
         } else {
           trackEvent("CASE_EDITED");
-          eventBus.emit(AppEvents.CASE_UPDATED, { type: "info", title: "Caso actualizado", message: `${caso.nombre} fue modificado`, source: "cases" });
+          eventBus.emit(AppEvents.CASE_UPDATED, { type: "info", title: "Caso actualizado", message: `${casoFinal.nombre} fue modificado`, source: "cases" });
         }
         return updated;
       });
+      if (huboActividad) {
+        recordCaseChanges(casoFinal.id, isNew ? null : prev, casoFinal);
+      }
       setModalCaso(null);
       soundSystem.playAction(isNew ? "create" : "save");
-      if (!isNew && prev && prev !== caso.estado) {
+      if (!isNew && prev && prev.estado !== caso.estado) {
         if (caso.estado === "Firmo" || caso.estado === "Pendiente") {
           celebrarEstado(caso, caso.estado);
         }
@@ -652,6 +698,7 @@ function AppContent() {
       const deleted = casos.find((c) => c.id === id);
       pushUndo("Caso eliminado");
       setCasos((list) => list.filter((c) => c.id !== id));
+      deleteCaseHistory(id);
       setModalCaso(null);
       showToast("Caso eliminado", "info");
       soundSystem.playAction("delete");
@@ -664,54 +711,64 @@ function AppContent() {
 
   const cambiarEstado = useCallback(
     (id, estado) => {
-      const oldState = casos.find((c) => c.id === id)?.estado;
+      const prev = casos.find((c) => c.id === id);
+      const oldState = prev?.estado;
       if (oldState && oldState !== estado) {
         pushUndo(`Estado: ${oldState} → ${estado}`);
       }
       const updated = casos.map((c) => {
         if (c.id !== id) return c;
+        const base = { ...c, estado };
         if (estado === "Firmo" && !c.fechaFirma) {
-          return {
-            ...c,
-            estado,
-            fechaFirma: new Date().toISOString().slice(0, 10),
-            alertaFirmaEnviada: false,
-          };
+          base.fechaFirma = new Date().toISOString().slice(0, 10);
+          base.alertaFirmaEnviada = false;
         }
-        return { ...c, estado };
+        return base;
       });
-      setCasos(updated);
       if (oldState && oldState !== estado) {
-        const caso = updated.find((c) => c.id === id);
+        const cambio = updated.find((c) => c.id === id);
+        cambio.lastActivityAt = new Date().toISOString();
+        recordCaseChanges(id, prev, cambio);
         recordGoalAction('CASE_MOVED');
-        eventBus.emit(AppEvents.CASE_STATUS_CHANGED, { type: "info", title: "Estado actualizado", message: `${casos.find((c) => c.id === id)?.nombre || "Caso"}: ${oldState} → ${estado}`, source: "cases", priority: "medium" });
+        eventBus.emit(AppEvents.CASE_STATUS_CHANGED, { type: "info", title: "Estado actualizado", message: `${prev?.nombre || "Caso"}: ${oldState} → ${estado}`, source: "cases", priority: "medium" });
         if (estado === "Firmo" || estado === "Pendiente") {
-          celebrarEstado(caso, estado);
+          celebrarEstado(cambio, estado);
         }
         if (estado === "Firmo") {
-          celebrarLogroSiCorresponde(updated, caso);
+          celebrarLogroSiCorresponde(updated, cambio);
         }
       }
+      setCasos(updated);
     },
     [setCasos, casos, pushUndo]
   );
 
   const guardarReporteRapido = useCallback(
     (caso) => {
-      const prev = casos.find((c) => c.id === caso.id)?.estado;
+      const prev = casos.find((c) => c.id === caso.id) || null;
+      let casoFinal = caso;
+      if (prev) {
+        const cambios = computeCaseChanges(prev, caso);
+        if (cambios.length > 0) {
+          casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
+          recordCaseChanges(casoFinal.id, prev, casoFinal);
+        }
+      } else {
+        casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
+      }
       pushUndo("Reporte cargado");
-      setCasos((list) => list.map((c) => (c.id === caso.id ? caso : c)));
+      setCasos((list) => list.map((c) => (c.id === casoFinal.id ? casoFinal : c)));
       setModalReporte(false);
       soundSystem.playAction("save");
-      if (prev && prev !== caso.estado) {
-        if (caso.estado === "Firmo" || caso.estado === "Pendiente") {
-          celebrarEstado(caso, caso.estado);
+      if (prev && prev.estado !== casoFinal.estado) {
+        if (casoFinal.estado === "Firmo" || casoFinal.estado === "Pendiente") {
+          celebrarEstado(casoFinal, casoFinal.estado);
         }
-        if (caso.estado === "Firmo") {
+        if (casoFinal.estado === "Firmo") {
           const updatedForGoal = casos.map((c) =>
-            c.id === caso.id ? caso : c
+            c.id === casoFinal.id ? casoFinal : c
           );
-          celebrarLogroSiCorresponde(updatedForGoal, caso);
+          celebrarLogroSiCorresponde(updatedForGoal, casoFinal);
         }
       }
     },
@@ -720,11 +777,22 @@ function AppContent() {
 
   const actualizarCaso = useCallback(
     (caso) => {
+      const prev = casos.find((c) => c.id === caso.id);
+      let casoFinal = caso;
+      if (prev) {
+        const cambios = computeCaseChanges(prev, caso);
+        if (cambios.length > 0) {
+          casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
+          recordCaseChanges(casoFinal.id, prev, casoFinal);
+        }
+      } else {
+        casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
+      }
       pushUndo("Caso actualizado");
       trackEvent("CASE_EDITED");
-      setCasos((list) => list.map((c) => (c.id === caso.id ? caso : c)));
+      setCasos((list) => list.map((c) => (c.id === casoFinal.id ? casoFinal : c)));
     },
-    [setCasos, pushUndo]
+    [setCasos, casos, pushUndo]
   );
 
   const handleNavigateToNote = useCallback((noteId) => {
@@ -1052,22 +1120,34 @@ function AppContent() {
                 data-tour="buscar"
               />
             </div>
+            <div className="flex items-center gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5">
+              <Btn
+                onClick={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
+                icon={FilePlus}
+                size="sm"
+                data-tour="nuevo-caso"
+              >
+                Caso
+              </Btn>
+              <Btn
+                onClick={() => setModalReporte(true)}
+                icon={ClipboardList}
+                size="sm"
+                data-tour="cargar-reporte"
+              >
+                Reporte
+              </Btn>
+            </div>
+            <div className="w-px h-5 self-center mx-1" style={{ backgroundColor: "var(--color-border)" }} />
             <Btn
-              onClick={() => setModalReporte(true)}
-              icon={ClipboardList}
+              onClick={() => setShowCsvModal(true)}
+              icon={Download}
               size="sm"
-              variant="accent"
-              data-tour="cargar-reporte"
+              color="var(--color-success)"
+              textColor="#ffffff"
+              data-tour="exportar-csv"
             >
-              NUEVO REPORTE
-            </Btn>
-            <Btn
-              onClick={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
-              icon={Plus}
-              size="sm"
-              data-tour="nuevo-caso"
-            >
-              NUEVO CASO
+              Exportar
             </Btn>
           </div>
 
@@ -1076,10 +1156,10 @@ function AppContent() {
       </header>
 
       {/* CONTENIDO */}
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
         <SystemStatusBanner />
         {selectedView === "dashboard" && (
-          <>
+          <div key="view-dashboard" className="view-transition-enter">
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <Dashboard
               config={config}
@@ -1091,10 +1171,10 @@ function AppContent() {
               onImportarCSV={() => setOverlayOpen("csv-import")}
               onTour={() => startTour("onboarding")}
             />
-          </>
+          </div>
         )}
         {selectedView === "kanban" && (
-          <>
+          <div key="view-kanban" className="view-transition-enter">
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <KanbanView
               casos={casosFiltrados}
@@ -1105,10 +1185,10 @@ function AppContent() {
               showToast={showToast}
               mesesDisponibles={mesesDisponibles}
             />
-          </>
+          </div>
         )}
         {selectedView === "tabla" && (
-          <>
+          <div key="view-tabla" className="view-transition-enter">
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <TablaView
               casos={casosFiltrados}
@@ -1119,10 +1199,10 @@ function AppContent() {
               seleccionados={casosSeleccionados}
               mesesDisponibles={mesesDisponibles}
             />
-          </>
+          </div>
         )}
         {selectedView === "reportes" && (
-          <>
+          <div key="view-reportes" className="view-transition-enter">
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <ReportesView
               casos={casosFiltrados}
@@ -1130,79 +1210,89 @@ function AppContent() {
               onVerCaso={setVerCaso}
               mesesDisponibles={mesesDisponibles}
             />
-          </>
+          </div>
         )}
         {selectedView === "mi-espacio" && (
-          <OperatorView
-            config={config}
-            casos={casosFiltrados}
-            showToast={showToast}
-            onChangeView={setSelectedView}
-          />
+          <div key="view-mi-espacio" className="view-transition-enter">
+            <OperatorView
+              config={config}
+              casos={casosFiltrados}
+              showToast={showToast}
+              onChangeView={setSelectedView}
+            />
+          </div>
         )}
         {selectedView === "utiles" && (
-          <UtilesView
-            config={config}
-            setConfig={setConfig}
-            pasos={pasos}
-            setPasos={setPasos}
-            tips={tips}
-            setTips={setTips}
-            links={links}
-            setLinks={setLinks}
-            speechs={speechs}
-            setSpeechs={setSpeechs}
-            objeciones={objeciones}
-            setObjeciones={setObjeciones}
-            art={art}
-            setArt={setArt}
-            transito={transito}
-            setTransito={setTransito}
-            lesiones={lesiones}
-            setLesiones={setLesiones}
-            mapeo={mapeo}
-            setMapeo={setMapeo}
-            observacionesTransito={observacionesTransito}
-            setObservacionesTransito={setObservacionesTransito}
-            condicionales={condicionales}
-            setCondicionales={setCondicionales}
-            casos={casos}
-            showToast={showToast}
-          />
+          <div key="view-utiles" className="view-transition-enter">
+            <UtilesView
+              config={config}
+              setConfig={setConfig}
+              pasos={pasos}
+              setPasos={setPasos}
+              tips={tips}
+              setTips={setTips}
+              links={links}
+              setLinks={setLinks}
+              speechs={speechs}
+              setSpeechs={setSpeechs}
+              objeciones={objeciones}
+              setObjeciones={setObjeciones}
+              art={art}
+              setArt={setArt}
+              transito={transito}
+              setTransito={setTransito}
+              lesiones={lesiones}
+              setLesiones={setLesiones}
+              mapeo={mapeo}
+              setMapeo={setMapeo}
+              observacionesTransito={observacionesTransito}
+              setObservacionesTransito={setObservacionesTransito}
+              condicionales={condicionales}
+              setCondicionales={setCondicionales}
+              casos={casos}
+              showToast={showToast}
+            />
+          </div>
         )}
         {selectedView === "configuracion" && (
-          <ConfiguracionView
-            config={config}
-            setConfig={setConfig}
-            pasos={pasos}
-            setPasos={setPasos}
-            tips={tips}
-            setTips={setTips}
-            links={links}
-            setLinks={setLinks}
-            speechs={speechs}
-            setSpeechs={setSpeechs}
-            objeciones={objeciones}
-            setObjeciones={setObjeciones}
-            art={art}
-            setArt={setArt}
-            transito={transito}
-            setTransito={setTransito}
-            lesiones={lesiones}
-            setLesiones={setLesiones}
-            mapeo={mapeo}
-            setMapeo={setMapeo}
-            observacionesTransito={observacionesTransito}
-            setObservacionesTransito={setObservacionesTransito}
-            condicionales={condicionales}
-            setCondicionales={setCondicionales}
-            showToast={showToast}
-            casos={casos}
-            onEliminarTodos={eliminarTodosLosDatos}
-            setCasos={setCasos}
-          />
+          <div key="view-config" className="view-transition-enter">
+            <ConfiguracionView
+              config={config}
+              setConfig={setConfig}
+              pasos={pasos}
+              setPasos={setPasos}
+              tips={tips}
+              setTips={setTips}
+              links={links}
+              setLinks={setLinks}
+              speechs={speechs}
+              setSpeechs={setSpeechs}
+              objeciones={objeciones}
+              setObjeciones={setObjeciones}
+              art={art}
+              setArt={setArt}
+              transito={transito}
+              setTransito={setTransito}
+              lesiones={lesiones}
+              setLesiones={setLesiones}
+              mapeo={mapeo}
+              setMapeo={setMapeo}
+              observacionesTransito={observacionesTransito}
+              setObservacionesTransito={setObservacionesTransito}
+              condicionales={condicionales}
+              setCondicionales={setCondicionales}
+              showToast={showToast}
+              casos={casos}
+              onEliminarTodos={eliminarTodosLosDatos}
+              setCasos={setCasos}
+            />
+          </div>
         )}
-        {selectedView === "como-usar" && <ComoUsarView showToast={showToast} />}
+        {selectedView === "como-usar" && (
+          <div key="view-como-usar" className="view-transition-enter">
+            <ComoUsarView showToast={showToast} />
+          </div>
+        )}
       </div>
 
       {/* CALENDARIO - Overlay */}
@@ -1307,7 +1397,7 @@ function AppContent() {
       {/* MODALES */}
       {verCaso && (
         <VerCasoModal
-          caso={verCaso}
+          caso={casos.find((c) => c.id === verCaso.id) || verCaso}
           config={config}
           onClose={() => setVerCaso(null)}
           onEdit={(caso) => {
@@ -1359,6 +1449,12 @@ function AppContent() {
         }}
         onSelectNote={(id) => setShowBlocNotas(true)}
         onSelectEvent={(id) => setShowCalendar(true)}
+      />
+
+      <CsvExportModal
+        open={showCsvModal}
+        onClose={() => setShowCsvModal(false)}
+        showToast={showToast}
       />
 
       {/* Notification System (includes ToastContainer with Celebrations) */}

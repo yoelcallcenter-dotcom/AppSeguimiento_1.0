@@ -3,6 +3,8 @@ import { MonthDayFilterBar } from "../common/MonthDayFilterBar";
 import { PipelineBar } from "./PipelineBar";
 import { CasoCard } from "./CasoCard";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { EmptyState } from "../common/EmptyState";
+import { Inbox } from "lucide-react";
 import { ESTADOS } from "../../utils/constants";
 import { getEstados } from "../../utils/catalogos";
 import { casoVieneDeReporte } from "../../utils/dateFilters";
@@ -49,7 +51,14 @@ export function KanbanView({
 
   const onDrop = (e, estado) => {
     e.preventDefault();
-    if (draggingId) setConfirmCambio({ id: draggingId, estado });
+    if (draggingId) {
+      const caso = casos.find((c) => c.id === draggingId);
+      if (caso && caso.estado === estado) {
+        setDraggingId(null);
+        return;
+      }
+      setConfirmCambio({ id: draggingId, estado });
+    }
     setDraggingId(null);
   };
 
@@ -158,12 +167,7 @@ export function KanbanView({
                 style={{ scrollbarWidth: "thin" }}
               >
                 {items.length === 0 ? (
-                  <div
-                    className="text-[11px] px-2 py-4 text-center w-full"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    Sin casos
-                  </div>
+                  <EmptyState icon={Inbox} message="Sin casos" size="sm" className="w-full" />
                 ) : (
                   items.map((c) => (
                     <div

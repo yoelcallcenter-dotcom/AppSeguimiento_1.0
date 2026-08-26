@@ -20,7 +20,7 @@ export function NoteCard({ note, onSelect, onDelete }) {
 
   return (
     <div
-      className="rounded-lg p-3 transition-all hover:shadow-lg cursor-pointer group"
+      className="rounded-lg p-3 transition-shadow hover:shadow-lg cursor-pointer group"
       style={{
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",

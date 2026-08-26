@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Send, Trash2, User, Clock, MessageCircle } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { TextArea } from "../common/TextArea";
+import { Select } from "../common/Select";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 
 export function ComentariosUI({
@@ -11,8 +12,10 @@ export function ComentariosUI({
   showToast,
   usuario = "Usuario",
   loading = false,
+  tiposInteraccion = null,
 }) {
   const [nuevoComentario, setNuevoComentario] = useState("");
+  const [tipoInteraccion, setTipoInteraccion] = useState("");
   const [confirmEliminar, setConfirmEliminar] = useState(null);
 
   const handleAdd = () => {
@@ -21,9 +24,10 @@ export function ComentariosUI({
       if (showToast) showToast("Escribe un comentario", "warning");
       return;
     }
-    // Llamar a onAdd con el texto
-    onAdd(text);
+    // Llamar a onAdd con el texto (y el tipo de interacción si aplica)
+    onAdd(text, tipoInteraccion || "");
     setNuevoComentario("");
+    setTipoInteraccion("");
   };
 
   const formatearFecha = (fecha) => {
@@ -102,13 +106,24 @@ export function ComentariosUI({
                   }}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="text-xs font-semibold"
                         style={{ color: "var(--color-accent)" }}
                       >
                         {autor}
                       </span>
+                      {c.tipo && (
+                        <span
+                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: "var(--color-accent)22",
+                            color: "var(--color-accent)",
+                          }}
+                        >
+                          {c.tipo}
+                        </span>
+                      )}
                       <span
                         className="text-[10px] flex items-center gap-1"
                         style={{ color: "var(--color-text-muted)" }}
@@ -149,6 +164,17 @@ export function ComentariosUI({
       </div>
 
       {/* Input para nuevo comentario */}
+      {tiposInteraccion && tiposInteraccion.length > 0 && (
+        <Select
+          value={tipoInteraccion}
+          onChange={(e) => setTipoInteraccion(e.target.value)}
+          options={[
+            { value: "", label: "Interacción (opcional)…" },
+            ...tiposInteraccion.map((t) => ({ value: t, label: t })),
+          ]}
+          aria-label="Tipo de interacción"
+        />
+      )}
       <div className="flex gap-2 items-end mt-2">
         <TextArea
           rows={2}

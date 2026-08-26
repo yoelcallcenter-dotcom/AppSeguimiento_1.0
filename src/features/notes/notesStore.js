@@ -2,6 +2,7 @@ import appDB from '../../core/db/appDB';
 import { reportError } from '../../core/error/reportError';
 import { touchVersion, assertNoConflict } from '../../core/db/versioning';
 import { notifyChange, SYNC_EVENTS } from '../../core/sync/syncService';
+import { recordNotesAddedForCases } from '../../core/cases/caseHistory';
 
 export async function createNote({ title, content, tags, relatedCaseIds }) {
   try {
@@ -15,6 +16,10 @@ export async function createNote({ title, content, tags, relatedCaseIds }) {
     const id = await appDB.notes.add(note);
     await saveVersion(id, note);
     notifyChange(SYNC_EVENTS.NOTES_UPDATED, { action: 'create', id });
+    // Historial: la nota sigue siendo la fuente de verdad; el evento la referencia.
+    if ((note.relatedCaseIds || []).length > 0) {
+      recordNotesAddedForCases(note.relatedCaseIds, { noteId: id, title: note.title });
+    }
     return { ...note, id };
   } catch (error) {
     reportError(error, { operation: 'createNote' });

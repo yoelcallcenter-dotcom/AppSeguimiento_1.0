@@ -23,7 +23,7 @@ export function TextArea({ onBlur, className = "", style = {}, ...props }) {
       {...props}
       ref={textareaRef}
       onChange={handleChange}
-      className={`input-optimized resize-none overflow-hidden min-h-[3rem] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] ${className}`}
+      className={`input-optimized resize-none overflow-hidden min-h-[3rem] ${className}`}
       style={style}
     />
   );

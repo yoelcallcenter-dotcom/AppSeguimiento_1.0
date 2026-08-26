@@ -9,6 +9,7 @@ export const ESTADOS = [
   { v: "No le interesa", accent: "#EF4444", peso: 1 },
   { v: "No viable", accent: "#DC2626", peso: 1 },
   { v: "Incontactable", accent: "#E11D48", peso: 1 },
+  { v: "Baja", accent: "#991B1B", peso: 1 },
   { v: "Pendiente", accent: "#34D399", peso: 1 },
   { v: "Firmo", accent: "#10B981", peso: 1 },
   { v: "Sin reporte", accent: "#94A3B8", peso: 1 },
@@ -72,6 +73,8 @@ export const CONFIG_DEFAULT = {
   formatoFecha: "DD/MM/YYYY",
   telefonoFormato: "argentina",
   casosPorPagina: 50,
+  // Insights y analítica (1.3.2): preferencias visuales, no afectan el cálculo.
+  insightEnJornada: true,
   // Catálogos configurables (Estados de Caso y Tipos de Ingreso)
   estados: ESTADOS,
   tiposIngreso: TIPOS_INGRESO_SUGERIDOS,

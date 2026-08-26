@@ -3,7 +3,7 @@
  * Sistema de backup completo y real basado en IndexedDB (Dexie).
  *
  * Exporta TODOS los datos del usuario:
- *  - Casos (casesDB)
+ *  - Casos e historial de casos (casesDB)
  *  - Notas, eventos y versiones de notas (appDB)
  *  - Configuración y útiles (localStorage vía localStorageAdapter, prefijo app_)
  *
@@ -25,6 +25,7 @@ export const BACKUP_SCHEMA_VERSION = 2;
 /** Tablas de datos del usuario (excluye diagnostics/logs). */
 const DB_TABLES = [
   { db: "casesDB", name: "cases" },
+  { db: "casesDB", name: "case_history" },
   { db: "appDB", name: "notes" },
   { db: "appDB", name: "events" },
   { db: "appDB", name: "note_versions" },
@@ -163,7 +164,10 @@ export function backupSizeKB(backup) {
  * @param {boolean} [options.notas=true] restaurar notas (+ versiones).
  * @param {boolean} [options.eventos=true] restaurar eventos.
  * @param {boolean} [options.config=true] restaurar configuración y útiles.
- * @returns {Promise<{counts: object, migration?: object}>}
+ * @param {boolean} [options.permitirVaciar=false] Integridad 1.3.3: permite
+ *        explícitamente que una restauración con 0 casos vacíe la colección
+ *        existente (requiere confirmación del usuario en la UI).
+ * @returns {Promise<{counts: object, migration?: object, warnings: string[], safeguardId: number|null}>}
  */
 export async function importBackup(backup, options = {}) {
   // Aplicar migración si el backup es de un formato anterior.
@@ -199,10 +203,60 @@ export async function importBackup(backup, options = {}) {
     notas: options.notas !== false,
     eventos: options.eventos !== false,
     config: options.config !== false,
+    // Integridad (1.3.3): solo en true tras confirmación explícita del usuario.
+    permitirVaciar: options.permitirVaciar === true,
   };
 
   const db = effectiveBackup.data.db || {};
   const storage = effectiveBackup.data.storage || {};
+  const warnings = [];
+
+  // ============================================================
+  // INTEGRIDAD (1.3.3): protección contra reemplazos que vacían datos.
+  //   - Sección ausente → se omite el bloque con advertencia (no se borra).
+  //   - Sección presente pero vacía con datos existentes → CRITICAL, salvo
+  //     que el usuario confirme explícitamente el vaciado.
+  // ============================================================
+  if (opts.casos) {
+    let actuales = [];
+    try { actuales = await casesDB.cases.toArray(); } catch { actuales = []; }
+
+    if (!Array.isArray(db.cases)) {
+      if (actuales.length > 0) {
+        opts.casos = false;
+        warnings.push(
+          "El backup no incluye la sección de casos: los casos actuales no fueron modificados."
+        );
+      }
+    } else if (db.cases.length === 0 && actuales.length > 0 && !opts.permitirVaciar) {
+      throw new Error(
+        `Operación bloqueada por integridad de datos: el backup no contiene casos y la restauración vaciaría ${actuales.length} caso(s) existente(s). Si realmente querés reemplazar todo, confirmá explícitamente la operación de vaciado.`
+      );
+    }
+  }
+
+  // Snapshot "Seguridad" previo a escribir (best-effort; su fallo no bloquea).
+  let safeguardId = null;
+  if (opts.casos || opts.notas || opts.eventos) {
+    try {
+      const snapshot = await exportBackup();
+      safeguardId = await appDB.auto_backups.add({
+        timestamp: new Date().toISOString(),
+        kind: "safeguard",
+        sizeKB: backupSizeKB(snapshot),
+        counts: {
+          cases: snapshot.data?.db?.cases?.length || 0,
+          notes: snapshot.data?.db?.notes?.length || 0,
+          events: snapshot.data?.db?.events?.length || 0,
+        },
+        backup: snapshot,
+      });
+    } catch (err) {
+      warnings.push(
+        `No se pudo crear la salvaguarda previa: ${err?.message || err}. La restauración continúa.`
+      );
+    }
+  }
 
   // Snapshot del estado actual para poder hacer rollback ante un fallo.
   const beforeDb = {};
@@ -216,14 +270,38 @@ export async function importBackup(backup, options = {}) {
     }
   }
 
+  /** Conserva únicamente filas restaurables (objetos); informa las descartadas. */
+  const filasRestaurables = (nombreTabla, rows) => {
+    const utiles = rows.filter((r) => r && typeof r === "object" && !Array.isArray(r));
+    const descartadas = rows.length - utiles.length;
+    if (descartadas > 0) {
+      warnings.push(
+        `${nombreTabla}: ${descartadas} fila(s) con estructura inválida fueron omitidas.`
+      );
+    }
+    return utiles;
+  };
+
   try {
-    // 1) Casos (casesDB)
+    // 1) Casos + historial (casesDB).
+    //    El historial acompaña a los casos: si el backup es anterior a 1.3.1
+    //    no contiene case_history y se aplica el default seguro (historial
+    //    vacío), sin inventar eventos que no existieron.
     if (opts.casos) {
-      await casesDB.transaction("rw", casesDB.cases, async () => {
+      const casosEntrantes = Array.isArray(db.cases)
+        ? filasRestaurables("casos", db.cases)
+        : [];
+      const historyRows = Array.isArray(db.case_history)
+        ? filasRestaurables("historial de casos", db.case_history)
+        : [];
+      await casesDB.transaction("rw", [casesDB.cases, casesDB.case_history], async () => {
         await casesDB.cases.clear();
-        const rows = db.cases;
-        if (Array.isArray(rows) && rows.length > 0) {
-          await casesDB.cases.bulkPut(rows);
+        if (casosEntrantes.length > 0) {
+          await casesDB.cases.bulkPut(casosEntrantes);
+        }
+        await casesDB.case_history.clear();
+        if (historyRows.length > 0) {
+          await casesDB.case_history.bulkPut(historyRows);
         }
       });
     }
@@ -236,19 +314,31 @@ export async function importBackup(backup, options = {}) {
       return opts.notas;
     });
     if (appTables.length > 0) {
-      await appDB.transaction(
-        "rw",
-        appTables.map((t) => appDB[t.name]),
-        async () => {
-          for (const [tableName, rows] of Object.entries(db)) {
-            if (!appTables.some((t) => t.name === tableName)) continue;
-            await appDB[tableName].clear();
-            if (Array.isArray(rows) && rows.length > 0) {
-              await appDB[tableName].bulkPut(rows);
+      // Secciones ausentes del backup: se omiten con advertencia sin borrar
+      // los datos actuales (preservación antes que limpieza).
+      for (const t of appTables) {
+        if (!(t.name in db)) {
+          warnings.push(
+            `El backup no incluye la sección "${t.name}": los datos actuales no fueron modificados.`
+          );
+        }
+      }
+      const presentes = appTables.filter((t) => Array.isArray(db[t.name]));
+      if (presentes.length > 0) {
+        await appDB.transaction(
+          "rw",
+          presentes.map((t) => appDB[t.name]),
+          async () => {
+            for (const t of presentes) {
+              const utiles = filasRestaurables(t.name, db[t.name]);
+              await appDB[t.name].clear();
+              if (utiles.length > 0) {
+                await appDB[t.name].bulkPut(utiles);
+              }
             }
           }
-        }
-      );
+        );
+      }
     }
 
     // 3) Configuración y útiles (localStorage).
@@ -256,25 +346,31 @@ export async function importBackup(backup, options = {}) {
     //    que la restauración sea completa (sin restos de versiones previas),
     //    incluyendo las claves sin prefijo (conversaciones_*, calendario-eventos).
     if (opts.config) {
-      const isRawKey = (key) =>
-        localStorageAdapter.unprefixedInclude(key);
+      if (!storage || typeof storage !== "object" || Array.isArray(storage)) {
+        warnings.push(
+          "La sección de configuración del backup tiene estructura inválida y fue omitida."
+        );
+      } else {
+        const isRawKey = (key) =>
+          localStorageAdapter.unprefixedInclude(key);
 
-      // getAllKeys() devuelve claves crudas (prefijadas app_* y sin prefijo).
-      // Se convierten a su forma lógica para compararlas contra `storage`
-      // y se eliminan correctamente sin volver a aplicar el prefijo.
-      const currentRawKeys = localStorageAdapter.getAllKeys();
-      for (const rawKey of currentRawKeys) {
-        const logicalKey = rawKey.startsWith(localStorageAdapter.prefix)
-          ? rawKey.slice(localStorageAdapter.prefix.length)
-          : rawKey;
-        if (!(logicalKey in storage)) {
-          if (isRawKey(rawKey)) localStorageAdapter.removeRaw(rawKey);
-          else localStorageAdapter.remove(logicalKey);
+        // getAllKeys() devuelve claves crudas (prefijadas app_* y sin prefijo).
+        // Se convierten a su forma lógica para compararlas contra `storage`
+        // y se eliminan correctamente sin volver a aplicar el prefijo.
+        const currentRawKeys = localStorageAdapter.getAllKeys();
+        for (const rawKey of currentRawKeys) {
+          const logicalKey = rawKey.startsWith(localStorageAdapter.prefix)
+            ? rawKey.slice(localStorageAdapter.prefix.length)
+            : rawKey;
+          if (!(logicalKey in storage)) {
+            if (isRawKey(rawKey)) localStorageAdapter.removeRaw(rawKey);
+            else localStorageAdapter.remove(logicalKey);
+          }
         }
-      }
-      for (const [key, value] of Object.entries(storage)) {
-        if (isRawKey(key)) localStorageAdapter.setRaw(key, value);
-        else localStorageAdapter.set(key, value);
+        for (const [key, value] of Object.entries(storage)) {
+          if (isRawKey(key)) localStorageAdapter.setRaw(key, value);
+          else localStorageAdapter.set(key, value);
+        }
       }
     }
 
@@ -289,15 +385,25 @@ export async function importBackup(backup, options = {}) {
 
     notifyChange(SYNC_EVENTS.ALL_DATA_UPDATED, { source: "backup-restore", counts });
 
-    return { counts, storageKeys: opts.config ? Object.keys(storage).length : 0, migration: migrationInfo };
+    return {
+      counts,
+      storageKeys: opts.config && storage && typeof storage === "object" ? Object.keys(storage).length : 0,
+      migration: migrationInfo,
+      warnings,
+      safeguardId,
+    };
   } catch (error) {
     // Rollback del estado previo (solo de lo que se haya reemplazado).
     try {
       if (opts.casos) {
-        await casesDB.transaction("rw", casesDB.cases, async () => {
+        await casesDB.transaction("rw", [casesDB.cases, casesDB.case_history], async () => {
           await casesDB.cases.clear();
           if (beforeDb.cases && beforeDb.cases.length > 0) {
             await casesDB.cases.bulkPut(beforeDb.cases);
+          }
+          await casesDB.case_history.clear();
+          if (beforeDb.case_history && beforeDb.case_history.length > 0) {
+            await casesDB.case_history.bulkPut(beforeDb.case_history);
           }
         });
       }

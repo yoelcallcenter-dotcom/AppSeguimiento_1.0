@@ -36,16 +36,19 @@ export function OverlayPanel({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in"
       style={{
-        backgroundColor: "rgba(0,0,0,0.7)",
+        backgroundColor: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(4px)",
       }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="overlay-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         ref={panelRef}
-        className="rounded-xl shadow-2xl animate-slide-up flex flex-col"
+        className="rounded-xl shadow-2xl animate-scale-in flex flex-col"
         style={{
           width: fullscreen ? "90vw" : "720px",
           maxWidth: "95vw",
@@ -56,7 +59,10 @@ export function OverlayPanel({
         }}
       >
         {/* Header */}
-        <div className="modal-header flex-shrink-0" style={{ backgroundColor: "var(--color-bg)" }}>
+        <div
+          className="modal-header flex-shrink-0"
+          style={{ backgroundColor: "var(--color-bg)" }}
+        >
           <div className="flex items-center gap-3">
             {Icon && <Icon size={20} color="var(--color-accent)" />}
             <h2

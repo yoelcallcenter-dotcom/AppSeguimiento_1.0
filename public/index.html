@@ -10,14 +10,14 @@
     <title>AppSeguimiento</title>
     <meta name="description" content="Sistema de gestión de casos ART: seguimiento de derivaciones, reportes, calendario de citas, notas y estadísticas. Funciona sin conexión." />
     <meta name="application-name" content="AppSeguimiento" />
-    <meta name="theme-color" content="#0f1520" />
+    <meta name="theme-color" content="#0F172A" />
     <meta name="color-scheme" content="dark light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="AppSeguimiento" />
     <meta name="format-detection" content="telephone=no" />
-    <meta name="msapplication-TileColor" content="#0f1520" />
+    <meta name="msapplication-TileColor" content="#0F172A" />
     <meta name="msapplication-TileImage" content="%PUBLIC_URL%/icons/icon-192.png" />
     <meta property="og:title" content="AppSeguimiento" />
     <meta property="og:description" content="Sistema de gestión de casos ART: seguimiento de derivaciones, reportes y estadísticas." />
@@ -28,7 +28,7 @@
     <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/icons/icon-192.png" />
-    <link rel="mask-icon" href="%PUBLIC_URL%/favicon.svg" color="#0f1520" />
+    <link rel="mask-icon" href="%PUBLIC_URL%/favicon.svg" color="#0F172A" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/icons/apple-touch-icon.png" />
     <link
       rel="apple-touch-startup-image"
@@ -62,7 +62,7 @@
       html,
       body {
         min-height: 100vh;
-        background-color: #0f1520;
+        background-color: #0F172A;
       }
 
       #root {
@@ -76,7 +76,7 @@
 
       /* Variables CSS para temas */
       :root {
-        --bg-primary: #0f1520;
+        --bg-primary: #0F172A;
         --bg-secondary: #161e2c;
         --bg-surface: #1b2333;
         --bg-surface2: #141b28;
@@ -142,33 +142,7 @@
         overflow: hidden;
       }
 
-      @keyframes slide-up {
-        from {
-          transform: translateY(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
-      .animate-slide-up {
-        animation: slide-up 0.3s ease-out;
-      }
-
-      @keyframes fade-in {
-        from {
-          opacity: 0;
-          transform: scale(0.95);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      .animate-fade-in {
-        animation: fade-in 0.2s ease-out;
-      }
+      /* Animations handled by globals.css - no duplicates here */
 
       /* Focus visible */
       *:focus-visible {
@@ -235,28 +209,7 @@
         margin-bottom: 0.75rem;
       }
 
-      /* Category tabs */
-      .category-tab {
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 1px solid var(--border-color);
-        background-color: var(--bg-input);
-        color: var(--text-secondary);
-        user-select: none;
-      }
-      .category-tab.active {
-        background-color: var(--accent-color);
-        color: #14181f;
-        border-color: var(--accent-color);
-      }
-      .category-tab:hover:not(.active) {
-        background-color: var(--bg-surface);
-        color: var(--text-primary);
-      }
+      /* Category tabs handled by globals.css */
 
       /* Botones */
       .btn-success {
@@ -281,14 +234,19 @@
         opacity: 0.8;
       }
 
-      /* Transition para todos los elementos */
-      * {
-        transition: background-color var(--transition-speed),
-          color var(--transition-speed), border-color var(--transition-speed);
-      }
+      /* Transitions handled by globals.css */
     </style>
   </head>
   <body>
+    <script>
+      /* Aplicar tema sincrónicamente antes del paint para evitar flash negro */
+      try {
+        var t = localStorage.getItem('app-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        var p = localStorage.getItem('app-palette');
+        if (p) document.documentElement.setAttribute('data-palette', p);
+      } catch(e) {}
+    </script>
     <div id="root"></div>
   </body>
 </html>

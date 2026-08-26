@@ -20,6 +20,7 @@ import { QuickActions } from './QuickActions';
 import { AnalyticHeader } from './AnalyticHeader';
 import { SmartTable } from './SmartTable';
 import { useDashboardData } from './useDashboardData';
+import { computeMetrics as computeDashboardMetrics } from './computeMetrics';
 import { sumarPeso } from '../../utils/catalogos';
 import { ProductivityWidget } from '../productivity/ProductivityWidget';
 import KPICards from './widgets/KPICards';
@@ -35,6 +36,17 @@ import WeeklyTrend from './widgets/WeeklyTrend';
 import AlertsPanel from './widgets/AlertsPanel';
 import ActivityFeed from './widgets/ActivityFeed';
 import InsightsPanel from './widgets/InsightsPanel';
+import { useAnalytics } from '../analytics/useAnalytics';
+import { PERIODO_DEFAULT } from '../analytics/periodUtils';
+import PeriodSelector from '../analytics/components/PeriodSelector';
+import ResumenPeriodo from '../analytics/components/ResumenPeriodo';
+import SmartInsightsPanel from '../analytics/components/SmartInsightsPanel';
+import TendenciaSemanalCard from '../analytics/components/TendenciaSemanalCard';
+import {
+  getOperatorGoals,
+  getOperatorProfile,
+  getOperatorAvailability,
+} from '../operator/operatorStore';
 import {
   computeMetrics, computeFunnel, evaluateAlerts, generateInsight,
   groupBy, groupByEstado,
@@ -220,6 +232,31 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   const { metrics: analyticsMetrics, insights: analyticsInsights, activity } = useDashboardData(filtrosAnalitica, config);
 
   // ============================================================
+  // INSIGHTS Y ANALÍTICA PERSONAL (1.3.2)
+  // Selector de período propio de esta capa + datos de Mi Espacio.
+  // ============================================================
+  const [periodoId, setPeriodoId] = useState(() => {
+    try {
+      return localStorage.getItem('app_analytics_period') || PERIODO_DEFAULT;
+    } catch {
+      return PERIODO_DEFAULT;
+    }
+  });
+  const cambiarPeriodo = useCallback((id) => {
+    setPeriodoId(id);
+    try { localStorage.setItem('app_analytics_period', id); } catch {}
+  }, []);
+  const operatorData = useMemo(
+    () => ({
+      goals: getOperatorGoals(),
+      profile: getOperatorProfile(),
+      availability: getOperatorAvailability(),
+    }),
+    []
+  );
+  const analitica = useAnalytics(allCases, config, periodoId, operatorData);
+
+  // ============================================================
   // FILTRADO (casos ya filtrados por mes/día desde App)
   // ============================================================
   const filteredCases = useMemo(() => {
@@ -253,6 +290,11 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     });
     return { filtered: prev, cats };
   }, [allCases, cats]);
+
+  const prevMetrics = useMemo(
+    () => (prevCtx.filtered.length > 0 ? computeDashboardMetrics(prevCtx.filtered, {}, config) : null),
+    [prevCtx, config]
+  );
 
   // ============================================================
   // CÓMPUTOS
@@ -530,7 +572,25 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
       {/* ============================================================ */}
       {tab === 'analitica' ? (
         <div className="space-y-4" key="analitica">
-          <KPICards metrics={analyticsMetrics} onDrill={handleDrill} />
+          {/* ============================================================ */}
+          {/* INSIGHTS Y ANALÍTICA PERSONAL (período propio, 1.3.2) */}
+          {/* ============================================================ */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+              <Sparkles size={13} style={{ color: 'var(--color-accent)' }} />
+              Insights y analítica personal
+            </div>
+            <PeriodSelector value={periodoId} onChange={cambiarPeriodo} />
+          </div>
+          <SmartInsightsPanel estadoVacio={analitica.estadoVacio} insights={analitica.insights} />
+          <ResumenPeriodo resumen={analitica.resumen} />
+          <TendenciaSemanalCard tendencia={analitica.tendencia} periodoLabel={analitica.resumen?.periodo} />
+
+          <div className="text-[10px] pt-2" style={{ color: 'var(--color-text-muted)' }}>
+            Las métricas de arriba usan su propio selector de período. Los KPIs y gráficos siguientes responden al filtro global de mes/día.
+          </div>
+
+          <KPICards metrics={analyticsMetrics} onDrill={handleDrill} prevMetrics={prevMetrics} />
           <InsightsPanel insights={analyticsInsights} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CaseDistribution data={analyticsMetrics.byStatus} onDrill={handleDrill} />
@@ -637,7 +697,7 @@ const OnboardingEmptyState = React.memo(({ onNuevoCaso, onImportarCSV, onTour })
       {onNuevoCaso && (
         <button
           onClick={onNuevoCaso}
-          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all hover:opacity-85"
+          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-85"
           style={{ backgroundColor: 'var(--color-accent)', color: '#14181F' }}
         >
           <Plus size={15} /> Crear primer caso
@@ -646,7 +706,7 @@ const OnboardingEmptyState = React.memo(({ onNuevoCaso, onImportarCSV, onTour })
       {onImportarCSV && (
         <button
           onClick={onImportarCSV}
-          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all hover:opacity-85"
+          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-85"
           style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
         >
           <Upload size={15} /> Importar CSV
@@ -655,7 +715,7 @@ const OnboardingEmptyState = React.memo(({ onNuevoCaso, onImportarCSV, onTour })
       {onTour && (
         <button
           onClick={onTour}
-          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-all hover:opacity-85"
+          className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-85"
           style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
         >
           <Play size={15} /> Ver tour guiado

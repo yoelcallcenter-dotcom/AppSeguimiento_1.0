@@ -2,12 +2,14 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Upload, X, Check, AlertTriangle, ArrowRight, FileText, RefreshCw } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { BtnOutline } from '../../components/common/BtnOutline';
+import { PhoneLink } from '../../components/common/PhoneLink';
 import useAppStore from '../../core/store/useAppStore';
 import { reportError } from '../../core/error/reportError';
 import { parseReportesString, parseComentariosString, parseNotasString, parseAgendaString } from '../../utils/backup';
 import { readConfig } from '../../utils/configFormatters';
 import { normalizeDate } from '../../utils/dateFilters';
 import { parseCSV as parseCSVShared } from '../../utils/csvParse';
+import { validateCaseIntegrity } from '../../core/integrity/dataValidation';
 
 const MAPPING_TEMPLATE_KEY = 'csv-mapping-template';
 
@@ -141,7 +143,15 @@ export function mapRowToCase(row, mappings) {
   if (!hasExplicitId || !caso.id) {
     caso.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
-  caso.fecha = normalizeDate(caso.fecha) || new Date().toISOString().slice(0, 10);
+  // Integridad (1.3.3): una fecha interpretable se normaliza a ISO; si el
+  // texto no es recuperable se conserva tal cual para revisión del usuario
+  // (nunca se reemplaza por la fecha actual).
+  const fechaIso = normalizeDate(caso.fecha);
+  if (fechaIso) {
+    caso.fecha = fechaIso;
+  } else if (!caso.fecha || typeof caso.fecha !== 'string') {
+    caso.fecha = '';
+  }
   caso.estado = caso.estado || 'Sin reporte';
   if (!Array.isArray(caso.tags)) caso.tags = [];
   if (!Array.isArray(caso.reporteHistory)) caso.reporteHistory = [];
@@ -230,25 +240,26 @@ export default function CSVImporter({ onComplete }) {
     return previewData.map((row) => mapRowToCase(row, mappings));
   }, [previewData, mappings]);
 
-  const handleImport = useCallback(async () => {
-    setImporting(true);
-    try {
-      const cases = rows.map((row) => mapRowToCase(row, mappings));
-      const result = await appendCases(cases);
-      addToast(`${result.added} casos importados${result.skipped > 0 ? ` (${result.skipped} duplicados omitidos)` : ""}`, 'success');
-      onComplete?.();
-      setStep('upload');
-      setRawText('');
-      setHeaders([]);
-      setRows([]);
-      setMappings([]);
-    } catch (err) {
-      reportError({ type: 'import', message: 'Import failed', context: err });
-      addToast('Error al importar', 'error');
-    } finally {
-      setImporting(false);
-    }
-  }, [rows, mappings, appendCases, addToast, onComplete]);
+  // Integridad (1.3.3): clasificación estructurada de cada fila antes de
+  // aplicar nada — válidas, con advertencias e inválidas.
+  const filasClasificadas = useMemo(() => {
+    return rows.map((row, i) => {
+      const caso = mapRowToCase(row, mappings);
+      const r = validateCaseIntegrity(caso);
+      return {
+        fila: i + 2,
+        caso: r.normalizedData || caso,
+        estado: r.valid ? (r.warnings.length > 0 ? 'advertencia' : 'valido') : 'invalido',
+        advertencias: r.warnings || [],
+      };
+    });
+  }, [rows, mappings]);
+
+  const resumenClasificacion = useMemo(() => ({
+    validos: filasClasificadas.filter((f) => f.estado === 'valido').length,
+    advertencias: filasClasificadas.filter((f) => f.estado === 'advertencia').length,
+    invalidos: filasClasificadas.filter((f) => f.estado === 'invalido').length,
+  }), [filasClasificadas]);
 
   const handleValidate = useCallback(async () => {
     const current = readConfig();
@@ -281,6 +292,37 @@ export default function CSVImporter({ onComplete }) {
     setValidationErrors([]);
     setPreviewData([]);
   }, []);
+
+  const handleImport = useCallback(async () => {
+    setImporting(true);
+    try {
+      // Integridad (1.3.3): las filas inválidas NUNCA se importan
+      // silenciosamente; las válidas y las con solo advertencias sí.
+      const aImportar = filasClasificadas
+        .filter((f) => f.estado !== 'invalido')
+        .map((f) => f.caso);
+      const rechazados = filasClasificadas.length - aImportar.length;
+      if (aImportar.length === 0) {
+        addToast('Ninguna fila es importable: todas tienen errores de estructura', 'error');
+        return;
+      }
+      const result = await appendCases(aImportar);
+      let msg = `${result.added} casos importados`;
+      if (result.skipped > 0) msg += ` · ${result.skipped} duplicados omitidos`;
+      if (rechazados > 0) msg += ` · ${rechazados} fila(s) inválida(s) no importada(s)`;
+      if (resumenClasificacion.advertencias > 0) {
+        msg += ` · ${resumenClasificacion.advertencias} con advertencias`;
+      }
+      addToast(msg, rechazados > 0 ? 'warning' : 'success', 5000);
+      onComplete?.();
+      reset();
+    } catch (err) {
+      reportError({ type: 'import', message: 'Import failed', context: err });
+      addToast('Error al importar', 'error');
+    } finally {
+      setImporting(false);
+    }
+  }, [filasClasificadas, resumenClasificacion, appendCases, addToast, onComplete, reset]);
 
   if (step === 'upload') {
     return (
@@ -375,6 +417,19 @@ export default function CSVImporter({ onComplete }) {
           </div>
         )}
 
+        {/* Integridad (1.3.3): clasificación de filas antes de aplicar */}
+        <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-success)22', color: 'var(--color-success)' }}>
+            {resumenClasificacion.validos} válidas
+          </span>
+          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-warning)22', color: 'var(--color-warning)' }}>
+            {resumenClasificacion.advertencias} con advertencias
+          </span>
+          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-danger)22', color: 'var(--color-danger)' }}>
+            {resumenClasificacion.invalidos} inválidas (no se importan)
+          </span>
+        </div>
+
         <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid var(--color-border)' }}>
           <table className="w-full text-[10px]">
             <thead>
@@ -393,7 +448,7 @@ export default function CSVImporter({ onComplete }) {
                   <tr key={i} style={{ borderTop: '1px solid var(--color-border)' }}>
                     <td className="px-2 py-1" style={{ color: 'var(--color-text-muted)' }}>{i + 1}</td>
                     <td className="px-2 py-1 font-medium" style={{ color: 'var(--color-text)' }}>{c.nombre || '—'}</td>
-                    <td className="px-2 py-1" style={{ color: 'var(--color-text)' }}>{c.telefono || '—'}</td>
+                    <td className="px-2 py-1"><PhoneLink telefono={c.telefono} /></td>
                     <td className="px-2 py-1"><span className="px-1.5 py-0.5 rounded text-[9px]" style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}>{c.estado || '—'}</span></td>
                     <td className="px-2 py-1" style={{ color: 'var(--color-text)' }}>{c.localidad || '—'}</td>
                   </tr>
@@ -412,8 +467,10 @@ export default function CSVImporter({ onComplete }) {
 
         <div className="flex justify-end gap-2">
           <BtnOutline onClick={() => setStep('mapping')} size="sm" color="var(--color-text-muted)">Volver</BtnOutline>
-          <Btn onClick={handleImport} size="sm" icon={Upload} disabled={importing}>
-            {importing ? 'Importando...' : `Importar ${rows.length} casos`}
+          <Btn onClick={handleImport} size="sm" icon={Upload} disabled={importing || resumenClasificacion.validos + resumenClasificacion.advertencias === 0}>
+            {importing
+              ? 'Importando...'
+              : `Importar ${resumenClasificacion.validos + resumenClasificacion.advertencias} casos`}
           </Btn>
         </div>
       </div>

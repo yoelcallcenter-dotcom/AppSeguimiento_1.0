@@ -54,8 +54,9 @@ export function exportarPDF(casos, titulo = "Informe de casos") {
   const ventana = window.open(
     "",
     "_blank",
-    "noopener,noreferrer,width=1000,height=800"
+    "width=1000,height=800"
   );
+  try { ventana.opener = null; } catch {}
   if (!ventana) {
     alert("Por favor, permite ventanas emergentes para exportar");
     return;
@@ -81,7 +82,7 @@ export function exportarPDF(casos, titulo = "Informe de casos") {
   doc.body.appendChild(header);
 
   const resumen = el(doc, "div", "resumen");
-  const firmados = casos.filter((c) => c.estado === "Firmo").length;
+  const firmados = casos.filter((c) => c.estado === "Firmo").length - casos.filter((c) => c.estado === "Baja").length;
   const pendientes = casos.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).length;
   [
     [casos.length, "casos"],

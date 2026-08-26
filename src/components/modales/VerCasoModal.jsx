@@ -1,16 +1,47 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link } from "lucide-react";
+import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
 import { OrigenBadge } from "../common/OrigenBadge";
 import { ComentariosUI } from "./ComentariosUI";
+import { CaseTimeline } from "./CaseTimeline";
 import { sanitizeString } from "../../utils/sanitize";
-import { formatDateWithConfig, formatPhoneWithConfig } from "../../utils/configFormatters";
+import { formatDateWithConfig } from "../../utils/configFormatters";
+import { PhoneLink } from "../common/PhoneLink";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstadoAccent } from "../../utils/catalogos";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { useClipboard } from "../../hooks/useClipboard";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import {
+  getCaseHistory,
+  resolveLastActivity,
+  getInactivityInfo,
+  INACTIVIDAD_DEFAULT_DIAS,
+  TIPOS_INTERACCION,
+} from "../../core/cases/caseHistory";
+
+function soloDia(x) {
+  return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+}
+
+function formatearActividad(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  const hoy = new Date();
+  const dias = Math.round((soloDia(hoy) - soloDia(d)) / 86400000);
+  const hora = d.toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (dias === 0) return `Hoy, ${hora}`;
+  if (dias === 1) return `Ayer, ${hora}`;
+  return `${d.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+  })}, ${hora}`;
+}
 
 export function VerCasoModal({
   caso,
@@ -33,7 +64,11 @@ export function VerCasoModal({
   const [mostrarComentarios, setMostrarComentarios] = useState(false);
   const [mostrarNotas, setMostrarNotas] = useState(true);
   const [mostrarEventos, setMostrarEventos] = useState(true);
+  const [mostrarTimeline, setMostrarTimeline] = useState(true);
   const [comentariosLocales, setComentariosLocales] = useState([]);
+  const [historial, setHistorial] = useState([]);
+  const { copiar: copiarNombre, copiado: nombreCopiado } = useClipboard();
+  const { copiar: copiarTelefono, copiado: telefonoCopiado } = useClipboard();
 
   useEffect(() => {
     if (caso && caso.comentarios) {
@@ -42,6 +77,41 @@ export function VerCasoModal({
       setComentariosLocales([]);
     }
   }, [caso]);
+
+  // Historial: se carga solo al abrir el detalle (no al iniciar la app).
+  useEffect(() => {
+    let activo = true;
+    if (!caso?.id) {
+      setHistorial([]);
+      return undefined;
+    }
+    getCaseHistory(caso.id).then((rows) => {
+      if (activo) setHistorial(rows);
+    });
+    return () => {
+      activo = false;
+    };
+  }, [caso?.id, caso?.updatedAt]);
+
+  const inactividad = useMemo(
+    () =>
+      getInactivityInfo(caso, {
+        thresholdDays: config?.seguimiento?.diasInactividad || INACTIVIDAD_DEFAULT_DIAS,
+      }),
+    [caso, config]
+  );
+
+  const proximoSeguimiento = useMemo(() => {
+    if (!caso?.id) return null;
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    return (
+      eventos
+        .filter((e) => (e.relatedCaseIds || []).includes(caso.id))
+        .filter((e) => (e.startDate || "") >= hoyISO)
+        .sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""))[0] ||
+      null
+    );
+  }, [eventos, caso]);
 
   const notasFiltradas = useMemo(() => {
     if (!caso) return [];
@@ -55,18 +125,21 @@ export function VerCasoModal({
 
   if (!caso) return null;
 
-  const handleAddComentario = (texto) => {
+  const handleAddComentario = (texto, tipo = "") => {
     const nuevoComentario = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       fecha: new Date().toISOString(),
       texto: texto.trim(),
       usuario: "Usuario",
+      ...(tipo ? { tipo } : {}),
     };
     const nuevosComentarios = [...comentariosLocales, nuevoComentario];
     setComentariosLocales(nuevosComentarios);
+    // actualizarCaso detecta el comentario nuevo y registra la interacción
+    // en el historial (la fuente de datos sigue siendo caso.comentarios).
     onComentarios({ ...caso, comentarios: nuevosComentarios });
     soundSystem.playAction("save");
-    if (showToast) showToast("Comentario agregado", "success");
+    if (showToast) showToast("Interacción registrada", "success");
   };
 
   const handleDeleteComentario = (id) => {
@@ -146,14 +219,105 @@ export function VerCasoModal({
         </div>
 
         <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* RESUMEN RÁPIDO DE SEGUIMIENTO */}
+          <div
+            className="rounded-lg p-3"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  <Activity size={9} /> Última actividad
+                </span>
+                <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                  {formatearActividad(resolveLastActivity(caso))}
+                </div>
+              </div>
+              <div>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  <Clock size={9} /> Último cambio
+                </span>
+                <div
+                  className="text-xs font-semibold truncate"
+                  title={historial[0]?.description || ""}
+                  style={{ color: "var(--color-text)" }}
+                >
+                  {historial[0]?.title || "—"}
+                </div>
+              </div>
+              <div>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  <Calendar size={9} /> Próximo seguimiento
+                </span>
+                <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                  {proximoSeguimiento
+                    ? formatDateWithConfig(proximoSeguimiento.startDate)
+                    : "Sin agenda"}
+                </div>
+              </div>
+            </div>
+            {inactividad.inactive && (
+              <div
+                className="flex items-center gap-1.5 mt-2 pt-2 text-[11px] font-semibold"
+                style={{
+                  borderTop: "1px solid var(--color-border)",
+                  color: "var(--color-warning)",
+                }}
+              >
+                <AlertTriangle size={12} />
+                Sin actividad hace {inactividad.days} día{inactividad.days === 1 ? "" : "s"}
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Nombre</span>
-              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.nombre) || "—"}</div>
+              <div className="flex items-center gap-1.5">
+                <div className="text-sm font-medium flex-1" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.nombre) || "—"}</div>
+                <button
+                  onClick={() => copiarNombre(sanitizeString(caso.nombre) || "")}
+                  className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded transition-all duration-200"
+                  style={{
+                    backgroundColor: nombreCopiado ? "var(--color-success)" : "transparent",
+                    color: nombreCopiado ? "#fff" : "var(--color-text-muted)",
+                  }}
+                  title="Copiar nombre"
+                  aria-label="Copiar nombre"
+                >
+                  {nombreCopiado ? <><Check size={11} /> Copiado</> : <Copy size={11} />}
+                </button>
+              </div>
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Teléfono</span>
-              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{formatPhoneWithConfig(caso.telefono) || "—"}</div>
+              <div className="flex items-center gap-1.5">
+                <div className="text-sm flex-1"><PhoneLink telefono={caso.telefono} size="md" showIcon={false} /></div>
+                <button
+                  onClick={() => copiarTelefono(caso.telefono || "")}
+                  className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded transition-all duration-200"
+                  style={{
+                    backgroundColor: telefonoCopiado ? "var(--color-success)" : "transparent",
+                    color: telefonoCopiado ? "#fff" : "var(--color-text-muted)",
+                  }}
+                  title="Copiar teléfono"
+                  aria-label="Copiar teléfono"
+                >
+                  {telefonoCopiado ? <><Check size={11} /> Copiado</> : <Copy size={11} />}
+                </button>
+              </div>
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Localidad</span>
@@ -259,9 +423,9 @@ export function VerCasoModal({
           {/* COMENTARIOS */}
           <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
             <button onClick={() => setMostrarComentarios(!mostrarComentarios)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+              {mostrarComentarios ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <MessageSquare size={14} />
               Comentarios ({comentariosLocales.length || 0})
-              {mostrarComentarios ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
             {mostrarComentarios && (
               <div className="mt-3 animate-slide-up">
@@ -271,7 +435,26 @@ export function VerCasoModal({
                   onDelete={handleDeleteComentario}
                   showToast={showToast}
                   usuario="Usuario"
+                  tiposInteraccion={TIPOS_INTERACCION}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* TIMELINE / HISTORIAL DEL CASO */}
+          <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+            <button
+              onClick={() => setMostrarTimeline(!mostrarTimeline)}
+              className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity"
+              style={{ color: "var(--color-accent)" }}
+              aria-expanded={mostrarTimeline}
+            >
+              {mostrarTimeline ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <Activity size={14} /> Historial ({historial.length})
+            </button>
+            {mostrarTimeline && (
+              <div className="mt-2">
+                <CaseTimeline eventos={historial} config={config} />
               </div>
             )}
           </div>
@@ -286,12 +469,12 @@ export function VerCasoModal({
                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Sin reportes cargados.</div>
               )}
               {caso.reporteHistory && caso.reporteHistory.map((r, i) => (
-                <div key={i} className="text-xs flex items-start gap-2" style={{ color: "var(--color-text)" }}>
+                <div key={i} className="text-xs flex items-center gap-2" style={{ color: "var(--color-text)" }}>
+                  <OrigenBadge origen={r.origen} />
                   <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--color-accent)" }}>
                     [{sanitizeString(r.fecha)}]
                   </span>
                   <span className="flex-1">{sanitizeString(r.texto)}</span>
-                  {r.origen && <OrigenBadge origen={r.origen} />}
                 </div>
               ))}
             </div>

@@ -20,7 +20,7 @@ const Bar = React.memo(({ count, max, diaSemana, date, isFirstOfWeek, isSelected
         <div className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>{count}</div>
         <div className="w-full flex-1 flex items-end" style={{ minHeight: '2rem' }}>
           <div
-            className="w-full rounded-sm transition-all"
+            className="w-full rounded-sm transition-[height]"
             style={{
               height: `${Math.max(8, pct)}%`,
               minHeight: 6,

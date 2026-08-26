@@ -1,33 +1,38 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle, XCircle, Info, AlertTriangle, X } from "lucide-react";
 
-export function Toast({ message, type = "success", onClose, duration = 1200 }) {
+export function Toast({ message, type = "success", onClose, duration = 1800 }) {
+  const [exiting, setExiting] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => onClose(), duration);
+    const timer = setTimeout(() => {
+      setExiting(true);
+      setTimeout(() => onClose(), 200);
+    }, duration);
     return () => clearTimeout(timer);
   }, [onClose, duration]);
 
   const colors = {
     success: {
-      bg: "var(--color-success)22",
+      bg: "var(--color-success)18",
       border: "var(--color-success)",
       icon: CheckCircle,
       text: "var(--color-success)",
     },
     error: {
-      bg: "var(--color-danger)22",
+      bg: "var(--color-danger)18",
       border: "var(--color-danger)",
       icon: XCircle,
       text: "var(--color-danger)",
     },
     info: {
-      bg: "var(--color-primary)22",
+      bg: "var(--color-primary)18",
       border: "var(--color-primary)",
       icon: Info,
       text: "var(--color-primary)",
     },
     warning: {
-      bg: "var(--color-warning)22",
+      bg: "var(--color-warning)18",
       border: "var(--color-warning)",
       icon: AlertTriangle,
       text: "var(--color-warning)",
@@ -39,7 +44,7 @@ export function Toast({ message, type = "success", onClose, duration = 1200 }) {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[100] animate-slide-up"
+      className={`fixed bottom-4 right-4 z-[100] ${exiting ? "animate-toast-out" : "animate-toast-in"}`}
       role="alert"
       aria-live="polite"
     >
@@ -50,16 +55,19 @@ export function Toast({ message, type = "success", onClose, duration = 1200 }) {
           border: `1px solid ${style.border}`,
         }}
       >
-        <Icon size={16} color={style.text} />
+        <Icon size={16} color={style.text} className="flex-shrink-0" />
         <span
-          className="text-sm font-medium"
+          className="text-sm font-medium flex-1"
           style={{ color: "var(--color-text)" }}
         >
           {message}
         </span>
         <button
-          onClick={onClose}
-          className="ml-2 transition-colors hover:opacity-70"
+          onClick={() => {
+            setExiting(true);
+            setTimeout(() => onClose(), 200);
+          }}
+          className="ml-1 p-0.5 rounded transition-colors hover:bg-white/5 flex-shrink-0"
           style={{ color: "var(--color-text-muted)" }}
           aria-label="Cerrar notificacion"
         >

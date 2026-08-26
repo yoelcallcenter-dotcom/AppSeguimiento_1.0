@@ -107,7 +107,7 @@ export function MetricsConfigPanel({ config, onSave, onClose }) {
                         <button
                           key={e.v}
                           onClick={() => updateCategoria(cat, isActive ? e.v : null, isActive ? null : e.v)}
-                          className="text-[10px] px-2 py-1 rounded-full transition-all"
+                          className="text-[10px] px-2 py-1 rounded-full transition-colors"
                           style={{
                             backgroundColor: isActive ? `${e.accent}33` : 'var(--color-surface)',
                             color: isActive ? e.accent : 'var(--color-text-muted)',

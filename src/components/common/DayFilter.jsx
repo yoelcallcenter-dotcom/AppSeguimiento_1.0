@@ -30,7 +30,7 @@ export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], sty
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background-color 0.15s, color 0.15s, border-color 0.15s",
+    transition: "background-color var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1)), color var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1)), border-color var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
   };
 
   return (

@@ -398,6 +398,216 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.3.5] - 2026-08-26
+
+### Modal de Caso (VerCasoModal)
+
+- Botones de copiar al portapapeles en Nombre y Teléfono del modal de detalle del caso. Feedback visual con icono Check y color success durante 1.5s.
+- Nuevo hook reutilizable \`useClipboard\` (src/hooks/useClipboard.js) con manejo de timeout y errores.
+- Unificación visual de las secciones collapsible: Comentarios, Notas, Eventos, Historial ahora comparten la misma estructura de botón (chevron primero, icono, texto con contador).
+- Renombrado "Historial y seguimiento" a "Historial" para evitar confusión con el panel de Seguimiento.
+
+### Navegación agrupada
+
+- Tabs "Mi Espacio" y "Dashboard" agrupados visualmente con fondo sutil y separador vertical del resto de vistas (Tablero, Tabla, Reportes, Útiles).
+
+### Exportación CSV de casos
+
+- Nuevo modal \`CsvExportModal\` con filtros: Estado (pills multi-select), Fecha desde/hasta, Aseguradora, Estudio Jurídico, Localidad.
+- Opciones de filtro generadas dinámicamente desde los datos existentes.
+- Preview en tiempo real de cantidad de casos que serán exportados.
+- Botón "Limpiar filtros" para resetear la selección.
+- Nombre del archivo: \`AppSeguimiento_Casos_[Estado]_YYYY-MM-DD.csv\`.
+- Botón "EXPORTAR" en la barra de acciones del Tablero (junto a Nuevo Reporte y Nuevo Caso), separador visual incluido.
+
+### Exportación PDF de Mi Espacio
+
+- Nuevo modal \`PdfExportModal\` con selección de secciones: Perfil, Jornada, Métricas, Objetivos semanales, Resumen.
+- Select All / Deselect All para selección rápida.
+- Genera documento HTML imprimible con el patrón existente de \`exportPDF.js\` (window.open + print).
+- Botón "Exportar PDF" en el encabezado de Mi Espacio.
+
+### Archivos nuevos
+
+- \`src/hooks/useClipboard.js\` + \`useClipboard.test.js\` (6 tests)
+- \`src/features/export/CsvExportModal.jsx\` + \`CsvExportModal.test.jsx\` (10 tests)
+- \`src/features/operator/PdfExportModal.jsx\` + \`PdfExportModal.test.jsx\` (8 tests)
+
+## [1.3.4] - 2026-08-26
+
+### Sistema global de animaciones y respuesta visual
+
+- Tokens de animación centralizados: duraciones (\`--duration-instant\` 75ms a \`--duration-slower\` 500ms) y curvas de easing (\`--ease-out\`, \`--ease-in\`, \`--ease-standard\`, \`--ease-bounce\`).
+- Eliminados keyframes duplicados en \`index.html\` que entraban en conflicto con \`globals.css\`.
+- Eliminada transición global \`* { transition: ... }\` que afectaba innecesariamente a todos los elementos del DOM.
+- Nuevo sistema de transiciones por propiedad: \`transition-colors\`, \`transition-transform\`, \`transition-shadow\`, \`transition-opacity\`, \`transition-[width]\`, \`transition-[height]\` en lugar de \`transition-all\` (53 instancias corregidas).
+- Soporte nativo de \`prefers-reduced-motion: reduce\` — la interfaz desactiva animaciones cuando el sistema operativo lo solicita.
+
+### Botones
+
+- Estados hover mejorados: \`filter: brightness()\` en lugar de \`opacity\` para colores más vivos.
+- Sombras contextuales en hover (primary, danger, accent, outline-accent).
+- Nuevo estado \`btn-loading\`: spinner CSS integrado sin desplazamiento del layout.
+- Nuevo estado \`btn-success-flash\`: flash verde de confirmación 600ms tras acción exitosa.
+- \`pointer-events: none\` y opacidad reducida en disabled (mejor que solo opacidad).
+- \`Btn.jsx\` soporta \`loading\` prop y detecta promises en onClick para flash automático.
+
+### Navegación entre vistas
+
+- Cada vista envuelta en \`<div key="view-*" className="view-transition-enter">\` para transición de entrada suave al cambiar de pestaña.
+- Animación \`fade-in\` sutil (180ms) al entrar, sin movimiento brusco.
+
+### Tabs, pills, chips
+
+- \`category-tab\` usa transiciones específicas (\`background-color\`, \`color\`, \`border-color\`, \`box-shadow\`) en lugar de \`transition: all\`.
+
+### Modales y overlays
+
+- \`OverlayPanel\`: backdrop con opacidad reducida (0.6), contenido con \`animate-scale-in\` (escala de 0.95), click outside para cerrar.
+- \`ConfirmDialog\`: contenido con \`animate-scale-in\`, botones usan clases \`btn-base\` en lugar de estilos inline.
+- Backdrop blur consistente en todos los overlays.
+
+### Inputs y formularios
+
+- \`input-optimized\` usa \`border-color\` + \`box-shadow\` + \`background-color\` con tokens de duración y easing.
+- Nuevo estado \`input-error\` con borde rojo y sombra sutil.
+- Nuevo estado \`input-success\` con borde verde.
+- \`Input.jsx\` soporta prop \`error\` con texto animado (\`animate-fade-in\`).
+- Focus ring consistente con \`box-shadow: 0 0 0 3px var(--ring)\`.
+
+### Toggles
+
+- \`Toggle.jsx\` anima \`background-color\` y \`left\` con tokens de duración y easing en lugar de \`transition: 0.3s\` genérico.
+
+### Toasts
+
+- \`Toast.jsx\` con entrada \`animate-toast-in\` y salida \`animate-toast-out\` secuencial (200ms de delay).
+- Estado \`exiting\` para transición de salida antes de desmontar.
+- Botón de cerrar con transición de color.
+
+### Cards y widgets
+
+- \`Card.jsx\` soporta prop \`interactive\` para cards clickeables con hover de sombra.
+- Cards interactivas usan \`transition: box-shadow, border-color\` en lugar de \`transition-all\`.
+
+### Empty states y skeletons
+
+- \`EmptyState.jsx\` con \`animate-fade-in\` en el contenedor.
+- Botón CTA usa clases \`btn-base btn-accent btn-sm\` en lugar de estilos inline.
+- Nuevo \`.animate-skeleton\` con shimmer sutil (gradiente en \`var(--color-surface2)\`).
+- Nuevo \`.animate-progress-bar\` para barra de progreso indeterminada.
+
+### Acordeones
+
+- \`HelpPanel.jsx\`: contenido expandible usa \`transition-[height,opacity]\` en lugar de \`transition-all\`.
+
+### Tablas
+
+- Filas interactivas con \`transition-colors\` en hover.
+- Drag handles con \`transition-opacity transition-transform duration-150\`.
+
+### Dashboard
+
+- Barras de progreso animadas con \`transition-[width]\` en lugar de \`transition-all\`.
+- Barras de gráficos animadas con \`transition-[height]\` o \`transition-[width]\`.
+- KPI cards con \`transition-transform\` en hover.
+- Pipeline bars con \`transition-[filter,opacity]\`.
+
+### Configuración
+
+- Categorías con \`transition-colors\`.
+- Paleta de colores con \`transition-transform transition-opacity\`.
+- Draggable items con \`transition-opacity transition-transform duration-150\`.
+
+### Tour y ayuda
+
+- Progreso del tour con \`transition-colors transition-[height]\`.
+- Highlight con \`box-shadow\` usando tokens.
+- Tooltip con \`opacity\` y \`transform\` usando tokens.
+
+### Otros
+
+- \`DayFilter.jsx\` transiciones inline con tokens en lugar de valores hardcodeados.
+- \`OrigenBadge.jsx\` con \`transition-colors\`.
+- \`BlocNotas.jsx\` cards con \`transition-shadow\`.
+- Easter eggs ajustados a duraciones más cortas.
+- \`PersonalizacionColores.jsx\` palette cards con \`transition-transform transition-opacity\`.
+
+## [1.3.3] - 2026-08-25
+
+### Funciones nuevas
+
+- Capa central de integridad de datos (\`src/core/integrity/\`):
+  - Validaciones estructuradas con niveles INFO / WARNING / ERROR / CRITICAL y resultado \`{valid, warnings, errors, recoverable, normalizedData}\`: los casos antiguos o incompletos se distinguen de los realmente inválidos.
+  - Detección de referencias huérfanas (notas/eventos que apuntan a casos inexistentes) y de duplicados (técnicos por ID vs posibles por nombre+teléfono): se clasifican e informan, nunca se eliminan automáticamente.
+- Recuperación de preferencias:
+  - Las órdenes de secciones persistentes (Dashboard, Tablero, Tabla, Reportes, Útiles) ahora se validan al iniciar: los IDs obsoletos se descartan, las secciones nuevas se agregan al final y el orden válido existente se conserva (nunca se resetea toda la preferencia).
+  - Reparación manual disponible en Diagnóstico > Integridad ("Restablecer orden de secciones"), con confirmación y alcance explicado.
+- Protección de restauraciones e importaciones:
+  - Una restauración que vaciaría una colección existente (ej.: backup sin casos contra 500 casos actuales) se bloquea como CRITICAL y solo procede con confirmación explícita.
+  - Salvaguarda automática en Historial de backups (etiqueta "Seguridad") antes de escribir una restauración completa.
+  - Restauración selectiva validada por bloque: un bloque inválido no arruina los demás; el resultado informa advertencias reales por sección.
+- Importación más segura:
+  - El preview del importador CSV clasifica filas: válidas, con advertencias, inválidas y duplicadas.
+  - Resumen final real de la operación (importados / omitidos / rechazados / con advertencias) en lugar de un éxito genérico.
+- No falsificación de fechas:
+  - Una fecha irrecuperable ya no se reemplaza silenciosamente por la fecha actual: se conserva el valor original (o queda vacío si no existía) y se marca con advertencia para revisión.
+- Diagnóstico > Integridad:
+  - Panel con estado de configuración, último backup válido, verificación completa bajo demanda (huérfanos, duplicados, preferencias) y log rotativo de eventos de integridad (máximo 50 entradas).
+  - Verificación ligera automática al iniciar la aplicación: nunca bloquea el arranque y solo advierte ante problemas CRITICAL.
+
+### Notas técnicas
+
+- Sin cambios de esquema ni migraciones nuevas; los backups antiguos siguen restaurándose igual (kind legacy \`seguimiento-art-backup\` incluido).
+- La preservación tiene prioridad sobre la limpieza: ningún dato del usuario se corrige en silencio.
+
+## [1.3.2] - 2026-08-25
+
+### Funciones nuevas
+
+- Capa de Insights y Analítica personal (pestaña Analítica del Dashboard):
+  - Nuevo selector de período reutilizable: Hoy / Esta semana / Este mes / Últimos 7, 30 y 90 días. El período seleccionado se recuerda entre sesiones.
+  - Resumen analítico del período con comparación contra el período anterior equivalente: casos, firmas, conversión (misma fórmula del Dashboard), promedio diario en días hábiles según la jornada configurada y mejor día.
+  - Motor de insights determinístico (sin IA): reglas verificables organizadas por categoría (Productividad, Objetivos, Tendencia, Horarios, Aseguradoras, Estudios jurídicos, Actividad) con prioridad, título breve y detalle expandible "¿Por qué?" que muestra los datos comparados.
+  - Tendencias semanales de firmas con detección de subida/bajada/estabilidad usando múltiples puntos temporales; nunca se concluye con menos de 4 semanas de datos.
+  - Análisis por día de la semana respetando los días laborales de Mi Espacio, con muestra mínima obligatoria antes de declarar patrones.
+  - Análisis horario en franjas de 2 horas construido solo a partir de timestamps confiables (creación de casos e interacciones); se omite si no hay muestra suficiente.
+  - Rendimiento por aseguradora y estudio jurídico con evolución vs período anterior; no se destacan conclusiones con muestras pequeñas (<10 casos).
+  - Integración con objetivos de Mi Jornada: ritmo necesario, proyección semanal estimada ("manteniendo tu ritmo actual podrías alcanzar…") y alerta de ritmo insuficiente.
+- Insight destacado en Mi Jornada:
+  - Un único insight de mayor prioridad con acceso directo "Ver análisis" a la pestaña Analítica.
+  - Se puede desactivar desde Configuración > Sistema > Dashboard ("Insight destacado en Mi Jornada").
+- Estados vacíos diferenciados: sin datos, datos insuficientes y sin cambios relevantes se comunican de forma explícita.
+
+### Notas técnicas
+
+- Los insights son derivados y no se persisten: siempre se recalculan desde los casos reales.
+- Umbrales y tamaños mínimos de muestra centralizados en \`src/features/analytics/insightsConfig.js\`.
+- Sin cambios de esquema de datos ni migraciones; backups existentes siguen funcionando sin alteraciones.
+
+## [1.3.1] - 2026-08-25
+
+### Funciones nuevas
+
+- Historial y seguimiento de casos (Timeline):
+  - Cada caso ahora cuenta con un historial cronológico de eventos relevantes: creación, edición, cambio de estado, cambio de estudio jurídico, cambio de aseguradora, firma registrada, nota agregada, evento de calendario vinculado, reporte agregado e interacción manual.
+  - Los eventos se guardan en una nueva tabla \`case_history\` (IndexedDB) indexada por \`caseId\`; se cargan solo al abrir el detalle del caso.
+  - Detección de cambios reales al guardar: si no hay cambios no se genera ningún evento ni se actualiza la última actividad. Cambios múltiples en una misma edición se agrupan en un único resumen comprensible.
+  - Nueva vista Timeline en el detalle del caso: agrupación por día (Hoy / Ayer / fecha), orden más reciente primero, filtros compactos (Todos / Estados / Firmas / Notas / Interacciones / General) e íconos por tipo de evento.
+- Resumen rápido del caso:
+  - El detalle muestra última actividad, último cambio y próximo seguimiento (calculado desde los eventos de calendario vinculados; no se persisten valores derivados).
+- Interacciones manuales:
+  - Los comentarios del caso ahora admiten un tipo de interacción opcional (Llamada realizada, No atendió, Se envió información, Volver a llamar, Otro) que se registra en el historial sin duplicar datos: la interacción sigue siendo un comentario del caso.
+- Última actividad:
+  - Nueva propiedad \`lastActivityAt\` en casos, actualizada solo por actividad real (nunca por apertura o renderizado). Para casos previos se usa como fallback \`updatedAt\`.
+- Detección de casos inactivos:
+  - Utilitario base (\`caseHistory.getInactivityInfo\`) que informa "Sin actividad hace N días" en el detalle, ignorando estados cerrados (Firmo / No le interesa / No viable) y con umbral configurable (default 5 días).
+
+### Persistencia
+
+- Nueva versión de esquema \`CasesDB\` v3 (aditiva, no destructiva): agrega la tabla \`case_history\` sin modificar datos existentes; los casos antiguos siguen funcionando sin historial previo.
+- Backups completos ahora incluyen el historial de casos. Los backups antiguos siguen restaurándose normalmente: si no contienen historial se aplica un valor por defecto seguro (historial vacío), sin inventar eventos.
+
 ## [1.2.5] - 2026-08-25
 
 ### Funciones nuevas

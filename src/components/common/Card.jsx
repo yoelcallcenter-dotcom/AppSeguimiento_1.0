@@ -39,13 +39,21 @@ export function Card({
   className = "",
   style = {},
   variant = "default",
+  interactive = false,
 }) {
   const v = CARD_VARIANTS[variant] || CARD_VARIANTS.default;
 
+  const interactiveStyles = interactive
+    ? {
+        cursor: "pointer",
+        transition: "box-shadow var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1)), border-color var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
+      }
+    : {};
+
   return (
     <div
-      className={`rounded-lg p-4 ${v.className} ${className}`}
-      style={{ ...v.style, ...style }}
+      className={`rounded-lg p-4 ${v.className} ${interactive ? "hover:shadow-md" : ""} ${className}`}
+      style={{ ...v.style, ...interactiveStyles, ...style }}
     >
       {title && (
         <div

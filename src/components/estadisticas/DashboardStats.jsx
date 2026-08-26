@@ -13,13 +13,14 @@ export const DashboardStats = React.memo(({ casos }) => {
         c.estado === "Lo piensa" ||
         c.estado === "Pendiente"
     ).length;
-    const firmas = casos.filter((c) => c.estado === "Firmo").length;
+    const firmas = casos.filter((c) => c.estado === "Firmo").length - casos.filter((c) => c.estado === "Baja").length;
     const noViables = casos.filter(
       (c) =>
         c.estado === "No le interesa" ||
         c.estado === "Tiene Abogado" ||
         c.estado === "Incontactable" ||
-        c.estado === "No viable"
+        c.estado === "No viable" ||
+        c.estado === "Baja"
     ).length;
     const noResponde = casos.filter(
       (c) =>

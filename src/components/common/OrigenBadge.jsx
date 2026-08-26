@@ -22,12 +22,12 @@ export function OrigenBadge({ origen, size = "sm", showLabel = false }) {
   const Icon = config.icon;
 
   const sizeClasses = size === "sm"
-    ? "text-[9px] px-1.5 py-0.5 gap-0.5"
-    : "text-[10px] px-2 py-1 gap-1";
+    ? "text-[9px] px-1.5 py-px gap-0.5 leading-tight"
+    : "text-[10px] px-2 py-0.5 gap-1";
 
   return (
     <span
-      className={`inline-flex items-center font-bold rounded-md flex-shrink-0 ${sizeClasses}`}
+      className={`inline-flex items-center self-center font-bold rounded-md flex-shrink-0 mr-1 ${sizeClasses}`}
       style={{
         backgroundColor: config.color + "18",
         color: config.color,
@@ -55,7 +55,7 @@ export function OrigenSelector({ value, onChange, size = "sm" }) {
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-all ${
+            className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
               size === "sm" ? "text-[11px]" : "text-xs"
             }`}
             style={{

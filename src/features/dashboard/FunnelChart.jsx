@@ -30,7 +30,7 @@ export const FunnelChart = React.memo(({ funnel, desc }) => {
               </div>
               <div className="w-full h-5 rounded-sm" style={{ backgroundColor: 'var(--color-surface2)' }}>
                 <div
-                  className="h-full rounded-sm transition-all"
+                  className="h-full rounded-sm transition-[width]"
                   style={{
                     width: `${Math.max(2, pct)}%`,
                     backgroundColor: i === funnel.length - 1 ? 'var(--color-success)' : 'var(--color-accent)',

@@ -26,7 +26,7 @@ export const QuickActions = React.memo(({ casos, categorias, onFilter, activeFil
             <button
               key={acc.id}
               onClick={() => onFilter(isActive ? null : acc.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
               style={{
                 backgroundColor: isActive ? `${acc.color}22` : 'var(--color-surface2)',
                 color: isActive ? acc.color : 'var(--color-text)',

@@ -6,6 +6,7 @@ import { normalizarCasos } from '../../utils/ubicacionUtils';
 import { caseRepository } from '../cases/caseRepository';
 import { touchVersion, assertNoConflict } from '../db/versioning';
 import { notifyChange, subscribeToChanges, SYNC_EVENTS } from '../sync/syncService';
+import { repararPreferenciasPersistidas } from '../integrity/referentialChecks';
 
 const savedTheme = (() => {
   try { return localStorage.getItem('app-theme') || 'dark'; } catch { return 'dark'; }
@@ -13,6 +14,19 @@ const savedTheme = (() => {
 const savedPalette = (() => {
   try { return localStorage.getItem('app-palette') || 'default'; } catch { return 'default'; }
 })();
+
+/**
+ * Órdenes de secciones/vistas válidas (fuente única).
+ * La capa de integridad usa estas listas para reparar preferencias
+ * persistentes corruptas u obsoletas sin resetear las válidas.
+ */
+export const ORDENES_DEFAULT = {
+  dashTabOrder: ['analitica', 'resumen', 'rendimiento', 'geografia', 'estudios', 'estados'],
+  kanbanSections: ['pipelineBar', 'columnas'],
+  tablaSections: ['pipelineBar', 'tabla', 'paginacion'],
+  reportesSections: ['pipelineBar', 'lista', 'paginacion'],
+  utilesTabOrder: ['condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion', 'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo'],
+};
 
 const useAppStore = create(
   persist(
@@ -40,7 +54,7 @@ const useAppStore = create(
   // --- Dashboard ---
   dashActiveFilter: null,
   dashTab: 'analitica',
-  dashTabOrder: ['analitica', 'resumen', 'rendimiento', 'geografia', 'estudios', 'estados'],
+  dashTabOrder: ORDENES_DEFAULT.dashTabOrder,
   dashWidgetOrder: {},
 
   setDashActiveFilter: (v) => set({ dashActiveFilter: v }),
@@ -49,10 +63,10 @@ const useAppStore = create(
   setDashWidgetOrder: (v) => set({ dashWidgetOrder: v }),
 
   // --- View Section Orders ---
-  kanbanSections: ['pipelineBar', 'columnas'],
-  tablaSections: ['pipelineBar', 'tabla', 'paginacion'],
-  reportesSections: ['pipelineBar', 'lista', 'paginacion'],
-  utilesTabOrder: ['condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion', 'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo'],
+  kanbanSections: ORDENES_DEFAULT.kanbanSections,
+  tablaSections: ORDENES_DEFAULT.tablaSections,
+  reportesSections: ORDENES_DEFAULT.reportesSections,
+  utilesTabOrder: ORDENES_DEFAULT.utilesTabOrder,
 
   setKanbanSections: (v) => set({ kanbanSections: v }),
   setTablaSections: (v) => set({ tablaSections: v }),
@@ -290,6 +304,31 @@ const useAppStore = create(
       reportesSections: state.reportesSections,
       utilesTabOrder: state.utilesTabOrder,
     }),
+    // Integridad (1.3.3): al hidratar, las órdenes guardadas se reparan contra
+    // los defaults canónicos — se descartan IDs obsoletos, se agregan las
+    // secciones nuevas al final y el orden válido existente se conserva.
+    merge: (persisted, current) => {
+      let patch = {};
+      try {
+        const resultado = repararPreferenciasPersistidas(persisted || {}, ORDENES_DEFAULT);
+        patch = resultado.patch;
+        if (resultado.cambios.length > 0) {
+          try {
+            const raw = localStorage.getItem('app_integrity_log');
+            const log = raw ? JSON.parse(raw) : [];
+            log.push({
+              ts: new Date().toISOString(),
+              tipo: 'preferencias-reparadas',
+              detalle: `Órdenes ajustados al hidratar: ${resultado.cambios.map((c) => c.clave).join(', ')}`.slice(0, 300),
+            });
+            localStorage.setItem('app_integrity_log', JSON.stringify(log.slice(-50)));
+          } catch { /* almacenamiento no disponible */ }
+        }
+      } catch {
+        patch = {};
+      }
+      return { ...current, ...(persisted || {}), ...patch };
+    },
   }
   )
 );

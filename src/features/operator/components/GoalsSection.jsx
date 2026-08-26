@@ -187,8 +187,17 @@ export function GoalsSection({ goals, updateGoals, daily, monthly, pace, effecti
           <Stat label="Reportes por día efectivo" value={perDay.reportsPerDay} />
         </div>
         <div className="mt-2 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-          <div>Vacaciones: {availabilitySummary.vacations.length} · Feriados: {availabilitySummary.holidays.length}</div>
-          <div>Inasistencias: {availabilitySummary.absences.length} · Días no laborables: {availabilitySummary.dayOffs.length}</div>
+          <div>Vacaciones: {availabilitySummary.vacationDays} día(s) · Feriados: {availabilitySummary.holidayDays}</div>
+          <div>Inasistencias: {availabilitySummary.absenceDays} · Días no laborables: {availabilitySummary.dayOffDays}</div>
+          {availabilitySummary.absences.length > 0 && (
+            <div className="pt-1">
+              {availabilitySummary.absences.map((ab) => (
+                <div key={ab.id} className="truncate" title={ab.motivo || undefined}>
+                  {ab.motivo ? `• ${ab.motivo}` : `• ${ab.type || "Sin justificación"}`}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="pt-1">La productividad se calcula sobre días efectivos, no sobre todos los días del mes.</div>
         </div>
       </div>
@@ -298,7 +307,7 @@ function GoalRow({ label, enabled, target, current, percent, met, onToggle, onTa
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface)" }}>
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width]"
               style={{ width: `${percent}%`, backgroundColor: met ? "var(--color-success)" : "var(--color-accent)" }}
             />
           </div>
@@ -333,7 +342,7 @@ function MonthGoalRow({ label, g, pace, remainingDays, onToggle, onTarget }) {
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface)" }}>
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width]"
               style={{ width: `${g.percent}%`, backgroundColor: g.met ? "var(--color-success)" : "var(--color-accent)" }}
             />
           </div>
@@ -378,7 +387,7 @@ function WeekGoalRow({ label, g, progress, onToggle, onTarget }) {
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--color-surface)" }}>
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width]"
               style={{ width: `${p.percent || 0}%`, backgroundColor: p.met ? "var(--color-success)" : "var(--color-accent)" }}
             />
           </div>

@@ -7,6 +7,7 @@ export function Input({
   onChange,
   placeholder = "",
   className = "",
+  error,
   style = {},
   ...props
 }) {
@@ -25,10 +26,15 @@ export function Input({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="input-optimized focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+        className={`input-optimized ${error ? "input-error" : ""}`}
         style={style}
         {...props}
       />
+      {error && (
+        <span className="text-xs animate-fade-in" style={{ color: "var(--color-danger)" }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }

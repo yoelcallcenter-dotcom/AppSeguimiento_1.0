@@ -253,7 +253,7 @@ describe('ritmo requerido', () => {
 });
 
 describe('resumen de disponibilidad', () => {
-  it('agrupa por mes', () => {
+  it('agrupa por mes y cuenta días individuales', () => {
     const avail = {
       vacations: [{ id: 'v1', start: '2026-09-07', end: '2026-09-11' }],
       holidays: [{ id: 'h1', name: 'X', date: '2026-09-21' }],
@@ -265,7 +265,29 @@ describe('resumen de disponibilidad', () => {
     expect(summary.holidays.length).toBe(1);
     expect(summary.absences.length).toBe(1);
     expect(summary.dayOffs.length).toBe(1);
-    expect(summary.totalDays).toBe(4);
+    expect(summary.vacationDays).toBe(5);
+    expect(summary.holidayDays).toBe(1);
+    expect(summary.absenceDays).toBe(1);
+    expect(summary.dayOffDays).toBe(1);
+    expect(summary.totalDays).toBe(8);
+  });
+
+  it('cuenta vacaciones que cruzan meses correctamente', () => {
+    const avail = {
+      vacations: [{ id: 'v1', start: '2026-08-28', end: '2026-09-05' }],
+    };
+    const aug = getAvailabilitySummary(avail, 2026, 7);
+    const sep = getAvailabilitySummary(avail, 2026, 8);
+    expect(aug.vacationDays).toBe(4);
+    expect(sep.vacationDays).toBe(5);
+  });
+
+  it('cuenta vacaciones de un solo día', () => {
+    const avail = {
+      vacations: [{ id: 'v1', start: '2026-09-15', end: '2026-09-15' }],
+    };
+    const summary = getAvailabilitySummary(avail, 2026, 8);
+    expect(summary.vacationDays).toBe(1);
   });
 });
 

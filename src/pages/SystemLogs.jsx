@@ -16,6 +16,7 @@ import {
   Bug,
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { IntegridadPanel } from '../components/diagnostico/IntegridadPanel';
 
 const TYPE_ICONS = {
   WINDOW_ONERROR: AlertTriangle,
@@ -70,6 +71,17 @@ export function SystemLogs() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
+      {/* Integridad de datos (1.3.3) */}
+      <div
+        className="rounded-lg p-4"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+        }}
+      >
+        <IntegridadPanel />
+      </div>
+
       <div
         className="rounded-lg p-4"
         style={{

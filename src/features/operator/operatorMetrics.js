@@ -241,11 +241,17 @@ export function countReportsOnDay(cases, isoDate) {
 }
 
 export function countSignedOnDay(cases, isoDate) {
-  return cases.filter((c) => {
+  const firmoCount = cases.filter((c) => {
     if (c.estado !== "Firmo") return false;
     const d = normalizeDate(c.fecha);
     return d === isoDate;
   }).length;
+  const bajaCount = cases.filter((c) => {
+    if (c.estado !== "Baja") return false;
+    const d = normalizeDate(c.fecha);
+    return d === isoDate;
+  }).length;
+  return Math.max(0, firmoCount - bajaCount);
 }
 
 export function countReportsInMonth(cases, year, month) {
@@ -261,13 +267,21 @@ export function countReportsInMonth(cases, year, month) {
 }
 
 export function countSignedInMonth(cases, year, month) {
-  return cases.filter((c) => {
+  const firmoCount = cases.filter((c) => {
     if (c.estado !== "Firmo") return false;
     const d = normalizeDate(c.fecha);
     if (!d) return false;
     const parts = d.split("-").map(Number);
     return parts[0] === year && parts[1] === month + 1;
   }).length;
+  const bajaCount = cases.filter((c) => {
+    if (c.estado !== "Baja") return false;
+    const d = normalizeDate(c.fecha);
+    if (!d) return false;
+    const parts = d.split("-").map(Number);
+    return parts[0] === year && parts[1] === month + 1;
+  }).length;
+  return Math.max(0, firmoCount - bajaCount);
 }
 
 /**
@@ -408,6 +422,24 @@ export function getRequiredDailyPace(
 // ============================================================
 // RESUMEN DE DISPONIBILIDAD DEL MES
 // ============================================================
+
+/**
+ * Cuenta los días individuales de un rango (start..end) que caen dentro del mes dado.
+ * Ambos extremos son inclusivos. Maneja rangos que cruzan meses.
+ */
+function countDaysInRangeInMonth(startISO, endISO, year, month) {
+  const s = dateFromISO(normalizeDate(startISO));
+  const e = normalizeDate(endISO) ? dateFromISO(normalizeDate(endISO)) : s;
+  if (isNaN(s.getTime())) return 0;
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  const effectiveStart = s < monthStart ? monthStart : s;
+  const effectiveEnd = e > monthEnd ? monthEnd : e;
+  if (effectiveStart > effectiveEnd) return 0;
+  const msPerDay = 86400000;
+  return Math.floor((effectiveEnd - effectiveStart) / msPerDay) + 1;
+}
+
 export function getAvailabilitySummary(availability = {}, year, month) {
   const a = {
     vacations: [],
@@ -428,12 +460,21 @@ export function getAvailabilitySummary(availability = {}, year, month) {
   const absences = (a.absences || []).filter((ab) => inMonth(ab.date));
   const dayOffs = (a.customDaysOff || []).filter((d) => inMonth(d.date));
 
+  const vacationDays = vacations.reduce((sum, v) => sum + countDaysInRangeInMonth(v.start, v.end, year, month), 0);
+  const holidayDays = holidays.length;
+  const absenceDays = absences.length;
+  const dayOffDays = dayOffs.length;
+
   return {
     vacations,
     holidays,
     absences,
     dayOffs,
-    totalDays: vacations.length + holidays.length + absences.length + dayOffs.length,
+    vacationDays,
+    holidayDays,
+    absenceDays,
+    dayOffDays,
+    totalDays: vacationDays + holidayDays + absenceDays + dayOffDays,
   };
 }
 
@@ -577,7 +618,7 @@ export function getWeeklyGoalProgress(
   const fridayISO = isoFromDate(friday);
 
   const countInRange = (field, fromISO, toISO) => {
-    return cases.filter((c) => {
+    const baseCount = cases.filter((c) => {
       const d = normalizeDate(c.fecha);
       if (!d) return false;
       if (d < fromISO || d > toISO) return false;
@@ -590,6 +631,14 @@ export function getWeeklyGoalProgress(
       }
       return true;
     }).length;
+    if (field !== "signed") return baseCount;
+    const bajaCount = cases.filter((c) => {
+      if (c.estado !== "Baja") return false;
+      const d = normalizeDate(c.fecha);
+      if (!d) return false;
+      return d >= fromISO && d <= toISO;
+    }).length;
+    return Math.max(0, baseCount - bajaCount);
   };
 
   const types = [

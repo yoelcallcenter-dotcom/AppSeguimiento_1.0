@@ -9,7 +9,7 @@ export function SelectorTema({ className = "" }) {
     <div className={`flex gap-1.5 ${className}`}>
       <button
         onClick={() => theme.changeTheme("dark")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:opacity-80 ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-80 ${
           theme.isDark
             ? "bg-[var(--color-accent)] text-[#14181F]"
             : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
@@ -21,7 +21,7 @@ export function SelectorTema({ className = "" }) {
       </button>
       <button
         onClick={() => theme.changeTheme("light")}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:opacity-80 ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-80 ${
           theme.isLight
             ? "bg-[var(--color-accent)] text-[#14181F]"
             : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"

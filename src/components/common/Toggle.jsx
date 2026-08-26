@@ -44,7 +44,7 @@ export function Toggle({
             backgroundColor: checked
               ? "var(--color-accent)"
               : "var(--color-border)",
-            transition: "0.3s",
+            transition: "background-color var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
             borderRadius: "24px",
           }}
         />
@@ -57,7 +57,7 @@ export function Toggle({
             left: checked ? "22px" : "3px",
             bottom: "3px",
             backgroundColor: "white",
-            transition: "0.3s",
+            transition: "left var(--duration-normal, 0.18s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))",
             borderRadius: "50%",
             boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
           }}

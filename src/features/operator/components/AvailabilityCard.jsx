@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CalendarDays, Sun, Flag, Stethoscope, CalendarOff, Plus, Trash2, Pencil, CalendarClock } from "lucide-react";
+import { CalendarDays, Sun, Flag, Stethoscope, CalendarOff, Plus, Trash2, Pencil, CalendarClock, CalendarPlus } from "lucide-react";
 import { Btn } from "../../../components/common/Btn";
 import { BtnOutline } from "../../../components/common/BtnOutline";
 import { Field } from "../../../components/common/Field";
@@ -177,14 +177,14 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
               className="p-4 rounded-md text-center"
               style={{ backgroundColor: "var(--color-surface2)", border: "1px dashed var(--color-border)" }}
             >
-              <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-text)" }}>
+              <div className="text-sm font-semibold mb-1" style={{ color: "var(--color-text)" }}>
                 Disponibilidad al día
               </div>
               <div className="text-[11px] mb-2" style={{ color: "var(--color-text-muted)" }}>
                 No hay vacaciones, feriados, ausencias ni días libres a futuro.
               </div>
               <BtnOutline size="sm" onClick={startNew}>
-                <Plus size={12} /> Cargar el primero
+                <CalendarPlus size={14} /> Registrar primera entrada
               </BtnOutline>
             </div>
           )}
@@ -209,7 +209,7 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
             return (
               <div
                 key={item.id}
-                className={`flex items-start gap-1.5 p-2.5 rounded-md transition-all ${isActive ? "ring-1" : "opacity-60"}`}
+                className={`flex items-start gap-1.5 p-2.5 rounded-md transition-shadow transition-opacity ${isActive ? "ring-1" : "opacity-60"}`}
                 style={{
                   backgroundColor: isActive ? "var(--color-surface2)" : "var(--color-surface)",
                   border: isActive ? `1px solid ${tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)'}44` : "1px solid var(--color-border)",

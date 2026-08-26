@@ -13,7 +13,7 @@ function PaletteCard({ palette, isActive, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-2 p-3 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${
+      className={`relative flex flex-col items-center gap-2 p-3 rounded-lg transition-transform transition-opacity hover:scale-[1.02] active:scale-[0.98] ${
         isActive ? "ring-2 ring-offset-2" : "hover:opacity-80"
       }`}
       style={{
@@ -171,7 +171,7 @@ export function PersonalizacionColores({ showToast }) {
         <div className="flex gap-2">
           <button
             onClick={() => theme.changeTheme("dark")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 flex-1 justify-center ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-1 justify-center ${
               theme.isDark
                 ? "bg-[var(--color-accent)] text-[#14181F]"
                 : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -181,7 +181,7 @@ export function PersonalizacionColores({ showToast }) {
           </button>
           <button
             onClick={() => theme.changeTheme("light")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 flex-1 justify-center ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-1 justify-center ${
               theme.isLight
                 ? "bg-[var(--color-accent)] text-[#14181F]"
                 : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -221,7 +221,7 @@ export function PersonalizacionColores({ showToast }) {
             <button
               key={fs.value}
               onClick={() => setFontSize(fs.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-80 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 ${
                 fontSize === fs.value
                   ? "bg-[var(--color-accent)] text-[#14181F]"
                   : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
