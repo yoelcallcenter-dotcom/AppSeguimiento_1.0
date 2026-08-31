@@ -5,12 +5,10 @@ import App from "./App.jsx";
 // Importar estilos globales
 import "./styles/globals.css";
 
-// Fuentes locales (sin dependencia de Google Fonts ni red externa)
-import "@fontsource/montserrat/400.css";
-import "@fontsource/montserrat/500.css";
-import "@fontsource/montserrat/600.css";
-import "@fontsource/montserrat/700.css";
-import "@fontsource/montserrat/800.css";
+// Inicializar sistema de tipografía (aplica preset + tamaño antes del primer
+// render para evitar flash de fuente; no bloquea la app).
+import { typographyManager } from "./core/typography/typographyManager";
+typographyManager.init();
 
 // Inicializar sistema de notificaciones
 import { notificationService } from "./utils/notifications";

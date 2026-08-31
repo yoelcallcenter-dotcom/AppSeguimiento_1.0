@@ -5,6 +5,7 @@ import { normalizeDate } from '../dateFilters';
 import { parseCSV } from '../csvParse';
 import { caseRepository } from '../../core/cases/caseRepository';
 import { notifyChange, SYNC_EVENTS } from '../../core/sync/syncService';
+import casesDB from '../../core/db/casesDB';
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -81,6 +82,19 @@ const parseAgendaStr = (str) => {
   });
 };
 
+const parseHistorialStr = (str) => {
+  if (!str || typeof str !== 'string') return [];
+  return str.split(';').map((s) => s.trim()).filter(Boolean).map((item) => {
+    const parts = item.split('|');
+    return {
+      timestamp: parts[0] ? new Date(parts[0]).getTime() || Date.now() : Date.now(),
+      type: parts[1] || 'manual',
+      title: parts[2] || '',
+      description: parts[3] || '',
+    };
+  });
+};
+
 const normalizeArray = (value) => {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string') {
@@ -148,6 +162,7 @@ function normalizeCase(c) {
       ...e,
       titulo: sanitizarValor(e.titulo),
     })),
+    caseHistory: normalizeJSONorText(c.caseHistory, parseHistorialStr),
     fechaFirma: normalizeDate(c.fechaFirma),
     alertaFirmaEnviada: c.alertaFirmaEnviada || false,
     leido: c.leido !== undefined ? c.leido : true,
@@ -224,6 +239,22 @@ export async function importCasesFromCSV(csvData) {
   try {
     // Reemplazo total atómico (transacción Dexie): si falla, no se pierde nada.
     await caseRepository.bulkReplace(deduplicated);
+    
+    // Importar case_history si existe
+    const historyToImport = deduplicated
+      .filter((c) => Array.isArray(c.caseHistory) && c.caseHistory.length > 0)
+      .flatMap((c) => c.caseHistory.map((h) => ({
+        caseId: c.id,
+        timestamp: h.timestamp || Date.now(),
+        type: h.type || 'manual',
+        title: h.title || '',
+        description: h.description || '',
+      })));
+    
+    if (historyToImport.length > 0) {
+      await casesDB.case_history.bulkAdd(historyToImport);
+    }
+    
     notifyChange(SYNC_EVENTS.DATA_IMPORTED, { source: 'csv', count: deduplicated.length });
   } catch (storageError) {
     return { success: false, error: 'Error al guardar los datos importados' };

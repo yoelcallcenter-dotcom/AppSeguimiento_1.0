@@ -36,6 +36,7 @@ import WeeklyTrend from './widgets/WeeklyTrend';
 import AlertsPanel from './widgets/AlertsPanel';
 import ActivityFeed from './widgets/ActivityFeed';
 import InsightsPanel from './widgets/InsightsPanel';
+import ProximasAcciones from './widgets/ProximasAcciones';
 import { useAnalytics } from '../analytics/useAnalytics';
 import { PERIODO_DEFAULT } from '../analytics/periodUtils';
 import PeriodSelector from '../analytics/components/PeriodSelector';
@@ -85,15 +86,16 @@ const WIDGET_REGISTRY = {
     generalMetrics: { label: 'Métricas generales', defaultOrder: 0 },
     alertBanner: { label: 'Alertas automáticas', defaultOrder: 1 },
     quickActions: { label: 'Acciones rápidas', defaultOrder: 2 },
-    analyticHeader: { label: 'Encabezado analítico', defaultOrder: 3 },
-    alertsPanel: { label: 'Alertas', defaultOrder: 4 },
-    activityFeed: { label: 'Actividad reciente', defaultOrder: 5 },
-    eventos: { label: 'Próximos eventos', defaultOrder: 6 },
-    sinReporte: { label: 'Casos sin reporte', defaultOrder: 7 },
-    notas: { label: 'Notas recientes', defaultOrder: 8 },
-    resumen: { label: 'Resumen rápido', defaultOrder: 9 },
-    ultimosCasos: { label: 'Últimos casos', defaultOrder: 10 },
-    miDia: { label: 'Mi día', defaultOrder: 11 },
+    proximasAcciones: { label: 'Próximas acciones', defaultOrder: 3 },
+    analyticHeader: { label: 'Encabezado analítico', defaultOrder: 4 },
+    alertsPanel: { label: 'Alertas', defaultOrder: 5 },
+    activityFeed: { label: 'Actividad reciente', defaultOrder: 6 },
+    eventos: { label: 'Próximos eventos', defaultOrder: 7 },
+    sinReporte: { label: 'Casos sin reporte', defaultOrder: 8 },
+    notas: { label: 'Notas recientes', defaultOrder: 9 },
+    resumen: { label: 'Resumen rápido', defaultOrder: 10 },
+    ultimosCasos: { label: 'Últimos casos', defaultOrder: 11 },
+    miDia: { label: 'Mi día', defaultOrder: 12 },
   },
   rendimiento: {
     perfMetrics: { label: 'Métricas de performance', defaultOrder: 0 },
@@ -397,9 +399,16 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
           </div>
         ) : null;
       case 'alertsPanel':
-        return <AlertsPanel key="alertsPanel" metrics={analyticsMetrics} onDrill={handleDrill} />;
+        return <AlertsPanel key="alertsPanel" metrics={analyticsMetrics} cases={allCases} notes={notes} events={events} onDrill={handleDrill} onVerCaso={onVerCaso} />;
+      case 'proximasAcciones':
+        return <ProximasAcciones key="proximasAcciones" cases={allCases} notes={notes} events={events} onVerCaso={onVerCaso} onNavigateToEvent={(e) => {}} onNavigateFiltered={handleDrill} />;
       case 'activityFeed':
-        return <ActivityFeed key="activityFeed" items={activity} />;
+        return <ActivityFeed key="activityFeed" items={activity} onSelectItem={(item) => {
+          if (item.type === 'case' && item.caseId) {
+            const caso = casos.find((c) => String(c.id) === String(item.caseId));
+            if (caso) onVerCaso(caso);
+          }
+        }} />;
       case 'eventos':
         return showWidget('widgetEventos') ? (
           <WidgetCard key="eventos" title="Próximos eventos" icon={Calendar}>
@@ -591,7 +600,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
           </div>
 
           <KPICards metrics={analyticsMetrics} onDrill={handleDrill} prevMetrics={prevMetrics} />
-          <InsightsPanel insights={analyticsInsights} />
+          <InsightsPanel insights={analyticsInsights} onDrill={handleDrill} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CaseDistribution data={analyticsMetrics.byStatus} onDrill={handleDrill} />
             <CategoryDonut data={analyticsMetrics.byCategory} onDrill={handleDrill} />

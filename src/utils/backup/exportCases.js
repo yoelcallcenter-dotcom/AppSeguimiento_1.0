@@ -67,9 +67,25 @@ export async function exportCasesToCSV(months = null) {
     } catch { return []; }
   };
 
+  const getHistorialPorCaso = async (caseId) => {
+    try {
+      const all = await casesDB.case_history.toArray();
+      return all.filter((h) => h.caseId === caseId);
+    } catch { return []; }
+  };
+
+  const serializarHistorial = (eventos) => {
+    if (!eventos || eventos.length === 0) return '';
+    return eventos.map((e) => {
+      const fecha = e.timestamp ? new Date(e.timestamp).toISOString().slice(0, 16).replace('T', ' ') : '';
+      return `${fecha}|${e.type || ''}|${e.title || ''}|${e.description || ''}`;
+    }).join('; ');
+  };
+
   const rows = await Promise.all(filteredCases.map(async (c) => {
     const notas = c.notasVinculadas || (await getNotasPorCaso(c.id));
     const agenda = c.agendaVinculada || (await getEventosPorCaso(c.id));
+    const historial = await getHistorialPorCaso(c.id);
     return [
       c.id || '',
       c.fecha || '',
@@ -90,6 +106,7 @@ export async function exportCasesToCSV(months = null) {
       formatearComentarios(c.comentarios || []),
       serializarNotas(notas),
       serializarAgenda(agenda),
+      serializarHistorial(historial),
     ].map((v) => escapeCSV(sanitizeCSV(v || '')));
   }));
 

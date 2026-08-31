@@ -15,6 +15,8 @@ import {
   Minus,
   ShieldCheck,
   AlertTriangle,
+  Calendar,
+  Users,
 } from "lucide-react";
 import { DAY_LABELS } from "./operatorDefaults";
 import {
@@ -33,12 +35,15 @@ import {
 } from "../analytics/analyticsEngine";
 import { generarInsightsAnaliticos } from "../analytics/smartInsights";
 import { Sparkles, ArrowRight } from "lucide-react";
+import { getUpcomingEvents, getSeguimientosPendientes, getDayClosureData } from "../../core/alerts/attentionRules";
 
 export function MiJornadaView({
   profile,
   availability,
   goals,
   cases,
+  notes = [],
+  events = [],
   dayState,
   daily,
   monthly,
@@ -51,8 +56,11 @@ export function MiJornadaView({
   showPace = true,
   settings = {},
   showInsight = true,
+  onVerCaso,
+  onNavigateToEvent,
+  now: parentNow,
 }) {
-  const now = new Date();
+  const now = parentNow || new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
 
@@ -64,7 +72,7 @@ export function MiJornadaView({
 
   const paceMetrics = useMemo(
     () => getDayPaceMetrics(goals, cases, profile, availability, year, month, todayISO),
-    [goals, cases, profile, availability, year, month, todayISO]
+    [goals, cases, profile, availability, year, month, todayISO, tick, now]
   );
 
   const weeklyProgress = useMemo(
@@ -74,10 +82,10 @@ export function MiJornadaView({
 
   const milestone = useMemo(
     () => getNextMilestone(goals, cases, profile, availability, year, month, todayISO),
-    [goals, cases, profile, availability, year, month, todayISO]
+    [goals, cases, profile, availability, year, month, todayISO, now]
   );
 
-  const backupStatus = useMemo(() => getBackupStatus(), []);
+  const backupStatus = useMemo(() => getBackupStatus(), [tick, now]);
 
   // Insight destacado (1.3.2): un único mensaje de mayor prioridad.
   // Se calcula con el mismo motor de Analítica; nunca se persiste.
@@ -216,6 +224,32 @@ export function MiJornadaView({
         </div>
       )}
 
+      {/* ACTIVIDAD DE HOY */}
+      {cases && cases.length > 0 && todayISO && (
+        <TodayActivityCard cases={cases} todayISO={todayISO} onVerCaso={onVerCaso} />
+      )}
+
+      {/* PRÓXIMOS COMPROMISOS */}
+      {cases && cases.length > 0 && todayISO && (
+        <UpcomingCommitmentsCard
+          cases={cases}
+          events={events}
+          todayISO={todayISO}
+          onVerCaso={onVerCaso}
+          onNavigateToEvent={onNavigateToEvent}
+        />
+      )}
+
+      {/* SEGUIMIENTOS PENDIENTES */}
+      {cases && cases.length > 0 && todayISO && (
+        <PendingFollowUpsCard
+          cases={cases}
+          events={events}
+          todayISO={todayISO}
+          onVerCaso={onVerCaso}
+        />
+      )}
+
       {/* OBJETIVOS DIARIOS */}
       <DailyGoalsCard
         daily={daily}
@@ -244,6 +278,19 @@ export function MiJornadaView({
         <BackupStatusCard backupStatus={backupStatus} />
       )}
 
+      {/* RESUMEN DE JORNADA (al finalizar) */}
+      {cases && cases.length > 0 && goals && todayISO && dayState && (dayState.key === 'ended' || dayState.key === 'goal-met') && (
+        <DayClosureCard
+          cases={cases}
+          notes={notes}
+          events={events}
+          goals={goals}
+          todayISO={todayISO}
+          onVerCaso={onVerCaso}
+          onNavigateToEvent={onNavigateToEvent}
+        />
+      )}
+
       {/* ACCESO RÁPIDO */}
       <div className="flex items-center gap-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
         {onChangeView && (
@@ -267,6 +314,215 @@ export function MiJornadaView({
 // ============================================================
 // SUB-COMPONENTES
 // ============================================================
+
+function TodayActivityCard({ cases, todayISO, onVerCaso }) {
+  const todayCases = useMemo(() => {
+    if (!cases || !todayISO) return [];
+    return cases
+      .filter((c) => {
+        const created = (c.createdAt || "").slice(0, 10);
+        const lastActivity = (c.lastActivityAt || "").slice(0, 10);
+        return created === todayISO || lastActivity === todayISO;
+      })
+      .slice(0, 5);
+  }, [cases, todayISO]);
+
+  if (todayCases.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3"
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Zap size={14} style={{ color: "var(--color-accent)" }} />
+        <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+          Actividad de hoy ({todayCases.length})
+        </span>
+      </div>
+      <div className="space-y-1">
+        {todayCases.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onVerCaso && onVerCaso(c)}
+            className="flex items-center gap-2 w-full text-left px-2 py-1 rounded text-xs hover:opacity-70 transition-opacity"
+            style={{ backgroundColor: "var(--color-surface2)" }}
+          >
+            <span className="font-medium truncate" style={{ color: "var(--color-text)" }}>
+              {c.nombre || "Sin nombre"}
+            </span>
+            <span
+              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{
+                backgroundColor: "var(--color-accent)22",
+                color: "var(--color-accent)",
+              }}
+            >
+              {c.estado || "—"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingCommitmentsCard({ cases, events, todayISO, onVerCaso, onNavigateToEvent }) {
+  const upcoming = useMemo(() => getUpcomingEvents(events, todayISO, 2), [events, todayISO]);
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3"
+      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Calendar size={14} style={{ color: "var(--color-accent)" }} />
+        <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+          Próximos compromisos ({upcoming.length})
+        </span>
+      </div>
+      <div className="space-y-1">
+        {upcoming.slice(0, 5).map(({ event, daysUntil }) => (
+          <button
+            key={event.id}
+            type="button"
+            onClick={() => onNavigateToEvent && onNavigateToEvent(event)}
+            className="flex items-center gap-2 w-full text-left px-2 py-1 rounded text-xs hover:opacity-70 transition-opacity"
+            style={{ backgroundColor: "var(--color-surface2)" }}
+          >
+            <span className="font-medium truncate" style={{ color: "var(--color-text)" }}>
+              {event.title || "Sin título"}
+            </span>
+            <span
+              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{
+                backgroundColor: daysUntil === 0 ? "var(--color-warning)22" : "var(--color-accent)22",
+                color: daysUntil === 0 ? "var(--color-warning)" : "var(--color-accent)",
+              }}
+            >
+              {daysUntil === 0 ? "Hoy" : daysUntil === 1 ? "Mañana" : `En ${daysUntil} días`}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PendingFollowUpsCard({ cases, events, todayISO, onVerCaso }) {
+  const pending = useMemo(() => getSeguimientosPendientes(cases, events, todayISO), [cases, events, todayISO]);
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3"
+      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Users size={14} style={{ color: "var(--color-warning)" }} />
+        <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+          Seguimientos pendientes ({pending.length})
+        </span>
+      </div>
+      <div className="space-y-1">
+        {pending.slice(0, 5).map(({ caso, daysSinceActivity }) => (
+          <button
+            key={caso.id}
+            type="button"
+            onClick={() => onVerCaso && onVerCaso(caso)}
+            className="flex items-center gap-2 w-full text-left px-2 py-1 rounded text-xs hover:opacity-70 transition-opacity"
+            style={{ backgroundColor: "var(--color-surface2)" }}
+          >
+            <span className="font-medium truncate" style={{ color: "var(--color-text)" }}>
+              {caso.nombre || "Sin nombre"}
+            </span>
+            <span
+              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{
+                backgroundColor: "var(--color-warning)22",
+                color: "var(--color-warning)",
+              }}
+            >
+              {daysSinceActivity}d sin actividad
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DayClosureCard({ cases, notes, events, goals, todayISO, onVerCaso, onNavigateToEvent }) {
+  const closureData = useMemo(
+    () => getDayClosureData(cases, notes, events, goals, todayISO),
+    [cases, notes, events, goals, todayISO]
+  );
+
+  if (!closureData) return null;
+
+  const { goalProgress, firmasRegistradas, casosTrabajados, eventosPendientes, eventosVencidos, proximosCompromisos, casosSinActividad } = closureData;
+
+  return (
+    <div
+      className="rounded-lg px-4 py-3"
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderTop: `3px solid ${goalProgress?.firmas?.completado ? "var(--color-success)" : "var(--color-warning)"}`,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Target size={14} style={{ color: "var(--color-accent)" }} />
+        <span className="text-xs font-bold" style={{ color: "var(--color-text)" }}>
+          Resumen de Jornada
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {goalProgress?.firmas && (
+          <div className="p-2 rounded" style={{ backgroundColor: "var(--color-surface2)" }}>
+            <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Firmas</div>
+            <div className="text-sm font-bold" style={{ color: goalProgress.firmas.completado ? "var(--color-success)" : "var(--color-text)" }}>
+              {goalProgress.firmas.resultado}/{goalProgress.firmas.objetivo}
+            </div>
+          </div>
+        )}
+        {goalProgress?.casos && (
+          <div className="p-2 rounded" style={{ backgroundColor: "var(--color-surface2)" }}>
+            <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Casos</div>
+            <div className="text-sm font-bold" style={{ color: goalProgress.casos.completado ? "var(--color-success)" : "var(--color-text)" }}>
+              {goalProgress.casos.resultado}/{goalProgress.casos.objetivo}
+            </div>
+          </div>
+        )}
+        <div className="p-2 rounded" style={{ backgroundColor: "var(--color-surface2)" }}>
+          <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Trabajados</div>
+          <div className="text-sm font-bold" style={{ color: "var(--color-text)" }}>{casosTrabajados}</div>
+        </div>
+        <div className="p-2 rounded" style={{ backgroundColor: "var(--color-surface2)" }}>
+          <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>Pendientes</div>
+          <div className="text-sm font-bold" style={{ color: eventosPendientes > 0 ? "var(--color-warning)" : "var(--color-text)" }}>
+            {eventosPendientes}
+          </div>
+        </div>
+      </div>
+
+      {(proximosCompromisos > 0 || casosSinActividad > 0) && (
+        <div className="space-y-1 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+          {proximosCompromisos > 0 && <div>• {proximosCompromisos} compromisos próximos</div>}
+          {casosSinActividad > 0 && <div>• {casosSinActividad} casos sin actividad</div>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TimeTile({ icon: Icon, label, value, accent, warning }) {
   return (

@@ -22,6 +22,7 @@ import { BtnOutline } from "../common/BtnOutline";
 import { TextInput } from "../common/TextInput";
 import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { OverlayPanel } from "../common/OverlayPanel";
 import { sanitizeString } from "../../utils/sanitize";
 import { hoyISO } from "../../utils/dateUtils";
 
@@ -497,63 +498,27 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
         onConfirm={() => eliminar(confirmEliminar)}
       />
 
-      {speechSeleccionado && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: "rgba(0,0,0,0.85)",
-            margin: 0,
-            padding: '1rem',
-          }}
-          onClick={() => setSpeechSeleccionado(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-2xl rounded-xl p-6 max-h-[80vh] flex flex-col"
-            style={{
-              backgroundColor: "var(--color-surface2)",
-              border: "1px solid var(--color-border)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex items-center justify-between mb-4 pb-3"
-              style={{ borderBottom: "1px solid var(--color-border)" }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="text-lg font-semibold"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  Speech Completo
-                </div>
-                <span
-                  className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: "var(--color-accent)22",
-                    color: "var(--color-accent)",
-                  }}
-                >
-                  {extraerSpeechInfo(speechSeleccionado.speech).numero
-                    ? `V.${extraerSpeechInfo(speechSeleccionado.speech).numero}`
-                    : `#${speechSeleccionado.index + 1}`}
-                </span>
-              </div>
-              <button
-                onClick={() => setSpeechSeleccionado(null)}
-                className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
-                style={{ color: "var(--color-text-muted)" }}
+      <OverlayPanel
+        isOpen={!!speechSeleccionado}
+        onClose={() => setSpeechSeleccionado(null)}
+        title="Speech Completo"
+        icon={FileText}
+        fullscreen={false}
+      >
+        {speechSeleccionado && (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <span
+                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: "var(--color-accent)22",
+                  color: "var(--color-accent)",
+                }}
               >
-                <X size={20} />
-              </button>
+                {extraerSpeechInfo(speechSeleccionado.speech).numero
+                  ? `V.${extraerSpeechInfo(speechSeleccionado.speech).numero}`
+                  : `#${speechSeleccionado.index + 1}`}
+              </span>
             </div>
 
             <div className="flex items-center gap-2 mb-3">
@@ -676,9 +641,9 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                 </>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </OverlayPanel>
     </div>
   );
 }

@@ -35,7 +35,8 @@ import {
 } from "./utils/constants";
 
 // Contexts
-import { FontSizeProvider, useFontSize } from "./context/FontSizeContext";
+import { FontSizeProvider } from "./context/FontSizeContext";
+import { TypographyProvider } from "./context/TypographyContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { FiltersProvider, useFilters } from "./context/FiltersContext";
 import { I18nProvider, useI18n } from "./context/I18nContext";
@@ -46,6 +47,7 @@ import { useStorage } from "./hooks/useStorage";
 import { useCases } from "./hooks/useCases";
 import { useDebounce } from "./hooks/useDebounce";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useRecentEntities } from "./hooks/useRecentEntities";
 import { recordGoalAction, pushLastCase } from "./features/productivity/productivityStore";
 
 // Utils
@@ -153,6 +155,7 @@ const ReporteRapidoModal = lazy(() => import("./components/modales/ReporteRapido
 
 // Components - Overlays (lazy)
 const HelpPanel = lazy(() => import("./components/ayuda/HelpPanel"));
+const EntityPanel = lazy(() => import("./components/entities/EntityPanel"));
 
 // Error monitoring
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -239,7 +242,6 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
 }
 
 function AppContent() {
-  const { fontSize } = useFontSize();
   const { startTour } = useTour();
   const {
     selectedMonth,
@@ -307,6 +309,27 @@ function AppContent() {
   const [pendingNoteId, setPendingNoteId] = useState(null);
   // Deshacer: snapshot previo de casos para revertir la última mutación.
   const [undoState, setUndoState] = useState(null);
+  // Navegación contextual: pila de contextos para breadcrumb/back.
+  const [navigationStack, setNavigationStack] = useState([]);
+  // Entity Panel: panel desplegable para aseguradoras/estudios
+  const [entityPanel, setEntityPanel] = useState(null);
+  const { addRecent: registrarVista } = useRecentEntities();
+
+  // Lista memoizada de aseguradoras únicas de los casos
+  const aseguradorasFromCases = useMemo(
+    () => [...new Set(casos.map((c) => c.aseguradora).filter(Boolean))],
+    [casos]
+  );
+
+  // Callbacks estables para GlobalSearch
+  const handleGlobalSearchSelectCase = useCallback((id) => {
+    const c = casos.find((c) => c.id === id);
+    if (c) setVerCaso(c);
+  }, [casos]);
+
+  const handleGlobalSearchSelectNote = useCallback(() => setShowBlocNotas(true), []);
+  const handleGlobalSearchSelectEvent = useCallback(() => setShowCalendar(true), []);
+  const handleGlobalSearchSelectEntity = useCallback((type, name) => setEntityPanel({ type, name }), []);
 
   const pushUndo = useCallback((label) => {
     setUndoState({ prevCasos: casos, label, ts: Date.now() });
@@ -700,13 +723,12 @@ function AppContent() {
       setCasos((list) => list.filter((c) => c.id !== id));
       deleteCaseHistory(id);
       setModalCaso(null);
-      showToast("Caso eliminado", "info");
       soundSystem.playAction("delete");
       if (deleted) {
         eventBus.emit(AppEvents.CASE_DELETED, { type: "info", title: "Caso eliminado", message: `${deleted.nombre} fue eliminado`, source: "cases" });
       }
     },
-    [setCasos, showToast, casos, pushUndo]
+    [setCasos, casos, pushUndo]
   );
 
   const cambiarEstado = useCallback(
@@ -816,6 +838,24 @@ function AppContent() {
     }
   }, []);
 
+  // ============ NAVEGACIÓN CONTEXTUAL ============
+  const navigateContextual = useCallback((type, label, data) => {
+    if (type === 'insurer' || type === 'lawFirm') {
+      setEntityPanel({ type, name: data?.name || label });
+      registrarVista(type, data?.name || label);
+    } else {
+      setNavigationStack((prev) => [...prev, { type, label, data, ts: Date.now() }]);
+    }
+  }, [registrarVista]);
+
+  const goBackNavigation = useCallback(() => {
+    setNavigationStack((prev) => prev.slice(0, -1));
+  }, []);
+
+  const clearNavigation = useCallback(() => {
+    setNavigationStack([]);
+  }, []);
+
   // onVerCaso estable para no forzar re-renders del Dashboard memoizado.
   const handleVerCaso = useCallback((id) => {
     const c = casos.find((c) => c.id === id);
@@ -859,10 +899,12 @@ function AppContent() {
       const { default: casesDB } = await import("./core/db/casesDB");
       const { default: appDB } = await import("./core/db/appDB");
       await casesDB.cases.clear();
+      await casesDB.case_history.clear();
       await Promise.all([
         appDB.notes.clear(),
         appDB.events.clear(),
         appDB.note_versions.clear(),
+        appDB.auto_backups.clear(),
       ]);
     } catch (e) {
       console.error("[App] Error clearing databases:", e);
@@ -870,10 +912,17 @@ function AppContent() {
 
     notifyChange(SYNC_EVENTS.DATA_CLEARED, { source: "app" });
 
-    // 1) Limpiar todas las claves con prefijo app_
+    // 1) Limpiar todas las claves con prefijo app_ (underscore)
     localStorageAdapter.clear();
 
-    // 2) Limpiar claves sin prefijo: Mi Espacio, productividad, backups, etc.
+    // 2) Limpiar claves con prefijo app- (guión) — no cubiertas por el adapter
+    const hyphenKeys = [
+      "app-view-orders", "app-theme", "app-palette", "app-estado-colors",
+      "app-onboarding-done", "app-font-size", "app-filters",
+    ];
+    hyphenKeys.forEach((key) => localStorage.removeItem(key));
+
+    // 3) Limpiar claves sin prefijo: Mi Espacio, productividad, backups, etc.
     const unprefixedKeys = [
       "userOperatorProfile",
       "userOperatorAvailability",
@@ -888,12 +937,36 @@ function AppContent() {
       "backup-last-jornada-run",
       "backup-list",
       "calendario-eventos",
+      "calendar-events",
+      "global-search-history",
+      "recent-entities-art-tracker",
+      "help_dismissed_hints",
+      "help_user_level",
+      "utiles-tab-activa",
+      "config-tab-activa",
+      "tabla-sort-key",
+      "tabla-sort-dir",
+      "kanban-ordenes",
+      "speech-font-size",
+      "objeciones-font-size",
+      "notas-sort-order",
+      "csv-mapping-template",
     ];
     unprefixedKeys.forEach((key) => localStorage.removeItem(key));
 
-    // 3) Limpiar claves con prefijo conversaciones_*
+    // 4) Limpiar claves con prefijo conversaciones_*, tour_* y app_*
     Object.keys(localStorage)
-      .filter((key) => key.startsWith("conversaciones_") || key.startsWith("tour_"))
+      .filter((key) =>
+        key.startsWith("conversaciones_") ||
+        key.startsWith("tour_") ||
+        key.startsWith("app_")
+      )
+      .forEach((key) => localStorage.removeItem(key));
+
+    // 5) Limpiar claves de útiles (sufijo -art-tracker): pasos, tips, links,
+    //    speechs, objeciones, art, transito, lesiones, mapeo, condicionales, etc.
+    Object.keys(localStorage)
+      .filter((key) => key.endsWith("-art-tracker"))
       .forEach((key) => localStorage.removeItem(key));
 
     showToast("Todos los datos eliminados. Recargando...", "warning");
@@ -1129,14 +1202,15 @@ function AppContent() {
               >
                 Caso
               </Btn>
-              <Btn
+              <button
                 onClick={() => setModalReporte(true)}
-                icon={ClipboardList}
-                size="sm"
+                onMouseDown={(e) => e.preventDefault()}
                 data-tour="cargar-reporte"
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow text-[var(--color-text-muted)] hover:opacity-70"
               >
+                <ClipboardList size={13} />
                 Reporte
-              </Btn>
+              </button>
             </div>
             <div className="w-px h-5 self-center mx-1" style={{ backgroundColor: "var(--color-border)" }} />
             <Btn
@@ -1219,6 +1293,8 @@ function AppContent() {
               casos={casosFiltrados}
               showToast={showToast}
               onChangeView={setSelectedView}
+              onVerCaso={(c) => setVerCaso(c)}
+              onNavigateToEvent={(e) => setShowCalendar(true)}
             />
           </div>
         )}
@@ -1308,6 +1384,7 @@ function AppContent() {
             showToast={showToast}
             onClose={() => setShowCalendar(false)}
             casos={casos}
+            onVerCaso={(c) => { setShowCalendar(false); setVerCaso(c); }}
           />
         </OverlayPanel>
       )}
@@ -1327,6 +1404,7 @@ function AppContent() {
             selectedNoteId={pendingNoteId}
             onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
             onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
+            onVerCaso={(c) => { setShowBlocNotas(false); setVerCaso(c); }}
           />
         </OverlayPanel>
       )}
@@ -1399,18 +1477,28 @@ function AppContent() {
         <VerCasoModal
           caso={casos.find((c) => c.id === verCaso.id) || verCaso}
           config={config}
-          onClose={() => setVerCaso(null)}
+          casos={casos}
+          onClose={() => { setVerCaso(null); clearNavigation(); }}
           onEdit={(caso) => {
             setModalCaso(caso);
             setVerCaso(null);
+            clearNavigation();
           }}
           onComentarios={actualizarCaso}
-          onDelete={eliminarCaso}
+          onDelete={(id) => { eliminarCaso(id); clearNavigation(); }}
            onNuevaNota={handleNuevaNota}
            onNuevoEvento={handleNuevoEvento}
            onReporteRapido={handleReporteRapido}
            onNavigateToNote={handleNavigateToNote}
+           onNavigateToEvent={(eventId) => { setShowCalendar(true); }}
+           onNavigateInsurer={(name) => navigateContextual('insurer', name, { name })}
+           onNavigateLawFirm={(name) => navigateContextual('lawFirm', name, { name })}
+           navigationStack={navigationStack}
+           onBackNavigation={goBackNavigation}
            showToast={showToast}
+           condicionales={condicionales}
+           speechs={speechs}
+           objeciones={objeciones}
          />
       )}
 
@@ -1443,12 +1531,13 @@ function AppContent() {
 
       {/* Global Search (Ctrl+K) */}
       <GlobalSearch
-        onSelectCase={(id) => {
-          const c = casos.find((c) => c.id === id);
-          if (c) setVerCaso(c);
-        }}
-        onSelectNote={(id) => setShowBlocNotas(true)}
-        onSelectEvent={(id) => setShowCalendar(true)}
+        onSelectCase={handleGlobalSearchSelectCase}
+        onSelectNote={handleGlobalSearchSelectNote}
+        onSelectEvent={handleGlobalSearchSelectEvent}
+        onSelectEntity={handleGlobalSearchSelectEntity}
+        condicionales={condicionales}
+        aseguradoras={aseguradorasFromCases}
+        mapeo={mapeo}
       />
 
       <CsvExportModal
@@ -1470,6 +1559,33 @@ function AppContent() {
           onTimeout={() => setUndoState(null)}
         />
       )}
+
+      {/* Entity Panel (aseguradora / estudio jurídico) */}
+      {entityPanel && (
+        <EntityPanel
+          isOpen={true}
+          type={entityPanel.type}
+          name={entityPanel.name}
+          cases={casos}
+          condicionales={condicionales}
+          mapeo={mapeo}
+          aseguradoras={aseguradorasFromCases}
+          speechs={speechs}
+          objeciones={objeciones}
+          config={config}
+          onClose={() => setEntityPanel(null)}
+          onCrearCaso={(data) => {
+            setEntityPanel(null);
+            setModalCaso({ ...casoVacio(), ...data });
+          }}
+          onNavigateToUtiles={() => {
+            setEntityPanel(null);
+            setSelectedView("utiles");
+          }}
+          onVerCaso={handleVerCaso}
+          showToast={showToast}
+        />
+      )}
     </div>
     </Suspense>
     </UXProvider>
@@ -1479,18 +1595,20 @@ function AppContent() {
 
 export default function App() {
   return (
-    <FontSizeProvider>
-      <ThemeProvider>
-        <FiltersProvider>
-          <ErrorBoundary context="AppContent">
-            <TourProvider>
-              <HelpProvider>
-                <AppContent />
-              </HelpProvider>
-            </TourProvider>
-          </ErrorBoundary>
-        </FiltersProvider>
-      </ThemeProvider>
-    </FontSizeProvider>
+    <TypographyProvider>
+      <FontSizeProvider>
+        <ThemeProvider>
+          <FiltersProvider>
+            <ErrorBoundary context="AppContent">
+              <TourProvider>
+                <HelpProvider>
+                  <AppContent />
+                </HelpProvider>
+              </TourProvider>
+            </ErrorBoundary>
+          </FiltersProvider>
+        </ThemeProvider>
+      </FontSizeProvider>
+    </TypographyProvider>
   );
 }

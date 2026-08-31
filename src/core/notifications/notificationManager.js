@@ -100,8 +100,10 @@ class NotificationManager {
     }
 
     const id = store.addNotification(event);
-    soundSystem.play(event.type);
-    if (this._config.notifInApp !== false) {
+    if (ruleEngine.shouldPlaySound(event, this._config)) {
+      soundSystem.play(event.type);
+    }
+    if (ruleEngine.shouldShowToast(event, this._config)) {
       store.addToast({ ...event, id: `toast-${id}`, duration: 6000 });
     }
     this._queue = [];
@@ -138,13 +140,16 @@ class NotificationManager {
 
     const id = store.addNotification(normalized);
 
-    soundSystem.play(normalized.type);
+    if (ruleEngine.shouldPlaySound(normalized, this._config)) {
+      soundSystem.play(normalized.type);
+    }
 
-    if (this._config.notifInApp !== false) {
+    if (ruleEngine.shouldShowToast(normalized, this._config)) {
+      const duration = normalized.priority === "critical" || normalized.priority === "high" ? 8000 : 4000;
       store.addToast({
         ...normalized,
         id: `toast-${id}`,
-        duration: normalized.priority === "critical" ? 8000 : 4000,
+        duration,
       });
     }
 

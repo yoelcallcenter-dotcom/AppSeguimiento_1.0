@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Flag, AlignLeft, Link, User, Trash2, Tag } from 'lucide-react';
+import { X, Calendar, Clock, Flag, AlignLeft, Link, User, Trash2, Tag, ExternalLink } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { BtnOutline } from '../../components/common/BtnOutline';
 import { TextInput } from '../../components/common/TextInput';
@@ -29,6 +29,7 @@ export default function EventModal({
   event,
   notes,
   casos = [],
+  onVerCaso,
 }) {
   const [form, setForm] = useState({
     title: '',
@@ -339,6 +340,31 @@ export default function EventModal({
             <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               <User size={12} className="inline mr-1" /> Vincular casos
             </label>
+            {/* Clickable links to linked cases */}
+            {form.relatedCaseIds && form.relatedCaseIds.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1">
+                {form.relatedCaseIds.map((caseId) => {
+                  const linkedCase = casos.find((c) => String(c.id) === String(caseId));
+                  if (!linkedCase) return null;
+                  return (
+                    <button
+                      key={caseId}
+                      type="button"
+                      onClick={() => onVerCaso && onVerCaso(linkedCase)}
+                      className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md hover:opacity-70 transition-opacity"
+                      style={{
+                        backgroundColor: 'var(--color-accent)22',
+                        color: 'var(--color-accent)',
+                        border: '1px solid var(--color-accent)44',
+                      }}
+                    >
+                      <ExternalLink size={9} />
+                      {linkedCase.nombre || 'Sin nombre'}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <CaseLinker
               casos={casos}
               selectedIds={form.relatedCaseIds || []}

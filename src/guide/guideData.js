@@ -13,6 +13,7 @@ La aplicacion permite:
 - Gestionar calendario de citas y bloc de notas vinculado a casos
 - Administrar herramientas auxiliares (speechs, objeciones, aseguradoras, etc.)
 - Personalizar la apariencia, el Dashboard y la configuracion
+- Controlar tu jornada laboral, metas y disponibilidad en Mi Espacio
 
 Todos los datos se almacenan localmente en el navegador, sin necesidad de conexion a internet una vez cargada la aplicacion.`,
   },
@@ -36,7 +37,10 @@ Ve a Configuracion → Apariencia → Dashboard para definir pestanas, widgets, 
 PASO 5: Crea tu primer caso
 Haz clic en "Nuevo caso" y completa los datos del prospecto. Puedes pegar una ficha completa con formato estructurado o importar varios casos desde CSV.
 
-PASO 6: Realiza los tours interactivos
+PASO 6: Configura tu jornada
+Ve a Mi Espacio → Perfil y configura tu horario de trabajo. Esto habilita el control de jornada y el calculo de metas.
+
+PASO 7: Realiza los tours interactivos
 Ve a Ayuda → Tour interactivo. El recorrido guiado cubre todas las funcionalidades en detalle.`,
   },
   {
@@ -54,6 +58,7 @@ IMPORTAR CASOS DESDE CSV
 - Las comas mal usadas o columnas desalineadas se reparan solas
 - Valida duplicados por telefono y formato de numero
 - Confirma para importar en lote
+- El historial de cambios se importa junto con los casos
 
 EDITAR UN CASO
 - Haz clic en el caso en cualquier vista
@@ -62,7 +67,7 @@ EDITAR UN CASO
 - Los cambios se guardan automaticamente al salir
 
 CARGAR UN REPORTE
-- Haz clic en "Cargar reporte" en el header
+- Haz clic en "Reporte" en el header
 - Busca el caso por nombre, telefono o localidad
 - Selecciona el nuevo estado (opcional)
 - Escribe la novedad
@@ -76,7 +81,12 @@ ELIMINAR UN CASO
 ETIQUETAS Y COMENTARIOS
 - Las etiquetas ayudan a categorizar y filtrar casos
 - Se agregan desde el editor del caso escribiendo el nombre y presionando Enter
-- En la busqueda usa #etiqueta para filtrar por etiqueta y @texto para comentarios`,
+- En la busqueda usa #etiqueta para filtrar por etiqueta y @texto para comentarios
+
+HISTORIAL DE CAMBIOS
+- Cada cambio de estado, reporte o edicion queda registrado
+- Se exporta e importa en el CSV junto con los demas campos
+- Visible en el detalle del caso`,
   },
   {
     id: "vistas",
@@ -110,8 +120,9 @@ REPORTES
 
 MI ESPACIO
 - Centro personal del operador: perfil, jornada, disponibilidad, metas y accesos
-- Resumen de la jornada y ritmo necesario para cumplir las metas
-- Las vacaciones, feriados e inasistencias se descuentan de los dias efectivos
+- Resumen de la jornada con estados: En jornada, Meta cumplida, Jornada finalizada, No laborable
+- Control de vacaciones, feriados e inasistencias
+- Ritmo necesario por dia para alcanzar la meta mensual
 
 UTILES
 - Herramientas auxiliares (speechs, objeciones, aseguradoras, etc.)
@@ -119,12 +130,56 @@ UTILES
 Ademas, desde el header accedes al Calendario, Bloc de Notas, Busqueda Global (Ctrl+K), Notificaciones, Configuracion y Ayuda.`,
   },
   {
+    id: "mi-jornada",
+    title: "5. Mi Jornada y Productividad",
+    content: `Mi Espacio es el centro personal del operador. Accede desde la pestana "Mi Espacio" en el menu principal.
+
+PERFIL
+Configura tu informacion personal:
+- Nombre y rol
+- Empresa y localidad
+- Contacto (telefono, email)
+- Jornada habitual: horario de inicio y fin (soporta jornadas que cruzan la medianoche, ej. 22:00 a 06:00)
+- Dias laborables de la semana
+
+RESUMEN DE LA JORNADA
+Muestra el estado del dia:
+- En jornada: estas dentro de tu horario habitual
+- Meta cumplida: alcanzaste la meta diaria de casos/reportes
+- Jornada finalizada: termino tu horario laboral
+- No laborable: es dia no laborable, vacaciones, feriado o inasistencia
+- Progreso de la meta diaria de casos y reportes
+- Ritmo necesario por dia para alcanzar la meta mensual
+
+METAS
+Define tus objetivos de trabajo:
+- Meta diaria de casos y de reportes
+- Meta mensual de casos y de reportes
+- El progreso se calcula sobre los dias efectivos (no sobre el total de dias del mes)
+
+DISPONIBILIDAD
+Administra tus ausencias y dias especiales:
+- Vacaciones por rango de fechas
+- Feriados
+- Inasistencias (personales, enfermedad, otros)
+- Dias no laborables personalizados
+
+Los dias efectivos del mes se recalculan automaticamente descontando estas ausencias.
+
+SUGERENCIAS INTELIGENTES
+La app te avisa automaticamente:
+- Cuando falta poco para completar tu meta diaria
+- Cuando tu jornada habitual esta por terminar
+- Cuando se aproximan tus vacaciones
+- Que ritmo necesitas para alcanzar tu meta mensual`,
+  },
+  {
     id: "reportes-seguimiento",
-    title: "5. Reportes y Seguimiento",
+    title: "6. Reportes y Seguimiento",
     content: `Los reportes son el corazon del seguimiento. Cada vez que te comunicas con un prospecto, debes registrar un reporte.
 
-¿COMO REGISTRAR UN REPORTE?
-1. Haz clic en "Cargar reporte" (header)
+COMO REGISTRAR UN REPORTE?
+1. Haz clic en "Reporte" en el header
 2. Busca el caso
 3. Selecciona el nuevo estado (si corresponde)
 4. Escribe la novedad
@@ -147,7 +202,7 @@ Al cargar un reporte, puedes cambiar el estado del caso. Esto actualiza automati
   },
   {
     id: "dashboard-estadisticas",
-    title: "6. Dashboard y Estadisticas",
+    title: "7. Dashboard y Estadisticas",
     content: `El Dashboard 2.0 integra todas las metricas en una sola pantalla con 6 pestanas configurables (Analitica, Resumen, Rendimiento, Geografia, Estudios y Estados).
 
 PESTANA ANALITICA
@@ -187,8 +242,31 @@ PERSONALIZACION
 Configuracion → Apariencia → Dashboard: orden de pestanas y widgets, metricas, categorias de estado y reglas de alerta.`,
   },
   {
+    id: "notificaciones",
+    title: "8. Sistema de Notificaciones",
+    content: `El sistema de notificaciones te mantiene informado sobre eventos importantes con control granular.
+
+NIVELES DE PRIORIDAD
+- Grave: recordatorios de meta, objeciones, casos urgentes
+- Media: alertas generales, recordatorios suaves
+- Baja: informacion de contexto, tips
+
+CONFIGURACION
+Configuracion → Notificaciones:
+- Sonido: activa/desactiva el sonido general
+- Toast In-App: muestra notificaciones en pantalla
+- Minima prioridad para toast: define el nivel minimo que muestra toast
+- Sonido por nivel: controla que niveles suenan (Grave, Media, Baja)
+- Eventos: selecciona que eventos generan notificaciones
+- Frecuencia: tiempo real o agrupada
+
+MODOS
+- Modo No Molestar: silencia todas las notificaciones
+- Filtro por prioridad: solo muestra notificaciones de cierto nivel hacia arriba`,
+  },
+  {
     id: "utiles",
-    title: "7. Utiles (Herramientas Auxiliares)",
+    title: "9. Utiles (Herramientas Auxiliares)",
     content: `La seccion Utiles agrupa herramientas de apoyo para el trabajo diario.
 
 SPEECHS
@@ -230,67 +308,8 @@ PASOS A SEGUIR / TIPS / LINKS
 - Links: recursos de referencia`,
   },
   {
-    id: "mi-espacio",
-    title: "8. Mi Espacio (Personal)",
-    content: `Mi Espacio es el centro personal del operador. Accede desde la pestana "Mi Espacio" en el menu principal.
-
-PERFIL
-Configura tu informacion personal:
-- Nombre y rol
-- Empresa y localidad
-- Contacto (telefono, email)
-- Jornada habitual: horario de inicio y fin (soporta jornadas que cruzan la medianoche, ej. 22:00 a 06:00)
-- Dias laborables de la semana
-
-RESUMEN DE LA JORNADA
-Muestra el estado del dia:
-- En jornada, Meta cumplida, Jornada finalizada o No laborable
-- Vacaciones, Feriado o Inasistencia cuando corresponda
-- Progreso de la meta diaria de casos y reportes
-- Ritmo necesario por dia para alcanzar la meta mensual
-
-DISPONIBILIDAD
-Administra tus ausencias y dias especiales:
-- Vacaciones por rango de fechas (si pones la fecha final antes que la inicial, se normaliza como un unico dia)
-- Feriados
-- Inasistencias (personales, enfermedad, otros)
-- Dias no laborables personalizados
-
-Los dias efectivos del mes se recalculan automaticamente descontando estas ausencias, y se usan para todos los calculos de productividad (metas, ritmo y resumen de jornada).
-
-METAS
-Define tus objetivos de trabajo:
-- Meta diaria de casos y de reportes
-- Meta mensual de casos y de reportes
-- El progreso se calcula sobre los dias efectivos (no sobre el total de dias del mes)
-
-ACCESOS Y CREDENCIALES
-Guarda los accesos a sistemas de trabajo:
-- Usuarios y contrasenas
-- URLs de los sistemas
-- Notas de acceso
-
-IMPORTANTE: las credenciales se guardan SOLO localmente en tu dispositivo. No se exportan en los respaldos ni en los archivos de exportacion. Son para uso exclusivo personal.
-
-SUGERENCIAS INTELIGENTES
-La app te avisa automaticamente:
-- Cuando falta poco para completar tu meta diaria
-- Cuando tu jornada habitual esta por terminar
-- Cuando se aproximan tus vacaciones
-- Que ritmo necesitas para alcanzar tu meta mensual
-
-CONFIGURACION
-Configuracion → Productividad → seccion "Mi Espacio (personal)":
-- Mostrar resumen de jornada
-- Mostrar ritmo necesario
-- Mostrar disponibilidad en calendario
-- Recordatorios de jornada y de metas
-- Microinteracciones de objetivos
-- Sugerencias inteligentes personales`,
-  },
-  {
     id: "bloc-calendario",
-    title: "9. Bloc de Notas y Calendario",
+    title: "10. Bloc de Notas y Calendario",
     content: `BLOC DE NOTAS
 Accesible desde el icono de documento en el header.
 
@@ -315,7 +334,7 @@ Funcionalidades:
   },
   {
     id: "configuracion",
-    title: "10. Configuracion",
+    title: "11. Configuracion",
     content: `La configuracion se organiza en 6 grupos: General, Apariencia, Notificaciones, Busqueda, Sistema y Avanzado.
 
 AJUSTES GENERALES
@@ -327,7 +346,7 @@ AJUSTES GENERALES
 
 APARIENCIA → COLORES
 - Tema: oscuro, claro o personalizado (3 colores base)
-- Colores individuales por estado de caso
+- Colores individuales por estado de caso (sincronizados con la lista configurada)
 - Tamano de fuente
 
 APARIENCIA → DASHBOARD (VISTAS)
@@ -337,7 +356,10 @@ APARIENCIA → DASHBOARD (VISTAS)
 - Reglas y umbrales de alerta automatica
 
 NOTIFICACIONES
-- Canales: toasts in-app y sonido (sin notificaciones del navegador)
+- Canales: toasts in-app y sonido
+- Niveles de prioridad: Grave, Media, Baja
+- Filtro minimo para toast
+- Control de sonido por nivel
 - Tipos de eventos y frecuencia de agrupacion
 
 BUSQUEDA
@@ -358,13 +380,14 @@ AVANZADO
 
 DATOS
 - Exportar/Importar configuracion (JSON)
-- Exportar casos (CSV), notas y calendario
+- Exportar casos (CSV) con historial de cambios
+- Notas y calendario
 - Historial de backups y restauracion
-- Eliminar casos por mes, notas, eventos o todos los datos`,
+- Eliminar casos por mes, notas, eventos o todos los datos (incluye historial)`,
   },
   {
     id: "personalizacion",
-    title: "11. Temas y Personalizacion",
+    title: "12. Temas y Personalizacion",
     content: `La aplicacion ofrece multiples opciones de personalizacion:
 
 TEMAS PREDEFINIDOS
@@ -384,6 +407,7 @@ COLORES POR ESTADO
 Cada estado de caso puede tener su propio color:
 - Los colores se usan en etiquetas, tarjetas y filtros
 - Los cambios se aplican en tiempo real
+- Los colores se sincronizan con la lista de estados configurada
 
 DASHBOARD
 Configuracion → Apariencia → Dashboard:
@@ -398,7 +422,7 @@ TAMAÑO DE FUENTE
   },
   {
     id: "atajos",
-    title: "12. Atajos de Teclado",
+    title: "13. Atajos de Teclado",
     content: `Atajos disponibles en toda la aplicacion:
 
 GENERAL
@@ -423,7 +447,7 @@ VISTAS
   },
   {
     id: "buenas-practicas",
-    title: "13. Buenas Practicas",
+    title: "14. Buenas Practicas",
     content: `Recomendaciones para un uso eficiente de la aplicacion:
 
 1. REGISTRA SIEMPRE LOS REPORTES
@@ -451,11 +475,14 @@ Un mapeo completo de localidades a estudios juridicos ahorra tiempo al crear cas
 Si recibes una planilla con muchos prospectos, usa el importador CSV con vista previa en lugar de cargarlos uno por uno.
 
 9. USA EL MODO NO MOLESTAR
-Durante llamadas importantes, activa el Modo No Molestar para evitar distracciones por notificaciones.`,
+Durante llamadas importantes, activa el Modo No Molestar para evitar distracciones por notificaciones.
+
+10. CONFIGURA TU JORNADA
+Define tu horario de trabajo en Mi Espacio para obtener metricas precisas de productividad y sugerencias personalizadas.`,
   },
   {
     id: "solucion-problemas",
-    title: "14. Solucion de Problemas",
+    title: "15. Solucion de Problemas",
     content: `Problemas comunes y sus soluciones:
 
 LA APP NO CARGA

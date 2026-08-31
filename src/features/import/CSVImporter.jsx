@@ -5,7 +5,7 @@ import { BtnOutline } from '../../components/common/BtnOutline';
 import { PhoneLink } from '../../components/common/PhoneLink';
 import useAppStore from '../../core/store/useAppStore';
 import { reportError } from '../../core/error/reportError';
-import { parseReportesString, parseComentariosString, parseNotasString, parseAgendaString } from '../../utils/backup';
+import { parseReportesString, parseComentariosString, parseNotasString, parseAgendaString, parseHistorialVinculada } from '../../utils/backup';
 import { readConfig } from '../../utils/configFormatters';
 import { normalizeDate } from '../../utils/dateFilters';
 import { parseCSV as parseCSVShared } from '../../utils/csvParse';
@@ -36,6 +36,7 @@ export const KNOWN_FIELDS = [
   { label: 'Comentarios', field: 'comentarios', match: ['comentarios', 'comentario', 'comments'] },
   { label: 'Notas Vinculadas', field: 'notasVinculadas', match: ['notasvinculadas', 'notas_vinculadas', 'notas vinculadas'] },
   { label: 'Agenda Vinculada', field: 'agendaVinculada', match: ['agendavinculada', 'agenda_vinculada', 'agenda vinculada', 'eventos'] },
+  { label: 'Historial', field: 'caseHistory', match: ['historial', 'history', 'casehistory', 'case_history'] },
   { label: 'ID', field: 'id', match: ['id', 'identificador', 'identificacion', 'identificación'] },
 ];
 
@@ -59,6 +60,7 @@ export const FIELD_OPTIONS = [
   { value: 'comentarios', label: 'Comentarios' },
   { value: 'notasVinculadas', label: 'Notas Vinculadas' },
   { value: 'agendaVinculada', label: 'Agenda Vinculada' },
+  { value: 'caseHistory', label: 'Historial' },
   { value: 'id', label: 'ID' },
 ];
 
@@ -134,6 +136,9 @@ export function mapRowToCase(row, mappings) {
           break;
         case 'agendaVinculada':
           caso.agendaVinculada = parseAgendaString(val);
+          break;
+        case 'caseHistory':
+          caso.caseHistory = parseHistorialVinculada(val);
           break;
         default:
           caso[m.field] = val;

@@ -7,6 +7,172 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.4.8] - Auditoría y limpieza (correcciones de consistencia)
+
+### Sincronización entre contextos
+
+- Al **restablecer los valores por defecto** de la tipografía (botón de reset en
+  la Vista Tipografía), el **selector de tamaño de fuente** ahora se sincroniza
+  automáticamente y vuelve también a "Mediano", en lugar de mostrar un valor
+  desactualizado. Se añadió un mecanismo de suscripción en `typographyManager`
+  para que ambos contextos queden en fase.
+
+### Consolidación de fuentes
+
+- **Clásico** (preset por defecto) ahora usa solo **Montserrat** como familia:
+  se eliminó "Open Sans" que estaba declarada pero sin uso real.
+- Se unificó la construcción de la URL de Google Fonts en una única función
+  (`buildGoogleFontsURL`) reutilizada por `fontLoader`; se eliminó la duplicación.
+- Se cambió el **fallback por defecto** del token CSS `--font-ui` a fuentes
+  genéricas del sistema (sin hacer referencia a Montserrat), para que los presets
+  no-Montserrat no dependan de una fuente concreta durante la carga.
+- Se eliminaron las importaciones locales de `@fontsource/montserrat` (los presets
+  cargan sus familias desde Google Fonts) y la dependencia asociada del
+  `package.json`.
+
+### Limpieza de código
+
+- Se eliminó el hook muerto `hooks/useFontSize.js`.
+- Se eliminó la variable `fontSize` sin uso en `AppContent`.
+- `init()` del `typographyManager` ahora registra una advertencia (`console.warn`)
+  si falla la inicialización, en lugar de fallar en silencio.
+- Se añadieron aclaraciones al changelog histórico (1.4.5) sobre el cambio de
+  nombre del preset "Moderno" → "Clásico" en 1.4.7, para evitar información obsoleta.
+
+### Verificaciones
+
+- Tras revisar a fondo el código, dos hallazgos preliminares de la auditoría
+  resultaron ser **falsos positivos** y no se modificaron: la etiqueta
+  "Pequeño" ya tenía la tilde correctamente, y el color `#14181F` (texto sobre
+  acento) es el token intencional usado de forma consistente en toda la app.
+
+## [1.4.7] - Rediseño de Presets Tipográficos
+
+### Nueva identidad visual de los 7 estilos
+
+- Se rediseñaron por completo los 7 presets tipográficos de
+  **Configuración → Apariencia → Tipografía** para que cada uno tenga una
+  **personalidad visual claramente diferenciada** (antes eran demasiado
+  similares entre sí). Al cambiar de preset, el cambio es inmediato y evidente.
+- Los presets afectan **exclusivamente a la interfaz** de la aplicación.
+- **Clásico** conserva la identidad tradicional original de AppSeguimiento
+  (Montserrat) y es la opción conservadora por defecto.
+
+### Los 7 estilos
+
+1. **Clásico** — montserrat; tradicional, sobrio e institucional.
+2. **Editorial** — Playfair Display + Source Serif 4; elegante, tipo revista.
+3. **Retro / Humanista** — Bitter + Nunito; cálido y orgánico.
+4. **Futurista** — Exo 2 + Rajdhani; geométrico y tecnológico.
+5. **Monoespaciado / Terminal** — JetBrains Mono + Fira Code; interfaz completa
+   en monoespaciado (números, fechas e IDs destacan).
+6. **Experimental** — Fraunces + DM Sans + Space Mono; display variable de
+   personalidad artística.
+7. **Minimal / Moderno** — Inter + DM Serif Display + IBM Plex Mono; limpio y
+   premium.
+
+### Independencia del sistema
+
+- El **selector de tamaño de fuente** se mantiene totalmente independiente:
+  cambiar de preset no altera el tamaño elegido, y viceversa.
+- **Persistencia** sin cambios de clave de localStorage; los usuarios con un
+  preset guardado reciben automáticamente su equivalente rediseñado (mismos
+  ids internos), sin reseteo ni configuración inválida.
+- Aplicación **inmediata** sin recargar la app.
+
+### Vista previa y PDFs
+
+- Se mejoró la **vista previa** de cada preset: ahora muestra título, subtítulo,
+  datos numéricos y elementos de interfaz en las fuentes reales del estilo.
+- **Los PDF no se ven afectados**: siguen usando su tipografía independiente
+  (Arial) sin importar el preset seleccionado.
+
+## [1.4.6] - Búsqueda Externa Prolegal
+
+### Nuevo acceso desde el modal del caso
+
+- Nuevo botón **Prolegal** en la barra de acciones del modal del caso (junto a las
+  acciones secundarias del caso, como Notas o Calendario). Al presionarlo abre una
+  búsqueda externa en el sitio Prolegal.
+
+### Funcionamiento
+
+- Usa el **nombre del caso** como término de búsqueda, construyendo la URL:
+  `https://prolegal.com.ar/search?q=<nombre>`.
+- Codificación segura de URL (`encodeURIComponent`) que soporta espacios, tildes,
+  Ñ, apóstrofes, caracteres especiales y nombres compuestos.
+- Los **espacios múltiples** se normalizan únicamente para la URL de búsqueda
+  (no se modifica el nombre almacenado en el caso).
+- Apertura **externa** en una nueva pestaña/ventana, sin reemplazar AppSeguimiento
+  ni perder el estado del modal. Se reutiliza la misma pestaña en búsquedas
+  posteriores cuando el navegador lo permite.
+- Si el caso no tiene un **nombre válido** (vacío, `null` o solo espacios), no se
+  abre Prolegal y se muestra una notificación in-app clara.
+
+### Alcance y privacidad
+
+- Solo disponible desde el **modal del caso** en esta versión.
+- **No** hay scraping, extracción de información ni sincronización de datos desde
+  Prolegal. No se envían datos adicionales más allá del término de búsqueda
+  (nombre del caso). No se registra información sensible adicional.
+
+## [1.4.5] - Sistema de Tipografías y Personalización Visual
+
+### Nueva sección Tipografía
+
+- Nuevo tab **Configuración → Apariencia → Tipografía** como centro de todas las
+  preferencias tipográficas de la aplicación.
+- Se diferencia conceptualmente entre **Estilo tipográfico** (qué familias usa la
+  app) y **Tamaño de fuente** (qué tan grande es la escala global). Ambas funcionan
+  de forma independiente: cambiar una no modifica la otra.
+
+### Sistema de presets tipográficos
+
+- 7 estilos predefinidos (sin combinación manual de fuentes): **Moderno**, **Editorial**,
+  **Geométrico**, **Corporativo**, **Suave**, **Compacto** y **Expresivo**.
+  *(Nota 1.4.7: los nombres y fuentes de estos presets se rediseñaron; "Moderno" pasó a
+  llamarse **Clásico**. Ver la entrada 1.4.7.)*
+- Cada preset define los roles tipográficos (fuente de interfaz, de títulos y de
+  métricas) y puede usar 1, 2 o 3 familias con fallbacks reales (sans-serif, serif,
+  monospace).
+- **Moderno** (Inter) es el preset por defecto y el más cercano al diseño anterior.
+  *(En 1.4.7 este preset por defecto pasó a llamarse **Clásico** y adoptó Montserrat,
+  la fuente original de la app, en lugar de Inter.)*
+- Interfaz de selección por **tarjetas** con vista previa que usa las **fuentes reales**
+  del preset (título, texto, métrica y elemento de interfaz), nombre, descripción y
+  estado seleccionado.
+- **Cambio instantáneo**: al seleccionar un estilo se aplica al momento, sin recargar
+  la app, sin reiniciar stores ni cerrar Configuración. Feedback discreto vía el sistema
+  global de notificaciones ("Estilo tipográfico actualizado"), sin sonido.
+
+### Arquitectura tipográfica global
+
+- Tokens centralizados `--font-ui`, `--font-heading` y `--font-metric` aplicados sobre
+  el root por `typographyManager`, con `--font-family` heredando la fuente de interfaz.
+  Ningún componente aplica fuentes hardcodeadas.
+- Carga progresiva de fuentes: solo se descargan las familias del preset activo desde
+  Google Fonts con `font-display: swap`, sin bloquear el render ni generar flashes.
+- Funciona en tema claro y oscuro sin tocar colores, paletas ni estados.
+
+### Tamaño de fuente
+
+- El selector de **Tamaño de Fuente** (Pequeño / Mediano / Grande) se movió al nuevo tab
+  Tipografía; se eliminó la ubicación anterior para no duplicarlo.
+- Conserva y migra la preferencia existente del usuario (clave `app-font-size`).
+
+### Persistencia
+
+- El preset se persistió en localStorage (clave `app-typography-preset`) y se restaura
+  al recargar o reabrir la app. Usuarios sin preferencia previa reciben **Moderno**
+  *(hoy **Clásico** desde 1.4.7)*.
+- Compatibilidad con backups: los archivos de backup anteriores (sin el nuevo campo)
+  siguen siendo válidos y se aplica un valor por defecto seguro.
+
+### Exportaciones PDF sin cambios tipográficos
+
+- Las exportaciones PDF acuerpan su propio sistema tipográfico (Arial) y NO se ven
+  afectadas por el preset: estable, compatible y legible para documentos.
+
 ## [1.3.5] - 2026-08-26
 
 ### Modal de Caso (VerCasoModal)

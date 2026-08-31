@@ -5,7 +5,7 @@ import {
   Globe, Bell, LayoutDashboard, Search, FileUp, Cpu, Navigation,
   ToggleLeft, Eye, EyeOff, Clock, ArrowUpDown, Tag, Mail, X,
   GripVertical, ChevronUp, ChevronDown, BarChart3, CircleDot, MapPin, Building2,
-  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target,
+  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -13,6 +13,7 @@ import { Select } from "../common/Select";
 import { TextInput } from "../common/TextInput";
 import { Toggle } from "../common/Toggle";
 import { PersonalizacionColores } from "./PersonalizacionColores";
+import { TipografiaView } from "./TipografiaView";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
 import { getOperatorSettings, saveOperatorSettings } from "../../features/operator/operatorStore";
 import { getMetricDefs, getDefaultCategories, getDefaultAlerts } from '../../features/dashboard/metricsEngine';
@@ -24,7 +25,6 @@ import {
 import {
   exportCasesToCSV, exportConfigToJSON, importConfigFromJSON,
 } from "../../utils/backup";
-import { notificationService } from "../../utils/notifications";
 import { soundSystem } from "../../core/notifications/soundSystem";
 import { getAvailableMonths, getMonthLabel, isSameMonth } from "../../utils/dateFilters";
 import { Pill } from "../common/Pill";
@@ -33,6 +33,7 @@ import { parseCSV, detectFieldMappings, FIELD_OPTIONS, mapRowToCase } from "../.
 import { SystemLogs } from "../../pages/SystemLogs";
 import useAppStore from "../../core/store/useAppStore";
 import appDB from "../../core/db/appDB";
+import casesDB from "../../core/db/casesDB";
 import { useHelp } from "../../help";
 import { HelpSection } from "./HelpSection";
 import * as backupService from "../../services/backupService";
@@ -119,6 +120,10 @@ export function ConfiguracionView({
   const [confirmDeleteNotes, setConfirmDeleteNotes] = useState(false);
   const [confirmDeleteEvents, setConfirmDeleteEvents] = useState(false);
   const [confirmDeleteCases, setConfirmDeleteCases] = useState(false);
+  const [confirmDeleteUtiles, setConfirmDeleteUtiles] = useState(false);
+  const [confirmRestoreBackupId, setConfirmRestoreBackupId] = useState(null);
+  const [confirmDeleteBackupId, setConfirmDeleteBackupId] = useState(null);
+  const [deleteKeyword, setDeleteKeyword] = useState("");
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [importStats, setImportStats] = useState(null);
   const [previewEstrategia, setPreviewEstrategia] = useState("omitir");
@@ -180,7 +185,12 @@ export function ConfiguracionView({
   };
 
   const handleRestoreFromHistory = async (id) => {
-    if (!confirm("¿Restaurar este backup? Se reemplazarán TODOS los datos actuales.")) return;
+    if (confirmRestoreBackupId !== id) {
+      setConfirmRestoreBackupId(id);
+      setConfirmDeleteBackupId(null);
+      return;
+    }
+    setConfirmRestoreBackupId(null);
     setLoading(true);
     try {
       await restoreFromHistory(id);
@@ -197,7 +207,12 @@ export function ConfiguracionView({
   };
 
   const handleDeleteBackup = async (id) => {
-    if (!confirm("¿Eliminar este backup del historial?")) return;
+    if (confirmDeleteBackupId !== id) {
+      setConfirmDeleteBackupId(id);
+      setConfirmRestoreBackupId(null);
+      return;
+    }
+    setConfirmDeleteBackupId(null);
     try {
       await deleteBackup(id);
       setBackupHistory(await getBackupHistory());
@@ -230,6 +245,7 @@ export function ConfiguracionView({
       id: "apariencia", label: "Apariencia", icon: Palette,
       items: [
         { id: "apariencia", label: "Colores", icon: Palette },
+        { id: "tipografia", label: "Tipografía", icon: Type },
         { id: "dashboard", label: "Vistas", icon: Eye },
       ],
     },
@@ -328,7 +344,6 @@ export function ConfiguracionView({
       a.click();
       URL.revokeObjectURL(url);
 
-      notificationService.notifyBackupComplete("casos (CSV)");
       showToast("Casos exportados en CSV", "success");
     } catch (error) {
       showToast(error.message, "error");
@@ -402,6 +417,20 @@ export function ConfiguracionView({
     }
 
     const result = await store.appendCases(toInsert);
+
+    const historyToImport = toInsert
+      .filter((c) => Array.isArray(c.caseHistory) && c.caseHistory.length > 0)
+      .flatMap((c) => c.caseHistory.map((h) => ({
+        caseId: c.id,
+        timestamp: h.timestamp || Date.now(),
+        type: h.type || 'manual',
+        title: h.title || '',
+        description: h.description || '',
+      })));
+    if (historyToImport.length > 0) {
+      await casesDB.case_history.bulkAdd(historyToImport);
+    }
+
     const partes = [`${result.added} casos importados`];
     if (actualizados > 0) partes.push(`${actualizados} actualizados`);
     if (result.skipped > 0) partes.push(`${result.skipped} duplicados omitidos`);
@@ -575,7 +604,6 @@ export function ConfiguracionView({
       a.click();
       URL.revokeObjectURL(url);
 
-      notificationService.notifyBackupComplete("configuración");
       showToast("Configuración exportada", "success");
     } catch (error) {
       showToast(error.message, "error");
@@ -818,7 +846,11 @@ export function ConfiguracionView({
 
   // ============ ELIMINAR ÚTILES ============
   const handleEliminarUtiles = () => {
-    if (!confirm("¿Eliminar todos los útiles? Esta acción no se puede deshacer.")) return;
+    if (!confirmDeleteUtiles) {
+      setConfirmDeleteUtiles(true);
+      return;
+    }
+    setConfirmDeleteUtiles(false);
 
     localStorageAdapter.set("pasos-art-tracker", []);
     localStorageAdapter.set("tips-art-tracker", []);
@@ -862,7 +894,7 @@ export function ConfiguracionView({
       showToast("Selecciona uno o más meses para eliminar", "warning");
       return;
     }
-    if (config.confirmaciones && !confirmDeleteCases) {
+    if (!confirmDeleteCases) {
       setConfirmDeleteCases(true);
       return;
     }
@@ -887,11 +919,11 @@ export function ConfiguracionView({
       showToast("Error al eliminar casos", "error");
     }
     setConfirmDeleteCases(false);
-  }, [selectedMonths, confirmDeleteCases, showToast, setCasos, config.confirmaciones]);
+  }, [selectedMonths, confirmDeleteCases, showToast, setCasos]);
 
   // ============ ELIMINAR NOTAS ============
   const handleDeleteNotes = useCallback(async () => {
-    if (config.confirmaciones && !confirmDeleteNotes) {
+    if (!confirmDeleteNotes) {
       setConfirmDeleteNotes(true);
       return;
     }
@@ -904,11 +936,11 @@ export function ConfiguracionView({
       showToast("Error al eliminar notas", "error");
     }
     setConfirmDeleteNotes(false);
-  }, [confirmDeleteNotes, showToast, config.confirmaciones]);
+  }, [confirmDeleteNotes, showToast]);
 
   // ============ ELIMINAR EVENTOS ============
   const handleDeleteEvents = useCallback(async () => {
-    if (config.confirmaciones && !confirmDeleteEvents) {
+    if (!confirmDeleteEvents) {
       setConfirmDeleteEvents(true);
       return;
     }
@@ -921,36 +953,23 @@ export function ConfiguracionView({
       showToast("Error al eliminar eventos", "error");
     }
     setConfirmDeleteEvents(false);
-  }, [confirmDeleteEvents, showToast, config.confirmaciones]);
+  }, [confirmDeleteEvents, showToast]);
 
   // ============ ELIMINAR TODOS ============
   const handleEliminarTodos = () => {
-    if (config.confirmaciones && !confirmEliminar) {
+    if (!confirmEliminar) {
       setConfirmEliminar(true);
       return;
     }
-    if (config.confirmaciones && !confirmFinal) {
+    if (!confirmFinal) {
       setConfirmFinal(true);
       return;
     }
-
-    const confirmacionFinal = config.confirmaciones
-      ? window.confirm(
-          "ULTIMA ADVERTENCIA\n\n" +
-            "Estas a punto de ELIMINAR TODOS LOS DATOS de la aplicacion.\n\n" +
-            "Esta accion es IRREVERSIBLE.\n\n" +
-            "¿Confirmas la eliminacion definitiva?"
-        )
-      : true;
-
-    if (!confirmacionFinal) {
-      setConfirmEliminar(false);
-      setConfirmFinal(false);
-      return;
-    }
+    if (deleteKeyword !== "ELIMINAR") return;
 
     setConfirmEliminar(false);
     setConfirmFinal(false);
+    setDeleteKeyword("");
     soundSystem.playAction("delete");
     onEliminarTodos();
   };
@@ -1300,7 +1319,10 @@ export function ConfiguracionView({
         );
 
       case "apariencia":
-        return <PersonalizacionColores showToast={showToast} />;
+        return <PersonalizacionColores showToast={showToast} config={config} />;
+
+      case "tipografia":
+        return <TipografiaView showToast={showToast} />;
 
       case "notificaciones":
         return (
@@ -1319,6 +1341,42 @@ export function ConfiguracionView({
                   No se utilizan notificaciones del navegador.
                 </p>
               </div>
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <Tag size={14} color="var(--color-accent)" />
+                Nivel mínimo para mostrar toast
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Mostrar toast desde:</span>
+                <Select
+                  value={config.notifMinToastPriority || "none"}
+                  onChange={(e) => actualizarConfig("notifMinToastPriority", e.target.value)}
+                  options={[
+                    { value: "none", label: "Todas" },
+                    { value: "media", label: "Media y grave" },
+                    { value: "grave", label: "Solo grave" },
+                  ]}
+                  style={{ width: 180 }}
+                />
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+                Las notificaciones de nivel bajo siempre se registran en el Centro de Notificaciones.
+              </p>
+            </div>
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <Tag size={14} color="var(--color-accent)" />
+                Sonido por nivel de prioridad
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <Toggle checked={config.notifGraveSound !== false} onChange={(v) => actualizarConfig("notifGraveSound", v)} label="Grave" />
+                <Toggle checked={config.notifMediaSound === true} onChange={(v) => actualizarConfig("notifMediaSound", v)} label="Media" />
+                <Toggle checked={config.notifBajaSound === true} onChange={(v) => actualizarConfig("notifBajaSound", v)} label="Baja" />
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+                Cada nivel tiene su propio interruptor de sonido. El interruptor general "Sonido" debe estar activado.
+              </p>
+            </div>
             <div className="config-section">
               <div className="config-section-title flex items-center gap-2">
                 <Tag size={14} color="var(--color-accent)" />
@@ -1358,11 +1416,11 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title">Niveles de prioridad</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
-                <p>• Mantené las notificaciones esenciales activas para no perder eventos importantes.</p>
-                <p>• Agrupar notificaciones cada 15 min reduce distracciones durante el trabajo.</p>
-                <p>• Las notificaciones se muestran como toasts dentro de la app, no del navegador.</p>
+                <p><strong>Grave:</strong> Se registra, muestra toast y reproduce sonido (si está activado).</p>
+                <p><strong>Media:</strong> Se registra y muestra toast. No reproduce sonido por defecto.</p>
+                <p><strong>Baja:</strong> Solo se registra en el Centro de Notificaciones. No muestra toast ni sonido.</p>
               </div>
             </div>
           </div>
@@ -2155,24 +2213,26 @@ export function ConfiguracionView({
                           {b.counts?.events || 0} eventos · {b.sizeKB || "?"} KB
                         </div>
                       </div>
-                      <div className="flex gap-1.5 flex-shrink-0">
+                      <div className="flex gap-1.5 flex-shrink-0 items-center">
                         <Btn
                           onClick={() => handleRestoreFromHistory(b.id)}
                           size="sm"
                           color="var(--color-accent)"
-                          icon={Download}
+                          icon={confirmRestoreBackupId === b.id ? AlertTriangle : Download}
                           disabled={loading}
                         >
-                          Restaurar
+                          {confirmRestoreBackupId === b.id ? "Confirmar" : "Restaurar"}
                         </Btn>
+                        {confirmRestoreBackupId === b.id && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo</span>}
                         <BtnOutline
                           onClick={() => handleDeleteBackup(b.id)}
                           size="sm"
                           color="var(--color-danger)"
-                          icon={Trash2}
+                          icon={confirmDeleteBackupId === b.id ? AlertTriangle : Trash2}
                         >
-                          Eliminar
+                          {confirmDeleteBackupId === b.id ? "Confirmar" : "Eliminar"}
                         </BtnOutline>
+                        {confirmDeleteBackupId === b.id && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo</span>}
                       </div>
                     </div>
                   ))}
@@ -2311,10 +2371,11 @@ export function ConfiguracionView({
                   onClick={handleEliminarUtiles}
                   color="var(--color-danger)"
                   size="sm"
-                  icon={Trash2}
+                  icon={confirmDeleteUtiles ? AlertTriangle : Trash2}
                 >
-                  Eliminar
+                  {confirmDeleteUtiles ? "Confirmar" : "Eliminar"}
                 </BtnOutline>
+                {confirmDeleteUtiles && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo para confirmar</span>}
               </div>
               <div
                 className="text-xs mt-2"
@@ -2520,7 +2581,7 @@ export function ConfiguracionView({
                     <span className="text-xs" style={{ color: "var(--color-text)" }}>
                       Elimina TODOS los datos cargados (útiles y casos)
                     </span>
-                    <Btn onClick={handleEliminarTodos} color="var(--color-danger)" size="sm" icon={AlertTriangle}>
+                    <Btn onClick={handleEliminarTodos} color="var(--color-danger)" size="sm" icon={AlertTriangle} disabled={confirmFinal && deleteKeyword !== "ELIMINAR"}>
                       {confirmFinal ? "ULTIMA CONFIRMACION" : confirmEliminar ? "Confirmar eliminacion" : "Eliminar todos los datos"}
                     </Btn>
                   </div>
@@ -2530,8 +2591,17 @@ export function ConfiguracionView({
                     </div>
                   )}
                   {confirmFinal && (
-                    <div className="mt-2 text-xs font-bold" style={{ color: "var(--color-danger)" }}>
-                      ULTIMA OPORTUNIDAD - Haz clic una vez mas para eliminar definitivamente
+                    <div className="mt-2 space-y-2">
+                      <div className="text-xs font-bold" style={{ color: "var(--color-danger)" }}>
+                        ULTIMA OPORTUNIDAD — Escribí ELIMINAR y hacé clic para borrar todo
+                      </div>
+                      <TextInput
+                        value={deleteKeyword}
+                        onChange={(e) => setDeleteKeyword(e.target.value)}
+                        placeholder='Escribí "ELIMINAR" para confirmar'
+                        className="text-xs"
+                        style={{ maxWidth: 280 }}
+                      />
                     </div>
                   )}
                 </div>

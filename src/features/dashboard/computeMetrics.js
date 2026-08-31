@@ -10,6 +10,7 @@ import { CATEGORIAS_DEFAULT } from "./metricsEngine";
 import { isSameMonth, normalizeDate } from "../../utils/dateFilters";
 import { getEstados, getEstadoAccent, sumarPeso } from "../../utils/catalogos";
 import { normalizarUbicacion } from "../../utils/ubicacionUtils";
+import { buildUnifiedActivityFeed } from "../../core/cases/activityFeed";
 
 const CHART_COLORS = [
   "#D9A441", "#60A5FA", "#34D399", "#F87171", "#818CF8",
@@ -213,68 +214,12 @@ function parseFechaCorta(str) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * buildActivityFeed — Wrapper que delega a la versión centralizada de activityFeed.js.
+ * Mantiene compatibilidad con el Dashboard existente.
+ */
 export function buildActivityFeed(cases, notes, events, limit = 15) {
-  const items = [];
-
-  for (const c of cases) {
-    items.push({
-      id: 'case-' + c.id,
-      tipo: 'caso',
-      ts: c.createdAt || c.updatedAt || c.fecha,
-      titulo: c.nombre || 'Caso',
-      detalle: `Caso creado · ${c.estado || ''}`,
-      color: '#34D399',
-    });
-    if (c.fechaFirma) {
-      items.push({
-        id: 'firma-' + c.id,
-        tipo: 'firma',
-        ts: c.fechaFirma,
-        titulo: c.nombre || 'Caso',
-        detalle: 'Firma registrada',
-        color: '#10B981',
-      });
-    }
-    const reports = c.reporteHistory || [];
-    if (reports.length > 0) {
-      const last = reports[reports.length - 1];
-      items.push({
-        id: 'reporte-' + c.id,
-        tipo: 'reporte',
-        ts: parseFechaCorta(last.fecha) || c.updatedAt,
-        titulo: c.nombre || 'Caso',
-        detalle: stripHTML(last.texto).slice(0, 60) || 'Reporte cargado',
-        color: '#60A5FA',
-      });
-    }
-  }
-
-  for (const n of notes) {
-    items.push({
-      id: 'nota-' + n.id,
-      tipo: 'nota',
-      ts: n.updatedAt || n.createdAt,
-      titulo: n.title || 'Nota',
-      detalle: stripHTML(n.content).slice(0, 60) || 'Nota agregada',
-      color: '#D9A441',
-    });
-  }
-
-  for (const e of events) {
-    items.push({
-      id: 'evento-' + e.id,
-      tipo: 'evento',
-      ts: e.createdAt || e.updatedAt || e.startDate,
-      titulo: e.titulo || e.title || 'Evento',
-      detalle: (e.startDate || 'Evento agendado'),
-      color: '#F97316',
-    });
-  }
-
-  return items
-    .filter((i) => i.ts)
-    .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-    .slice(0, limit);
+  return buildUnifiedActivityFeed({ cases, notes, events, limit });
 }
 
 // ============================================================

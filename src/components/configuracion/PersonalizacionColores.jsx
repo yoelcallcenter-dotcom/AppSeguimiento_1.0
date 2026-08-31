@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { Palette, RotateCcw, Moon, Sun, Type, ChevronDown, Check, Pipette, Sparkles } from "lucide-react";
+import { Palette, RotateCcw, Moon, Sun, ChevronDown, Check, Pipette, Sparkles } from "lucide-react";
 import { BtnOutline } from "../common/BtnOutline";
 import { Toggle } from "../common/Toggle";
 import { useTheme } from "../../context/ThemeContext";
-import { useFontSize } from "../../context/FontSizeContext";
 import { ESTADOS } from "../../utils/constants";
+import { getEstados } from "../../utils/catalogos";
 import { ESTADO_COLOR_SWATCHES } from "../../core/theme/themeTokens";
 import { getUiSettings, saveUiSettings } from "../../utils/uiSettings";
 
@@ -118,20 +118,14 @@ function EstadoColorItem({ estado, currentColor, expanded, onToggle, onColorChan
   );
 }
 
-export function PersonalizacionColores({ showToast }) {
+export function PersonalizacionColores({ showToast, config }) {
   const theme = useTheme();
-  const { fontSize, setFontSize } = useFontSize();
   const [estadoColorEdits, setEstadoColorEdits] = useState({});
   const [openEstado, setOpenEstado] = useState(null);
   const [easterEggsEnabled, setEasterEggsEnabled] = useState(
     () => getUiSettings().easterEggsEnabled !== false
   );
-
-  const fontSizes = [
-    { value: "small", label: "Pequeño" },
-    { value: "medium", label: "Mediano" },
-    { value: "large", label: "Grande" },
-  ];
+  const estadosList = getEstados(config);
 
   const handlePaletteChange = (paletteId) => {
     theme.changePalette(paletteId);
@@ -210,29 +204,6 @@ export function PersonalizacionColores({ showToast }) {
         </div>
       </div>
 
-      {/* Tamaño de fuente */}
-      <div className="config-section">
-        <div className="config-section-title flex items-center gap-2">
-          <Type size={14} color="var(--color-accent)" />
-          Tamaño de Fuente
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {fontSizes.map((fs) => (
-            <button
-              key={fs.value}
-              onClick={() => setFontSize(fs.value)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 ${
-                fontSize === fs.value
-                  ? "bg-[var(--color-accent)] text-[#14181F]"
-                  : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
-              }`}
-            >
-              {fs.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Colores por estado */}
       <div className="config-section">
         <div className="config-section-title flex items-center gap-2">
@@ -240,7 +211,7 @@ export function PersonalizacionColores({ showToast }) {
           Colores por Estado de Caso
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {ESTADOS.map((estado) => {
+          {estadosList.map((estado) => {
             const currentColor =
               estadoColorEdits[estado.v] ||
               theme.getEstadoColor(estado.v) ||

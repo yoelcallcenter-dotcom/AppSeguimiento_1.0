@@ -12,10 +12,13 @@ import { CredentialsSection } from "./components/CredentialsSection";
 import { MiJornadaView } from "./MiJornadaView";
 import { PdfExportModal } from "./PdfExportModal";
 import { readOperatorCases } from "./operatorStore";
+import useAppStore from "../../core/store/useAppStore";
 
-export function OperatorView({ config, casos, showToast, onChangeView }) {
+export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso, onNavigateToEvent }) {
   const state = useOperatorState();
   const { profile, availability, goals, settings } = state;
+  const notes = useAppStore((s) => s.notes);
+  const events = useAppStore((s) => s.events);
 
   const [activeSection, setActiveSection] = useState("hoy");
   const [showPdfModal, setShowPdfModal] = useState(false);
@@ -26,8 +29,15 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
     return casos || [];
   }, [casos]);
 
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const now = new Date();
+  // Reloj por-minuto: mantiene TODOS los cálculos de la jornada (estado del día,
+  // ritmo, transcurrido, sugerencias y hora) sincronizados con la hora real.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const todayISO = now.toISOString().slice(0, 10);
   const year = now.getFullYear();
   const month = now.getMonth();
 
@@ -293,6 +303,8 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
             availability={availability}
             goals={goals}
             cases={allCases}
+            notes={notes}
+            events={events}
             dayState={dayState}
             daily={daily}
             monthly={monthly}
@@ -300,11 +312,14 @@ export function OperatorView({ config, casos, showToast, onChangeView }) {
             effective={effective}
             perDay={perDay}
             todayISO={todayISO}
+            now={now}
             onChangeView={onChangeView}
             showToast={showToast}
             showPace={settings.showPace !== false}
             settings={settings}
             showInsight={config?.insightEnJornada !== false}
+            onVerCaso={onVerCaso}
+            onNavigateToEvent={onNavigateToEvent}
           />
         )}
         {activeSection === "perfil" && (

@@ -70,7 +70,7 @@ export default function KPICards({ metrics, onDrill, prevMetrics }) {
               </span>
               <Icon size={14} style={{ color: card.color }} />
             </div>
-            <div className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+            <div className="font-metric text-xl font-bold" style={{ color: 'var(--color-text)' }}>
               {formatValue(current, card)}
             </div>
             {trend && (

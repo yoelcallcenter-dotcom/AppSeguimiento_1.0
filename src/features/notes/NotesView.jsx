@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, CalendarPlus, History, Link, Save } from 'lucide-react';
+import { Plus, CalendarPlus, History, Link, Save, ExternalLink } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { CaseLinker } from '../../components/common/CaseLinker';
 import NotesEditor from './NotesEditor';
@@ -29,7 +29,7 @@ const SORT_OPTIONS = [
   { value: 'title-desc', label: 'Titulo Z-A' },
 ];
 
-export default function NotesView({ showToast, onCreateEvent, casos = [], selectedNoteId, onSelectedNoteIdConsumed }) {
+export default function NotesView({ showToast, onCreateEvent, casos = [], selectedNoteId, onSelectedNoteIdConsumed, onVerCaso }) {
   const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('notas-sort-order') || 'updated-desc');
   const [notes, setNotes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -362,6 +362,30 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
               <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
                 <Link size={10} /> Casos vinculados
               </div>
+              {/* Clickable links to linked cases */}
+              {selectedNote.relatedCaseIds && selectedNote.relatedCaseIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {selectedNote.relatedCaseIds.map((caseId) => {
+                    const linkedCase = casos.find((c) => String(c.id) === String(caseId));
+                    if (!linkedCase) return null;
+                    return (
+                      <button
+                        key={caseId}
+                        onClick={() => onVerCaso && onVerCaso(linkedCase)}
+                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md hover:opacity-70 transition-opacity"
+                        style={{
+                          backgroundColor: 'var(--color-accent)22',
+                          color: 'var(--color-accent)',
+                          border: '1px solid var(--color-accent)44',
+                        }}
+                      >
+                        <ExternalLink size={9} />
+                        {linkedCase.nombre || 'Sin nombre'}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <CaseLinker
                 casos={casos}
                 selectedIds={selectedNote.relatedCaseIds || []}

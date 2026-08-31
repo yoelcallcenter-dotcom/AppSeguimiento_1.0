@@ -499,7 +499,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
             Cancelar
           </BtnOutline>
           <Btn onClick={guardar} disabled={!seleccionado} icon={Save} size="sm">
-            NUEVO REPORTE
+            Nuevo Reporte
           </Btn>
         </div>
       </div>

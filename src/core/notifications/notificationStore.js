@@ -96,7 +96,21 @@ const useNotificationStore = create((set, get) => ({
     const id =
       toast.id ||
       `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    set((s) => ({ toastQueue: [...s.toastQueue, { ...toast, id }] }));
+    const t = { ...toast, id, timestamp: toast.timestamp || Date.now() };
+
+    set((s) => {
+      const dupWindow = s.toastQueue.filter(
+        (x) => Date.now() - x.timestamp < 3000
+      );
+      const isDup = dupWindow.some(
+        (x) =>
+          ((x.title || "") === (t.title || "") &&
+            (x.message || "") === (t.message || "")) ||
+          x.id === t.id
+      );
+      if (isDup) return {};
+      return { toastQueue: [...s.toastQueue, t] };
+    });
     return id;
   },
 

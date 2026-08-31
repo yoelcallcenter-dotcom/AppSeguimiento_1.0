@@ -1,27 +1,43 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { typographyManager } from "../core/typography/typographyManager";
 
 const FontSizeContext = createContext({
   fontSize: "medium",
   setFontSize: () => {},
 });
 
+/**
+ * Provider de tamaño de fuente.
+ *
+ * Desde 1.4.5 delega en el typographyManager (fuente de verdad única) que
+ * mantiene la misma clave de persistencia (`app-font-size`) y el mismo
+ * comportamiento previo, de modo que las preferencias existentes se conservan.
+ * La API de `useFontSize` no cambia para no romper a sus consumidores.
+ *
+ * Desde 1.4.8 se suscribe a los cambios del typographyManager para mantenerse
+ * sincronizado cuando otro flujo (p. ej. `resetToDefaults` de
+ * `TypographyContext`) modifica el tamaño de forma externa.
+ */
 export function FontSizeProvider({ children }) {
-  const [fontSize, setFontSizeState] = useState(() => {
-    return localStorage.getItem("app-font-size") || "medium";
-  });
+  const [fontSize, setFontSizeState] = useState(() =>
+    typographyManager.getFontSize()
+  );
+  const applying = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem("app-font-size", fontSize);
-    const sizeMap = {
-      small: "14px",
-      medium: "16px",
-      large: "18px",
-    };
-    document.documentElement.style.fontSize = sizeMap[fontSize] || "16px";
-    document.documentElement.style.setProperty(
-      "--font-size-base",
-      sizeMap[fontSize] || "16px"
-    );
+    const unsubscribe = typographyManager.subscribe(({ fontSize: next }) => {
+      setFontSizeState(next);
+      applying.current = true;
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (applying.current) {
+      applying.current = false;
+      return;
+    }
+    typographyManager.setFontSize(fontSize);
   }, [fontSize]);
 
   const setFontSize = (newSize) => {

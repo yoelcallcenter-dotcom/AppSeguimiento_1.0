@@ -18,7 +18,7 @@ function timeAgo(ts) {
 
 const MAX_VISIBLE = 5;
 
-export default function ActivityFeed({ items }) {
+export default function ActivityFeed({ items, onSelectItem }) {
   const [showAll, setShowAll] = useState(false);
   const list = items || [];
   const visible = showAll ? list : list.slice(0, MAX_VISIBLE);
@@ -56,7 +56,13 @@ export default function ActivityFeed({ items }) {
           <div className="absolute left-[7px] top-1 bottom-1 w-px" style={{ backgroundColor: 'var(--color-border)' }} />
           <div className="space-y-3">
             {visible.map((item) => (
-              <div key={item.id} className="relative">
+              <button
+                key={item.id}
+                type="button"
+                className="relative w-full text-left hover:opacity-70 transition-opacity"
+                onClick={() => onSelectItem && onSelectItem(item)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: onSelectItem ? 'pointer' : 'default' }}
+              >
                 <span
                   className="absolute -left-5 top-1 w-3 h-3 rounded-full border-2"
                   style={{
@@ -64,10 +70,10 @@ export default function ActivityFeed({ items }) {
                     borderColor: item.color || 'var(--color-border)',
                   }}
                 />
-                <div className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>{item.titulo}</div>
-                <div className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>{item.detalle}</div>
-                <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{timeAgo(item.ts)}</div>
-              </div>
+                <div className="text-xs font-semibold truncate" style={{ color: 'var(--color-text)' }}>{item.titulo || item.title}</div>
+                <div className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>{item.detalle || item.detail}</div>
+                <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{timeAgo(item.ts || item.timestamp)}</div>
+              </button>
             ))}
           </div>
         </div>

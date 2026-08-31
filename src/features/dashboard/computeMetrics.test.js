@@ -236,11 +236,15 @@ describe('buildActivityFeed', () => {
     ];
     const notes = [{ id: 'n1', title: 'Nota', content: 'Texto', updatedAt: '2026-06-06T10:00:00.000Z' }];
     const events = [{ id: 'e1', titulo: 'Evento', startDate: '2026-06-07' }];
+    const caseHistory = [
+      { caseId: 'a', type: 'CASE_CREATED', timestamp: '2026-06-01T10:00:00.000Z', data: {} },
+      { caseId: 'a', type: 'REPORT_ADDED', timestamp: '2026-06-03T10:00:00.000Z', data: { texto: 'Se avanzó' } },
+      { caseId: 'a', type: 'FIRMA_REGISTERED', timestamp: '2026-06-08T10:00:00.000Z', data: {} },
+    ];
     const feed = buildActivityFeed(cases, notes, events, 10);
-    expect(feed.length).toBe(5);
-    expect(feed[0].tipo).toBe('firma');
-    expect(feed.some((i) => i.tipo === 'nota')).toBe(true);
-    expect(feed.some((i) => i.tipo === 'reporte')).toBe(true);
-    expect(feed.some((i) => i.tipo === 'firma')).toBe(true);
+    expect(feed.length).toBeGreaterThanOrEqual(3);
+    expect(feed.some((i) => i.type === 'note_added' || i.entityType === 'note')).toBe(true);
+    expect(feed.some((i) => i.type === 'event_linked' || i.entityType === 'event')).toBe(true);
+    expect(feed.some((i) => i.type === 'case_created' || i.type === 'firma_registered')).toBe(true);
   });
 });

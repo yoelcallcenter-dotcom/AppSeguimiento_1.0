@@ -18,7 +18,7 @@ import {
 } from './insightsConfig';
 
 let seq = 0;
-function crearInsight({ categoria, prioridad = 3, severity = 'info', titulo, detalle, base = [] }) {
+function crearInsight({ categoria, prioridad = 3, severity = 'info', titulo, detalle, base = [], drillAction = null }) {
   seq += 1;
   return {
     id: `ins-${Date.now().toString(36)}-${seq}`,
@@ -28,6 +28,7 @@ function crearInsight({ categoria, prioridad = 3, severity = 'info', titulo, det
     titulo,
     detalle,
     base,
+    drillAction,
   };
 }
 
@@ -77,6 +78,7 @@ export function generarInsightsAnaliticos({
             { label: 'Progreso actual', valor: `${p.current}/${p.target}` },
             { label: 'Completado', valor: `${p.percent}%` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'activos' } },
         }));
         continue;
       }
@@ -97,6 +99,7 @@ export function generarInsightsAnaliticos({
             { label: 'Días hábiles restantes', valor: String(p.restantesDias) },
             { label: 'Proyección estimada', valor: `~${p.proyeccionEstimada}` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'activos' } },
         }));
       } else if (p.percent < 100) {
         insights.push(crearInsight({
@@ -111,6 +114,7 @@ export function generarInsightsAnaliticos({
             { label: 'Días hábiles restantes', valor: String(p.restantesDias) },
             { label: 'Proyección estimada', valor: `~${p.proyeccionEstimada}` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'activos' } },
         }));
       }
     }
@@ -128,6 +132,7 @@ export function generarInsightsAnaliticos({
           { label: 'Ritmo necesario', valor: `~${Math.ceil(pace.cases)} casos/día` },
           { label: 'Días hábiles restantes', valor: String(pace.remainingDays) },
         ],
+        drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'activos' } },
       }));
     }
   }
@@ -160,6 +165,7 @@ export function generarInsightsAnaliticos({
           { label: resumen.previo.label, valor: `${resumen.previo.firmas} firmas` },
           { label: 'Variación', valor: pctTexto(pct) },
         ],
+        drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'firmas' } },
       }));
     }
   }
@@ -190,6 +196,7 @@ export function generarInsightsAnaliticos({
           { label: `Promedio últimos ${promedioPersonal.dias} días`, valor: `${promedioPersonal.promedioDiario} firmas/día` },
           { label: 'Diferencia', valor: pctTexto(diffPct) },
         ],
+        drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'firmas' } },
       }));
     }
   }
@@ -218,6 +225,7 @@ export function generarInsightsAnaliticos({
           { label: `Promedio últimas ${Math.ceil(t.semanasAnalizadas / 2)} semanas`, valor: `${t.segundaMitad} firmas/semana` },
           ...(t.pct !== null ? [{ label: 'Variación', valor: pctTexto(t.pct) }] : []),
         ],
+        drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'firmas' } },
       }));
     }
     // Consistencia: todas las semanas dentro de ±25% del promedio.
@@ -238,6 +246,7 @@ export function generarInsightsAnaliticos({
             { label: 'Promedio semanal', valor: `${Math.round(media * 10) / 10} firmas` },
             { label: 'Rango', valor: `${Math.min(...pts)}–${Math.max(...pts)} firmas` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'firmas' } },
         }));
       }
     }
@@ -258,6 +267,7 @@ export function generarInsightsAnaliticos({
         { label: 'Registros en esa franja', valor: `${horas.top.total} de ${horas.totalEventos}` },
         { label: 'Fuente', valor: 'Horas de creación de casos e interacciones' },
       ],
+      drillAction: { type: 'view_activity' },
     }));
   }
 
@@ -289,6 +299,7 @@ export function generarInsightsAnaliticos({
         { label: 'Firmas', valor: String(top.firmas) },
         { label: 'Conversión', valor: `${top.conversion}%` },
       ],
+      drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: categoria === CATEGORIAS_INSIGHT.ASEGURADORAS ? 'aseguradoras' : 'estudios' } },
     }));
 
     // Mejor conversión solo si hay al menos 2 grupos con muestra comparable.
@@ -308,6 +319,7 @@ export function generarInsightsAnaliticos({
             { label: mejorConv.key, valor: `${mejorConv.conversion}% (${mejorConv.firmas}/${mejorConv.total})` },
             { label: 'Promedio general', valor: `${promGeneral}%` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: categoria === CATEGORIAS_INSIGHT.ASEGURADORAS ? 'aseguradoras' : 'estudios' } },
         }));
       }
     }
@@ -330,6 +342,7 @@ export function generarInsightsAnaliticos({
           { label: 'Conversión período anterior', valor: `${caida.conversionPrev}%` },
           { label: 'Evolución', valor: `${caida.evolucionPuntos} puntos` },
         ],
+        drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: categoria === CATEGORIAS_INSIGHT.ASEGURADORAS ? 'aseguradoras' : 'estudios' } },
       }));
     }
   };
@@ -355,6 +368,7 @@ export function generarInsightsAnaliticos({
             { label: 'Conversión del estudio', valor: `${top.conversion}%` },
             { label: 'Promedio general', valor: `${prom}%` },
           ],
+          drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'estudios' } },
         }));
       }
     }
@@ -374,6 +388,7 @@ export function generarInsightsAnaliticos({
         { label: 'Casos afectados', valor: String(sinSeguimientoCount) },
         { label: 'Umbral', valor: `${cfg.diasSinSeguimiento} días` },
       ],
+      drillAction: { type: 'filtered_list', filter: { tipo: 'grupo', valor: 'activos' } },
     }));
   }
 

@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   OBSERVACIONES_TRANSITO: "observaciones-transito-art-tracker",
   CONDICIONALES: "condicionales-art-tracker",
   TRANSITO_SELECCION: "transito-seleccion-art-tracker",
+  RECENT_ENTITIES: "recent-entities-art-tracker",
 };
 
 export const CONFIG_KEYS = [
@@ -38,11 +39,12 @@ export const CONFIG_KEYS = [
   STORAGE_KEYS.OBSERVACIONES_TRANSITO,
   STORAGE_KEYS.CONDICIONALES,
   STORAGE_KEYS.TRANSITO_SELECCION,
+  STORAGE_KEYS.RECENT_ENTITIES,
 ];
 
 export const CASE_REQUIRED_FIELDS = ["nombre", "telefono"];
 
-export const CASE_ARRAY_FIELDS = ["tags", "reporteHistory", "comentarios", "notasVinculadas", "agendaVinculada"];
+export const CASE_ARRAY_FIELDS = ["tags", "reporteHistory", "comentarios", "notasVinculadas", "agendaVinculada", "caseHistory"];
 
 export const CASE_DATE_FIELDS = [
   "fecha",
@@ -71,6 +73,7 @@ export const CSV_HEADERS = [
   "Comentarios",
   "Notas Vinculadas",
   "Agenda Vinculada",
+  "Historial",
 ];
 
 export const CSV_FIELD_MAP = {
@@ -93,6 +96,7 @@ export const CSV_FIELD_MAP = {
   Comentarios: "comentarios",
   "Notas Vinculadas": "notasVinculadas",
   "Agenda Vinculada": "agendaVinculada",
+  "Historial": "caseHistory",
 };
 
 export const MESSAGES = {

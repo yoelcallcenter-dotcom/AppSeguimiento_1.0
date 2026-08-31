@@ -85,20 +85,20 @@ export const PALETTES = [
 ];
 
 export const defaultEstadoColors = {
-  "Cita virtual": "#3B82F6",
-  "Cita presencial": "#6366F1",
-  "No responde": "#F59E0B",
+  "Cita virtual": "#60A5FA",
+  "Cita presencial": "#818CF8",
+  "No responde": "#FBBF24",
   "Lo piensa": "#FCD34D",
-  Reprogramado: "#F97316",
+  Reprogramado: "#FB923C",
   "2do Llamado": "#F97316",
-  "Tiene Abogado": "#8B5CF6",
+  "Tiene Abogado": "#F87171",
   "No le interesa": "#EF4444",
   "No viable": "#DC2626",
   Incontactable: "#E11D48",
   Baja: "#991B1B",
-  Pendiente: "#10B981",
-  Firmo: "#059669",
-  "Sin reporte": "#6B7280",
+  Pendiente: "#34D399",
+  Firmo: "#10B981",
+  "Sin reporte": "#94A3B8",
 };
 
 export const cssVarMap = {

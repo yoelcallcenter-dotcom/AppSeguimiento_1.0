@@ -5,6 +5,7 @@
 
 import { CSV_HEADERS, CSV_FIELD_MAP, STORAGE_KEYS } from "./constants";
 import appDB from "../../core/db/appDB";
+import casesDB from "../../core/db/casesDB";
 import { sanitizeCSV } from "./csvUtils";
 import { parseCSV } from "../csvParse";
 
@@ -229,6 +230,29 @@ export function parseAgendaVinculada(str) {
 }
 
 /**
+ * Parsea string de historial de cambios
+ * Formato: "fecha|type|title|description; fecha2|type2|title2|description2"
+ * @param {string} str - String a parsear
+ * @returns {Array} Array de eventos de historial
+ */
+export function parseHistorialVinculada(str) {
+  if (!str || typeof str !== "string") return [];
+  return str
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const parts = item.split("|");
+      return {
+        timestamp: parts[0] ? new Date(parts[0]).getTime() || Date.now() : Date.now(),
+        type: parts[1] || "manual",
+        title: parts[2] || "",
+        description: parts[3] || "",
+      };
+    });
+}
+
+/**
  * Parsea CSV a array de casos
  * @param {string} csvData - Datos CSV
  * @returns {Array} Array de casos
@@ -269,6 +293,9 @@ export function parseCSVToCases(csvData) {
             break;
           case "agendaVinculada":
             caso[field] = parseAgendaVinculada(value);
+            break;
+          case "caseHistory":
+            caso[field] = parseHistorialVinculada(value);
             break;
           default:
             caso[field] = value;
@@ -318,6 +345,28 @@ async function getEventosPorCaso(caseId) {
 }
 
 /**
+ * Obtiene historial de cambios de un caso desde la base de datos (casesDB)
+ * @param {string} caseId - ID del caso
+ * @returns {Promise<Array>} Array de eventos de historial
+ */
+async function getHistorialPorCaso(caseId) {
+  try {
+    const all = await casesDB.case_history.toArray();
+    return all.filter((h) => h.caseId === caseId);
+  } catch {
+    return [];
+  }
+}
+
+const serializarHistorial = (eventos) => {
+  if (!eventos || eventos.length === 0) return '';
+  return eventos.map((e) => {
+    const fecha = e.timestamp ? new Date(e.timestamp).toISOString().slice(0, 16).replace('T', ' ') : '';
+    return `${fecha}|${e.type || ''}|${e.title || ''}|${e.description || ''}`;
+  }).join('; ');
+};
+
+/**
  * Genera CSV desde casos
  * @param {Array} cases - Array de casos
  * @returns {string} CSV string
@@ -345,6 +394,7 @@ export async function generateCSVFromCases(cases) {
   const rows = await Promise.all(cases.map(async (c) => {
     const notas = c.notasVinculadas || (await getNotasPorCaso(c.id));
     const agenda = c.agendaVinculada || (await getEventosPorCaso(c.id));
+    const historial = await getHistorialPorCaso(c.id);
     return [
       c.id || "",
       c.fecha || "",
@@ -365,6 +415,7 @@ export async function generateCSVFromCases(cases) {
       formatearComentarios(c.comentarios || []),
       serializarNotasVinculadas(notas),
       serializarAgendaVinculada(agenda),
+      serializarHistorial(historial),
     ].map((v) => escapeCSV(sanitizeCSV(v)));
   }));
 

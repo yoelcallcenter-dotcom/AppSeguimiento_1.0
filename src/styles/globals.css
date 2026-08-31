@@ -163,8 +163,18 @@
 
   --transition-fast: 0.12s;
   --transition-speed: 0.18s;
-  --font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
+  /* ====================== TOKENS TIPOGRÁFICOS (1.4.5) ====================== */
+  /* Definidos por el typographyManager según el preset activo. La UI consume
+     SIEMPRE estas variables; nunca fuentes hardcodeadas en componentes.
+     El fallback por defecto es genérico (sin fuente específica) para que los
+     archivos de la app o los presets no-Montserrat no dependan de una fuente
+     concreta mientras el typographyManager aplica el preset activo. */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-ui);
+  --font-metric: var(--font-ui);
+  /* Compatibilidad: la app usa --font-family como fuente base; hereda de la UI. */
+  --font-family: var(--font-ui);
   --card-padding: 1rem;
   --card-gap: 0.75rem;
   --input-height: 2.5rem;
@@ -233,8 +243,13 @@ body {
 /* ======================== JERARQUÍA DE TEXTOS =================== */
 /* ================================================================ */
 
+/* La fuente de cada rol viene del preset activo (1.4.5):
+   --font-heading para títulos, --font-ui para el texto base.
+   La escala de tamaños (jerarquía h1>h2>h3>h4) se conserva intacta. */
+
 /* Títulos principales (h1) */
 h1 {
+  font-family: var(--font-heading);
   font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-extrabold);
   line-height: 1.2;
@@ -243,6 +258,7 @@ h1 {
 
 /* Títulos de sección (h2) */
 h2 {
+  font-family: var(--font-heading);
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   line-height: 1.3;
@@ -251,6 +267,7 @@ h2 {
 
 /* Subtítulos (h3) */
 h3 {
+  font-family: var(--font-heading);
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-semibold);
   line-height: 1.4;
@@ -258,9 +275,16 @@ h3 {
 
 /* Títulos de tarjetas/secciones (h4) */
 h4 {
+  font-family: var(--font-heading);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   line-height: 1.4;
+}
+
+/* Valores numéricos / métricas destacadas (KPIs). Solo se aplica en
+   elementos visualmente destacados; no se fuerza en todos los números. */
+.font-metric {
+  font-family: var(--font-metric);
 }
 
 /* ================================================================ */

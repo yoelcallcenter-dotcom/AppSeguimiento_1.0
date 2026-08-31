@@ -143,3 +143,29 @@ export function buscarGlobal(indices, q) {
     events: fuseEvents.search(termino).slice(0, 5).map((r) => r.item),
   };
 }
+
+/**
+ * Busca en aseguradoras, estudios jurídicos y condicionales.
+ */
+export function buscarEntidades(entityIndices, q) {
+  const { tipo, termino } = parseBusqueda(q);
+  if (!termino) return { insurers: [], lawFirms: [], condicionales: [] };
+  const { aseguradoras = [], mapeo = [], condicionales = [] } = entityIndices;
+  const term = normalizarTexto(termino);
+
+  const insurers = aseguradoras
+    .filter((a) => normalizarTexto(typeof a === 'string' ? a : a.nombre || '').includes(term))
+    .slice(0, 5)
+    .map((a) => ({ nombre: typeof a === 'string' ? a : a.nombre }));
+
+  const lawFirms = mapeo
+    .filter((m) => normalizarTexto(typeof m === 'string' ? m : m.nombre || '').includes(term))
+    .slice(0, 5)
+    .map((m) => ({ nombre: typeof m === 'string' ? m : m.nombre }));
+
+  const foundCondicionales = condicionales
+    .filter((c) => normalizarTexto(c.aseguradora || '').includes(term) || normalizarTexto(c.estudioJuridico || '').includes(term))
+    .slice(0, 5);
+
+  return { insurers, lawFirms, condicionales: foundCondicionales };
+}

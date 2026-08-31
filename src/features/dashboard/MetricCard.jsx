@@ -57,7 +57,7 @@ export const MetricCard = React.memo(({ metric, icon: Icon, color, trend, onDril
           {Icon && <Icon size={14} style={{ color: color || 'var(--color-accent)' }} />}
         </span>
       </div>
-      <div className="text-2xl font-bold" style={{ color: color || 'var(--color-text)' }}>
+      <div className="font-metric text-2xl font-bold" style={{ color: color || 'var(--color-text)' }}>
         {formatted}
       </div>
       {trend !== undefined && trend !== 0 && (

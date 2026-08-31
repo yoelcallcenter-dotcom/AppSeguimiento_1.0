@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign } from 'lucide-react';
+import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign, Building2, Scale, Shield, History } from 'lucide-react';
 import useAppStore from '../../core/store/useAppStore';
 import { readConfig, formatDateWithConfig, formatPhoneWithConfig } from '../../utils/configFormatters';
-import { crearIndicesGlobal, buscarGlobal } from '../../utils/searchEngine';
+import { crearIndicesGlobal, buscarGlobal, buscarEntidades } from '../../utils/searchEngine';
 import TagsPills from '../../components/common/TagsPills';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
 
 const HISTORIAL_KEY = 'global-search-history';
+const RECENT_KEY = 'recent-entities-art-tracker';
+
+const EMPTY_RESULTS = { cases: [], notes: [], events: [], insurers: [], lawFirms: [], condicionales: [] };
+const EMPTY_FLAT = [];
 
 const cargarHistorial = () => {
   try { return JSON.parse(localStorage.getItem(HISTORIAL_KEY) || '[]'); } catch { return []; }
@@ -32,7 +36,7 @@ const ResultItem = React.memo(({ icon: Icon, title, subtitle, onSelect }) => (
   </button>
 ));
 
-export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent }) {
+export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent, onSelectEntity, condicionales = [], aseguradoras = [], mapeo = [] }) {
   const isOpen = useAppStore((s) => s.ui.globalSearchOpen);
   const setUIState = useAppStore((s) => s.setUIState);
   const cases = useAppStore((s) => s.cases);
@@ -44,6 +48,11 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
   const [historial, setHistorial] = useState(cargarHistorial);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  const [recientes, setRecientes] = useState([]);
+  useEffect(() => {
+    try { setRecientes(JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')); } catch { setRecientes([]); }
+  }, [isOpen]);
 
   // Releer la configuración cada vez que se abre el buscador, para reflejar
   // cambios hechos en Configuración sin recargar la app.
@@ -68,13 +77,17 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
   }, [setUIState]);
 
   const indices = useMemo(() => crearIndicesGlobal({ cases, notes, events, cfg }), [cases, notes, events, cfg]);
+  const entityIndices = useMemo(() => ({ aseguradoras, mapeo, condicionales }), [aseguradoras, mapeo, condicionales]);
 
   const results = useMemo(() => {
-    if (!query.trim()) return { cases: [], notes: [], events: [] };
-    return buscarGlobal(indices, query);
-  }, [query, indices]);
+    if (!query.trim()) return EMPTY_RESULTS;
+    const core = buscarGlobal(indices, query);
+    const entities = buscarEntidades(entityIndices, query);
+    return { ...core, ...entities };
+  }, [query, indices, entityIndices]);
 
   const flatResults = useMemo(() => {
+    if (results === EMPTY_RESULTS) return EMPTY_FLAT;
     const flat = [];
     if (results.cases.length > 0) {
       flat.push({ type: 'header', label: 'Casos' });
@@ -88,10 +101,22 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
       flat.push({ type: 'header', label: 'Eventos' });
       results.events.forEach((e) => flat.push({ type: 'event', data: e }));
     }
+    if (results.insurers?.length > 0) {
+      flat.push({ type: 'header', label: 'Aseguradoras' });
+      results.insurers.forEach((i) => flat.push({ type: 'insurer', data: i }));
+    }
+    if (results.lawFirms?.length > 0) {
+      flat.push({ type: 'header', label: 'Estudios Jurídicos' });
+      results.lawFirms.forEach((lf) => flat.push({ type: 'lawFirm', data: lf }));
+    }
+    if (results.condicionales?.length > 0) {
+      flat.push({ type: 'header', label: 'Condicionales' });
+      results.condicionales.forEach((c) => flat.push({ type: 'condicional', data: c }));
+    }
     return flat;
   }, [results]);
 
-  const totalItems = flatResults.filter((r) => r.type !== 'header').length;
+  const totalItems = useMemo(() => flatResults.filter((r) => r.type !== 'header').length, [flatResults]);
 
   useEffect(() => {
     if (isOpen) {
@@ -139,8 +164,10 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     if (item.type === 'case' && onSelectCase) onSelectCase(item.data.id);
     if (item.type === 'note' && onSelectNote) onSelectNote(item.data.id);
     if (item.type === 'event' && onSelectEvent) onSelectEvent(item.data.id);
+    if ((item.type === 'insurer' || item.type === 'lawFirm') && onSelectEntity) onSelectEntity(item.type === 'insurer' ? 'insurer' : 'lawFirm', item.data.nombre || item.data);
+    if (item.type === 'condicional' && onSelectEntity) onSelectEntity('condicional', item.data.aseguradora);
     close();
-  }, [onSelectCase, onSelectNote, onSelectEvent, close, guardarEnHistorial, query]);
+  }, [onSelectCase, onSelectNote, onSelectEvent, onSelectEntity, close, guardarEnHistorial, query]);
 
   const getItemIndex = (flatIdx) => {
     let count = -1;
@@ -185,7 +212,28 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
 
         <div ref={listRef} className="max-h-[350px] overflow-y-auto">
           {!query.trim() ? (
-            historial.length > 0 && cfg.busquedaHistorial !== false ? (
+            recientes.length > 0 ? (
+              <div>
+                <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                  <History size={10} /> Vistos recientemente
+                </div>
+                {recientes.slice(0, 5).map((r, i) => {
+                  const rIcon = r.type === 'insurer' ? Building2 : r.type === 'lawFirm' ? Scale : User;
+                  return (
+                    <button
+                      key={`r-${i}`}
+                      onClick={() => onSelectEntity && onSelectEntity(r.type, r.name)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors text-xs"
+                      style={{ color: 'var(--color-text)', borderBottom: '1px solid var(--color-border)' }}
+                    >
+                      <rIcon size={12} style={{ color: 'var(--color-accent)' }} />
+                      <span className="font-medium">{r.name}</span>
+                      <span className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>{r.type === 'insurer' ? 'Aseguradora' : r.type === 'lawFirm' ? 'Estudio' : 'Caso'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : historial.length > 0 && cfg.busquedaHistorial !== false ? (
               <div>
                 <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
                   <Clock size={10} /> Búsquedas recientes
@@ -226,12 +274,37 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                 if (r.type === 'note') {
                   const n = r.data;
                   const tags = (n.tags || []).slice(0, 3).map((t) => '#' + t).join(' ');
-                  return { icon: FileText, title: n.title || 'Sin titulo', subtitle: `${tags || 'sin tags'} | ${formatDateWithConfig(n.updatedAt || n.createdAt || '')}` };
+                  const caseIds = n.relatedCaseIds || [];
+                  const linkedCases = caseIds.length > 0
+                    ? caseIds.map((cid) => {
+                        const linked = cases.find((c) => String(c.id) === String(cid));
+                        return linked?.nombre;
+                      }).filter(Boolean).join(', ')
+                    : '';
+                  const relationText = linkedCases ? ` | Caso: ${linkedCases}` : '';
+                  return { icon: FileText, title: n.title || 'Sin titulo', subtitle: `${tags || 'sin tags'} | ${formatDateWithConfig(n.updatedAt || n.createdAt || '')}${relationText}` };
                 }
                 if (r.type === 'event') {
                   const e = r.data;
                   const tags = (e.tags || []).slice(0, 3).map((t) => '#' + t).join(' ');
-                  return { icon: Calendar, title: e.title || 'Sin titulo', subtitle: `${formatDateWithConfig(e.startDate) || ''}${tags ? ' | ' + tags : ''} | ${e.status || ''}` };
+                  const caseIds = e.relatedCaseIds || [];
+                  const linkedCases = caseIds.length > 0
+                    ? caseIds.map((cid) => {
+                        const linked = cases.find((c) => String(c.id) === String(cid));
+                        return linked?.nombre;
+                      }).filter(Boolean).join(', ')
+                    : '';
+                  const relationText = linkedCases ? ` | Caso: ${linkedCases}` : '';
+                  return { icon: Calendar, title: e.title || 'Sin titulo', subtitle: `${formatDateWithConfig(e.startDate) || ''}${tags ? ' | ' + tags : ''} | ${e.status || ''}${relationText}` };
+                }
+                if (r.type === 'insurer') {
+                  return { icon: Building2, title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                }
+                if (r.type === 'lawFirm') {
+                  return { icon: Scale, title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                }
+                if (r.type === 'condicional') {
+                  return { icon: Shield, title: r.data.aseguradora, subtitle: `${r.data.condicion} — ${r.data.estudioJuridico || ''}` };
                 }
                 return { icon: Search, title: '', subtitle: '' };
               })();

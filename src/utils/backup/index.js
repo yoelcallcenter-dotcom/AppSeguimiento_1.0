@@ -22,3 +22,7 @@ export {
   prepareBackupForRestore,
   detectLegacyFormat,
 } from "./backupMigrator";
+
+export {
+  parseHistorialVinculada,
+} from "./parsers";

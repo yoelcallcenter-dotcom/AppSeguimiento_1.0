@@ -5,6 +5,8 @@ import { getEstados } from "../../utils/catalogos";
 import { CSV_HEADERS } from "../../utils/backup/constants";
 import { escapeCSV, sanitizeCSV } from "../../utils/backup/csvUtils";
 import { Btn, OutlineButton } from "../../components/common/Btn";
+import casesDB from "../../core/db/casesDB";
+import appDB from "../../core/db/appDB";
 
 const CAMPOS = [
   "id", "fecha", "nombre", "telefono", "localidad", "aseguradora",
@@ -84,17 +86,44 @@ export function CsvExportModal({ open, onClose, showToast }) {
     if (casosFiltrados.length === 0) return;
     setExportando(true);
     try {
-      const rows = casosFiltrados.map((c) => {
+      const serializarNotas = (notas) => {
+        if (!notas || notas.length === 0) return '';
+        return notas.map((n) => `${n.titulo || n.title || ''}: ${n.contenido || n.content || ''} (${n.fecha || ''})`).join(' // ');
+      };
+      const serializarAgenda = (eventos) => {
+        if (!eventos || eventos.length === 0) return '';
+        return eventos.map((e) => {
+          const fecha = e.fecha || (e.startDate ? e.startDate.slice(0, 10) : '');
+          return `${e.titulo || e.title || ''} (${fecha})`;
+        }).join(' // ');
+      };
+      const serializarHistorial = (eventos) => {
+        if (!eventos || eventos.length === 0) return '';
+        return eventos.map((e) => {
+          const fecha = e.timestamp ? new Date(e.timestamp).toISOString().slice(0, 16).replace('T', ' ') : '';
+          return `${fecha}|${e.type || ''}|${e.title || ''}|${e.description || ''}`;
+        }).join('; ');
+      };
+
+      const allNotes = await appDB.notes.toArray();
+      const allEvents = await appDB.events.toArray();
+      const allHistory = await casesDB.case_history.toArray();
+
+      const rows = await Promise.all(casosFiltrados.map(async (c) => {
         const base = CAMPOS.map((campo) => escapeCSV(sanitizeCSV(c[campo] || "")));
+        const notas = allNotes.filter((n) => (n.relatedCaseIds || []).includes(c.id));
+        const eventos = allEvents.filter((e) => (e.relatedCaseIds || []).includes(c.id));
+        const historial = allHistory.filter((h) => h.caseId === c.id);
         const extras = [
           (c.tags || []).join("; "),
           formatearReportes(c.reporteHistory),
           formatearComentarios(c.comentarios),
-          "",
-          "",
+          serializarNotas(notas),
+          serializarAgenda(eventos),
+          serializarHistorial(historial),
         ].map((v) => escapeCSV(sanitizeCSV(v)));
         return [...base, ...extras].join(",");
-      });
+      }));
 
       const csv = [CSV_HEADERS.join(","), ...rows].join("\n");
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });

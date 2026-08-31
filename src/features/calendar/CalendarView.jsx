@@ -66,7 +66,7 @@ function isSameDay(a, b) {
   return a.slice(0, 10) === b.slice(0, 10);
 }
 
-export default function CalendarView({ showToast, onClose, casos = [] }) {
+export default function CalendarView({ showToast, onClose, casos = [], onVerCaso }) {
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
@@ -586,6 +586,7 @@ export default function CalendarView({ showToast, onClose, casos = [] }) {
         event={editingEvent}
         notes={notes}
         casos={casos}
+        onVerCaso={onVerCaso}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check } from "lucide-react";
+import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, ExternalLink } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
@@ -21,6 +21,13 @@ import {
   INACTIVIDAD_DEFAULT_DIAS,
   TIPOS_INTERACCION,
 } from "../../core/cases/caseHistory";
+import {
+  getRelatedNotes,
+  getRelatedEvents,
+  getCasesByInsurer,
+  getCasesByLawFirm,
+} from "../../core/cases/caseRelations";
+import { getRelatedTools } from "../../core/entities/entityRelations";
 
 function soloDia(x) {
   return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -46,6 +53,7 @@ function formatearActividad(ts) {
 export function VerCasoModal({
   caso,
   config,
+  casos = [],
   onClose,
   onEdit,
   onComentarios,
@@ -54,7 +62,15 @@ export function VerCasoModal({
   onNuevoEvento,
   onReporteRapido,
   onNavigateToNote,
+  onNavigateToEvent,
+  onNavigateInsurer,
+  onNavigateLawFirm,
+  navigationStack = [],
+  onBackNavigation,
   showToast,
+  condicionales = [],
+  speechs = [],
+  objeciones = [],
 }) {
   const dialogRef = useRef(null);
   useDialogA11y(dialogRef, !!caso);
@@ -65,6 +81,7 @@ export function VerCasoModal({
   const [mostrarNotas, setMostrarNotas] = useState(true);
   const [mostrarEventos, setMostrarEventos] = useState(true);
   const [mostrarTimeline, setMostrarTimeline] = useState(true);
+  const [mostrarHerramientas, setMostrarHerramientas] = useState(true);
   const [comentariosLocales, setComentariosLocales] = useState([]);
   const [historial, setHistorial] = useState([]);
   const { copiar: copiarNombre, copiado: nombreCopiado } = useClipboard();
@@ -115,13 +132,38 @@ export function VerCasoModal({
 
   const notasFiltradas = useMemo(() => {
     if (!caso) return [];
-    return notas.filter((n) => (n.relatedCaseIds || []).includes(caso.id));
+    return getRelatedNotes(caso.id, notas);
   }, [notas, caso]);
 
   const eventosFiltrados = useMemo(() => {
     if (!caso) return [];
-    return eventos.filter((e) => (e.relatedCaseIds || []).includes(caso.id));
+    return getRelatedEvents(caso.id, eventos);
   }, [eventos, caso]);
+
+  // Casos relacionados por aseguradora/estudio (para mostrar conteo)
+  const casosByInsurer = useMemo(() => {
+    if (!caso?.aseguradora || !casos.length) return [];
+    return getCasesByInsurer(caso.aseguradora, casos).filter(
+      (c) => String(c.id) !== String(caso.id)
+    );
+  }, [caso, casos]);
+
+  const casosByLawFirm = useMemo(() => {
+    if (!caso?.estudioJuridico || !casos.length) return [];
+    return getCasesByLawFirm(caso.estudioJuridico, casos).filter(
+      (c) => String(c.id) !== String(caso.id)
+    );
+  }, [caso, casos]);
+
+  // Herramientas relacionadas (condicionales, speechs, objeciones) — recibidos como props
+  const toolsData = useMemo(() => {
+    if (!caso?.aseguradora && !caso?.estudioJuridico) return { condicionales: [], speechs: [], objeciones: [], hasContent: false };
+    return getRelatedTools(caso.aseguradora, caso.estudioJuridico, condicionales, speechs, objeciones);
+  }, [caso?.aseguradora, caso?.estudioJuridico, condicionales, speechs, objeciones]);
+
+  // Determinar si aseguradora/estudio son clickeables (existen en la config)
+  const hasInsurer = !!(caso?.aseguradora || "").trim();
+  const hasLawFirm = !!(caso?.estudioJuridico || "").trim();
 
   if (!caso) return null;
 
@@ -135,8 +177,6 @@ export function VerCasoModal({
     };
     const nuevosComentarios = [...comentariosLocales, nuevoComentario];
     setComentariosLocales(nuevosComentarios);
-    // actualizarCaso detecta el comentario nuevo y registra la interacción
-    // en el historial (la fuente de datos sigue siendo caso.comentarios).
     onComentarios({ ...caso, comentarios: nuevosComentarios });
     soundSystem.playAction("save");
     if (showToast) showToast("Interacción registrada", "success");
@@ -158,6 +198,18 @@ export function VerCasoModal({
     }
   };
 
+  const handleBuscarProlegal = () => {
+    const nombre = (caso.nombre || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (!nombre) {
+      if (showToast) showToast("No se puede buscar: el caso no tiene un nombre válido", "warning");
+      return;
+    }
+    const url = `https://prolegal.com.ar/search?q=${encodeURIComponent(nombre)}`;
+    window.open(url, "prolegal-busqueda", "noopener,noreferrer");
+  };
+
   return (
     <div
       ref={dialogRef}
@@ -177,6 +229,35 @@ export function VerCasoModal({
           boxShadow: "0 8px 32px var(--color-shadow)",
         }}
       >
+        {/* BREADCRUMB DE NAVEGACIÓN CONTEXTUAL */}
+        {navigationStack.length > 0 && (
+          <div
+            className="flex items-center gap-1.5 px-5 py-2 text-[11px] font-medium"
+            style={{
+              borderBottom: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+            }}
+          >
+            <button
+              onClick={onBackNavigation}
+              className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+              style={{ color: "var(--color-accent)" }}
+            >
+              <ChevronLeft size={12} />
+              Volver
+            </button>
+            <span style={{ color: "var(--color-text-muted)" }}>/</span>
+            {navigationStack.map((item, i) => (
+              <span key={i} className="flex items-center gap-1">
+                {i > 0 && <span style={{ color: "var(--color-text-muted)" }}>/</span>}
+                <span style={{ color: "var(--color-text-muted)" }}>{item.label}</span>
+              </span>
+            ))}
+            <span style={{ color: "var(--color-text-muted)" }}>/</span>
+            <span style={{ color: "var(--color-text)" }}>{sanitizeString(caso.nombre) || "Caso"}</span>
+          </div>
+        )}
+
         <div
           className="flex items-center justify-between px-5 py-4"
           style={{
@@ -190,7 +271,10 @@ export function VerCasoModal({
               id="ver-caso-title"
               style={{ color: "var(--color-text)" }}
             >
-              Detalle del caso
+              {navigationStack.length > 0
+                ? sanitizeString(caso.nombre) || "Caso"
+                : `Perfil del Caso — ${sanitizeString(caso.nombre) || "Sin nombre"}`
+              }
             </div>
             <div className="mt-2 flex items-center gap-3">
               <PillMemo estado={caso.estado} />
@@ -325,7 +409,27 @@ export function VerCasoModal({
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Aseguradora</span>
-              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.aseguradora) || "—"}</div>
+              {hasInsurer && onNavigateInsurer ? (
+                <button
+                  onClick={() => onNavigateInsurer(caso.aseguradora)}
+                  className="flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity text-left"
+                  style={{ color: "var(--color-accent)" }}
+                  title={`Ver casos de ${caso.aseguradora}${casosByInsurer.length > 0 ? ` (${casosByInsurer.length} más)` : ""}`}
+                >
+                  <Building2 size={12} className="flex-shrink-0" />
+                  <span className="truncate">{sanitizeString(caso.aseguradora)}</span>
+                  {casosByInsurer.length > 0 && (
+                    <span
+                      className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+                    >
+                      +{casosByInsurer.length}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.aseguradora) || "—"}</div>
+              )}
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Profesión</span>
@@ -353,7 +457,27 @@ export function VerCasoModal({
             </div>
             <div className="col-span-2">
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Estudio Jurídico</span>
-              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.estudioJuridico) || "—"}</div>
+              {hasLawFirm && onNavigateLawFirm ? (
+                <button
+                  onClick={() => onNavigateLawFirm(caso.estudioJuridico)}
+                  className="flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity text-left"
+                  style={{ color: "var(--color-accent)" }}
+                  title={`Ver casos de ${caso.estudioJuridico}${casosByLawFirm.length > 0 ? ` (${casosByLawFirm.length} más)` : ""}`}
+                >
+                  <Scale size={12} className="flex-shrink-0" />
+                  <span className="truncate">{sanitizeString(caso.estudioJuridico)}</span>
+                  {casosByLawFirm.length > 0 && (
+                    <span
+                      className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+                    >
+                      +{casosByLawFirm.length}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.estudioJuridico) || "—"}</div>
+              )}
             </div>
             {caso.tags && caso.tags.length > 0 && (
               <div className="col-span-2">
@@ -372,6 +496,54 @@ export function VerCasoModal({
               <div className="text-sm" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.observaciones) || "—"}</div>
             </div>
           </div>
+
+          {/* HERRAMIENTAS RELACIONADAS */}
+          {toolsData.hasContent && (
+            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+                {mostrarHerramientas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                <ClipboardList size={14} /> Herramientas relacionadas
+              </button>
+              {mostrarHerramientas && (
+                <div className="mt-2 space-y-2">
+                  {toolsData.condicionales.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Condicionales ({toolsData.condicionales.length})</div>
+                      {toolsData.condicionales.slice(0, 3).map((c) => (
+                        <div key={c.id} className="flex items-center gap-2 px-2 py-1 rounded text-xs mb-1" style={{ backgroundColor: "var(--color-surface)" }}>
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.condicion === 'no-toma' ? 'var(--color-danger)' : 'var(--color-warning)' }} />
+                          <span className="font-medium" style={{ color: "var(--color-text)" }}>{c.condicion === 'no-toma' ? 'No toma' : 'Condicional'}</span>
+                          <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                          <span className="truncate" style={{ color: "var(--color-text)" }}>{c.aseguradora}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {toolsData.speechs.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Speechs ({toolsData.speechs.length})</div>
+                      {toolsData.speechs.slice(0, 2).map((s, i) => (
+                        <div key={i} className="text-xs px-2 py-1 rounded truncate" style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}>
+                          {typeof s === 'string' ? s.slice(0, 80) : (s.contenido || s.texto || '').slice(0, 80)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {toolsData.objeciones.length > 0 && (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Objeciones ({toolsData.objeciones.length})</div>
+                      {toolsData.objeciones.slice(0, 2).map((o, i) => (
+                        <div key={i} className="text-xs px-2 py-1 rounded truncate" style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}>
+                          {o.titulo && <span className="font-medium">{o.titulo}: </span>}
+                          {(o.contenido || o.texto || '').slice(0, 80)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* NOTAS VINCULADAS */}
           {notasFiltradas.length > 0 && (
@@ -409,7 +581,12 @@ export function VerCasoModal({
               {mostrarEventos && (
                 <div className="mt-2 space-y-1">
                   {eventosFiltrados.map((e) => (
-                    <div key={e.id} className="flex items-center gap-2 px-2 py-1.5 rounded text-xs" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+                    <div
+                      key={e.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
+                      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+                      onClick={() => onNavigateToEvent && onNavigateToEvent(e.id)}
+                    >
                       <Calendar size={10} style={{ color: "var(--color-text-muted)" }} />
                       <span className="font-medium" style={{ color: "var(--color-text)" }}>{e.title || "Sin título"}</span>
                       <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(e.startDate)}</span>
@@ -486,7 +663,7 @@ export function VerCasoModal({
           <div className="flex flex-wrap gap-1.5">
             <Btn onClick={() => { onEdit(caso); onClose(); }} icon={Edit3} size="sm">Editar</Btn>
             {onReporteRapido && (
-              <Btn onClick={() => { onReporteRapido(caso); onClose(); }} icon={ClipboardList} size="sm" color="var(--color-accent)">Reporte</Btn>
+              <Btn onClick={() => { onReporteRapido(caso); onClose(); }} icon={ClipboardList} size="sm">Reporte</Btn>
             )}
             {onNuevaNota && (
               <BtnOutline onClick={() => onNuevaNota(caso)} icon={FileText} size="sm">Notas</BtnOutline>
@@ -496,8 +673,17 @@ export function VerCasoModal({
             )}
           </div>
           <div className="flex gap-1.5">
+            <Btn
+              onClick={handleBuscarProlegal}
+              icon={ExternalLink}
+              size="sm"
+              variant="solid"
+              color="#2563EB"
+              textColor="#ffffff"
+              aria-label="Buscar en Prolegal"
+              title="Buscar en Prolegal"
+            >Prolegal</Btn>
             <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
-            <BtnOutline onClick={onClose} color="var(--color-text-muted)" size="sm">Cerrar</BtnOutline>
           </div>
         </div>
       </div>

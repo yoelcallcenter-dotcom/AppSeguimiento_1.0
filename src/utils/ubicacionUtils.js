@@ -78,11 +78,14 @@ export function normalizarUbicacion(localidad) {
  * se asigna automáticamente la provincia.
  */
 export function normalizarCasos(casos) {
-  return casos.map((c) => {
+  let changed = false;
+  const result = casos.map((c) => {
     const loc = normalizarUbicacion(c.localidad);
     const existingProv = (c.provincia || '').trim();
     const provincia = existingProv ? existingProv.toUpperCase() : loc.provincia;
     if (!provincia && loc.localidad === (c.localidad || '').toUpperCase().trim()) return c;
+    changed = true;
     return { ...c, localidad: loc.localidad, provincia };
   });
+  return changed ? result : casos;
 }

@@ -86,7 +86,12 @@ const useAppStore = create(
     }
   },
 
-  setCases: (cases) => set({ cases: normalizarCasos(cases) }),
+  setCases: (cases) => {
+    const normalized = normalizarCasos(cases);
+    const prev = get().cases;
+    if (prev.length === normalized.length && prev.every((c, i) => c === normalized[i])) return;
+    set({ cases: normalized });
+  },
 
   addCase: async (caso) => {
     try {

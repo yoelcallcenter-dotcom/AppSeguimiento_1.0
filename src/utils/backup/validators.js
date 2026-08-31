@@ -81,6 +81,13 @@ export function normalizeCase(caso) {
     );
   }
 
+  // Normalizar caseHistory
+  if (Array.isArray(normalized.caseHistory)) {
+    normalized.caseHistory = normalized.caseHistory.filter(
+      (h) => h && typeof h === "object" && h.timestamp
+    );
+  }
+
   // Normalizar reporteHistory
   if (Array.isArray(normalized.reporteHistory)) {
     normalized.reporteHistory = normalized.reporteHistory

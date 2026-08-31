@@ -8,7 +8,24 @@ const TYPE_FILTER_MAP = {
   error: 'notifError',
 };
 
+const PRIORITY_LEVEL_MAP = {
+  low: 'baja',
+  medium: 'media',
+  high: 'grave',
+  critical: 'grave',
+};
+
+const MIN_TOAST_PRIORITY = {
+  none: -1,
+  media: 1,
+  grave: 2,
+};
+
 export const ruleEngine = {
+  mapPriorityToLevel(priority) {
+    return PRIORITY_LEVEL_MAP[priority] || 'baja';
+  },
+
   shouldNotify(event, config = {}) {
     if (config.modoNoMolestar) return false;
 
@@ -26,9 +43,29 @@ export const ruleEngine = {
 
     if (filterKey && config[filterKey] === false) return false;
 
-    if (event.priority === 'low' && config.ignorarLowPriority) return false;
+    const level = this.mapPriorityToLevel(event.priority);
+    const minLevel = config.notifMinToastPriority || 'none';
+
+    if (config.ignorarLowPriority && level === 'baja') return false;
 
     return true;
+  },
+
+  shouldShowToast(event, config = {}) {
+    if (config.notifInApp === false) return false;
+    const level = this.mapPriorityToLevel(event.priority);
+    const minLevel = config.notifMinToastPriority || 'none';
+    if (minLevel === 'none') return true;
+    const levelRank = { baja: 0, media: 1, grave: 2 };
+    return (levelRank[level] || 0) >= (levelRank[minLevel] || 0);
+  },
+
+  shouldPlaySound(event, config = {}) {
+    if (config.notifSonido !== true) return false;
+    const level = this.mapPriorityToLevel(event.priority);
+    if (level === 'grave') return config.notifGraveSound !== false;
+    if (level === 'media') return config.notifMediaSound === true;
+    return config.notifBajaSound === true;
   },
 
   isDuplicate(event, recentNotifications) {
