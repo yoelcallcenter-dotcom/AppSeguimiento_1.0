@@ -11,6 +11,9 @@ import {
   ClipboardList,
   MessageSquare,
   History,
+  CalendarClock,
+  CalendarX,
+  RefreshCw,
 } from "lucide-react";
 import {
   HISTORY_TYPES,
@@ -30,6 +33,16 @@ const FILTROS = [
     types: [HISTORY_TYPES.FIRMA_REGISTERED],
   },
   { key: "notas", label: "Notas", types: [HISTORY_TYPES.NOTE_ADDED] },
+  {
+    key: "citas",
+    label: "Citas",
+    types: [
+      HISTORY_TYPES.CITA_CREATED,
+      HISTORY_TYPES.CITA_UPDATED,
+      HISTORY_TYPES.CITA_DELETED,
+      HISTORY_TYPES.RESCHEDULE_CREATED,
+    ],
+  },
   {
     key: "interacciones",
     label: "Interacciones",
@@ -70,6 +83,14 @@ function iconoPorTipo(type) {
       return ClipboardList;
     case HISTORY_TYPES.MANUAL_INTERACTION:
       return MessageSquare;
+    case HISTORY_TYPES.CITA_CREATED:
+      return CalendarClock;
+    case HISTORY_TYPES.CITA_UPDATED:
+      return Edit3;
+    case HISTORY_TYPES.CITA_DELETED:
+      return CalendarX;
+    case HISTORY_TYPES.RESCHEDULE_CREATED:
+      return RefreshCw;
     default:
       return History;
   }
@@ -88,6 +109,12 @@ function colorPorTipo(event, config) {
     case HISTORY_TYPES.NOTE_ADDED:
     case HISTORY_TYPES.EVENT_LINKED:
       return "var(--color-accent)";
+    case HISTORY_TYPES.CITA_CREATED:
+    case HISTORY_TYPES.CITA_UPDATED:
+    case HISTORY_TYPES.RESCHEDULE_CREATED:
+      return "var(--color-accent)";
+    case HISTORY_TYPES.CITA_DELETED:
+      return "var(--color-danger)";
     default:
       return "var(--color-text-muted)";
   }

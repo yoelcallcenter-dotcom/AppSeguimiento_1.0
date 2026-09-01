@@ -29,6 +29,13 @@ const TYPE_COLORS = {
   critical: "var(--color-danger)",
 };
 
+const PRIORITY_BORDER_COLORS = {
+  low: "var(--color-text-muted)",
+  medium: "var(--color-warning)",
+  high: "var(--color-danger)",
+  critical: "var(--color-danger)",
+};
+
 const FILTER_OPTIONS = [
   { value: "all", label: "Todas" },
   { value: "unread", label: "No leídas" },
@@ -97,7 +104,7 @@ export function NotificationCenter() {
         }}
       >
         <div
-          className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+          className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
           style={{ borderColor: "var(--color-border)" }}
         >
           <div className="flex items-center gap-2">
@@ -140,7 +147,7 @@ export function NotificationCenter() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-5 py-2.5 border-b flex-shrink-0 overflow-x-auto"
+        <div className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0 overflow-x-auto"
           style={{ borderColor: "var(--color-border)" }}
         >
           <Filter size={12} color="var(--color-text-muted)" className="flex-shrink-0" />
@@ -173,17 +180,19 @@ export function NotificationCenter() {
             filtered.map((n) => {
               const Icon = TYPE_ICONS[n.type] || Info;
               const color = TYPE_COLORS[n.type] || "var(--color-text-muted)";
+              const borderColor = PRIORITY_BORDER_COLORS[n.priority] || "var(--color-text-muted)";
               return (
                 <div
                   key={n.id}
-                  className="flex items-start gap-3 px-5 py-3 border-b transition-colors hover:bg-white/5"
+                  className="flex items-start gap-2.5 px-4 py-2 border-b transition-colors hover:bg-white/5"
                   style={{
                     borderColor: "var(--color-border)",
+                    borderLeft: `3px solid ${borderColor}`,
                     opacity: n.read ? 0.6 : 1,
                   }}
                 >
                   <div className="mt-0.5 flex-shrink-0">
-                    <Icon size={16} color={color} />
+                    <Icon size={14} color={color} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -200,36 +209,36 @@ export function NotificationCenter() {
                         {n.title}
                       </span>
                       <span
-                        className="text-[10px] flex-shrink-0 ml-auto"
+                        className="text-[10px] flex-shrink-0"
                         style={{ color: "var(--color-text-muted)" }}
                       >
                         {formatTimestamp(n.timestamp)}
                       </span>
+                      <div className="flex gap-1.5 ml-auto flex-shrink-0">
+                        {!n.read && (
+                          <button
+                            onClick={() => markAsRead(n.id)}
+                            className="text-[10px] font-medium transition-colors hover:opacity-70"
+                            style={{ color: "var(--color-accent)" }}
+                          >
+                            Leído
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeNotification(n.id)}
+                          className="text-[10px] font-medium transition-colors hover:opacity-70"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
                     <p
-                      className="text-[11px] mt-0.5 line-clamp-2"
+                      className="text-[11px] mt-0 line-clamp-2"
                       style={{ color: "var(--color-text-muted)" }}
                     >
                       {n.message}
                     </p>
-                    <div className="flex gap-2 mt-1.5">
-                      {!n.read && (
-                        <button
-                          onClick={() => markAsRead(n.id)}
-                          className="text-[10px] font-medium transition-colors hover:opacity-70"
-                          style={{ color: "var(--color-accent)" }}
-                        >
-                          Marcar leído
-                        </button>
-                      )}
-                      <button
-                        onClick={() => removeNotification(n.id)}
-                        className="text-[10px] font-medium transition-colors hover:opacity-70"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
                   </div>
                 </div>
               );
@@ -238,7 +247,7 @@ export function NotificationCenter() {
         </div>
 
         <div
-          className="px-5 py-2.5 text-[10px] border-t flex-shrink-0 text-center"
+          className="px-4 py-2 text-[10px] border-t flex-shrink-0 text-center"
           style={{
             color: "var(--color-text-muted)",
             borderColor: "var(--color-border)",

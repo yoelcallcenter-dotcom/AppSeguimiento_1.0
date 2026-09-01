@@ -215,4 +215,34 @@ export const GLOSSARY_TERMS = [
     example: "Ej: Ocultar la tarjeta de 'No viables' si no la usas",
     related: ["Dashboard", "Configuracion"],
   },
+  {
+    term: "Reprogramacion",
+    definition: "Evento que se crea cuando un reporte cambia el estado del caso a 'Reprogramado'. Registra la nueva fecha y horario de la cita, conservando la original como cancelada.",
+    example: "Ej: Caso reprogramado del 15/09 al 20/09 con nuevo horario",
+    related: ["Cita", "Reporte", "Caso"],
+  },
+  {
+    term: "Cita automatica",
+    definition: "Evento de calendario que se crea o actualiza automaticamente cuando el campo CITA de un caso contiene una fecha y horario en formato DD/MM - (HH:MM a HH:MM).",
+    example: "Ej: 15/09 - (14:00 a 15:30) genera un evento vinculado al caso",
+    related: ["Calendario", "Caso", "Evento"],
+  },
+  {
+    term: "Evento vinculado",
+    definition: "Evento de calendario que esta asociado a un caso a traves del campo relatedCaseIds. Puede ser una cita automatica, un evento manual o una reprogramacion.",
+    example: "Ej: Evento 'Cita: Juan Perez' vinculado al caso de Juan Perez",
+    related: ["Calendario", "Caso", "Cita"],
+  },
+  {
+    term: "Nota vinculada",
+    definition: "Nota del bloc de notas que esta asociada a un caso a traves del campo relatedCaseIds. Permite mantener el contexto del caso al editar la nota.",
+    example: "Ej: Nota 'Llamar para confirmar' vinculada al caso de Juan Perez",
+    related: ["Nota", "Caso", "Bloc de Notas"],
+  },
+  {
+    term: "Mi Jornada",
+    definition: "Seccion de Mi Espacio que muestra el estado de la jornada laboral, tiempo transcurrido, tiempo restante, proximos compromisos y objetivos diarios.",
+    example: "Ej: Jornada activa desde las 9:00, 3 horas restantes, 2 casos pendientes",
+    related: ["Mi Espacio", "Objetivos", "Disponibilidad"],
+  },
 ];

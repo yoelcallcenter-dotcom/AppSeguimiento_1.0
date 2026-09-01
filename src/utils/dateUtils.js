@@ -8,8 +8,7 @@ export function hoyDDMM() {
 }
 
 export function hoyISO() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return toLocalDateStr(new Date());
 }
 
 export function mesLabel(yyyyMM) {
@@ -51,4 +50,16 @@ export function formatearFecha(fecha, formato = "DD/MM/YYYY") {
     default:
       return `${dia}/${mes}/${año}`;
   }
+}
+
+/**
+ * Convierte un Date a string YYYY-MM-DD usando hora LOCAL, no UTC.
+ * Esto corrige el bug donde toISOString() en Argentina (UTC-3) devolvía
+ * el día siguiente para horas entre medianoche y las 3 AM.
+ */
+export function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }

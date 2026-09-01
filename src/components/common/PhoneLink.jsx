@@ -1,6 +1,7 @@
 import React from "react";
 import { Phone, MessageCircle } from "lucide-react";
 import { formatPhoneWithConfig } from "../../utils/configFormatters";
+import { soundSystem } from "../../core/notifications/soundSystem";
 
 function cleanDigits(phone) {
   return (phone || "").replace(/\D/g, "");
@@ -12,15 +13,6 @@ function isMobileAR(cleaned) {
   if (cleaned.length === 12 && cleaned.startsWith("54")) return cleaned.slice(5, 7) === "15";
   if (cleaned.length === 13 && cleaned.startsWith("549")) return cleaned.slice(6, 8) === "15";
   return false;
-}
-
-function toDigitsAR(phone) {
-  const c = cleanDigits(phone);
-  if (c.length === 13 && c.startsWith("549")) return c;
-  if (c.length === 12 && c.startsWith("54")) return "9" + c.slice(2);
-  if (c.length === 11 && c.startsWith("0")) return "549" + c.slice(1);
-  if (c.length === 10) return "549" + c;
-  return "549" + c;
 }
 
 export function PhoneLink({ telefono, config, size = "sm", showIcon = true, className = "" }) {
@@ -36,12 +28,18 @@ export function PhoneLink({ telefono, config, size = "sm", showIcon = true, clas
   }
 
   const mobile = isMobileAR(cleaned);
-  const digitsAR = toDigitsAR(telefono);
-  const href = mobile ? `https://wa.me/${digitsAR}` : `tel:+${digitsAR}`;
+  const href = mobile ? `https://wa.me/${cleaned}` : `tel:${cleaned}`;
   const display = formatPhoneWithConfig(telefono, config) || telefono;
   const Icon = mobile ? MessageCircle : Phone;
   const iconSize = size === "sm" ? 10 : 12;
   const textSize = size === "sm" ? "text-[11px]" : "text-xs";
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(telefono).then(() => {
+      soundSystem.playAction("copy");
+    }).catch(() => {});
+  };
 
   return (
     <a

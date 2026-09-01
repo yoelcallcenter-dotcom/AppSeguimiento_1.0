@@ -32,6 +32,11 @@ export const HISTORY_TYPES = {
   EVENT_LINKED: 'event_linked',
   REPORT_ADDED: 'report_added',
   MANUAL_INTERACTION: 'manual_interaction',
+  // Sistema de Citas (1.5.0)
+  CITA_CREATED: 'cita_created',
+  CITA_UPDATED: 'cita_updated',
+  CITA_DELETED: 'cita_deleted',
+  RESCHEDULE_CREATED: 'reschedule_created',
 };
 
 /** Tipos de interacción manual disponibles para registro rápido. */

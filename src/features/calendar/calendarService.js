@@ -1,13 +1,14 @@
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from './calendarStore';
 import { reportError } from '../../core/error/reportError';
 import { notificationService } from '../../utils/notifications';
+import { toLocalDateStr } from '../../utils/dateUtils';
 
 export function useCalendarService() {
   async function checkUpcomingEvents() {
     try {
       const events = await getAllEvents();
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = toLocalDateStr(now);
       const currentHour = now.getHours();
       const currentMin = now.getHours() * 60 + now.getMinutes();
 

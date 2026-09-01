@@ -272,7 +272,16 @@ export async function importBackup(backup, options = {}) {
 
   /** Conserva únicamente filas restaurables (objetos); informa las descartadas. */
   const filasRestaurables = (nombreTabla, rows) => {
-    const utiles = rows.filter((r) => r && typeof r === "object" && !Array.isArray(r));
+    const utiles = rows
+      .filter((r) => r && typeof r === "object" && !Array.isArray(r))
+      .map((r) => {
+        // Eventos (1.5.0): los backups previos no traen eventType; se aplica el
+        // default seguro "manual" para no tratarlos como automáticos.
+        if (nombreTabla === "events" && !r.eventType) {
+          return { ...r, eventType: "manual" };
+        }
+        return r;
+      });
     const descartadas = rows.length - utiles.length;
     if (descartadas > 0) {
       warnings.push(

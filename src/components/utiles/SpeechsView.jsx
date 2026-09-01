@@ -504,10 +504,11 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
         title="Speech Completo"
         icon={FileText}
         fullscreen={false}
+        closeOnOverlayClick={false}
       >
         {speechSeleccionado && (
           <>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <span
                 className="text-xs font-bold px-2 py-0.5 rounded-full"
                 style={{
@@ -521,7 +522,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
               </span>
             </div>
 
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <Type size={14} style={{ color: "var(--color-text-muted)" }} />
               <span
                 className="text-xs"
@@ -573,7 +574,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
               />
             ) : (
               <div
-                className={`flex-1 overflow-y-auto p-4 rounded-lg whitespace-pre-wrap ${
+                className={`flex-1 min-h-0 p-4 rounded-lg whitespace-pre-wrap ${
                   tamaños.find((t) => t.value === tamanoLetra)?.class
                 }`}
                 style={{
@@ -581,7 +582,6 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                   border: "1px solid var(--color-border)",
                   color: "var(--color-text)",
                   lineHeight: "1.8",
-                  maxHeight: "50vh",
                 }}
               >
                 {speechSeleccionado.speech}
@@ -589,7 +589,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
             )}
 
             <div
-              className="flex items-center justify-end gap-2 mt-4 pt-3"
+              className="flex items-center justify-end gap-2 mt-3 pt-2"
               style={{ borderTop: "1px solid var(--color-border)" }}
             >
               {modalBorrador !== null ? (

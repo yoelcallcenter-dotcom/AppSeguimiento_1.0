@@ -47,7 +47,7 @@ import { useStorage } from "./hooks/useStorage";
 import { useCases } from "./hooks/useCases";
 import { useDebounce } from "./hooks/useDebounce";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useRecentEntities } from "./hooks/useRecentEntities";
+
 import { recordGoalAction, pushLastCase } from "./features/productivity/productivityStore";
 
 // Utils
@@ -69,7 +69,6 @@ import { PersistentAlertContainer } from "./components/notifications/PersistentA
 import { UndoBanner } from "./components/common/UndoBanner";
 import { CsvExportModal } from "./features/export/CsvExportModal";
 import useCelebrationStore from "./core/celebrations/celebrationStore";
-import useNotificationStore from "./core/notifications/notificationStore";
 
 // PWA
 import { initPWA, applyPWAUpdate } from "./pwa/pwa";
@@ -131,6 +130,11 @@ import {
   deleteCaseHistory,
 } from "./core/cases/caseHistory";
 import { runIntegrityCheck } from "./core/integrity/integrityService";
+import {
+  syncCitaEvent,
+  createRescheduleEvent,
+} from "./core/cases/citaAutoEvents";
+import { formatCita } from "./utils/citaParser";
 
 // Components - Views (lazy)
 const KanbanView = lazy(() => import("./components/kanban/KanbanView").then((m) => ({ default: m.KanbanView })));
@@ -155,7 +159,6 @@ const ReporteRapidoModal = lazy(() => import("./components/modales/ReporteRapido
 
 // Components - Overlays (lazy)
 const HelpPanel = lazy(() => import("./components/ayuda/HelpPanel"));
-const EntityPanel = lazy(() => import("./components/entities/EntityPanel"));
 
 // Error monitoring
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -168,6 +171,27 @@ import { casoVacio, hoyISO, uid } from "./utils/helpers";
 import { validateCaso } from "./validators/casoValidator";
 import { exportarPDF } from "./utils/exportPDF";
 import { APP_VERSION } from "./core/version";
+
+/**
+ * Serializa la reprogramación elegida en ReporteRapido al formato CITA del caso:
+ * "DD/MM - (HH:MM a HH:MM)".
+ * @param {{fecha:string, horaIni:string, horaFin:string}} repro
+ * @returns {string}
+ */
+function citaDesdeReprogramacion(repro) {
+  if (!repro || !repro.fecha) return "";
+  const match = String(repro.fecha).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let day = "";
+  let month = "";
+  if (match) {
+    [, , month, day] = match;
+  } else {
+    const alt = String(repro.fecha).split("/");
+    day = alt[0] || "";
+    month = alt[1] || "";
+  }
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")} - (${repro.horaIni} a ${repro.horaFin})`;
+}
 
 // ============================================================
 // CHROME (usa i18n para el título y las pestañas)
@@ -311,10 +335,6 @@ function AppContent() {
   const [undoState, setUndoState] = useState(null);
   // Navegación contextual: pila de contextos para breadcrumb/back.
   const [navigationStack, setNavigationStack] = useState([]);
-  // Entity Panel: panel desplegable para aseguradoras/estudios
-  const [entityPanel, setEntityPanel] = useState(null);
-  const { addRecent: registrarVista } = useRecentEntities();
-
   // Lista memoizada de aseguradoras únicas de los casos
   const aseguradorasFromCases = useMemo(
     () => [...new Set(casos.map((c) => c.aseguradora).filter(Boolean))],
@@ -329,14 +349,18 @@ function AppContent() {
 
   const handleGlobalSearchSelectNote = useCallback(() => setShowBlocNotas(true), []);
   const handleGlobalSearchSelectEvent = useCallback(() => setShowCalendar(true), []);
-  const handleGlobalSearchSelectEntity = useCallback((type, name) => setEntityPanel({ type, name }), []);
 
   const pushUndo = useCallback((label) => {
     setUndoState({ prevCasos: casos, label, ts: Date.now() });
   }, [casos]);
 
   const showToast = useCallback((message, type = "success") => {
-    useNotificationStore.getState().addToast({ message, type });
+    notificationManager.notify({
+      type,
+      title: "",
+      message,
+      source: "app",
+    });
   }, []);
 
   const deshacer = useCallback(() => {
@@ -667,7 +691,7 @@ function AppContent() {
 
   // ============ CRUD ============
   const guardarCaso = useCallback(
-    (caso) => {
+    async (caso) => {
       const validation = validateCaso(caso);
       if (!validation.valid) {
         showToast(`Errores: ${validation.errors.join(", ")}`, "error");
@@ -698,6 +722,13 @@ function AppContent() {
       });
       if (huboActividad) {
         recordCaseChanges(casoFinal.id, isNew ? null : prev, casoFinal);
+      }
+      // Citas (1.5.0): sincronizar el evento de calendario con el campo CITA,
+      // solo en guardados intencionales desde el modal (no en init/restore).
+      try {
+        await syncCitaEvent(casoFinal, { config });
+      } catch (err) {
+        console.warn("[guardarCaso] Error sincronizando cita:", err);
       }
       setModalCaso(null);
       soundSystem.playAction(isNew ? "create" : "save");
@@ -766,7 +797,15 @@ function AppContent() {
   );
 
   const guardarReporteRapido = useCallback(
-    (caso) => {
+    async (casoEntrante) => {
+      const repro = casoEntrante.reprogramacion || null;
+      // Preparar el caso final (sin el campo transitorio de reprogramación).
+      const base = { ...casoEntrante };
+      delete base.reprogramacion;
+      if (repro) {
+        base.cita = citaDesdeReprogramacion(repro);
+      }
+      const caso = base;
       const prev = casos.find((c) => c.id === caso.id) || null;
       let casoFinal = caso;
       if (prev) {
@@ -782,6 +821,22 @@ function AppContent() {
       setCasos((list) => list.map((c) => (c.id === casoFinal.id ? casoFinal : c)));
       setModalReporte(false);
       soundSystem.playAction("save");
+
+      // Reprogramación (1.5.0): crear evento de reprogramación vinculado.
+      if (repro && casoFinal.id) {
+        try {
+          const evento = await createRescheduleEvent(casoFinal, {
+            date: repro.fecha,
+            startTime: repro.horaIni,
+            endTime: repro.horaFin,
+          }, { config });
+          showToast("Nueva cita de reprogramación creada", "success");
+        } catch (reproErr) {
+          console.warn("[ReporteRapido] No se pudo crear la reprogramación:", reproErr);
+          showToast("El caso se guardó pero no se pudo crear la reprogramación", "warning");
+        }
+      }
+
       if (prev && prev.estado !== casoFinal.estado) {
         if (casoFinal.estado === "Firmo" || casoFinal.estado === "Pendiente") {
           celebrarEstado(casoFinal, casoFinal.estado);
@@ -841,12 +896,11 @@ function AppContent() {
   // ============ NAVEGACIÓN CONTEXTUAL ============
   const navigateContextual = useCallback((type, label, data) => {
     if (type === 'insurer' || type === 'lawFirm') {
-      setEntityPanel({ type, name: data?.name || label });
-      registrarVista(type, data?.name || label);
-    } else {
-      setNavigationStack((prev) => [...prev, { type, label, data, ts: Date.now() }]);
+      // Entidades conectadas eliminadas (1.5.1)
+      return;
     }
-  }, [registrarVista]);
+    setNavigationStack((prev) => [...prev, { type, label, data, ts: Date.now() }]);
+  }, []);
 
   const goBackNavigation = useCallback(() => {
     setNavigationStack((prev) => prev.slice(0, -1));
@@ -1384,6 +1438,7 @@ function AppContent() {
             showToast={showToast}
             onClose={() => setShowCalendar(false)}
             casos={casos}
+            config={config}
             onVerCaso={(c) => { setShowCalendar(false); setVerCaso(c); }}
           />
         </OverlayPanel>
@@ -1534,7 +1589,6 @@ function AppContent() {
         onSelectCase={handleGlobalSearchSelectCase}
         onSelectNote={handleGlobalSearchSelectNote}
         onSelectEvent={handleGlobalSearchSelectEvent}
-        onSelectEntity={handleGlobalSearchSelectEntity}
         condicionales={condicionales}
         aseguradoras={aseguradorasFromCases}
         mapeo={mapeo}
@@ -1560,32 +1614,6 @@ function AppContent() {
         />
       )}
 
-      {/* Entity Panel (aseguradora / estudio jurídico) */}
-      {entityPanel && (
-        <EntityPanel
-          isOpen={true}
-          type={entityPanel.type}
-          name={entityPanel.name}
-          cases={casos}
-          condicionales={condicionales}
-          mapeo={mapeo}
-          aseguradoras={aseguradorasFromCases}
-          speechs={speechs}
-          objeciones={objeciones}
-          config={config}
-          onClose={() => setEntityPanel(null)}
-          onCrearCaso={(data) => {
-            setEntityPanel(null);
-            setModalCaso({ ...casoVacio(), ...data });
-          }}
-          onNavigateToUtiles={() => {
-            setEntityPanel(null);
-            setSelectedView("utiles");
-          }}
-          onVerCaso={handleVerCaso}
-          showToast={showToast}
-        />
-      )}
     </div>
     </Suspense>
     </UXProvider>

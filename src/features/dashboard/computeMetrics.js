@@ -284,6 +284,19 @@ export function computeMetrics(cases, filters = {}, config = {}) {
   const tasaConversion = total > 0 ? Math.round((firmas.length / total) * 100) : 0;
   const tasaCierre = total > 0 ? Math.round((cerrados.length / total) * 100) : 0;
 
+  // Reprogramaciones (1.5.1): contar reportes con estado "Reprogramado".
+  let reprogramaciones = 0;
+  const casosReprogramados = new Set();
+  for (const c of base) {
+    if (!Array.isArray(c.reporteHistory)) continue;
+    for (const r of c.reporteHistory) {
+      if (r && r.estado === "Reprogramado") {
+        reprogramaciones++;
+        casosReprogramados.add(c.id);
+      }
+    }
+  }
+
   const byStatus = Object.entries(
     base.reduce((acc, c) => {
       const k = c.estado || 'Sin estado';
@@ -368,5 +381,9 @@ export function computeMetrics(cases, filters = {}, config = {}) {
     staleCases: stale,
     unassignedCases: unassigned,
     sinReporteCasos: sinReporte,
+
+    // Reprogramaciones (1.5.1)
+    reprogramaciones,
+    casosReprogramados: casosReprogramados.size,
   };
 }

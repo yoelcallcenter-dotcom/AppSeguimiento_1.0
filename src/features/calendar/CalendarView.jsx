@@ -18,12 +18,63 @@ import { reportError } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
 import { getOperatorAvailability, getOperatorSettings } from '../operator/operatorStore';
 import { getAvailabilityOn } from '../operator/operatorMetrics';
+import { getEstadoAccent } from '../../utils/catalogos';
+import { toLocalDateStr } from '../../utils/dateUtils';
+import { EVENT_TYPES } from './calendarStore';
 
 const PRIORITY_COLORS = {
   low: '#10B981',
   medium: '#F59E0B',
   high: '#EF4444',
 };
+
+// Etiquetas de tipo de evento (Sistema de Citas, 1.5.0)
+const EVENT_TYPE_LABELS = {
+  [EVENT_TYPES.CITA]: { label: 'Cita', key: 'cita' },
+  [EVENT_TYPES.REPROGRAMACION]: { label: 'Reprog.', key: 'reprog' },
+  [EVENT_TYPES.MANUAL]: null,
+};
+
+// Resuelve el color de un evento: prioridad como color principal, estado del caso como indicador secundario.
+function resolveEventColor(evt, casos, config) {
+  const priorityColor = PRIORITY_COLORS[evt.priority] || PRIORITY_COLORS.medium;
+  if (evt.caseContext && evt.caseContext.estado) {
+    return priorityColor;
+  }
+  const linkedCaseId = Array.isArray(evt.relatedCaseIds) ? evt.relatedCaseIds[0] : null;
+  if (linkedCaseId) {
+    const c = (casos || []).find((x) => x.id === linkedCaseId);
+    if (c && c.estado) return priorityColor;
+  }
+  return priorityColor;
+}
+
+// Resuelve el color del estado del caso vinculado (indicador secundario).
+function resolveCaseStateColor(evt, casos, config) {
+  if (evt.caseContext && evt.caseContext.estado) {
+    return getEstadoAccent(config, evt.caseContext.estado);
+  }
+  const linkedCaseId = Array.isArray(evt.relatedCaseIds) ? evt.relatedCaseIds[0] : null;
+  if (linkedCaseId) {
+    const c = (casos || []).find((x) => x.id === linkedCaseId);
+    if (c && c.estado) return getEstadoAccent(config, c.estado);
+  }
+  return null;
+}
+
+// Muestra la etiqueta de tipo de evento en texto corto (para pills).
+function eventTypeBadge(evt) {
+  const info = EVENT_TYPE_LABELS[evt.eventType];
+  if (!info) return null;
+  return (
+    <span
+      className="inline-block text-[9px] font-bold uppercase tracking-wide mr-1 align-middle"
+      style={{ opacity: 0.9 }}
+    >
+      [{info.label}]
+    </span>
+  );
+}
 
 const AVAILABILITY_COLORS = {
   vacation: 'var(--color-accent)',
@@ -66,7 +117,7 @@ function isSameDay(a, b) {
   return a.slice(0, 10) === b.slice(0, 10);
 }
 
-export default function CalendarView({ showToast, onClose, casos = [], onVerCaso }) {
+export default function CalendarView({ showToast, onClose, casos = [], config, onVerCaso }) {
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
@@ -217,7 +268,7 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toLocalDateStr(new Date());
 
     const cells = [];
     for (let i = 0; i < firstDay; i++) {
@@ -284,22 +335,29 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
             </div>
           )}
           <div className="space-y-0.5 mt-0.5">
-            {dayEvents.slice(0, 3).map(evt => (
-              <div
-                key={evt.id}
-                draggable
-                onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
-                onClick={e => { e.stopPropagation(); handleEditEvent(evt); }}
-                className="text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80"
-                style={{
-                  backgroundColor: PRIORITY_COLORS[evt.priority] + '33',
-                  color: PRIORITY_COLORS[evt.priority],
-                  borderLeft: `2px solid ${PRIORITY_COLORS[evt.priority]}`,
-                }}
-              >
-                {formatTime(evt.startDate)} {evt.title}
-              </div>
-            ))}
+            {dayEvents.slice(0, 3).map(evt => {
+              const color = resolveEventColor(evt, casos, config);
+              const caseColor = resolveCaseStateColor(evt, casos, config);
+              const cancelled = evt.status === 'cancelled';
+              return (
+                <div
+                  key={evt.id}
+                  draggable
+                  onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
+                  onClick={e => { e.stopPropagation(); handleEditEvent(evt); }}
+                  className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
+                  style={{
+                    backgroundColor: color + '33',
+                    color,
+                    borderLeft: `2px solid ${color}`,
+                    opacity: cancelled ? 0.6 : 1,
+                  }}
+                >
+                  {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
+                  {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                </div>
+              );
+            })}
             {dayEvents.length > 3 && (
               <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
                 +{dayEvents.length - 3} mas
@@ -315,7 +373,7 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
   const renderWeekView = () => {
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toLocalDateStr(new Date());
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
@@ -326,7 +384,7 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
     return (
       <div className="grid grid-cols-7 gap-1 flex-1">
         {days.map((d, idx) => {
-          const dateStr = d.toISOString().slice(0, 10);
+          const dateStr = toLocalDateStr(d);
           const dayEvents = eventsByDate[dateStr] || [];
           const isToday = dateStr === todayStr;
           return (
@@ -356,22 +414,29 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
                 </div>
               </div>
               <div className="space-y-0.5 overflow-y-auto flex-1">
-                {dayEvents.map(evt => (
-                  <div
-                    key={evt.id}
-                    draggable
-                    onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
-                    onClick={() => handleEditEvent(evt)}
-                    className="text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80"
-                    style={{
-                      backgroundColor: PRIORITY_COLORS[evt.priority] + '33',
-                      color: PRIORITY_COLORS[evt.priority],
-                      borderLeft: `2px solid ${PRIORITY_COLORS[evt.priority]}`,
-                    }}
-                  >
-                    {formatTime(evt.startDate)} {evt.title}
-                  </div>
-                ))}
+                {dayEvents.map(evt => {
+                  const color = resolveEventColor(evt, casos, config);
+                  const caseColor = resolveCaseStateColor(evt, casos, config);
+                  const cancelled = evt.status === 'cancelled';
+                  return (
+                    <div
+                      key={evt.id}
+                      draggable
+                      onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
+                      onClick={() => handleEditEvent(evt)}
+                      className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
+                      style={{
+                        backgroundColor: color + '33',
+                        color,
+                        borderLeft: `2px solid ${color}`,
+                        opacity: cancelled ? 0.6 : 1,
+                      }}
+                    >
+                      {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
+                      {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -381,9 +446,9 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
   };
 
   const renderDayView = () => {
-    const dateStr = currentDate.toISOString().slice(0, 10);
+    const dateStr = toLocalDateStr(currentDate);
     const dayEvents = eventsByDate[dateStr] || [];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toLocalDateStr(new Date());
     const isToday = dateStr === todayStr;
 
     const hours = [];
@@ -416,25 +481,40 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
             {hourStr}
           </div>
           <div className="flex-1 relative min-h-[48px] p-0.5 space-y-0.5">
-            {hourEvents.map(evt => (
-              <div
-                key={evt.id}
-                draggable
-                onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
-                onClick={() => handleEditEvent(evt)}
-                className="text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80"
-                style={{
-                  backgroundColor: PRIORITY_COLORS[evt.priority] + '33',
-                  color: PRIORITY_COLORS[evt.priority],
-                  borderLeft: `3px solid ${PRIORITY_COLORS[evt.priority]}`,
-                }}
-              >
-                <div className="font-semibold">{evt.title}</div>
-                {evt.description && (
-                  <div className="text-[10px] opacity-70 truncate">{evt.description}</div>
-                )}
-              </div>
-            ))}
+            {hourEvents.map(evt => {
+              const color = resolveEventColor(evt, casos, config);
+              const caseColor = resolveCaseStateColor(evt, casos, config);
+              const cancelled = evt.status === 'cancelled';
+              return (
+                <div
+                  key={evt.id}
+                  draggable
+                  onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
+                  onClick={() => handleEditEvent(evt)}
+                  className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
+                  style={{
+                    backgroundColor: color + '33',
+                    color,
+                    borderLeft: `3px solid ${color}`,
+                    opacity: cancelled ? 0.6 : 1,
+                  }}
+                >
+                  <div className="font-semibold flex items-center gap-1">
+                    {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: caseColor }} />}
+                    {eventTypeBadge(evt)}
+                    <span className="truncate">{evt.title}</span>
+                  </div>
+                  {evt.caseContext && evt.caseContext.nombre && (
+                    <div className="text-[10px] opacity-80 truncate" style={{ color }}>
+                      {evt.caseContext.nombre}
+                    </div>
+                  )}
+                  {evt.description && (
+                    <div className="text-[10px] opacity-70 truncate">{evt.description}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -474,58 +554,78 @@ export default function CalendarView({ showToast, onClose, casos = [], onVerCaso
     }
 
     const sorted = [...events].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const rawEventsById = new Map(events.map((e) => [e.id, e]));
     return (
       <div className="space-y-1">
-        {sorted.map(evt => (
-          <div
-            key={evt.id}
-            className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-white/5 transition-colors"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderLeft: `3px solid ${PRIORITY_COLORS[evt.priority]}`,
-            }}
-            onClick={() => handleEditEvent(evt)}
-          >
-            <div className="text-xs text-center min-w-[40px]">
-              <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
-                {new Date(evt.startDate).getDate()}
-              </div>
-              <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-                {new Date(evt.startDate).toLocaleDateString('es-AR', { month: 'short' })}
-              </div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                {evt.title}
-              </div>
-              {evt.description && (
-                <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
-                  {evt.description}
+        {sorted.map(evt => {
+          const color = resolveEventColor(evt, casos, config);
+          const caseColor = resolveCaseStateColor(evt, casos, config);
+          const cancelled = evt.status === 'cancelled';
+          const original = evt.originalEventId ? rawEventsById.get(evt.originalEventId) : null;
+          return (
+            <div
+              key={evt.id}
+              className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${cancelled ? 'opacity-60' : ''}`}
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderLeft: `3px solid ${color}`,
+              }}
+              onClick={() => handleEditEvent(evt)}
+            >
+              <div className="text-xs text-center min-w-[40px]">
+                <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                  {new Date(evt.startDate).getDate()}
                 </div>
-              )}
-              {(evt.tags || []).length > 0 && (
-                <TagsPills tags={evt.tags} size="xs" showHash />
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className="text-[10px] px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: PRIORITY_COLORS[evt.priority] + '22',
-                  color: PRIORITY_COLORS[evt.priority],
-                }}
-              >
-                {evt.priority === 'low' ? 'Baja' : evt.priority === 'high' ? 'Alta' : 'Media'}
-              </span>
-              {formatTime(evt.startDate) && (
-                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  {formatTime(evt.startDate)}
+                <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+                  {new Date(evt.startDate).toLocaleDateString('es-AR', { month: 'short' })}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                  {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: caseColor }} />}
+                  {eventTypeBadge(evt)}
+                  <span className={`truncate ${cancelled ? 'line-through' : ''}`}>{evt.title}</span>
+                </div>
+                {evt.caseContext && (evt.caseContext.nombre || evt.caseContext.aseguradora || evt.caseContext.estudio) && (
+                  <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                    {[evt.caseContext.nombre, evt.caseContext.aseguradora, evt.caseContext.estudio]
+                      .filter(Boolean).join(' · ')}
+                  </div>
+                )}
+                {evt.description && (
+                  <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                    {evt.description}
+                  </div>
+                )}
+                {evt.eventType === EVENT_TYPES.REPROGRAMACION && original && (
+                  <div className="text-[10px] truncate" style={{ color }}>
+                    Reprograma: {original.title}
+                  </div>
+                )}
+                {(evt.tags || []).length > 0 && (
+                  <TagsPills tags={evt.tags} size="xs" showHash />
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: color + '22',
+                    color,
+                  }}
+                >
+                  {evt.priority === 'low' ? 'Baja' : evt.priority === 'high' ? 'Alta' : 'Media'}
                 </span>
-              )}
+                {formatTime(evt.startDate) && (
+                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {formatTime(evt.startDate)}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

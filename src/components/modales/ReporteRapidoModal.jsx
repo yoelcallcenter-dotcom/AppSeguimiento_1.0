@@ -10,6 +10,7 @@ import {
   FileText,
   Edit3,
   Trash2,
+  CalendarClock,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -26,6 +27,7 @@ import { hoyDDMM } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { getEstados } from "../../utils/catalogos";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import { parseCita, resolveCitaDate } from "../../utils/citaParser";
 
 export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoInicial, config }) {
   const dialogRef = useRef(null);
@@ -41,6 +43,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   const [editTexto, setEditTexto] = useState("");
   const [editOrigen, setEditOrigen] = useState("Operador");
   const originalLenRef = useRef(0);
+  // Reprogramación (1.5.0): nueva fecha y horario de la cita.
+  const [nuevaFecha, setNuevaFecha] = useState("");
+  const [nuevaHoraIni, setNuevaHoraIni] = useState("09:00");
+  const [nuevaHoraFin, setNuevaHoraFin] = useState("10:00");
 
   // Pre-select case if casoInicial is provided
   useEffect(() => {
@@ -71,7 +77,31 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     setQuery(c.nombre || "");
     originalLenRef.current = (c.reporteHistory || []).length;
     setEditIndex(null);
+    // Pre-cargar la nueva fecha/horario desde la cita actual del caso (1.5.0).
+    const propia = prefillsParaReprogramacion(c);
+    if (propia) {
+      setNuevaFecha(propia.fecha);
+      setNuevaHoraIni(propia.horaIni);
+      setNuevaHoraFin(propia.horaFin);
+    } else {
+      setNuevaFecha(new Date().toISOString().slice(0, 10));
+      setNuevaHoraIni("09:00");
+      setNuevaHoraFin("10:00");
+    }
   };
+
+  // Deriva un prefill determinista para reprogramar desde el campo CITA del caso.
+  function prefillsParaReprogramacion(c) {
+    try {
+      const parsed = parseCita(c && c.cita);
+      if (!parsed) return null;
+      const iso = resolveCitaDate(parsed, c.fecha);
+      if (!iso) return null;
+      return { fecha: iso, horaIni: parsed.startTime, horaFin: parsed.endTime };
+    } catch {
+      return null;
+    }
+  }
 
   const actualizarHistorial = (entradas) => {
     setSeleccionado((prev) => ({ ...prev, reporteHistory: entradas }));
@@ -134,6 +164,25 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       showToast("Falta el texto del reporte", "warning");
       return;
     }
+
+    // Reprogramación (1.5.0): se requiere fecha y horario de la nueva cita.
+    let reprogramacion = null;
+    if (estado === "Reprogramado") {
+      if (!nuevaFecha) {
+        showToast("Para estado Reprogramado indicá la nueva fecha de la cita", "warning");
+        return;
+      }
+      if (nuevaHoraFin <= nuevaHoraIni) {
+        showToast("La hora de fin debe ser posterior a la de inicio", "warning");
+        return;
+      }
+      reprogramacion = {
+        fecha: nuevaFecha,
+        horaIni: nuevaHoraIni,
+        horaFin: nuevaHoraFin,
+      };
+    }
+
     let entradas = seleccionado.reporteHistory || [];
     if (texto.trim()) {
       const parsed = parseReportText(texto.trim());
@@ -160,7 +209,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       }
     }
     const count = entradas.length - originalLenRef.current;
-    onGuardar({ ...seleccionado, estado, reporteHistory: entradas });
+    onGuardar({ ...seleccionado, estado, reporteHistory: entradas, reprogramacion });
     if (count > 0) {
       showToast(`${count} reporte${count > 1 ? 's' : ''} cargado${count > 1 ? 's' : ''} correctamente`, "success");
     } else if (count < 0) {
@@ -367,6 +416,34 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                   />
                 </Field>
               </div>
+
+              {estado === "Reprogramado" && (
+                <div
+                  className="mt-3 rounded-lg p-3 space-y-3"
+                  style={{
+                    backgroundColor: "var(--color-accent)11",
+                    border: "1px solid var(--color-accent)55",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--color-accent)" }}>
+                    <CalendarClock size={14} /> Nueva cita de reprogramación
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Field label="Nueva fecha">
+                      <TextInput type="date" value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
+                    </Field>
+                    <Field label="Hora inicio">
+                      <TextInput type="time" value={nuevaHoraIni} onChange={(e) => setNuevaHoraIni(e.target.value)} />
+                    </Field>
+                    <Field label="Hora fin">
+                      <TextInput type="time" value={nuevaHoraFin} onChange={(e) => setNuevaHoraFin(e.target.value)} />
+                    </Field>
+                  </div>
+                  <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                    Se creará automáticamente un evento de reprogramación vinculado al caso. La cita original se conserva.
+                  </div>
+                </div>
+              )}
 
               <Field label="Origen del reporte" className="mt-3">
                 <OrigenSelector value={origen} onChange={setOrigen} />

@@ -21,7 +21,7 @@ const savedPalette = (() => {
  * persistentes corruptas u obsoletas sin resetear las válidas.
  */
 export const ORDENES_DEFAULT = {
-  dashTabOrder: ['analitica', 'resumen', 'rendimiento', 'geografia', 'estudios', 'estados'],
+  dashTabOrder: ['insights', 'analitica', 'resumen', 'rendimiento', 'geografia', 'estudios', 'estados'],
   kanbanSections: ['pipelineBar', 'columnas'],
   tablaSections: ['pipelineBar', 'tabla', 'paginacion'],
   reportesSections: ['pipelineBar', 'lista', 'paginacion'],

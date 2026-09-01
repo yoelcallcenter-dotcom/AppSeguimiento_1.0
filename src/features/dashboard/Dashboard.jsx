@@ -58,7 +58,8 @@ import {
 // TABS
 // ============================================================
 const TAB_MAP = {
-  analitica: { id: 'analitica', label: 'Analítica', icon: Sparkles },
+  insights: { id: 'insights', label: 'Insights', icon: Sparkles },
+  analitica: { id: 'analitica', label: 'Analítica', icon: BarChart3 },
   resumen: { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
   rendimiento: { id: 'rendimiento', label: 'Rendimiento', icon: BarChart3 },
   geografia: { id: 'geografia', label: 'Geografía', icon: MapPin },
@@ -70,7 +71,8 @@ const TAB_MAP = {
 // WIDGET CARD (interno)
 // ============================================================
 const TAB_HELP = {
-  analitica: 'Panel analítico unificado: KPIs, gráficos de distribución, funnel de conversión y actividad de los últimos 7 días. Filtros globales aplicados.',
+  insights: 'Insights inteligentes, resumen de período y tendencia semanal con selector de período propio.',
+  analitica: 'KPIs, gráficos de distribución, funnel de conversión y actividad. Filtros globales de mes/día aplicados.',
   resumen: 'Visión general del pipeline: métricas clave, alertas, actividad reciente, últimos casos, eventos próximos y acciones rápidas.',
   rendimiento: 'Métricas de performance y tiempo, y logro de objetivos mensuales.',
   geografia: 'Distribución geográfica de casos por provincia/localidad con tasas de conversión y mapa de ubicaciones.',
@@ -447,6 +449,9 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
               <div className="flex justify-between text-sm"><span style={{ color: 'var(--color-text-muted)' }}>Total ponderado</span><b style={{ color: 'var(--color-accent)' }}>{sumarPeso(config, filteredCases)}</b></div>
               <div className="flex justify-between text-sm"><span style={{ color: 'var(--color-text-muted)' }}>Total notas</span><b style={{ color: 'var(--color-text)' }}>{notes.length}</b></div>
               <div className="flex justify-between text-sm"><span style={{ color: 'var(--color-text-muted)' }}>Total eventos</span><b style={{ color: 'var(--color-text)' }}>{events.length}</b></div>
+              {prevMetrics && prevMetrics.reprogramaciones > 0 && (
+                <div className="flex justify-between text-sm"><span style={{ color: 'var(--color-text-muted)' }}>Reprogramaciones</span><b style={{ color: 'var(--color-warning, #F59E0B)' }}>{prevMetrics.reprogramaciones} ({prevMetrics.casosReprogramados} casos)</b></div>
+              )}
             </div>
           </WidgetCard>
         ) : null;
@@ -579,11 +584,8 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
       {/* ============================================================ */}
       {/* TAB CONTENT */}
       {/* ============================================================ */}
-      {tab === 'analitica' ? (
-        <div className="space-y-4" key="analitica">
-          {/* ============================================================ */}
-          {/* INSIGHTS Y ANALÍTICA PERSONAL (período propio, 1.3.2) */}
-          {/* ============================================================ */}
+      {tab === 'insights' ? (
+        <div className="space-y-4" key="insights">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
               <Sparkles size={13} style={{ color: 'var(--color-accent)' }} />
@@ -594,11 +596,9 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
           <SmartInsightsPanel estadoVacio={analitica.estadoVacio} insights={analitica.insights} />
           <ResumenPeriodo resumen={analitica.resumen} />
           <TendenciaSemanalCard tendencia={analitica.tendencia} periodoLabel={analitica.resumen?.periodo} />
-
-          <div className="text-[10px] pt-2" style={{ color: 'var(--color-text-muted)' }}>
-            Las métricas de arriba usan su propio selector de período. Los KPIs y gráficos siguientes responden al filtro global de mes/día.
-          </div>
-
+        </div>
+      ) : tab === 'analitica' ? (
+        <div className="space-y-4" key="analitica">
           <KPICards metrics={analyticsMetrics} onDrill={handleDrill} prevMetrics={prevMetrics} />
           <InsightsPanel insights={analyticsInsights} onDrill={handleDrill} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

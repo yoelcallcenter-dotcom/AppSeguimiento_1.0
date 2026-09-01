@@ -6,7 +6,7 @@ Léelo primero en cada sesión. Evita re-explorar la arquitectura en cada tarea.
 ## 1. Identidad del proyecto
 
 - Nombre: **AppSeguimiento** (antes "Seguimiento de Derivaciones" / "Seg. ART"; entradas históricas del CHANGELOG conservan el nombre viejo).
-- Versión actual: **1.4.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión actual: **1.5.1** (verificada en `package.json` y `src/core/version.js`).
 - Framework: React 18 (Create React App, react-scripts 5).
 - Build: `react-scripts build` (webpack). Pre-build genera docs (`scripts/build-docs.js` → `src/docs/docsContent.js`, se regenera solo).
 - Gestor de paquetes: npm.
@@ -164,6 +164,11 @@ public/                 # index.html, manifest.json, sw.js, docs/ (copias genera
   - Nunca hardcodear colores hex fijos en componentes nuevos/modificados; usar las variables.
   - Todo cambio de UI debe verse correcto en los 3 temas.
   - Los íconos/decoración usan preferentemente `var(--color-accent)` u otra variable temática.
+- Calendario (1.5.0): el color de un evento se resuelve según su estado de caso
+  vinculado mediante `getEstadoAccent(config, estado)` (única fuente de verdad);
+  los eventos sin caso usan el color por prioridad (`PRIORITY_COLORS`). Las
+  insignias de tipo de evento y los bloques de contexto de caso usan variables
+  temáticas.
 
 ## 6. Funcionalidades principales
 
@@ -396,9 +401,17 @@ real de la tarea lo justifique.
 
 ## 11. Contexto de versión estable
 
-- Versión baseline: **1.4.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión baseline: **1.5.1** (verificada en `package.json` y `src/core/version.js`).
 - Esta versión es la línea base estable de trabajo. No incrementarla ni renombrar la app
   salvo solicitud explícita del usuario.
 - Cambios de versión requieren actualizar como mínimo `package.json`,
   `package-lock.json` y `src/core/version.js`, además de una entrada en
   `src/docs/CHANGELOG.md` (y su copia `public/docs/CHANGELOG.md`).
+- 1.5.1 = "Configuración, Backup/Export/Import, Ayuda y Correcciones":
+  Configuración de Citas y Calendario (4 opciones: auto-crear, auto-actualizar,
+  auto-reprogramar, info en eventos), corrección de zona horaria en calendario
+  (toLocalDateStr), corrección de formato telefónico (+549), overlay con Portal
+  (Speechs cubre header), deduplicación de notificaciones (showToast via
+  NotificationManager), eliminación de Entidades conectadas (EntityPanel),
+  integración de reprogramaciones en Dashboard, ayuda/tour/glosario actualizados.
+  NO usa IA ni integración de calendarios externos.

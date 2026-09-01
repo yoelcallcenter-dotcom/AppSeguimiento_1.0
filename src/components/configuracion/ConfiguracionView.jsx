@@ -5,7 +5,7 @@ import {
   Globe, Bell, LayoutDashboard, Search, FileUp, Cpu, Navigation,
   ToggleLeft, Eye, EyeOff, Clock, ArrowUpDown, Tag, Mail, X,
   GripVertical, ChevronUp, ChevronDown, BarChart3, CircleDot, MapPin, Building2,
-  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type,
+  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sparkles,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -239,6 +239,7 @@ export function ConfiguracionView({
         { id: "general", label: "General", icon: Settings },
         { id: "columnas", label: "Columnas", icon: Layout },
         { id: "datos", label: "Datos", icon: Database },
+        { id: "citas", label: "Citas y Calendario", icon: CalendarClock },
       ],
     },
     {
@@ -2619,6 +2620,72 @@ export function ConfiguracionView({
         );
       }
 
+      case "citas":
+        return (
+          <div className="space-y-4">
+            <div className="config-section" style={{ borderColor: "var(--color-accent)" }}>
+              <div className="config-section-title">Citas y Calendario</div>
+              <p className="text-xs mb-4" style={{ color: "var(--color-text-muted)" }}>
+                Configurá cómo el sistema gestiona eventos, citas automáticas y reprogramaciones vinculadas a los casos.
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "var(--color-surface2)" }}>
+                  <div>
+                    <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>Crear eventos automáticamente desde CITA</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      Cuando el campo CITA contiene una fecha y horario válido, se crea o actualiza un evento de calendario vinculado al caso.
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={config.citasAutoCrear !== false}
+                    onChange={(v) => setConfig({ ...config, citasAutoCrear: v })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "var(--color-surface2)" }}>
+                  <div>
+                    <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>Actualizar evento al modificar CITA</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      Si modificás el campo CITA de un caso, el evento vinculado se actualiza automáticamente con la nueva fecha y horario.
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={config.citasAutoActualizar !== false}
+                    onChange={(v) => setConfig({ ...config, citasAutoActualizar: v })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "var(--color-surface2)" }}>
+                  <div>
+                    <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>Crear nueva cita al usar "Reprogramado"</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      Al cambiar el estado de un reporte a "Reprogramado", se solicita nueva fecha y horario y se crea un evento de reprogramación.
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={config.citasAutoReprogramar !== false}
+                    onChange={(v) => setConfig({ ...config, citasAutoReprogramar: v })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: "var(--color-surface2)" }}>
+                  <div>
+                    <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>Mostrar información del caso en eventos</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+                      Muestra nombre, estado, aseguradora, estudio y localidad del caso en los eventos vinculados del calendario.
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={config.citasMostrarInfoCaso !== false}
+                    onChange={(v) => setConfig({ ...config, citasMostrarInfoCaso: v })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       case "estados-caso":
         const estadosList = getEstados(config);
 
@@ -3256,6 +3323,7 @@ function DashboardTabOrderEditor() {
   const [dragTabId, setDragTabId] = useState(null);
 
   const TAB_MAP_CFG = {
+    insights: { id: 'insights', label: 'Insights', icon: Sparkles },
     analitica: { id: 'analitica', label: 'Analítica', icon: BarChart3 },
     resumen: { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
     rendimiento: { id: 'rendimiento', label: 'Rendimiento', icon: BarChart3 },

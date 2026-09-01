@@ -4,6 +4,13 @@ import { touchVersion, assertNoConflict } from '../../core/db/versioning';
 import { notifyChange, SYNC_EVENTS } from '../../core/sync/syncService';
 import { recordEventLinkedForCases } from '../../core/cases/caseHistory';
 
+/** Tipos de evento de calendario (Sistema de Citas, 1.5.0). */
+export const EVENT_TYPES = {
+  MANUAL: 'manual',
+  CITA: 'cita',
+  REPROGRAMACION: 'reprogramacion',
+};
+
 export async function createEvent(data) {
   try {
     const event = touchVersion({
@@ -16,6 +23,10 @@ export async function createEvent(data) {
       relatedNoteId: data.relatedNoteId || null,
       relatedCaseIds: data.relatedCaseIds || [],
       tags: data.tags || [],
+      eventType: data.eventType || EVENT_TYPES.MANUAL,
+      relatedReportId: data.relatedReportId || null,
+      originalEventId: data.originalEventId || null,
+      caseContext: data.caseContext || null,
       createdAt: new Date().toISOString(),
     });
     const id = await appDB.events.add(event);

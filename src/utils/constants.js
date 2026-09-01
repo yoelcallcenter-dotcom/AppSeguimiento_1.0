@@ -128,6 +128,10 @@ export const CONFIG_DEFAULT = {
   importValidarDuplicados: true,
   importValidarTelefono: true,
   importMostrarPreview: true,
+  citasAutoCrear: true,
+  citasAutoActualizar: true,
+  citasAutoReprogramar: true,
+  citasMostrarInfoCaso: true,
 };
 
 export const DEFAULT_PASOS = [

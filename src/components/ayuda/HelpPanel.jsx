@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
+  User,
 } from "lucide-react";
 import { FAQView } from "../../faq";
 import { GlossaryView } from "../../glossary";
@@ -482,6 +483,20 @@ export default function HelpPanel({ showToast, onClose }) {
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Respaldo completo (JSON):</b> Exportá toda la configuración (colores, categorías, útiles, preferencias) a un archivo JSON. Después podés importarlo en otra computadora o después de limpiar el navegador.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Notas y Calendario:</b> También se pueden exportar e importar de forma independiente, sin necesidad de incluir la configuración general.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Backup automático:</b> Si activás la opción en Configuración → Automatización, la app hace una copia de seguridad automática cada semana. Nunca te vas a quedar sin respaldo.</div>
+              </div>
+            </SeccionAccordeon>
+
+            <SeccionAccordeon id="v-miespacio" titulo="Mi Espacio" icon={User} color="#10b981" badge="centro personal">
+              <p className="text-xs mb-2 leading-relaxed" style={{ color: TEXT }}>
+                Mi Espacio es tu centro personal dentro de la app. Aquí gestionás tu perfil, jornada, disponibilidad, metas y accesos. Todo es local y persistente.
+              </p>
+              <div className="space-y-2 text-xs" style={{ color: MUTED }}>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Mi Jornada:</b> Muestra el estado de tu jornada (activa, finalizada, en objetivo), tiempo transcurrido, restante y fecha. Incluye barra de progreso.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Objetivos Diarios:</b> Seguimiento de casos, reportes y firmas del día con barras de proyección y meta mensual.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Disponibilidad:</b> Configurá vacaciones, feriados, inasistencias y días no laborables. El calendario los tiene en cuenta.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Próximos Compromisos:</b> Eventos del calendario próximos a vencer, con alertas de vencimiento.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Resumen de Jornada:</b> Al finalizar el día, muestra un resumen completo de logros, casos atendidos y pendientes.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Exportación PDF:</b> Generá un PDF con tu perfil, objetivos, métricas y resumen del período.</div>
               </div>
             </SeccionAccordeon>
 

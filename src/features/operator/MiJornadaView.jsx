@@ -25,6 +25,7 @@ import {
   getNextMilestone,
   getMonthlyGoalProgress,
   getEffectiveWorkDays,
+  getRemainingEffectiveDays,
 } from "./operatorMetrics";
 import { getLastRunTime, getJornadaBackupSchedule, getBackupFrequency, daysSinceLastBackup } from "../../services/autoBackup";
 import { getPeriodRange } from "../analytics/periodUtils";
@@ -86,6 +87,11 @@ export function MiJornadaView({
   );
 
   const backupStatus = useMemo(() => getBackupStatus(), [tick, now]);
+
+  const remainingDays = useMemo(
+    () => getRemainingEffectiveDays(availability, year, month, profile.workingDays, todayISO),
+    [availability, year, month, profile.workingDays, todayISO]
+  );
 
   // Insight destacado (1.3.2): un único mensaje de mayor prioridad.
   // Se calcula con el mismo motor de Analítica; nunca se persiste.
@@ -304,7 +310,7 @@ export function MiJornadaView({
         )}
         <span>·</span>
         <span>
-          {effective.effective}/{effective.scheduled} días efectivos este mes
+          {remainingDays} días restantes del mes
         </span>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, ExternalLink } from "lucide-react";
+import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
@@ -28,6 +28,8 @@ import {
   getCasesByLawFirm,
 } from "../../core/cases/caseRelations";
 import { getRelatedTools } from "../../core/entities/entityRelations";
+import InlineNoteForm from "./InlineNoteForm";
+import InlineEventForm from "./InlineEventForm";
 
 function soloDia(x) {
   return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -86,6 +88,8 @@ export function VerCasoModal({
   const [historial, setHistorial] = useState([]);
   const { copiar: copiarNombre, copiado: nombreCopiado } = useClipboard();
   const { copiar: copiarTelefono, copiado: telefonoCopiado } = useClipboard();
+  const [mostrarFormNota, setMostrarFormNota] = useState(false);
+  const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
 
   useEffect(() => {
     if (caso && caso.comentarios) {
@@ -267,13 +271,15 @@ export function VerCasoModal({
         >
           <div>
             <div
-              className="text-lg font-semibold"
+              className="text-lg font-semibold cursor-pointer hover:opacity-80 transition-opacity"
               id="ver-caso-title"
-              style={{ color: "var(--color-text)" }}
+              style={{ color: "var(--color-text)", textDecoration: "underline", textDecorationStyle: "solid", textUnderlineOffset: "3px", textDecorationColor: "var(--color-text-muted)" }}
+              onClick={handleBuscarProlegal}
+              title="Buscar en Prolegal"
             >
               {navigationStack.length > 0
                 ? sanitizeString(caso.nombre) || "Caso"
-                : `Perfil del Caso — ${sanitizeString(caso.nombre) || "Sin nombre"}`
+                : sanitizeString(caso.nombre) || "Sin nombre"
               }
             </div>
             <div className="mt-2 flex items-center gap-3">
@@ -409,14 +415,12 @@ export function VerCasoModal({
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Aseguradora</span>
-              {hasInsurer && onNavigateInsurer ? (
-                <button
-                  onClick={() => onNavigateInsurer(caso.aseguradora)}
-                  className="flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity text-left"
-                  style={{ color: "var(--color-accent)" }}
-                  title={`Ver casos de ${caso.aseguradora}${casosByInsurer.length > 0 ? ` (${casosByInsurer.length} más)` : ""}`}
+              {hasInsurer ? (
+                <div
+                  className="flex items-center gap-1.5 text-sm font-medium text-left"
+                  style={{ color: "var(--color-text)" }}
                 >
-                  <Building2 size={12} className="flex-shrink-0" />
+                  <Building2 size={12} className="flex-shrink-0" style={{ color: "var(--color-text-muted)" }} />
                   <span className="truncate">{sanitizeString(caso.aseguradora)}</span>
                   {casosByInsurer.length > 0 && (
                     <span
@@ -426,7 +430,7 @@ export function VerCasoModal({
                       +{casosByInsurer.length}
                     </span>
                   )}
-                </button>
+                </div>
               ) : (
                 <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.aseguradora) || "—"}</div>
               )}
@@ -457,14 +461,12 @@ export function VerCasoModal({
             </div>
             <div className="col-span-2">
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Estudio Jurídico</span>
-              {hasLawFirm && onNavigateLawFirm ? (
-                <button
-                  onClick={() => onNavigateLawFirm(caso.estudioJuridico)}
-                  className="flex items-center gap-1.5 text-sm font-medium hover:opacity-70 transition-opacity text-left"
-                  style={{ color: "var(--color-accent)" }}
-                  title={`Ver casos de ${caso.estudioJuridico}${casosByLawFirm.length > 0 ? ` (${casosByLawFirm.length} más)` : ""}`}
+              {hasLawFirm ? (
+                <div
+                  className="flex items-center gap-1.5 text-sm font-medium text-left"
+                  style={{ color: "var(--color-text)" }}
                 >
-                  <Scale size={12} className="flex-shrink-0" />
+                  <Scale size={12} className="flex-shrink-0" style={{ color: "var(--color-text-muted)" }} />
                   <span className="truncate">{sanitizeString(caso.estudioJuridico)}</span>
                   {casosByLawFirm.length > 0 && (
                     <span
@@ -474,7 +476,7 @@ export function VerCasoModal({
                       +{casosByLawFirm.length}
                     </span>
                   )}
-                </button>
+                </div>
               ) : (
                 <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.estudioJuridico) || "—"}</div>
               )}
@@ -502,7 +504,7 @@ export function VerCasoModal({
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
                 {mostrarHerramientas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <ClipboardList size={14} /> Herramientas relacionadas
+                <ClipboardList size={14} /> Herramientas
               </button>
               {mostrarHerramientas && (
                 <div className="mt-2 space-y-2">
@@ -542,6 +544,40 @@ export function VerCasoModal({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* FORMAS INLINE: Nota / Evento vinculados al caso (1.5.0) */}
+          {mostrarFormNota && (
+            <div className="pt-3">
+              <InlineNoteForm
+                caso={caso}
+                onCancel={() => setMostrarFormNota(false)}
+                onCreated={() => {
+                  setMostrarFormNota(false);
+                  showToast && showToast("Nota vinculada al caso creada", "success");
+                }}
+                onOpenFull={() => {
+                  setMostrarFormNota(false);
+                  onNuevaNota && onNuevaNota(caso);
+                }}
+              />
+            </div>
+          )}
+          {mostrarFormEvento && (
+            <div className="pt-3">
+              <InlineEventForm
+                caso={caso}
+                onCancel={() => setMostrarFormEvento(false)}
+                onCreated={() => {
+                  setMostrarFormEvento(false);
+                  showToast && showToast("Evento vinculado al caso creado", "success");
+                }}
+                onOpenFull={() => {
+                  setMostrarFormEvento(false);
+                  onNuevoEvento && onNuevoEvento(caso);
+                }}
+              />
             </div>
           )}
 
@@ -666,23 +702,27 @@ export function VerCasoModal({
               <Btn onClick={() => { onReporteRapido(caso); onClose(); }} icon={ClipboardList} size="sm">Reporte</Btn>
             )}
             {onNuevaNota && (
-              <BtnOutline onClick={() => onNuevaNota(caso)} icon={FileText} size="sm">Notas</BtnOutline>
+              <BtnOutline
+                onClick={() => {
+                  setMostrarFormNota((v) => !v);
+                  setMostrarFormEvento(false);
+                }}
+                icon={FileText}
+                size="sm"
+              >Notas</BtnOutline>
             )}
             {onNuevoEvento && (
-              <BtnOutline onClick={() => onNuevoEvento(caso)} icon={Calendar} size="sm">Calendario</BtnOutline>
+              <BtnOutline
+                onClick={() => {
+                  setMostrarFormEvento((v) => !v);
+                  setMostrarFormNota(false);
+                }}
+                icon={Calendar}
+                size="sm"
+              >Calendario</BtnOutline>
             )}
           </div>
           <div className="flex gap-1.5">
-            <Btn
-              onClick={handleBuscarProlegal}
-              icon={ExternalLink}
-              size="sm"
-              variant="solid"
-              color="#2563EB"
-              textColor="#ffffff"
-              aria-label="Buscar en Prolegal"
-              title="Buscar en Prolegal"
-            >Prolegal</Btn>
             <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
           </div>
         </div>

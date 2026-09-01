@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Flag, AlignLeft, Link, User, Trash2, Tag, ExternalLink } from 'lucide-react';
+import { X, Calendar, Clock, Flag, AlignLeft, Link, User, Trash2, Tag, ExternalLink, Info } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { BtnOutline } from '../../components/common/BtnOutline';
 import { TextInput } from '../../components/common/TextInput';
@@ -43,6 +43,10 @@ export default function EventModal({
     relatedNoteId: null,
     relatedCaseIds: [],
     tags: [],
+    eventType: 'manual',
+    relatedReportId: null,
+    originalEventId: null,
+    caseContext: null,
   });
   const [errors, setErrors] = useState({});
   const [tagInput, setTagInput] = useState('');
@@ -65,10 +69,27 @@ export default function EventModal({
         relatedNoteId: event.relatedNoteId || null,
         relatedCaseIds: event.relatedCaseIds?.length ? event.relatedCaseIds : prelinkedCaseIds,
         tags: Array.isArray(event.tags) ? event.tags : [],
+        eventType: event.eventType || 'manual',
+        relatedReportId: event.relatedReportId || null,
+        originalEventId: event.originalEventId || null,
+        caseContext: event.caseContext || null,
       });
     } else {
       const now = new Date();
       const dateStr = now.toISOString().slice(0, 10);
+      let caseContext = null;
+      if (prelinkedCaseIds.length > 0) {
+        const linked = (casos || []).find((c) => c.id === prelinkedCaseIds[0]);
+        if (linked) {
+          caseContext = {
+            nombre: linked.nombre || '',
+            estado: linked.estado || '',
+            aseguradora: linked.aseguradora || '',
+            estudioJuridico: linked.estudioJuridico || '',
+            localidad: linked.localidad || '',
+          };
+        }
+      }
       setForm({
         title: '',
         description: '',
@@ -81,6 +102,10 @@ export default function EventModal({
         relatedNoteId: null,
         relatedCaseIds: prelinkedCaseIds,
         tags: [],
+        eventType: 'manual',
+        relatedReportId: null,
+        originalEventId: null,
+        caseContext,
       });
     }
     setErrors({});
@@ -147,6 +172,23 @@ export default function EventModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {(form.eventType === 'cita' || form.eventType === 'reprogramacion') && (
+            <div
+              className="rounded-md p-2.5 text-xs flex items-start gap-2"
+              style={{
+                backgroundColor: 'var(--color-accent)11',
+                border: '1px solid var(--color-accent)44',
+                color: 'var(--color-text)',
+              }}
+            >
+              <Info size={14} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 1 }} />
+              <span>
+                {form.eventType === 'cita'
+                  ? 'Evento automático generado desde el campo CITA del caso. Se sincroniza automáticamente.'
+                  : 'Evento de reprogramación vinculado a un caso. Representa la nueva cita agendada.'}
+              </span>
+            </div>
+          )}
           <div>
             <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               Titulo <span style={{ color: 'var(--color-danger)' }}>*</span>

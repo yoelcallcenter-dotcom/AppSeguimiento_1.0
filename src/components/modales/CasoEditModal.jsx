@@ -33,6 +33,8 @@ import { matchEstudio } from "../../services/EstudioService";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { getEstados, getTiposIngreso } from "../../utils/catalogos";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import InlineNoteForm from "./InlineNoteForm";
+import InlineEventForm from "./InlineEventForm";
 
 export function CasoEditModal({
   caso: casoInicial,
@@ -62,6 +64,8 @@ export function CasoEditModal({
   const [confirmEliminar, setConfirmEliminar] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [confirmEliminarReporte, setConfirmEliminarReporte] = useState(null);
+  const [mostrarFormNota, setMostrarFormNota] = useState(false);
+  const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
 
   const set = (k, v) => setCaso((c) => ({ ...c, [k]: v }));
   const duplicado =
@@ -236,6 +240,36 @@ export function CasoEditModal({
         </div>
 
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+          {/* FORMAS INLINE: Nota / Evento vinculados al caso (1.5.0) */}
+          {mostrarFormNota && (
+            <InlineNoteForm
+              caso={caso}
+              onCancel={() => setMostrarFormNota(false)}
+              onCreated={() => {
+                setMostrarFormNota(false);
+                showToast && showToast("Nota vinculada al caso creada", "success");
+              }}
+              onOpenFull={() => {
+                setMostrarFormNota(false);
+                onNuevaNota && onNuevaNota(caso);
+              }}
+            />
+          )}
+          {mostrarFormEvento && (
+            <InlineEventForm
+              caso={caso}
+              onCancel={() => setMostrarFormEvento(false)}
+              onCreated={() => {
+                setMostrarFormEvento(false);
+                showToast && showToast("Evento vinculado al caso creado", "success");
+              }}
+              onOpenFull={() => {
+                setMostrarFormEvento(false);
+                onNuevoEvento && onNuevoEvento(caso);
+              }}
+            />
+          )}
+
           {validationErrors.length > 0 && (
             <div
               className="rounded-md p-3"
@@ -605,10 +639,24 @@ COMENTARIOS:`}
         >
           <div className="flex items-center gap-1.5">
             {onNuevaNota && (
-              <BtnOutline onClick={() => onNuevaNota(caso)} icon={FileText} size="sm">Notas</BtnOutline>
+              <BtnOutline
+                onClick={() => {
+                  setMostrarFormNota((v) => !v);
+                  setMostrarFormEvento(false);
+                }}
+                icon={FileText}
+                size="sm"
+              >Notas</BtnOutline>
             )}
             {onNuevoEvento && (
-              <BtnOutline onClick={() => onNuevoEvento(caso)} icon={Calendar} size="sm">Calendario</BtnOutline>
+              <BtnOutline
+                onClick={() => {
+                  setMostrarFormEvento((v) => !v);
+                  setMostrarFormNota(false);
+                }}
+                icon={Calendar}
+                size="sm"
+              >Calendario</BtnOutline>
             )}
             {casoInicial.nombre ? (
               <BtnOutline

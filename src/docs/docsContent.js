@@ -398,6 +398,125 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.5.1] - Configuración, Backup/Export/Import, Ayuda y Correcciones
+
+### Configuración — Citas y Calendario
+
+- Nueva pestaña **Citas y Calendario** dentro de Configuración → General con 4
+  opciones: crear eventos automáticamente desde CITA, actualizar al modificar
+  CITA, crear nueva cita al usar "Reprogramado" y mostrar información del caso
+  en eventos vinculados.
+
+### Calendario — Corrección de zona horaria
+
+- Corregido el bug donde eventos aparecían en el día incorrecto para usuarios
+  en zonas horarias con offset negativo (ej: Argentina UTC-3). Se reemplazó
+  \`toISOString().slice(0, 10)\` por una función \`toLocalDateStr()\` que usa la
+  hora local.
+
+### Teléfono — Corrección de formato
+
+- El botón de teléfono/WhatsApp ahora usa el número tal cual fue cargado, sin
+  agregar automáticamente el prefijo \`+549\`. Se eliminó la normalización
+  automática que afectaba números internacionales o mal formateados.
+
+### Overlay — Corrección de superposición
+
+- Los overlays (Speechs, Calendario, Notas) ahora usan React Portal para
+  renderizar en \`document.body\`, escapando contexts de stacking que impedían
+  que cubrieran correctamente el header.
+
+### Modal del caso — Cambios
+
+- **Título**: se eliminó "Perfil del Caso —", ahora muestra solo el nombre.
+- **ProLegal**: se movió al título (click en el nombre abre búsqueda en
+  Prolegal). Se eliminó el botón independiente del footer.
+- **Herramientas**: se renombró de "Herramientas Relacionadas" a "Herramientas".
+
+### Notificaciones — Deduplicación
+
+- \`showToast\` ahora se rutea a través de \`NotificationManager\` en lugar de
+  agregar directamente al store. Esto activa la deduplicación de 2 segundos,
+  la agregación y el sistema de prioridades para todos los toasts.
+- Se agregó sonido de confirmación al copiar teléfono.
+
+### Entidades conectadas — Eliminación
+
+- Se eliminó completamente el sistema de "Entidades conectadas" (EntityPanel),
+  incluyendo componentes, estados, handlers y referencias. Se conservó
+  \`entityRelations.js\` con \`getRelatedTools()\` para el modal del caso.
+
+### Dashboard — Reprogramaciones
+
+- Integración de métricas de reprogramaciones en las secciones de Resumen,
+  Actividad y Mini-timeline del Dashboard.
+
+### Mi Espacio — Ayuda
+
+- Documentación actualizada de Mi Espacio en la sección "Acerca de Vistas".
+
+### Glosario y Tour
+
+- Nuevos términos: Reprogramación, Cita automática, Evento vinculado, Nota
+  vinculada, Mi Jornada.
+- Tour actualizado con pasos para Herramientas, Configuración de Citas y
+  Reprogramaciones.
+
+### Backup
+
+- Los nuevos campos de configuración de Citas y Calendario se incluyen en
+  backup, exportación e importación.
+
+## [1.5.0] - Sistema de Citas, Eventos Vinculados y Notas de Caso
+
+### Citas automáticas en el calendario
+
+- El campo **CITA** de cada caso (\`DD/MM - (HH:MM a HH:MM)\`) ahora genera o
+  sincroniza automáticamente un **evento de calendario** vinculado al caso y a la
+  descentralización correspondiente. Es la única fuente de verdad del evento.
+- La **identificación** del evento automático se apoya en \`caso + tipo "cita"\`,
+  de modo que los guardados repetidos, ediciones de campos no relacionados,
+  importaciones o restauraciones **nunca duplican** el evento: se actualiza en el
+  lugar y, si el campo CITA se vacía, el evento automático se elimina.
+- El **año** de una cita se resuelve con una regla única y centralizada
+  (\`citaParser\`): se usa el año actual (o el de creación del caso); si la fecha
+  quedó más de 30 días en el pasado, se asigna el año siguiente.
+- La sincronización ocurre **solo en guardados intencionales** del caso (creación
+  o edición desde el modal), nunca en inicializaciones, recargas o migraciones.
+- El **color de los eventos** se toma ahora del estado del caso vinculado
+  (\`getEstadoAccent\`); los eventos manuales conservan el color por prioridad.
+- Los eventos se distinguen visualmente por **color + insignia de tipo**
+  (\`[Cita]\`, \`[Reprog.]\`), porque dos eventos del mismo caso comparten color.
+
+### Reprogramaciones
+
+- Al registrar un reporte con estado **"Reprogramado"** se requiere indicar la
+  nueva fecha y horario de la cita.
+- Se crea un **evento de reprogramación** vinculado al caso, al reporte y al
+  evento original de cita (que se **conserva marcado como cancelado**, no se
+  borra).
+- El campo CITA del caso se actualiza con la nueva fecha/horario elegidos.
+
+### Notas y eventos vinculados desde el caso
+
+- Los botones **Nota** y **Calendario** del modal de un caso ahora actúan como
+  acciones contextuales: abren un **mini-formulario inline** para crear una nota o
+  evento vinculado al caso al instante, con un enlace para abrir el editor o el
+  calendario completo.
+- Las notas y eventos creados desde un caso quedan **vinculados al caso**
+  (\`relatedCaseIds\`) y muestran su contexto (caso, estado, ART, localidad).
+
+### Historial
+
+- La línea de tiempo del caso incorpora nuevos tipos de actividad: creación,
+  actualización y eliminación automática de citas, y reprogramación de citas.
+
+### Importación / respaldo
+
+- Al **restaurar backups anteriores** a 1.5.0, los eventos existentes reciben el
+  tipo seguro \`manual\` (no se tratan como automáticos). Los backups viejos no se
+  invalidan.
+
 ## [1.4.8] - Auditoría y limpieza (correcciones de consistencia)
 
 ### Sincronización entre contextos
