@@ -11,6 +11,7 @@ import { useStorage } from "../../hooks/useStorage";
 import { ESTADOS } from "../../utils/constants";
 import { casoVieneDeReporte } from "../../utils/dateFilters";
 import { useFilters } from "../../context/FiltersContext";
+import { onKeyActivate } from "../../utils/a11y";
 import useAppStore from '../../core/store/useAppStore';
 
 export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = [] }) {
@@ -53,6 +54,9 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
             return (
               <div
                 key={c.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Ver caso ${c.nombre || "Sin nombre"}`}
                 className="rounded-lg overflow-hidden cursor-pointer transition-colors duration-150"
                 style={{
                   backgroundColor: "var(--color-surface)",
@@ -61,6 +65,7 @@ export function ReportesView({ casos, casosMes, onVerCaso, mesesDisponibles = []
                     : "1px solid var(--color-border)",
                 }}
                 onClick={() => onVerCaso(c)}
+                onKeyDown={onKeyActivate(() => onVerCaso(c))}
               >
                 <div className="p-3">
                   <div className="flex items-start gap-2">

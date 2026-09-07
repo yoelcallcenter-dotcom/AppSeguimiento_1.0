@@ -122,7 +122,7 @@ export function IntegridadPanel() {
                     <Icon size={13} style={{ color: meta.color, marginTop: 1, flexShrink: 0 }} />
                     <div className="min-w-0">
                       <span
-                        className="text-[9px] font-bold uppercase tracking-wider mr-2"
+                        className="text-ds-xs font-bold uppercase tracking-wider mr-2"
                         style={{ color: meta.color }}
                       >
                         {meta.label}
@@ -154,7 +154,7 @@ export function IntegridadPanel() {
                   <div className="text-base font-bold" style={{ color: valor > 0 ? "var(--color-warning)" : "var(--color-success)" }}>
                     {valor}
                   </div>
-                  <div className="text-[9px]" style={{ color: "var(--color-text-muted)" }}>{label}</div>
+                  <div className="text-ds-xs" style={{ color: "var(--color-text-muted)" }}>{label}</div>
                 </div>
               ))}
             </div>

@@ -8,18 +8,13 @@ export function Pill({ estado, small, estados }) {
   const info =
     catalogo.find((e) => e.v === estado) || catalogo[catalogo.length - 1];
 
-  const sizeClass = small ? "px-2 py-0.5" : "px-2.5 py-1";
-  const fontClass = {
-    small: "text-[10px]",
-    medium: "text-xs",
-    large: "text-sm",
-  };
+  const sizeClass = small ? "pill-compact" : "pill-md";
 
   const cssKey = estado.replace(/\s+/g, '-');
 
   return (
     <span
-      className={`pill-estado ${sizeClass} ${fontClass[fontSize] || "text-xs"}`}
+      className={`pill-estado ${sizeClass}`}
       style={{
         backgroundColor: `var(--color-estado-${cssKey}, ${info.accent})22`,
         color: `var(--color-estado-${cssKey}, ${info.accent})`,

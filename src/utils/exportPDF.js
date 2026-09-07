@@ -4,6 +4,7 @@
  * (createTextNode / addEventListener), sin interpolación de HTML ni
  * document.write. Los datos de casos nunca se parsean como HTML.
  */
+import { notificationManager } from "../core/notifications/notificationManager";
 
 const CSS = `
   body { font-family: Arial, sans-serif; padding: 20px; }
@@ -47,7 +48,12 @@ function text(doc, parent, value) {
 
 export function exportarPDF(casos, titulo = "Informe de casos") {
   if (!casos || casos.length === 0) {
-    alert("No hay casos para exportar");
+    notificationManager.notify({
+      type: "warning",
+      title: "",
+      message: "No hay casos para exportar",
+      source: "app",
+    });
     return;
   }
 
@@ -58,7 +64,12 @@ export function exportarPDF(casos, titulo = "Informe de casos") {
   );
   try { ventana.opener = null; } catch {}
   if (!ventana) {
-    alert("Por favor, permite ventanas emergentes para exportar");
+    notificationManager.notify({
+      type: "error",
+      title: "",
+      message: "Por favor, permite ventanas emergentes para exportar",
+      source: "app",
+    });
     return;
   }
 

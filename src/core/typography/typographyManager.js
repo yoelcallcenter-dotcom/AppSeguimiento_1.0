@@ -20,6 +20,7 @@ import {
   getPresetById,
 } from "./presets";
 import { loadFamilies } from "./fontLoader";
+import { reportError } from "../error/reportError";
 
 const STORAGE_PRESET_KEY = "app-typography-preset";
 const STORAGE_FONT_SIZE_KEY = "app-font-size";
@@ -82,7 +83,7 @@ const typographyManager = {
       loadFamilies(currentPreset);
     } catch (err) {
       // Fallback seguro: nunca bloquear el arranque por un error de tipografía.
-      console.warn("typographyManager: error al inicializar tipografía", err);
+      reportError(err, { context: 'typographyManager:init', silent: true });
       applyPresetVars(getPresetById(DEFAULT_TYPOGRAPHY_PRESET));
       applyFontSize("medium");
     }

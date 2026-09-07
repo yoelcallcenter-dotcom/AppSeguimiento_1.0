@@ -17,8 +17,10 @@
   --surface-2: #1F2937;
   --surface-3: #0F172A;
   --text: #E5E7EB;
-  --text-muted: #9CA3AF;
+  --text-muted: #B0B8C4;
+  --text-on-accent: #14181F;
   --border: #374151;
+  --border-light: #4B5563;
   --danger: #EF4444;
   --success: #10B981;
   --warning: #F59E0B;
@@ -34,8 +36,10 @@
   --surface-2: #F3F4F6;
   --surface-3: #E5E7EB;
   --text: #111827;
-  --text-muted: #6B7280;
+  --text-muted: #5B6370;
+  --text-on-accent: #14181F;
   --border: #E5E7EB;
+  --border-light: #D1D5DB;
   --danger: #DC2626;
   --success: #059669;
   --warning: #D97706;
@@ -105,8 +109,9 @@
   --color-text: var(--text);
   --color-text-secondary: var(--text-muted);
   --color-text-muted: var(--text-muted);
+  --color-text-on-accent: var(--text-on-accent);
   --color-border: var(--border);
-  --color-border-light: var(--border);
+  --color-border-light: var(--border-light);
   --color-primary: var(--primary);
   --color-accent: var(--accent);
   --color-danger: var(--danger);
@@ -206,6 +211,27 @@
   --color-estado-Pendiente: #10b981;
   --color-estado-Firmo: #059669;
   --color-estado-Sin-reporte: #6b7280;
+}
+
+/* ================================================================ */
+/* =================== COLORES DE SERIES DE GRAFICOS =============== */
+/* ================================================================ */
+:root {
+  --chart-color-cases: #D9A441;
+  --chart-color-signed: #10B981;
+  --chart-color-contact: #60A5FA;
+  --chart-color-danger: #EF4444;
+  --chart-color-warning: #FBBF24;
+  --chart-color-success: #34D399;
+  --chart-color-danger-light: #F87171;
+  --chart-color-conversion: #818CF8;
+  --chart-color-muted: #94A3B8;
+  --chart-color-orange: #F97316;
+  --chart-color-rose: #E11D48;
+  --chart-color-cursor: rgba(148, 163, 184, 0.15);
+  --chart-color-danger-bg: rgba(239, 68, 68, 0.12);
+  --chart-color-warning-bg: rgba(251, 191, 36, 0.12);
+  --chart-color-contact-bg: rgba(96, 165, 250, 0.12);
 }
 
 /* ================================================================ */
@@ -376,7 +402,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   min-height: 56px;
   display: flex;
   align-items: center;
-  z-index: 40;
+  z-index: var(--z-sticky, 30);
 }
 
 /* Modal header (tema-consistente, sin fondo de color fijo) */
@@ -407,7 +433,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     min-width: 44px;
     min-height: 44px;
   }
+  .kanban-col-select {
+    min-height: 36px;
+  }
 }
+
+/* Oculta la barra de scroll manteniendo la funcionalidad (tabs, carruseles).
+   Compatible con navegadores con scrollbar overlay y los que no. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Contenedor de tabs: scroll horizontal en pantallas angostas,
+   sin que los tabs se envuelvan a una segunda línea (evita reflow). */
+.tab-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 
 .config-section-title {
   font-size: var(--font-size-xs);
@@ -443,7 +492,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-size: var(--font-size-lg);
   }
   .text-xs {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
   }
   .text-sm {
     font-size: 0.7rem;
@@ -533,7 +582,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .category-tab.active {
   background-color: var(--color-accent);
-  color: #14181f;
+  color: var(--color-text-on-accent);
   border-color: var(--color-accent);
 }
 
@@ -597,7 +646,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Primary */
 .btn-primary {
   background-color: var(--color-primary);
-  color: #ffffff;
+  color: var(--text-on-accent);
   border-color: transparent;
 }
 .btn-primary:hover:not(:disabled) {
@@ -656,7 +705,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Accent */
 .btn-accent {
   background-color: var(--color-accent);
-  color: #14181f;
+  color: var(--color-text-on-accent);
   border-color: transparent;
 }
 .btn-accent:hover:not(:disabled) {
@@ -676,7 +725,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .btn-outline-accent:hover:not(:disabled) {
   background-color: var(--color-accent);
-  color: #14181f;
+  color: var(--color-text-on-accent);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 .btn-outline-accent:active:not(:disabled) {
@@ -694,6 +743,36 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: var(--color-surface2);
 }
 .btn-outline:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Positive (success actions) */
+.btn-positive {
+  background-color: var(--color-success);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-positive:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+.btn-positive:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(0.9);
+}
+
+/* Contextual (neutral/alternative actions) */
+.btn-contextual {
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.btn-contextual:hover:not(:disabled) {
+  background-color: var(--color-surface);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.btn-contextual:active:not(:disabled) {
   transform: scale(0.97);
 }
 
@@ -739,6 +818,48 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   padding: 0.2rem 0.6rem;
   font-size: var(--font-size-xs);
+}
+
+/* Standardized pill sizes */
+.pill-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  padding: 0.125rem 0.5rem;
+}
+.pill-md {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  padding: 0.25rem 0.625rem;
+}
+.pill-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  padding: 0.25rem 0.75rem;
+}
+.pill-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  border-radius: 9999px;
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  padding: 0.125rem 0.375rem;
 }
 
 /* Inputs y selects optimizados */
@@ -812,9 +933,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
 }
 
 @keyframes toast-in {
@@ -851,8 +982,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .animate-slide-down { animation: slide-down var(--duration-medium) var(--ease-out) both; }
 .animate-slide-in-right { animation: slide-in-right var(--duration-medium) var(--ease-out) both; }
 .animate-scale-in { animation: scale-in var(--duration-medium) var(--ease-out) both; }
+.animate-scale-out { animation: scale-out var(--duration-normal) var(--ease-standard) both; }
 .animate-toast-in { animation: toast-in var(--duration-slow) var(--ease-out) both; }
 .animate-toast-out { animation: toast-out var(--duration-medium) var(--ease-standard) both; }
+.animate-slide-out-right { animation: slide-out-right var(--duration-medium) var(--ease-standard) both; }
 .animate-shake { animation: shake 0.4s var(--ease-standard); }
 
 /* Staggered children (up to 12) */
@@ -906,6 +1039,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ---- Page transition container ---- */
 .view-transition-enter {
   animation: fade-in var(--duration-medium) var(--ease-out) both;
+}
+
+/* Vista anterior durante la transición crossfade: se desvanece y no
+   intercepta clics mientras la nueva vista entra. */
+.view-transition-exit {
+  animation: fade-out var(--duration-medium) var(--ease-standard) both;
+  pointer-events: none;
 }
 
 /* ---- Low-power modes ---- */

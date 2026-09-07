@@ -251,7 +251,7 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
         const arr = Array.isArray(parsed) ? parsed : [parsed];
         agregarFilas(arr.map(normalizarFilas));
       } catch {
-        alert("El JSON pegado no es válido.");
+        showToast("El JSON pegado no es válido.", "error");
       }
       return;
     }
@@ -285,7 +285,7 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
         const arr = Array.isArray(parsed) ? parsed : [parsed];
         agregarFilas(arr.map(normalizarFilas));
       } catch {
-        alert("No se pudo leer el archivo.");
+        showToast("No se pudo leer el archivo.", "error");
       }
     };
     reader.readAsText(file);

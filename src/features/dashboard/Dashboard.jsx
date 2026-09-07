@@ -12,6 +12,7 @@ import useAppStore from '../../core/store/useAppStore';
 import { useFilters } from '../../context/FiltersContext';
 import { trackEvent } from '../../utils/behaviorEngine';
 import { MonthDayFilterBar } from '../../components/common/MonthDayFilterBar';
+import { EmptyState } from '../../components/common/EmptyState';
 import { MetricCard } from './MetricCard';
 import { FunnelChart } from './FunnelChart';
 import { ActivityChart } from './ActivityChart';
@@ -369,6 +370,19 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     setActivityDay(null);
   }, [setActiveFilter, setActivityDay]);
 
+  // Optimización 1.6.6: handlers estables para widgets memorizados (evitan
+  // re-renders al recrear la función inline en cada render del dashboard).
+  const handleNavigateToEvent = useCallback(() => {}, []);
+  const handleActivitySelect = useCallback(
+    (item) => {
+      if (item.type === 'case' && item.caseId) {
+        const caso = casos.find((c) => String(c.id) === String(item.caseId));
+        if (caso) onVerCaso(caso);
+      }
+    },
+    [casos, onVerCaso]
+  );
+
   // Widget order por tab (desde config, con fallback a DEFAULT_WIDGET_ORDER)
   const activeWidgetOrder = useMemo(() => {
     const saved = dashWidgetOrder || {};
@@ -403,19 +417,14 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
       case 'alertsPanel':
         return <AlertsPanel key="alertsPanel" metrics={analyticsMetrics} cases={allCases} notes={notes} events={events} onDrill={handleDrill} onVerCaso={onVerCaso} />;
       case 'proximasAcciones':
-        return <ProximasAcciones key="proximasAcciones" cases={allCases} notes={notes} events={events} onVerCaso={onVerCaso} onNavigateToEvent={(e) => {}} onNavigateFiltered={handleDrill} />;
+        return <ProximasAcciones key="proximasAcciones" cases={allCases} notes={notes} events={events} onVerCaso={onVerCaso} onNavigateToEvent={handleNavigateToEvent} onNavigateFiltered={handleDrill} />;
       case 'activityFeed':
-        return <ActivityFeed key="activityFeed" items={activity} onSelectItem={(item) => {
-          if (item.type === 'case' && item.caseId) {
-            const caso = casos.find((c) => String(c.id) === String(item.caseId));
-            if (caso) onVerCaso(caso);
-          }
-        }} />;
+        return <ActivityFeed key="activityFeed" items={activity} onSelectItem={handleActivitySelect} />;
       case 'eventos':
         return showWidget('widgetEventos') ? (
           <WidgetCard key="eventos" title="Próximos eventos" icon={Calendar}>
             {upcomingEvents.length === 0
-              ? <EmptyState msg="Sin eventos próximos" />
+               ? <EmptyState message="Sin eventos próximos" size="sm" />
               : upcomingEvents.map((e) => (
                   <RecentItem key={e.id} title={e.titulo || e.title || 'Evento'} subtitle={e.startDate || e.fecha || ''} icon={Calendar} color="var(--color-accent)" />
                 ))}
@@ -425,7 +434,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         return showWidget('widgetSinReporte') ? (
           <WidgetCard key="sinReporte" title="Casos sin reporte" icon={AlertTriangle}>
             {sinReporte.length === 0
-              ? <EmptyState msg="Todos tienen reporte" />
+               ? <EmptyState message="Todos tienen reporte" size="sm" />
               : sinReporte.map((c) => (
                   <RecentItem key={c.id} title={c.nombre || 'Sin nombre'} subtitle={`${c.estado || '—'} | ${c.fecha || '—'}`} icon={FileText} color="var(--color-danger)" />
                 ))}
@@ -435,7 +444,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         return showWidget('widgetNotas') ? (
           <WidgetCard key="notas" title="Notas recientes" icon={MessageSquare}>
             {recentNotes.length === 0
-              ? <EmptyState msg="Sin notas recientes" />
+               ? <EmptyState message="Sin notas recientes" size="sm" />
               : recentNotes.map((n) => (
                   <RecentItem key={n.id} title={n.title || 'Sin título'} subtitle={new Date(n.updatedAt || n.createdAt || '').toLocaleDateString()} icon={MessageSquare} color="var(--color-success)" />
                 ))}
@@ -534,6 +543,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     upcomingEvents, sinReporte, recentNotes,
     notes, events, onVerCaso, provincias, estudios, estadosGroup,
     drillDeMetrica, analyticsMetrics, activity, handleDrill,
+    handleNavigateToEvent, handleActivitySelect,
   ]);
 
   return (
@@ -684,10 +694,6 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   );
 }
 
-const EmptyState = React.memo(({ msg }) => (
-  <div className="text-sm py-6 text-center" style={{ color: 'var(--color-text-muted)' }}>{msg}</div>
-));
-
 const OnboardingEmptyState = React.memo(({ onNuevoCaso, onImportarCSV, onTour }) => (
   <div
     className="mb-4 rounded-xl p-6 sm:p-8 text-center"
@@ -707,7 +713,7 @@ const OnboardingEmptyState = React.memo(({ onNuevoCaso, onImportarCSV, onTour })
         <button
           onClick={onNuevoCaso}
           className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-lg transition-opacity hover:opacity-85"
-          style={{ backgroundColor: 'var(--color-accent)', color: '#14181F' }}
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-on-accent)' }}
         >
           <Plus size={15} /> Crear primer caso
         </button>

@@ -193,9 +193,21 @@ const FUNNEL_ETAPAS = [
 export function getFunnelStages() { return FUNNEL_ETAPAS; }
 
 export function computeFunnel(ctx) {
+  // Optimización 1.6.6: una sola pasada sobre los casos filtrados en lugar de
+  // 3+ .filter() independientes por etapa (pasadas O(n*m) → O(n)).
+  const gestionEstados = ctx.cats.contact.filter((e) => !['Pendiente', '2do Llamado'].includes(e));
+  const contactoEstados = [...ctx.cats.contact, ...ctx.cats.success];
+  const counts = { total: 0, contacto: 0, gestion: 0, exito: 0 };
+  for (const c of ctx.filtered) {
+    counts.total++;
+    if (contactoEstados.includes(c.estado)) counts.contacto++;
+    if (gestionEstados.includes(c.estado)) counts.gestion++;
+    if (ctx.cats.success.includes(c.estado)) counts.exito++;
+  }
+
   return FUNNEL_ETAPAS.map((etapa, i) => {
-    const value = etapa.get(ctx);
-    const prev = i > 0 ? FUNNEL_ETAPAS[i - 1].get(ctx) : value;
+    const value = counts[etapa.id];
+    const prev = i > 0 ? counts[FUNNEL_ETAPAS[i - 1].id] : value;
     const conversion = prev > 0 ? Math.round((value / prev) * 100) : 0;
     return { ...etapa, value, conversion };
   });

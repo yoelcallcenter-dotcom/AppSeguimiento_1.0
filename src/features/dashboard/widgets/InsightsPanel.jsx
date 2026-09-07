@@ -2,13 +2,13 @@ import React from 'react';
 import { AlertTriangle, Info, CheckCircle2, ExternalLink } from 'lucide-react';
 
 const SEVERITY = {
-  danger: { color: '#EF4444', icon: AlertTriangle, label: 'Crítico' },
-  warning: { color: '#FBBF24', icon: AlertTriangle, label: 'Atención' },
-  info: { color: '#60A5FA', icon: Info, label: 'Info' },
-  success: { color: '#34D399', icon: CheckCircle2, label: 'Positivo' },
+  danger: { color: 'var(--chart-color-danger)', icon: AlertTriangle, label: 'Crítico' },
+  warning: { color: 'var(--chart-color-warning)', icon: AlertTriangle, label: 'Atención' },
+  info: { color: 'var(--chart-color-contact)', icon: Info, label: 'Info' },
+  success: { color: 'var(--chart-color-success)', icon: CheckCircle2, label: 'Positivo' },
 };
 
-export default function InsightsPanel({ insights, onDrill }) {
+export default React.memo(function InsightsPanel({ insights, onDrill }) {
   if (!insights || insights.length === 0) return null;
 
   return (
@@ -50,4 +50,4 @@ export default function InsightsPanel({ insights, onDrill }) {
       })}
     </div>
   );
-}
+});

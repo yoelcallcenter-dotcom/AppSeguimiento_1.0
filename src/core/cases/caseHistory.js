@@ -13,6 +13,7 @@
 
 import casesDB from '../db/casesDB';
 import { nowISO } from '../db/versioning';
+import { reportError } from '../error/reportError';
 
 /** Ventana (ms) para considerar dos registros como duplicado de una misma acción. */
 const DUPLICATE_WINDOW_MS = 1500;
@@ -354,7 +355,7 @@ export async function recordCaseEvent(event) {
     await casesDB.case_history.add(normalized);
     return true;
   } catch (err) {
-    console.warn('[caseHistory] No se pudo registrar el evento:', err);
+    reportError(err, { context: 'caseHistory:recordEvent' });
     return false;
   }
 }
@@ -429,7 +430,7 @@ export async function getCaseHistory(caseId) {
     const rows = await casesDB.case_history.where('caseId').equals(String(caseId)).toArray();
     return rows.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   } catch (err) {
-    console.warn('[caseHistory] Error al leer historial:', err);
+    reportError(err, { context: 'caseHistory:getCaseHistory' });
     return [];
   }
 }

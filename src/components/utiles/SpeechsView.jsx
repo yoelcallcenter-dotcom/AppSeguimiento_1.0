@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import { onKeyActivate } from "../../utils/a11y";
 import {
   Plus,
   FileText,
@@ -93,7 +94,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
       soundSystem.playAction("copy");
       showToast("Copiado al portapapeles", "success");
     } catch {
-      alert("No se pudo copiar.");
+      showToast("No se pudo copiar.", "error");
     }
   };
 
@@ -122,7 +123,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
         setSpeechs([...speechs, ...sanitized]);
         showToast(`${sanitized.length} speechs importados`, "success");
       } catch {
-        alert("El archivo no es un JSON valido.");
+        showToast("El archivo no es un JSON valido.", "error");
       }
     };
     reader.readAsText(file);
@@ -173,20 +174,24 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
           }}
         >
           <button
+            type="button"
+            aria-label="Vista de cuadrícula"
             onClick={() => setVista("grid")}
             className={`p-1.5 rounded transition-colors ${
               vista === "grid"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
             <Grid size={16} />
           </button>
           <button
+            type="button"
+            aria-label="Vista de lista"
             onClick={() => setVista("list")}
             className={`p-1.5 rounded transition-colors ${
               vista === "list"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
@@ -230,7 +235,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
               onClick={() => setTamanoLetra(t.value)}
               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                 tamanoLetra === t.value
-                  ? "bg-[var(--color-accent)] text-[#14181F]"
+                  ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
@@ -304,7 +309,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      className="pill-sm font-bold"
                       style={{
                         backgroundColor: "var(--color-accent)22",
                         color: "var(--color-accent)",
@@ -321,6 +326,8 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                   </div>
                   <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                     <button
+                      type="button"
+                      aria-label="Copiar guion"
                       onClick={(e) => {
                         e.stopPropagation();
                         copiar(s, idx);
@@ -335,6 +342,8 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                       {isCopied ? <Check size={14} /> : <Copy size={14} />}
                     </button>
                     <button
+                      type="button"
+                      aria-label="Eliminar guion"
                       onClick={(e) => {
                         e.stopPropagation();
                         setConfirmEliminar(idx);
@@ -345,6 +354,8 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                       <Trash2 size={14} />
                     </button>
                     <button
+                      type="button"
+                      aria-label="Ver guion completo"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSpeechSeleccionado({ speech: s, index: idx });
@@ -358,11 +369,17 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                 </div>
 
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Ver guion completo"
                   className={`whitespace-pre-wrap ${fontSizeClass}`}
                   style={{ color: "var(--color-text)" }}
                   onClick={() =>
                     setSpeechSeleccionado({ speech: s, index: idx })
                   }
+                  onKeyDown={onKeyActivate(() =>
+                    setSpeechSeleccionado({ speech: s, index: idx })
+                  )}
                 >
                   {info.contenido || s}
                 </div>
@@ -406,6 +423,9 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                 return (
                   <tr
                     key={idx}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Ver guion completo"
                     className="cursor-pointer hover:opacity-80 transition-opacity"
                     style={{
                       backgroundColor:
@@ -417,6 +437,9 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                     onClick={() =>
                       setSpeechSeleccionado({ speech: s, index: idx })
                     }
+                    onKeyDown={onKeyActivate(() =>
+                      setSpeechSeleccionado({ speech: s, index: idx })
+                    )}
                   >
                     <td
                       className="px-3 py-2 text-xs font-bold"
@@ -436,6 +459,8 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
+                          type="button"
+                          aria-label="Copiar guion"
                           onClick={() => copiar(s, idx)}
                           className="p-1 rounded hover:bg-white/5 transition-colors"
                           style={{
@@ -452,6 +477,8 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                           )}
                         </button>
                         <button
+                          type="button"
+                          aria-label="Eliminar guion"
                           onClick={() => setConfirmEliminar(idx)}
                           className="p-1 rounded hover:bg-white/5 transition-colors"
                           style={{ color: "var(--color-danger)" }}
@@ -510,7 +537,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
           <>
             <div className="flex items-center gap-3 mb-3">
               <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full"
+                className="pill-sm font-bold"
                 style={{
                   backgroundColor: "var(--color-accent)22",
                   color: "var(--color-accent)",
@@ -536,7 +563,7 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                   onClick={() => setTamanoLetra(t.value)}
                   className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
                     tamanoLetra === t.value
-                      ? "bg-[var(--color-accent)] text-[#14181F]"
+                      ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                       : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                   }`}
                 >

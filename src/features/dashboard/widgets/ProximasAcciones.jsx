@@ -18,7 +18,7 @@ const SEVERITY_STYLES = {
 
 const INITIAL_SHOW = 5;
 
-export default function ProximasAcciones({ cases, notes, events, onVerCaso, onNavigateToEvent, onNavigateFiltered }) {
+export default React.memo(function ProximasAcciones({ cases, notes, events, onVerCaso, onNavigateToEvent, onNavigateFiltered }) {
   const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [expanded, setExpanded] = useState(false);
 
@@ -106,4 +106,4 @@ export default function ProximasAcciones({ cases, notes, events, onVerCaso, onNa
       </div>
     </div>
   );
-}
+});

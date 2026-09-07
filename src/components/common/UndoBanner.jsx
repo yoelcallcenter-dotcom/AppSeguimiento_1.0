@@ -13,7 +13,7 @@ export function UndoBanner({ label, onUndo, onTimeout }) {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-[95] flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-slide-up"
+      className="fixed bottom-5 right-5 z-alert flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-slide-up"
       style={{
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border-light)",
@@ -27,7 +27,7 @@ export function UndoBanner({ label, onUndo, onTimeout }) {
       <button
         onClick={onUndo}
         className="flex items-center gap-1 text-xs font-bold rounded-md px-3 py-1.5 transition-opacity hover:opacity-80"
-        style={{ backgroundColor: "var(--color-accent)", color: "#14181F" }}
+        style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-accent)" }}
       >
         <Undo2 size={13} />
         Deshacer

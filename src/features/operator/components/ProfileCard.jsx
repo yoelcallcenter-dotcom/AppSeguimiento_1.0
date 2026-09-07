@@ -107,7 +107,7 @@ export function ProfileCard({ profile, updateProfile, showToast }) {
               className="flex items-center justify-center rounded-full text-sm font-bold"
               style={{
                 backgroundColor: "var(--color-accent)",
-                color: "#14181F",
+                color: "var(--color-text-on-accent)",
                 width: "40px",
                 height: "40px",
               }}

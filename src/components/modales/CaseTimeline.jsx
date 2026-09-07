@@ -183,7 +183,7 @@ export function CaseTimeline({ eventos, config }) {
                 backgroundColor: activo
                   ? "var(--color-accent)"
                   : "var(--color-surface)",
-                color: activo ? "#14181F" : "var(--color-text-muted)",
+                color: activo ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
                 border: `1px solid ${
                   activo ? "var(--color-accent)" : "var(--color-border)"
                 }`,
@@ -216,7 +216,7 @@ export function CaseTimeline({ eventos, config }) {
         {grupos.map((g) => (
           <div key={g.fecha}>
             <div
-              className="text-[9px] font-bold uppercase tracking-wider mb-1"
+              className="text-ds-xs font-bold uppercase tracking-wider mb-1"
               style={{ color: "var(--color-text-muted)" }}
             >
               {etiquetaDia(g.fecha, new Date())}

@@ -2,6 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 
+// Perfilador de renders (solo dev). Debe importarse antes del render.
+import "./wdyr";
+
 // Importar estilos globales
 import "./styles/globals.css";
 
@@ -9,10 +12,6 @@ import "./styles/globals.css";
 // render para evitar flash de fuente; no bloquea la app).
 import { typographyManager } from "./core/typography/typographyManager";
 typographyManager.init();
-
-// Inicializar sistema de notificaciones
-import { notificationService } from "./utils/notifications";
-notificationService.init();
 
 // Inicializar sistema de autodiagnóstico
 import { setupGlobalErrorListeners } from "./core/error/reportError";

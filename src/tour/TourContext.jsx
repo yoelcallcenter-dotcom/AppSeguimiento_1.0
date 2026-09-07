@@ -208,7 +208,7 @@ export function TourProvider({ children }) {
 
       {overlayVisible && targetRect && step && (
         <svg
-          className="fixed inset-0 z-[999] pointer-events-none"
+          className="fixed inset-0 z-tour pointer-events-none"
           width="100%"
           height="100%"
           style={{ transition: "opacity var(--duration-slow, 0.35s) var(--ease-standard, cubic-bezier(0.4,0,0.2,1))" }}
@@ -232,7 +232,7 @@ export function TourProvider({ children }) {
 
       {overlayVisible && step && (
         <div
-          className="fixed z-[1002]"
+          className="fixed z-tour"
           style={{
             top: tooltipPos.top,
             left: tooltipPos.left,
@@ -354,7 +354,7 @@ export function TourProvider({ children }) {
                 <button
                   onClick={nextStep}
                   className="flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: "var(--color-accent)", color: "#14181F" }}
+                  style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-accent)" }}
                 >
                   {isLast ? (
                     <><span>Finalizar</span> <Check size={14} /></>
@@ -369,7 +369,7 @@ export function TourProvider({ children }) {
       )}
 
       {finished && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center animate-fade-in" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+        <div className="fixed inset-0 z-tour flex items-center justify-center animate-fade-in" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div
             className="rounded-xl p-6 text-center shadow-2xl animate-slide-up"
             style={{ backgroundColor: "var(--color-surface2)", border: "2px solid var(--color-accent)", maxWidth: "360px", width: "90%" }}
@@ -382,7 +382,7 @@ export function TourProvider({ children }) {
             <button
               onClick={() => endTour()}
               className="text-xs font-semibold px-4 py-2 rounded transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "var(--color-accent)", color: "#14181F" }}
+              style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-accent)" }}
             >
               Empezar
             </button>

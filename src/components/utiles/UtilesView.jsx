@@ -252,7 +252,7 @@ export function UtilesView({
             onClick={() => setVistaTabs("grid")}
             className={`p-1.5 rounded transition-colors ${
               vistaTabs === "grid"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
@@ -262,7 +262,7 @@ export function UtilesView({
             onClick={() => setVistaTabs("list")}
             className={`p-1.5 rounded transition-colors ${
               vistaTabs === "list"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
@@ -299,7 +299,7 @@ export function UtilesView({
                   className="text-[10px] px-1.5 py-0.5 rounded-full"
                   style={{
                     backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : `${badgeColor}22`,
-                    color: isActive ? '#14181F' : badgeColor,
+                    color: isActive ? 'var(--color-text-on-accent)' : badgeColor,
                   }}
                 >
                   {badge}

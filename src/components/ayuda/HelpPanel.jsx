@@ -128,7 +128,7 @@ export default function HelpPanel({ showToast, onClose }) {
                 className="mt-3 px-4 py-2 rounded-md text-xs font-semibold transition-opacity hover:opacity-80"
                 style={{
                   backgroundColor: "var(--color-accent)",
-                  color: "#14181F",
+                  color: "var(--color-text-on-accent)",
                 }}
               >
                 Comenzar tour ({TOURS.onboarding.steps.length} pasos)

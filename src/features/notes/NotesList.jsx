@@ -3,6 +3,7 @@ import { Search, Trash2, Clock, Tag, FileText } from 'lucide-react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { TextInput } from '../../components/common/TextInput';
 import { EmptyState } from '../../components/common/EmptyState';
+import { onKeyActivate } from '../../utils/a11y';
 
 export default function NotesList({
   notes,
@@ -74,12 +75,16 @@ export default function NotesList({
           return (
             <div
               key={note.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir nota ${note.title || 'Sin titulo'}`}
               className="rounded-md p-2.5 cursor-pointer transition-colors hover:bg-white/5"
               style={{
                 backgroundColor: isSelected ? 'var(--color-accent)11' : 'var(--color-surface)',
                 border: `1px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
               }}
               onClick={() => onSelect(note.id)}
+              onKeyDown={onKeyActivate(() => onSelect(note.id))}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -115,6 +120,8 @@ export default function NotesList({
                 </div>
                 <div className="flex gap-0.5 flex-shrink-0">
                   <button
+                    type="button"
+                    aria-label="Eliminar nota"
                     onClick={e => { e.stopPropagation(); setConfirmDelete(note.id); }}
                     className="p-1 rounded hover:bg-white/5 transition-colors"
                     style={{ color: 'var(--color-danger)' }}

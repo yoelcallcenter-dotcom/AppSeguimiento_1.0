@@ -167,7 +167,7 @@ export function PersonalizacionColores({ showToast, config }) {
             onClick={() => theme.changeTheme("dark")}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-1 justify-center ${
               theme.isDark
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
             }`}
           >
@@ -177,7 +177,7 @@ export function PersonalizacionColores({ showToast, config }) {
             onClick={() => theme.changeTheme("light")}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 flex-1 justify-center ${
               theme.isLight
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
             }`}
           >

@@ -4,6 +4,7 @@ import { PillMemo } from "../common/Pill";
 import { Paginacion } from "../common/Paginacion";
 import { PipelineBar } from "../kanban/PipelineBar";
 import { sanitizeString } from "../../utils/sanitize";
+import { onKeyActivate } from "../../utils/a11y";
 import { useUX } from "../../context/UXContext";
 import { COLUMNAS_DISPONIBLES } from "../../utils/constants";
 import { getOrigenConfig } from "../common/OrigenBadge";
@@ -13,6 +14,79 @@ import { getEstados } from "../../utils/catalogos";
 import { trackEvent } from "../../utils/behaviorEngine";
 import useAppStore from '../../core/store/useAppStore';
 import { Inbox } from 'lucide-react';
+
+// Optimización 1.6.6: fila de tabla extraída y memorizada para evitar re-renders
+// innecesarios al cambiar el orden, la página o al teclear en la búsqueda.
+const TablaRow = React.memo(function TablaRow({
+  c,
+  i,
+  onOpen,
+  seleccionados,
+  toggleSeleccion,
+  colsVisibles,
+  config,
+  ux,
+  onSeleccionar,
+}) {
+  return (
+    <tr
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir caso ${sanitizeString(c.nombre || "")}`}
+      onClick={() => { trackEvent("TABLE_INTERACTION"); onOpen(c); }}
+      onKeyDown={onKeyActivate(() => { trackEvent("TABLE_INTERACTION"); onOpen(c); })}
+      className={`cursor-pointer transition-colors ${ux.microinteracciones ? "hover:bg-white/10" : "hover:opacity-70"}`}
+      style={{
+        backgroundColor: i % 2 ? "var(--color-surface2)" : "var(--color-surface3)",
+        borderTop: "1px solid var(--color-border)",
+      }}
+    >
+      {onSeleccionar && (
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            aria-label={`Seleccionar caso ${c.nombre || ""}`}
+            checked={seleccionados.includes(c.id)}
+            onChange={() => toggleSeleccion(c.id)}
+            className="accent-[var(--color-accent)]"
+          />
+        </td>
+      )}
+      {colsVisibles.map(({ key }) => {
+        switch (key) {
+          case 'fecha':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(c.fecha, config)}</td>;
+          case 'nombre':
+            return <td key={key} className="px-3 py-2.5 font-medium whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.nombre)}</td>;
+          case 'telefono':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PhoneLink telefono={c.telefono} config={config} /></td>;
+          case 'localidad':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.localidad)}</td>;
+          case 'aseguradora':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.aseguradora)}</td>;
+          case 'tipoIngreso':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.tipoIngreso)}</td>;
+          case 'cita':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.cita)}</td>;
+          case 'estudioJuridico':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.estudioJuridico)}</td>;
+          case 'estado':
+            return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PillMemo estado={c.estado} small estados={getEstados(config)} /></td>;
+          case 'reporte':
+            return <td key={key} className="px-3 py-2.5 max-w-[240px] text-xs" style={{ color: "var(--color-text)" }} title={c.reporteHistory?.map((r) => {
+              const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
+              return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${r.fecha}) ${r.texto}`;
+            }).join(" // ")}><span className="line-clamp-2">{c.reporteHistory?.length > 0 ? c.reporteHistory.map((r) => {
+              const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
+              return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${sanitizeString(r.fecha)}) ${sanitizeString(r.texto)}`;
+            }).join(" // ") : <span style={{ color: "var(--color-text-muted)" }}>{"\u2014"}</span>}</span></td>;
+          default:
+            return null;
+        }
+      })}
+    </tr>
+  );
+});
 
 export function TablaView({
   casos,
@@ -69,10 +143,13 @@ export function TablaView({
   }, [casos, sortKey, sortDir]);
 
   const totalPaginas = Math.max(1, Math.ceil(sorted.length / casosPorPagina));
-  const casosPagina = sorted.slice(
-    (paginaActual - 1) * casosPorPagina,
-    paginaActual * casosPorPagina
-  );
+  // Optimización 1.6.6: la página de casos se memoiza para no recrear el slice en cada render.
+  const casosPagina = useMemo(() => {
+    return sorted.slice(
+      (paginaActual - 1) * casosPorPagina,
+      paginaActual * casosPorPagina
+    );
+  }, [sorted, paginaActual, casosPorPagina]);
 
   const toggleSort = (k) => {
     trackEvent("TABLE_INTERACTION");
@@ -84,24 +161,36 @@ export function TablaView({
     setPaginaActual(1);
   };
 
-  const toggleSeleccion = (id) => {
-    if (onSeleccionar) {
-      const nuevos = seleccionados.includes(id)
-        ? seleccionados.filter((s) => s !== id)
-        : [...seleccionados, id];
-      onSeleccionar(nuevos);
-    }
-  };
+  // Optimización 1.6.6: callbacks estables para que TablaRow (memo) no se re-renderice
+  // por identidad de función.
+  const toggleSeleccion = useCallback(
+    (id) => {
+      if (onSeleccionar) {
+        const nuevos = seleccionados.includes(id)
+          ? seleccionados.filter((s) => s !== id)
+          : [...seleccionados, id];
+        onSeleccionar(nuevos);
+      }
+    },
+    [seleccionados, onSeleccionar]
+  );
 
-  const seleccionarTodos = () => {
-    if (onSeleccionar) {
-      const ids = casosPagina.map((c) => c.id);
-      const todosSeleccionados = ids.every((id) => seleccionados.includes(id));
-      onSeleccionar(todosSeleccionados ? [] : ids);
-    }
-  };
+  const seleccionarTodos = useCallback(
+    () => {
+      if (onSeleccionar) {
+        const ids = casosPagina.map((c) => c.id);
+        const todosSeleccionados = ids.every((id) => seleccionados.includes(id));
+        onSeleccionar(todosSeleccionados ? [] : ids);
+      }
+    },
+    [casosPagina, seleccionados, onSeleccionar]
+  );
 
-  const colsVisibles = COLUMNAS_DISPONIBLES.filter(({ key }) => columnasVisibles[key] !== false);
+  // Optimización 1.6.6: columnas visibles memoizadas (array estable).
+  const colsVisibles = useMemo(
+    () => COLUMNAS_DISPONIBLES.filter(({ key }) => columnasVisibles[key] !== false),
+    [columnasVisibles]
+  );
 
   const handleMonthChange = useCallback(() => {
     setPaginaActual(1);
@@ -120,13 +209,14 @@ export function TablaView({
         className="rounded-lg overflow-x-auto"
         style={{ border: "1px solid var(--color-border)" }}
       >
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" aria-label="Tabla de casos">
           <thead>
             <tr style={{ backgroundColor: "var(--color-surface)" }}>
               {onSeleccionar && (
-                <th className="px-3 py-2.5 w-8">
+                <th scope="col" className="px-3 py-2.5 w-8">
                   <input
                     type="checkbox"
+                    aria-label="Seleccionar todos los casos"
                     checked={
                       casosPagina.length > 0 &&
                       casosPagina.every((c) => seleccionados.includes(c.id))
@@ -139,7 +229,18 @@ export function TablaView({
               {colsVisibles.map(({ key, label }) => (
                 <th
                   key={key}
+                  scope="col"
+                  aria-sort={
+                    sortKey === key
+                      ? sortDir === 1
+                        ? "ascending"
+                        : "descending"
+                      : undefined
+                  }
+                  aria-label={`Ordenar por ${label}`}
+                  tabIndex={0}
                   onClick={() => toggleSort(key)}
+                  onKeyDown={onKeyActivate(() => toggleSort(key))}
                   className="text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer select-none whitespace-nowrap transition-colors hover:opacity-70"
                   style={{ color: "var(--color-text-muted)" }}
                   title={ux.tooltipsMejorados ? `Ordenar por ${label}` : undefined}
@@ -160,62 +261,18 @@ export function TablaView({
               ))
             )}
             {casosPagina.map((c, i) => (
-              <tr
+              <TablaRow
                 key={c.id}
-                onClick={() => { trackEvent("TABLE_INTERACTION"); onOpen(c); }}
-                className={`cursor-pointer transition-colors ${ux.microinteracciones ? "hover:bg-white/10" : "hover:opacity-70"}`}
-                style={{
-                  backgroundColor:
-                    i % 2 ? "var(--color-surface2)" : "var(--color-surface3)",
-                  borderTop: "1px solid var(--color-border)",
-                }}
-              >
-                {onSeleccionar && (
-                  <td
-                    className="px-3 py-2.5"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={seleccionados.includes(c.id)}
-                      onChange={() => toggleSeleccion(c.id)}
-                      className="accent-[var(--color-accent)]"
-                    />
-                  </td>
-                )}
-                {colsVisibles.map(({ key }) => {
-                  switch (key) {
-                    case 'fecha':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(c.fecha, config)}</td>;
-                    case 'nombre':
-                      return <td key={key} className="px-3 py-2.5 font-medium whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.nombre)}</td>;
-                    case 'telefono':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PhoneLink telefono={c.telefono} config={config} /></td>;
-                    case 'localidad':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.localidad)}</td>;
-                    case 'aseguradora':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.aseguradora)}</td>;
-                    case 'tipoIngreso':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.tipoIngreso)}</td>;
-                    case 'cita':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.cita)}</td>;
-                    case 'estudioJuridico':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap text-xs" style={{ color: "var(--color-text)" }}>{sanitizeString(c.estudioJuridico)}</td>;
-                    case 'estado':
-                      return <td key={key} className="px-3 py-2.5 whitespace-nowrap"><PillMemo estado={c.estado} small estados={getEstados(config)} /></td>;
-                    case 'reporte':
-                      return <td key={key} className="px-3 py-2.5 max-w-[240px] text-xs" style={{ color: "var(--color-text)" }} title={c.reporteHistory?.map((r) => {
-                        const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
-                        return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${r.fecha}) ${r.texto}`;
-                      }).join(" // ")}><span className="line-clamp-2">{c.reporteHistory?.length > 0 ? c.reporteHistory.map((r) => {
-                        const origenCfg = r.origen ? getOrigenConfig(r.origen) : null;
-                        return `${origenCfg ? '[' + origenCfg.abbr + '] ' : ''}(${sanitizeString(r.fecha)}) ${sanitizeString(r.texto)}`;
-                      }).join(" // ") : <span style={{ color: "var(--color-text-muted)" }}>{"\u2014"}</span>}</span></td>;
-                    default:
-                      return null;
-                  }
-                })}
-              </tr>
+                c={c}
+                i={i}
+                onOpen={onOpen}
+                seleccionados={seleccionados}
+                toggleSeleccion={toggleSeleccion}
+                colsVisibles={colsVisibles}
+                config={config}
+                ux={ux}
+                onSeleccionar={onSeleccionar}
+              />
             ))}
             {ux.skeletonLoader && !casesLoaded ? null : sorted.length === 0 && (
               <tr>

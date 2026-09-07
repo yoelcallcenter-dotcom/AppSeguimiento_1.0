@@ -4,13 +4,13 @@ import { CHART_TICK, CHART_GRID } from './chartTheme';
 import ChartTooltip from './ChartTooltip';
 import ChartCard from './ChartCard';
 
-const CURSOR_FILL = 'rgba(148,163,184,0.15)';
+const CURSOR_FILL = 'var(--chart-color-cursor)';
 
 const SERIES = [
-  { dataKey: 'success', name: 'Firmados', color: '#10B981' },
-  { dataKey: 'contact', name: 'En contacto', color: '#60A5FA' },
-  { dataKey: 'pending', name: 'Pendientes', color: '#FBBF24' },
-  { dataKey: 'lost', name: 'Perdidos', color: '#EF4444' },
+  { dataKey: 'success', name: 'Firmados', color: 'var(--chart-color-signed)' },
+  { dataKey: 'contact', name: 'En contacto', color: 'var(--chart-color-contact)' },
+  { dataKey: 'pending', name: 'Pendientes', color: 'var(--chart-color-warning)' },
+  { dataKey: 'lost', name: 'Perdidos', color: 'var(--chart-color-danger)' },
 ];
 
 /**

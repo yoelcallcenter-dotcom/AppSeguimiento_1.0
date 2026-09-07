@@ -30,7 +30,7 @@ const Bar = React.memo(({ count, max, diaSemana, date, isFirstOfWeek, isSelected
             }}
           />
         </div>
-        <div className="text-[9px] leading-tight text-center" style={{ color: 'var(--color-text-muted)' }}>{diaSemana}<br/>{date.slice(-2)}</div>
+        <div className="text-ds-xs leading-tight text-center" style={{ color: 'var(--color-text-muted)' }}>{diaSemana}<br/>{date.slice(-2)}</div>
       </button>
     </div>
   );

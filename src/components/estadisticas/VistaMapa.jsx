@@ -64,7 +64,7 @@ export function VistaMapa({ casos, onVerCaso }) {
             { value: "localidad", label: "Por Localidad" },
             { value: "provincia", label: "Por Provincia" },
           ]}
-          style={{ width: 140, padding: "4px 8px", fontSize: "12px" }}
+          style={{ width: 140, padding: "4px 8px", fontSize: "var(--font-size-ds-xs)" }}
         />
       </div>
 

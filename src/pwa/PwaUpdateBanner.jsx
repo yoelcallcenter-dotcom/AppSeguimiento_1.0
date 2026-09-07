@@ -13,7 +13,7 @@ export function PwaUpdateBanner({ ready, onUpdate, onDismiss }) {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] max-w-md animate-slide-up"
+      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-banner w-[calc(100%-2rem)] max-w-md animate-slide-up"
       style={{
         backgroundColor: "var(--color-surface2)",
         border: "1px solid var(--color-border)",

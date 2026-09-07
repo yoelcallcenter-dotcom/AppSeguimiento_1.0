@@ -1,4 +1,4 @@
-import { unescapeCSV } from './csvUtils';
+import { unescapeCSV, parseReportesString, parseComentariosString, parseTagsString, parseNotasVinculadas, parseAgendaVinculada, parseHistorialVinculada } from './csvUtils';
 import { CSV_FIELD_MAP } from './constants';
 import { sanitizeString } from '../sanitize';
 import { normalizeDate } from '../dateFilters';
@@ -11,11 +11,6 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-/**
- * Neutraliza inyección de fórmulas en celdas (CSV injection): si un valor
- * comienza con =, +, - o @, se antepone una comilla para que se trate como
- * texto plano.
- */
 const FORMULA_START = /^[=+\-@]/;
 function neutralizarFormula(value) {
   if (typeof value !== 'string') return value;
@@ -23,77 +18,16 @@ function neutralizarFormula(value) {
   return value;
 }
 
-/**
- * Sanea un valor de importación: remueve HTML/scripts y neutraliza fórmulas.
- */
 function sanitizarValor(value) {
   if (typeof value !== 'string') return value;
   return sanitizeString(neutralizarFormula(value));
 }
 
-/**
- * Valida que un caso importado tenga los campos mínimos y devuelve un error
- * descriptivo, o null si es válido.
- */
 function validarCasoImportado(c) {
   if (!c || typeof c !== 'object') return 'Caso inválido';
   if (!c.id && !c.nombre && !c.telefono) return 'Faltan nombre y teléfono';
   return null;
 }
-
-const parseReportesStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split('//').filter((s) => s.trim()).map((item) => {
-    const m = item.trim().match(/^\(([^)]+)\)\s*(.*)/);
-    if (m) return { fecha: m[1].trim(), texto: m[2].trim() };
-    return { fecha: '', texto: item.trim() };
-  }).filter((r) => r.texto);
-};
-
-const parseComentariosStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split('//').filter((s) => s.trim()).map((item) => {
-    const m = item.trim().match(/^\(([^)]+)\)\s*(.*)/);
-    if (m) return { fecha: m[1].trim(), texto: m[2].trim(), usuario: 'Usuario' };
-    return { fecha: new Date().toISOString(), texto: item.trim(), usuario: 'Usuario' };
-  }).filter((c) => c.texto);
-};
-
-const parseTagsStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split(';').map((t) => t.trim()).filter(Boolean);
-};
-
-const parseNotasStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split('//').map((s) => s.trim()).filter(Boolean).map((item) => {
-    const m = item.match(/^([^:]+):\s*(.*)\s*\(([^)]*)\)$/);
-    if (m) return { titulo: m[1].trim(), contenido: m[2].trim(), fecha: m[3].trim() || '' };
-    return { titulo: '', contenido: item, fecha: '' };
-  });
-};
-
-const parseAgendaStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split('//').map((s) => s.trim()).filter(Boolean).map((item) => {
-    const m = item.match(/^(.+)\s*\(([^)]*)\)$/);
-    if (m) return { titulo: m[1].trim(), fecha: m[2].trim() || '' };
-    return { titulo: item.trim(), fecha: '' };
-  });
-};
-
-const parseHistorialStr = (str) => {
-  if (!str || typeof str !== 'string') return [];
-  return str.split(';').map((s) => s.trim()).filter(Boolean).map((item) => {
-    const parts = item.split('|');
-    return {
-      timestamp: parts[0] ? new Date(parts[0]).getTime() || Date.now() : Date.now(),
-      type: parts[1] || 'manual',
-      title: parts[2] || '',
-      description: parts[3] || '',
-    };
-  });
-};
 
 const normalizeArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -102,7 +36,7 @@ const normalizeArray = (value) => {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed;
     } catch {}
-    return parseTagsStr(value);
+    return parseTagsString(value);
   }
   return [];
 };
@@ -126,8 +60,6 @@ const normalizeJSONorText = (value, textParser) => {
 
 function normalizeCase(c) {
   const id = sanitizarValor(c.id) || generateId();
-  // Integridad (1.3.3): fecha irrecuperable se conserva (o queda vacía);
-  // nunca se inventa la fecha actual.
   const fechaIso = normalizeDate(c.fecha);
   return {
     id,
@@ -145,31 +77,40 @@ function normalizeCase(c) {
     estudioJuridico: sanitizarValor(c.estudioJuridico || ''),
     observaciones: sanitizarValor(c.observaciones || ''),
     tags: normalizeArray(c.tags).map(sanitizarValor),
-    reporteHistory: normalizeJSONorText(c.reporteHistory || c.reportes, parseReportesStr).map((r) => ({
+    reporteHistory: normalizeJSONorText(c.reporteHistory || c.reportes, parseReportesString).map((r) => ({
       ...r,
       texto: sanitizarValor(r.texto),
     })),
-    comentarios: normalizeJSONorText(c.comentarios, parseComentariosStr).map((c2) => ({
+    comentarios: normalizeJSONorText(c.comentarios, parseComentariosString).map((c2) => ({
       ...c2,
       texto: sanitizarValor(c2.texto),
     })),
-    notasVinculadas: normalizeJSONorText(c.notasVinculadas, parseNotasStr).map((n) => ({
+    notasVinculadas: normalizeJSONorText(c.notasVinculadas, parseNotasVinculadas).map((n) => ({
       ...n,
       titulo: sanitizarValor(n.titulo),
       contenido: sanitizarValor(n.contenido),
     })),
-    agendaVinculada: normalizeJSONorText(c.agendaVinculada, parseAgendaStr).map((e) => ({
+    agendaVinculada: normalizeJSONorText(c.agendaVinculada, parseAgendaVinculada).map((e) => ({
       ...e,
       titulo: sanitizarValor(e.titulo),
     })),
-    caseHistory: normalizeJSONorText(c.caseHistory, parseHistorialStr),
+    caseHistory: normalizeJSONorText(c.caseHistory, parseHistorialVinculada),
     fechaFirma: normalizeDate(c.fechaFirma),
     alertaFirmaEnviada: c.alertaFirmaEnviada || false,
     leido: c.leido !== undefined ? c.leido : true,
   };
 }
 
-export async function importCasesFromCSV(csvData) {
+/**
+ * Importa casos desde CSV.
+ * @param {string} csvData - Datos CSV.
+ * @param {object} [options] - Opciones de importación.
+ * @param {string} [options.mode='append'] - 'append' (agrega sin borrar) o 'replace' (reemplaza todo).
+ * @returns {Promise<{success: boolean, count?: number, cases?: Array, error?: string, warnings?: string}>}
+ */
+export async function importCasesFromCSV(csvData, options = {}) {
+  const mode = options.mode === 'replace' ? 'replace' : 'append';
+
   const { headers, rows } = parseCSV(csvData);
 
   if (headers.length === 0) {
@@ -237,10 +178,13 @@ export async function importCasesFromCSV(csvData) {
   });
 
   try {
-    // Reemplazo total atómico (transacción Dexie): si falla, no se pierde nada.
-    await caseRepository.bulkReplace(deduplicated);
-    
-    // Importar case_history si existe
+    let result;
+    if (mode === 'replace') {
+      result = await caseRepository.bulkReplace(deduplicated);
+    } else {
+      result = await caseRepository.bulkAppend(deduplicated);
+    }
+
     const historyToImport = deduplicated
       .filter((c) => Array.isArray(c.caseHistory) && c.caseHistory.length > 0)
       .flatMap((c) => c.caseHistory.map((h) => ({
@@ -250,20 +194,21 @@ export async function importCasesFromCSV(csvData) {
         title: h.title || '',
         description: h.description || '',
       })));
-    
+
     if (historyToImport.length > 0) {
       await casesDB.case_history.bulkAdd(historyToImport);
     }
-    
+
     notifyChange(SYNC_EVENTS.DATA_IMPORTED, { source: 'csv', count: deduplicated.length });
+
+    const savedCases = mode === 'replace' ? (result || deduplicated) : (result?.merged || deduplicated);
+    return {
+      success: true,
+      count: deduplicated.length,
+      cases: savedCases,
+      warnings: errorCount > 0 ? `${errorCount} filas ignoradas` : undefined,
+    };
   } catch (storageError) {
     return { success: false, error: 'Error al guardar los datos importados' };
   }
-
-  return {
-    success: true,
-    count: deduplicated.length,
-    cases: deduplicated,
-    warnings: errorCount > 0 ? `${errorCount} filas ignoradas` : undefined,
-  };
 }

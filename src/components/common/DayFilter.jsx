@@ -45,7 +45,7 @@ export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], sty
           style={{
             ...btnStyle,
             backgroundColor: selectedDays.length === 0 ? "var(--color-accent)" : "var(--color-surface2)",
-            color: selectedDays.length === 0 ? "#14181F" : "var(--color-text-muted)",
+            color: selectedDays.length === 0 ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
             borderColor: selectedDays.length === 0 ? "var(--color-accent)" : "var(--color-border)",
           }}
           aria-pressed={selectedDays.length === 0}

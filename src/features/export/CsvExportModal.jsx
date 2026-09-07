@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { Download, X, Check } from "lucide-react";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstados } from "../../utils/catalogos";
 import { CSV_HEADERS } from "../../utils/backup/constants";
 import { escapeCSV, sanitizeCSV } from "../../utils/backup/csvUtils";
 import { Btn, OutlineButton } from "../../components/common/Btn";
+import { useModal } from "../../hooks/useModal";
 import casesDB from "../../core/db/casesDB";
 import appDB from "../../core/db/appDB";
 
@@ -35,6 +36,12 @@ export function CsvExportModal({ open, onClose, showToast }) {
   const [estudioJuridico, setEstudioJuridico] = useState("");
   const [localidad, setLocalidad] = useState("");
   const [exportando, setExportando] = useState(false);
+
+  const { dialogRef, handleBackdropClick } = useModal({
+    isOpen: open,
+    onClose,
+    closeOnOverlayClick: true,
+  });
 
   const estados = useMemo(() => getEstados(config), [config]);
 
@@ -147,14 +154,15 @@ export function CsvExportModal({ open, onClose, showToast }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="csv-export-title"
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-xl my-6 animate-scale-in max-h-[80vh] overflow-y-auto"
         style={{
@@ -189,11 +197,13 @@ export function CsvExportModal({ open, onClose, showToast }) {
                   return (
                     <button
                       key={e.v}
+                      type="button"
+                      aria-pressed={sel}
                       onClick={() => toggleEstado(e.v)}
-                      className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full transition-colors"
+                      className="flex items-center gap-1 pill-md font-semibold transition-colors"
                       style={{
                         backgroundColor: sel ? e.accent : "var(--color-surface)",
-                        color: sel ? "#14181F" : "var(--color-text-muted)",
+                        color: sel ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
                         border: `1px solid ${sel ? e.accent : "var(--color-border)"}`,
                       }}
                     >
@@ -207,10 +217,11 @@ export function CsvExportModal({ open, onClose, showToast }) {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+                <label htmlFor="csv-fechaDesde" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
                   Fecha desde
                 </label>
                 <input
+                  id="csv-fechaDesde"
                   type="date"
                   value={fechaDesde}
                   onChange={(e) => setFechaDesde(e.target.value)}
@@ -219,10 +230,11 @@ export function CsvExportModal({ open, onClose, showToast }) {
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+                <label htmlFor="csv-fechaHasta" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
                   Fecha hasta
                 </label>
                 <input
+                  id="csv-fechaHasta"
                   type="date"
                   value={fechaHasta}
                   onChange={(e) => setFechaHasta(e.target.value)}
@@ -233,10 +245,11 @@ export function CsvExportModal({ open, onClose, showToast }) {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              <label htmlFor="csv-aseguradora" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
                 Aseguradora
               </label>
               <select
+                id="csv-aseguradora"
                 value={aseguradora}
                 onChange={(e) => setAseguradora(e.target.value)}
                 className="w-full text-xs px-2 py-1.5 rounded border"
@@ -250,10 +263,11 @@ export function CsvExportModal({ open, onClose, showToast }) {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              <label htmlFor="csv-estudioJuridico" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
                 Estudio Jurídico
               </label>
               <select
+                id="csv-estudioJuridico"
                 value={estudioJuridico}
                 onChange={(e) => setEstudioJuridico(e.target.value)}
                 className="w-full text-xs px-2 py-1.5 rounded border"
@@ -267,10 +281,11 @@ export function CsvExportModal({ open, onClose, showToast }) {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              <label htmlFor="csv-localidad" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
                 Localidad
               </label>
               <input
+                id="csv-localidad"
                 type="text"
                 value={localidad}
                 onChange={(e) => setLocalidad(e.target.value)}

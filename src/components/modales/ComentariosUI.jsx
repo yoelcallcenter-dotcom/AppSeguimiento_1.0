@@ -33,6 +33,7 @@ export function ComentariosUI({
   const formatearFecha = (fecha) => {
     if (!fecha) return "";
     const d = new Date(fecha);
+    if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleString("es-AR", {
       day: "2-digit",
       month: "2-digit",

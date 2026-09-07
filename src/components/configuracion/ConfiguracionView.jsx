@@ -145,6 +145,22 @@ export function ConfiguracionView({
   const [backupHistoryLoading, setBackupHistoryLoading] = useState(false);
   const [backupFrequency, setBackupFrequencyState] = useState(() => getBackupFrequency());
 
+  const previewAbierto =
+    showImportPreview || showUtilesPreview || showNcPreview;
+
+  useEffect(() => {
+    if (!previewAbierto) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (showImportPreview) setShowImportPreview(false);
+      else if (showUtilesPreview) setShowUtilesPreview(false);
+      else if (showNcPreview) setShowNcPreview(false);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [showImportPreview, showUtilesPreview, showNcPreview, previewAbierto]);
+
   const handleChangeBackupFrequency = (frequency) => {
     if (!setBackupFrequency(frequency)) return;
     setBackupFrequencyState(frequency);
@@ -1514,7 +1530,7 @@ export function ConfiguracionView({
                         const isActive = estados.includes(e.v);
                         return (
                           <button key={e.v} onClick={() => updateCategoria(cat, isActive ? e.v : null, isActive ? null : e.v)}
-                            className="text-[10px] px-2 py-1 rounded-full transition-colors"
+                            className="pill-md transition-colors"
                             style={{ backgroundColor: isActive ? `${e.accent}33` : 'var(--color-surface)', color: isActive ? e.accent : 'var(--color-text-muted)', border: `1px solid ${isActive ? e.accent : 'var(--color-border)'}` }}>
                             {e.v}
                           </button>
@@ -2204,7 +2220,7 @@ export function ConfiguracionView({
                         <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
                           {new Date(b.timestamp).toLocaleString()}
                           {b.kind === 'jornada' && (
-                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}>
+                            <span className="ml-2 pill-compact" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}>
                               Jornada
                             </span>
                           )}
@@ -2456,7 +2472,7 @@ export function ConfiguracionView({
                           key={m}
                           className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
                             isSelected
-                              ? "bg-[var(--color-accent)] text-[#14181F]"
+                              ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                               : "bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
                           }`}
                           style={{ border: "1px solid var(--color-border)" }}
@@ -2889,7 +2905,7 @@ export function ConfiguracionView({
             onClick={() => cambiarGrupo(g.id)}
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors hover:opacity-70 ${
               grupoActivo === g.id
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
@@ -2927,7 +2943,7 @@ export function ConfiguracionView({
 
       {showImportPreview && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={() => setShowImportPreview(false)}
           role="dialog"
@@ -2968,7 +2984,7 @@ export function ConfiguracionView({
                     <tr style={{ backgroundColor: "var(--color-surface)" }}>
                       {importMapping.map((m, i) => (
                         <th key={i} className="px-2 py-1.5 text-left align-top">
-                          <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--color-text-muted)" }}>
+                          <div className="text-ds-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--color-text-muted)" }}>
                             {m.header}
                           </div>
                           <select
@@ -3085,7 +3101,7 @@ export function ConfiguracionView({
 
       {showUtilesPreview && utilesPreviewData && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={() => setShowUtilesPreview(false)}
           role="dialog"
@@ -3175,7 +3191,7 @@ export function ConfiguracionView({
 
       {showNcPreview && ncPreviewData && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           onClick={() => setShowNcPreview(false)}
           role="dialog"

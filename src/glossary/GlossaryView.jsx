@@ -25,7 +25,7 @@ export function GlossaryView() {
           Glosario de terminos
         </span>
         <span
-          className="text-[10px] px-2 py-0.5 rounded-full"
+          className="pill-sm"
           style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
         >
           {GLOSSARY_TERMS.length} terminos
@@ -71,7 +71,7 @@ export function GlossaryView() {
                   {t.related.map((r) => (
                     <span
                       key={r}
-                      className="text-[9px] px-1.5 py-0.5 rounded-full"
+                      className="pill-compact"
                       style={{ backgroundColor: "var(--color-accent)11", color: "var(--color-accent)" }}
                     >
                       {r}

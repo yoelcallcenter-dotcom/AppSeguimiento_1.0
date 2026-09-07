@@ -51,7 +51,7 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-search flex items-start justify-center pt-[15vh]"
       style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
@@ -77,7 +77,7 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
               onClose();
             }}
             className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded"
-            style={{ backgroundColor: 'var(--color-accent)', color: '#14181F' }}
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-on-accent)' }}
           >
             <Plus size={12} /> Nueva
           </button>

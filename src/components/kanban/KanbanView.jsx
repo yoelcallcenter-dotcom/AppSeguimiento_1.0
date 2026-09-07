@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { MonthDayFilterBar } from "../common/MonthDayFilterBar";
 import { PipelineBar } from "./PipelineBar";
 import { CasoCard } from "./CasoCard";
@@ -11,6 +11,107 @@ import { casoVieneDeReporte } from "../../utils/dateFilters";
 import { trackEvent } from "../../utils/behaviorEngine";
 import { useFilters } from "../../context/FiltersContext";
 import useAppStore from '../../core/store/useAppStore';
+
+// Optimización 1.6.6: columna del kanban extraída y memorizada. Solo se
+// re-renderiza cuando cambian sus props (estado, casos, orden, arrastre).
+const KanbanColumn = React.memo(function KanbanColumn({
+  estado,
+  items,
+  orden,
+  onOrdenChange,
+  onDrop,
+  onOpen,
+  onDragStart,
+  draggingId,
+  config,
+  selectedMonth,
+  selectedYear,
+}) {
+  return (
+    <div
+      key={estado.v}
+      onDragOver={(ev) => ev.preventDefault()}
+      onDrop={(ev) => onDrop(ev, estado.v)}
+      className="rounded-lg p-2.5"
+      style={{
+        backgroundColor: "var(--color-surface2)",
+        border: `1px solid ${estado.accent}44`,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
+        <span
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: estado.accent }}
+        />
+        <span
+          className="text-xs font-bold uppercase tracking-wide"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {estado.v}
+        </span>
+        <span
+          className="text-[11px]"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          ({items.length})
+        </span>
+        <div className="ml-auto">
+          <select
+            className="kanban-col-select"
+            value={orden}
+            onChange={(o) => onOrdenChange(estado.v, o.target.value)}
+            style={{
+              padding: "4px 24px 4px 8px",
+              borderRadius: "4px",
+              fontSize: "var(--font-size-ds-xs)",
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text)",
+              appearance: "none",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7385' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 4px center",
+              cursor: "pointer",
+            }}
+          >
+            <option value="fecha-desc">Mas reciente</option>
+            <option value="fecha-asc">Mas antiguo</option>
+            <option value="nombre-asc">A-Z</option>
+            <option value="nombre-desc">Z-A</option>
+          </select>
+        </div>
+      </div>
+      <div
+        className="flex gap-2 overflow-x-auto pb-2 scroll-smooth"
+        style={{ scrollbarWidth: "thin" }}
+      >
+        {items.length === 0 ? (
+          <EmptyState icon={Inbox} message="Sin casos" size="sm" className="w-full" />
+        ) : (
+          items.map((c) => (
+            <div
+              key={c.id}
+              className="flex-shrink-0"
+              style={{ width: 260 }}
+            >
+              <CasoCard
+                caso={c}
+                config={config}
+                onOpen={onOpen}
+                onDragStart={onDragStart}
+                dragging={draggingId === c.id}
+                vieneDeReporte={
+                  selectedMonth >= 0 && selectedYear >= 0 &&
+                  casoVieneDeReporte(c, selectedMonth, selectedYear)
+                }
+              />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+});
 
 export function KanbanView({
   casos,
@@ -40,27 +141,35 @@ export function KanbanView({
     localStorage.setItem("kanban-ordenes", JSON.stringify(ordenes));
   }, [ordenes]);
 
-  const getOrden = (estado) => ordenes[estado] || "fecha-desc";
-  const setOrden = (estado, orden) =>
-    setOrdenes({ ...ordenes, [estado]: orden });
+  const getOrden = useCallback(
+    (estado) => ordenes[estado] || "fecha-desc",
+    [ordenes]
+  );
+  const setOrden = useCallback(
+    (estado, orden) => setOrdenes((prev) => ({ ...prev, [estado]: orden })),
+    []
+  );
 
-  const onDragStart = (e, id) => {
+  const onDragStart = useCallback((e, id) => {
     setDraggingId(id);
     e.dataTransfer.effectAllowed = "move";
-  };
+  }, []);
 
-  const onDrop = (e, estado) => {
-    e.preventDefault();
-    if (draggingId) {
-      const caso = casos.find((c) => c.id === draggingId);
-      if (caso && caso.estado === estado) {
-        setDraggingId(null);
-        return;
+  const onDrop = useCallback(
+    (e, estado) => {
+      e.preventDefault();
+      if (draggingId) {
+        const caso = casos.find((c) => c.id === draggingId);
+        if (caso && caso.estado === estado) {
+          setDraggingId(null);
+          return;
+        }
+        setConfirmCambio({ id: draggingId, estado });
       }
-      setConfirmCambio({ id: draggingId, estado });
-    }
-    setDraggingId(null);
-  };
+      setDraggingId(null);
+    },
+    [draggingId, casos]
+  );
 
   const handleConfirmCambio = () => {
     if (confirmCambio) {
@@ -71,13 +180,17 @@ export function KanbanView({
     }
   };
 
-  const casosPorEstado = {};
+  // Optimización 1.6.6: agrupación por estado memoizada (una sola pasada).
+  const casosPorEstado = useMemo(() => {
+    const map = {};
+    for (const c of casos) {
+      (map[c.estado] = map[c.estado] || []).push(c);
+    }
+    return map;
+  }, [casos]);
   const estados = getEstados(config);
-  estados.forEach((e) => {
-    casosPorEstado[e.v] = casos.filter((c) => c.estado === e.v);
-  });
 
-  const ordenarCasos = (items, orden) => {
+  const ordenarCasos = useCallback((items, orden) => {
     if (!items || items.length === 0) return items;
 
     switch (orden) {
@@ -100,7 +213,7 @@ export function KanbanView({
       default:
         return items;
     }
-  };
+  }, []);
 
   const kanbanSections = useAppStore((s) => s.kanbanSections);
   const KANBAN_SECTIONS = {
@@ -110,87 +223,20 @@ export function KanbanView({
         {estados.map((e) => {
           const items = ordenarCasos(casosPorEstado[e.v] || [], getOrden(e.v));
           return (
-            <div
+            <KanbanColumn
               key={e.v}
-              onDragOver={(ev) => ev.preventDefault()}
-              onDrop={(ev) => onDrop(ev, e.v)}
-              className="rounded-lg p-2.5"
-              style={{
-                backgroundColor: "var(--color-surface2)",
-                border: `1px solid ${e.accent}44`,
-              }}
-            >
-              <div className="flex items-center gap-2 mb-2 px-1 flex-wrap">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: e.accent }}
-                />
-                <span
-                  className="text-xs font-bold uppercase tracking-wide"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {e.v}
-                </span>
-                <span
-                  className="text-[11px]"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  ({items.length})
-                </span>
-                <div className="ml-auto">
-                  <select
-                    value={getOrden(e.v)}
-                    onChange={(o) => setOrden(e.v, o.target.value)}
-                    style={{
-                      padding: "4px 24px 4px 8px",
-                      borderRadius: "4px",
-                      fontSize: "10px",
-                      backgroundColor: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      color: "var(--color-text)",
-                      appearance: "none",
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B7385' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: "no-repeat",
-                      backgroundPosition: "right 4px center",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="fecha-desc">Mas reciente</option>
-                    <option value="fecha-asc">Mas antiguo</option>
-                    <option value="nombre-asc">A-Z</option>
-                    <option value="nombre-desc">Z-A</option>
-                  </select>
-                </div>
-              </div>
-              <div
-                className="flex gap-2 overflow-x-auto pb-2 scroll-smooth"
-                style={{ scrollbarWidth: "thin" }}
-              >
-                {items.length === 0 ? (
-                  <EmptyState icon={Inbox} message="Sin casos" size="sm" className="w-full" />
-                ) : (
-                  items.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex-shrink-0"
-                      style={{ width: 260 }}
-                    >
-                      <CasoCard
-                        caso={c}
-                        config={config}
-                        onOpen={onOpen}
-                        onDragStart={onDragStart}
-                        dragging={draggingId === c.id}
-                        vieneDeReporte={
-                          selectedMonth >= 0 && selectedYear >= 0 &&
-                          casoVieneDeReporte(c, selectedMonth, selectedYear)
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+              estado={e}
+              items={items}
+              orden={getOrden(e.v)}
+              onOrdenChange={setOrden}
+              onDrop={onDrop}
+              onOpen={onOpen}
+              onDragStart={onDragStart}
+              draggingId={draggingId}
+              config={config}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+            />
           );
         })}
       </div>

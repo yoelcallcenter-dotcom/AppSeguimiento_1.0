@@ -24,7 +24,7 @@ export default function PeriodSelector({ value, onChange }) {
             }`}
             style={{
               backgroundColor: activo ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: activo ? '#14181F' : 'var(--color-text-muted)',
+              color: activo ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
               border: `1px solid ${activo ? 'var(--color-accent)' : 'var(--color-border)'}`,
             }}
           >

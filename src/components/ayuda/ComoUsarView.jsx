@@ -26,7 +26,7 @@ const SECCIONES_GUIA = {
     titulo: "Tour Interactivo - Guia Completa",
     contenido: `
       El tour interactivo te guia paso a paso por TODAS las funcionalidades de
-      la aplicacion (13 pasos), desde crear casos hasta configurar cada vista.
+      la aplicacion (17 pasos), desde crear casos hasta configurar cada vista.
 
       1. DASHBOARD (panel de control)
       - 6 pestanas: Analitica, Resumen, Rendimiento, Geografia, Estudios y Estados
@@ -419,7 +419,7 @@ export function ComoUsarView({ showToast }) {
         </div>
         
         <div class="no-print" style="text-align:center; margin-top:30px;">
-          <button type="button" class="btn-print" style="padding:12px 30px; background:#D4AF37; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:14px; color:#14181F;">
+          <button type="button" class="btn-print" style="padding:12px 30px; background:#D4AF37; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:14px; color:var(--color-text-on-accent);">
             Imprimir / Guardar como PDF
           </button>
         </div>
@@ -429,7 +429,7 @@ export function ComoUsarView({ showToast }) {
 
     const ventana = openPrintWindow(html);
     if (!ventana) {
-      alert("Por favor, permite ventanas emergentes para generar el PDF");
+      showToast("Por favor, permite ventanas emergentes para generar el PDF", "warning");
     }
   };
 

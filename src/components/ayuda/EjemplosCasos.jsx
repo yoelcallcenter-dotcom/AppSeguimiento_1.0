@@ -199,7 +199,7 @@ OBSERVACIONES: ${ejemplo.observaciones}`;
                 {ejemplo.tags.map((t) => (
                   <span
                     key={t}
-                    className="text-[9px] px-1.5 py-0.5 rounded"
+                    className="text-ds-xs px-1.5 py-0.5 rounded"
                     style={{
                       backgroundColor: "var(--color-accent)22",
                       color: "var(--color-accent)",

@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { useDebounce } from "../hooks/useDebounce";
 
 const FiltersContext = createContext(null);
 
@@ -36,6 +37,11 @@ export function FiltersProvider({ children }) {
   // Filtro rápido para drill-down (ej. { tipo: "estado", valor: "Firmo" }).
   const [quickFilter, setQuickFilter] = useState(null);
 
+  // Optimización 1.6.6: `searchQuery` debounced para persistencia, evitando
+  // escrituras a localStorage en cada keystroke. El valor en vivo sigue siendo
+  // `searchQuery`; solo el guardado usa la versión debounced.
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   // Guardar en localStorage
   useEffect(() => {
     try {
@@ -46,12 +52,12 @@ export function FiltersProvider({ children }) {
           selectedYear,
           selectedDays,
           selectedView,
-          searchQuery,
+          searchQuery: debouncedSearchQuery,
           quickFilter,
         })
       );
     } catch {}
-  }, [selectedMonth, selectedYear, selectedDays, selectedView, searchQuery, quickFilter]);
+  }, [selectedMonth, selectedYear, selectedDays, selectedView, debouncedSearchQuery, quickFilter]);
 
   // Cargar desde localStorage
   useEffect(() => {

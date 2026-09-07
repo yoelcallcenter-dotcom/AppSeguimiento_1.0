@@ -18,7 +18,7 @@ function timeAgo(ts) {
 
 const MAX_VISIBLE = 5;
 
-export default function ActivityFeed({ items, onSelectItem }) {
+export default React.memo(function ActivityFeed({ items, onSelectItem }) {
   const [showAll, setShowAll] = useState(false);
   const list = items || [];
   const visible = showAll ? list : list.slice(0, MAX_VISIBLE);
@@ -80,4 +80,4 @@ export default function ActivityFeed({ items, onSelectItem }) {
       )}
     </div>
   );
-}
+});

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Calendar } from 'lucide-react';
+import { Spinner } from '../../components/common/Spinner';
 import { useCalendarService } from './calendarService';
 import {
   createEvent,
@@ -17,6 +18,7 @@ import { getAllNotes } from '../notes/notesStore';
 import { reportError } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
 import { getOperatorAvailability, getOperatorSettings } from '../operator/operatorStore';
+import { onKeyActivate } from '../../utils/a11y';
 import { getAvailabilityOn } from '../operator/operatorMetrics';
 import { getEstadoAccent } from '../../utils/catalogos';
 import { toLocalDateStr } from '../../utils/dateUtils';
@@ -36,27 +38,27 @@ const EVENT_TYPE_LABELS = {
 };
 
 // Resuelve el color de un evento: prioridad como color principal, estado del caso como indicador secundario.
-function resolveEventColor(evt, casos, config) {
+function resolveEventColor(evt, casoMap) {
   const priorityColor = PRIORITY_COLORS[evt.priority] || PRIORITY_COLORS.medium;
   if (evt.caseContext && evt.caseContext.estado) {
     return priorityColor;
   }
   const linkedCaseId = Array.isArray(evt.relatedCaseIds) ? evt.relatedCaseIds[0] : null;
   if (linkedCaseId) {
-    const c = (casos || []).find((x) => x.id === linkedCaseId);
+    const c = casoMap ? casoMap.get(linkedCaseId) : null;
     if (c && c.estado) return priorityColor;
   }
   return priorityColor;
 }
 
 // Resuelve el color del estado del caso vinculado (indicador secundario).
-function resolveCaseStateColor(evt, casos, config) {
+function resolveCaseStateColor(evt, casoMap, config) {
   if (evt.caseContext && evt.caseContext.estado) {
     return getEstadoAccent(config, evt.caseContext.estado);
   }
   const linkedCaseId = Array.isArray(evt.relatedCaseIds) ? evt.relatedCaseIds[0] : null;
   if (linkedCaseId) {
-    const c = (casos || []).find((x) => x.id === linkedCaseId);
+    const c = casoMap ? casoMap.get(linkedCaseId) : null;
     if (c && c.estado) return getEstadoAccent(config, c.estado);
   }
   return null;
@@ -134,6 +136,12 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
   const { checkUpcomingEvents } = useCalendarService();
 
+  // Optimización 1.6.6: un único Map de casos reutilizado por todos los eventos
+  // (evita el .find() lineal por cada evento en cada render).
+  const casoMap = useMemo(() => new Map((casos || []).map((c) => [c.id, c])), [casos]);
+  // Optimización 1.6.6: la fecha de hoy es estable durante toda la sesión de vista.
+  const todayStr = useMemo(() => toLocalDateStr(new Date()), []);
+
   const loadEvents = useCallback(async () => {
     try {
       const year = currentDate.getFullYear();
@@ -187,6 +195,17 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     }
     return map;
   }, [events]);
+
+  // Optimización 1.6.6: orden y mapa de eventos de la vista lista memoizados
+  // (no se reordenan en cada render).
+  const listaOrdenada = useMemo(
+    () => [...events].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    [events]
+  );
+  const rawEventsById = useMemo(
+    () => new Map(events.map((e) => [e.id, e])),
+    [events]
+  );
 
   const navigate = useCallback((dir) => {
     setCurrentDate(prev => {
@@ -268,7 +287,6 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     const month = currentDate.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
-    const todayStr = toLocalDateStr(new Date());
 
     const cells = [];
     for (let i = 0; i < firstDay; i++) {
@@ -294,6 +312,9 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
       cells.push(
         <div
           key={dateStr}
+          role="button"
+          tabIndex={0}
+          aria-label={`Ver día ${day}/${month + 1}/${year}`}
           className="rounded-md p-1 min-h-[80px] cursor-pointer transition-colors hover:bg-white/5"
           style={{
             backgroundColor: isToday
@@ -307,6 +328,10 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
             setCurrentDate(new Date(year, month, day));
             setView('day');
           }}
+          onKeyDown={onKeyActivate(() => {
+            setCurrentDate(new Date(year, month, day));
+            setView('day');
+          })}
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault();
@@ -336,15 +361,19 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
           )}
           <div className="space-y-0.5 mt-0.5">
             {dayEvents.slice(0, 3).map(evt => {
-              const color = resolveEventColor(evt, casos, config);
-              const caseColor = resolveCaseStateColor(evt, casos, config);
+              const color = resolveEventColor(evt, casoMap);
+              const caseColor = resolveCaseStateColor(evt, casoMap, config);
               const cancelled = evt.status === 'cancelled';
               return (
                 <div
                   key={evt.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Editar evento ${evt.title || ''}`}
                   draggable
                   onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
                   onClick={e => { e.stopPropagation(); handleEditEvent(evt); }}
+                  onKeyDown={e => { e.stopPropagation(); onKeyActivate(() => handleEditEvent(evt))(e); }}
                   className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
                   style={{
                     backgroundColor: color + '33',
@@ -373,7 +402,6 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
   const renderWeekView = () => {
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-    const todayStr = toLocalDateStr(new Date());
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(startOfWeek);
@@ -415,15 +443,19 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
               </div>
               <div className="space-y-0.5 overflow-y-auto flex-1">
                 {dayEvents.map(evt => {
-                  const color = resolveEventColor(evt, casos, config);
-                  const caseColor = resolveCaseStateColor(evt, casos, config);
+                  const color = resolveEventColor(evt, casoMap);
+                  const caseColor = resolveCaseStateColor(evt, casoMap, config);
                   const cancelled = evt.status === 'cancelled';
                   return (
                     <div
                       key={evt.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Editar evento ${evt.title || ''}`}
                       draggable
                       onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
                       onClick={() => handleEditEvent(evt)}
+                      onKeyDown={onKeyActivate(() => handleEditEvent(evt))}
                       className={`text-[10px] px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
                       style={{
                         backgroundColor: color + '33',
@@ -448,7 +480,6 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
   const renderDayView = () => {
     const dateStr = toLocalDateStr(currentDate);
     const dayEvents = eventsByDate[dateStr] || [];
-    const todayStr = toLocalDateStr(new Date());
     const isToday = dateStr === todayStr;
 
     const hours = [];
@@ -482,15 +513,19 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
           </div>
           <div className="flex-1 relative min-h-[48px] p-0.5 space-y-0.5">
             {hourEvents.map(evt => {
-              const color = resolveEventColor(evt, casos, config);
-              const caseColor = resolveCaseStateColor(evt, casos, config);
+              const color = resolveEventColor(evt, casoMap);
+              const caseColor = resolveCaseStateColor(evt, casoMap, config);
               const cancelled = evt.status === 'cancelled';
               return (
                 <div
                   key={evt.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Editar evento ${evt.title || ''}`}
                   draggable
                   onDragStart={e => e.dataTransfer.setData('text/plain', evt.id)}
                   onClick={() => handleEditEvent(evt)}
+                  onKeyDown={onKeyActivate(() => handleEditEvent(evt))}
                   className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 ${cancelled ? 'line-through' : ''}`}
                   style={{
                     backgroundColor: color + '33',
@@ -553,18 +588,20 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
       );
     }
 
-    const sorted = [...events].sort((a, b) => a.startDate.localeCompare(b.startDate));
-    const rawEventsById = new Map(events.map((e) => [e.id, e]));
+    const sorted = listaOrdenada;
     return (
       <div className="space-y-1">
         {sorted.map(evt => {
-          const color = resolveEventColor(evt, casos, config);
-          const caseColor = resolveCaseStateColor(evt, casos, config);
+          const color = resolveEventColor(evt, casoMap);
+          const caseColor = resolveCaseStateColor(evt, casoMap, config);
           const cancelled = evt.status === 'cancelled';
           const original = evt.originalEventId ? rawEventsById.get(evt.originalEventId) : null;
           return (
             <div
               key={evt.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Ver evento ${evt.title || ''}`}
               className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${cancelled ? 'opacity-60' : ''}`}
               style={{
                 backgroundColor: 'var(--color-surface)',
@@ -572,6 +609,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                 borderLeft: `3px solid ${color}`,
               }}
               onClick={() => handleEditEvent(evt)}
+              onKeyDown={onKeyActivate(() => handleEditEvent(evt))}
             >
               <div className="text-xs text-center min-w-[40px]">
                 <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
@@ -609,7 +647,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className="text-[10px] px-2 py-0.5 rounded-full"
+                  className="pill-sm"
                   style={{
                     backgroundColor: color + '22',
                     color,
@@ -634,7 +672,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     if (loading) {
       return (
         <div className="flex justify-center py-12">
-          <div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-accent)' }} />
+          <Spinner size={24} />
         </div>
       );
     }

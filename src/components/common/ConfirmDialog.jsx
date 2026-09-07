@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 
 export function ConfirmDialog({
   open,
@@ -10,28 +11,25 @@ export function ConfirmDialog({
   confirmColor = "var(--color-accent)",
   onConfirm,
   onCancel,
-  showToast,
 }) {
   const dialogRef = useRef(null);
-  useDialogA11y(dialogRef, open);
+  useDialogA11y(dialogRef, open, { onEscape: () => onCancel && onCancel() });
+
+  React.useEffect(() => {
+    if (!open) return undefined;
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, [open]);
 
   if (!open) return null;
-
-  const handleConfirm = () => {
-    if (showToast) {
-      showToast("Accion confirmada", "success");
-    }
-    onConfirm();
-  };
 
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
       onClick={(e) => {
         e.stopPropagation();
-        onCancel();
       }}
       role="dialog"
       aria-modal="true"
@@ -71,9 +69,9 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={handleConfirm}
+            onClick={onConfirm}
             className="btn-base btn-sm"
-            style={{ backgroundColor: confirmColor, color: "#14181F" }}
+            style={{ backgroundColor: confirmColor, color: "var(--color-text-on-accent)" }}
             aria-label={confirmLabel}
           >
             {confirmLabel}

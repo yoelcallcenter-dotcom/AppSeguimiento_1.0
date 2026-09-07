@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   getErrors,
   getErrorCount,
@@ -16,7 +16,12 @@ import {
   Bug,
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { IntegridadPanel } from '../components/diagnostico/IntegridadPanel';
+// Optimización 1.6.6: IntegridadPanel se carga bajo demanda en la vista de logs.
+const IntegridadPanel = lazy(() =>
+  import('../components/diagnostico/IntegridadPanel').then((m) => ({
+    default: m.IntegridadPanel,
+  }))
+);
 
 const TYPE_ICONS = {
   WINDOW_ONERROR: AlertTriangle,
@@ -79,7 +84,9 @@ export function SystemLogs() {
           border: '1px solid var(--color-border)',
         }}
       >
-        <IntegridadPanel />
+        <Suspense fallback={null}>
+          <IntegridadPanel />
+        </Suspense>
       </div>
 
       <div

@@ -12,7 +12,7 @@
 
 import { BACKUP_VERSION, STORAGE_KEYS, CONFIG_KEYS, LEGACY_BACKUP_KINDS } from './constants';
 
-const BACKUP_SCHEMA_VERSION_CURRENT = 2;
+const BACKUP_SCHEMA_VERSION_CURRENT = 3;
 
 /**
  * Registra de migraciones conocidas. Cada entrada:
@@ -50,6 +50,18 @@ const MIGRATIONS = [
       if (!copy.data.storage['transito-seleccion-art-tracker']) {
         copy.data.storage['transito-seleccion-art-tracker'] = [];
       }
+      return copy;
+    },
+  },
+  {
+    from: 2,
+    to: 3,
+    migrate(backup) {
+      const copy = structuredClone(backup);
+      if (!copy.appVersion) copy.appVersion = BACKUP_VERSION;
+      if (!copy.data) copy.data = {};
+      if (!copy.data.db) copy.data.db = {};
+      if (!copy.data.db.auto_backups) copy.data.db.auto_backups = [];
       return copy;
     },
   },

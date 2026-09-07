@@ -9,6 +9,8 @@ const VARIANT_CLASSES = {
   "outline-accent": "btn-outline-accent",
   outline: "btn-outline",
   solid: "btn-accent",
+  positive: "btn-positive",
+  contextual: "btn-contextual",
 };
 
 const SIZE_CLASSES = {
@@ -21,7 +23,7 @@ export function Btn({
   children,
   onClick,
   color,
-  textColor = "#14181F",
+  textColor = "var(--color-text-on-accent)",
   size = "md",
   icon: Icon,
   className = "",

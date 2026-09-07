@@ -146,7 +146,7 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
             onClick={() => setVista("grid")}
             className={`p-1.5 rounded transition-colors ${
               vista === "grid"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
             title="Vista tarjetas"
@@ -157,7 +157,7 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
             onClick={() => setVista("list")}
             className={`p-1.5 rounded transition-colors ${
               vista === "list"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
             title="Vista lista"
@@ -202,7 +202,7 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
               onClick={() => setTamanoLetra(t.value)}
               className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                 tamanoLetra === t.value
-                  ? "bg-[var(--color-accent)] text-[#14181F]"
+                  ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >

@@ -51,7 +51,7 @@ export function NotificationBell() {
 
       {showDropdown && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 rounded-lg shadow-xl border z-50 animate-fade-in"
+          className="absolute right-0 top-full mt-2 w-80 rounded-lg shadow-xl border z-dropdown animate-fade-in"
           style={{
             backgroundColor: "var(--color-surface)",
             borderColor: "var(--color-border)",

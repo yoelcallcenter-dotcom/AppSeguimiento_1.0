@@ -63,13 +63,13 @@ function InsightCard({ insight, expandido, onToggle }) {
           </span>
           {insight.prioridad === 1 && (
             <span
-              className="text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+              className="pill-compact font-bold uppercase tracking-wide"
               style={{ backgroundColor: `${sev.color}22`, color: sev.color }}
             >
               Prioritario
             </span>
           )}
-          <span className="ml-auto text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+          <span className="ml-auto text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
             {meta.label}
           </span>
           {expandido ? (
@@ -90,7 +90,7 @@ function InsightCard({ insight, expandido, onToggle }) {
         >
           <div className="flex items-center gap-1 mb-1.5">
             <SevIcon size={10} style={{ color: sev.color }} aria-hidden="true" />
-            <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
               Datos comparados
             </span>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { UserCircle2, CalendarDays, Target, KeyRound, Lightbulb, Sun, ArrowRight, Clock, CalendarClock, Sparkles, MessagesSquare, Trophy, Zap, FileDown } from "lucide-react";
 import useCelebrationStore from "../../core/celebrations/celebrationStore";
 import { useOperatorState } from "./useOperatorState";
@@ -10,7 +10,10 @@ import { AvailabilityCard } from "./components/AvailabilityCard";
 import { GoalsSection } from "./components/GoalsSection";
 import { CredentialsSection } from "./components/CredentialsSection";
 import { MiJornadaView } from "./MiJornadaView";
-import { PdfExportModal } from "./PdfExportModal";
+// Optimización 1.6.6: PdfExportModal se carga bajo demanda (solo al exportar).
+const PdfExportModal = lazy(() =>
+  import("./PdfExportModal").then((m) => ({ default: m.PdfExportModal }))
+);
 import { readOperatorCases } from "./operatorStore";
 import useAppStore from "../../core/store/useAppStore";
 
@@ -145,7 +148,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
               backgroundColor: "var(--color-accent)",
               width: "42px",
               height: "42px",
-              color: "#14181F",
+              color: "var(--color-text-on-accent)",
             }}
           >
             <UserCircle2 size={24} strokeWidth={2} />
@@ -160,7 +163,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
           </div>
           {dayState && (
             <span
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+              className="inline-flex items-center gap-1.5 pill-lg"
               style={{
                 backgroundColor: dayStateColor(dayState.key) + "22",
                 color: dayStateColor(dayState.key),
@@ -173,7 +176,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
           )}
           <button
             onClick={() => setShowPdfModal(true)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors"
+            className="flex items-center gap-1.5 pill-lg transition-colors"
             style={{
               backgroundColor: "var(--color-surface)",
               color: "var(--color-text-muted)",
@@ -280,7 +283,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
               onClick={() => setActiveSection(s.key)}
               className={`flex flex-col items-center gap-1.5 text-xs font-semibold px-3 py-3 rounded-xl transition-shadow transition-transform transition-colors ${
                 active
-                  ? "text-[#14181F] shadow-md scale-[1.03]"
+                  ? "text-[var(--color-text-on-accent)] shadow-md scale-[1.03]"
                   : "text-[var(--color-text-muted)] hover:opacity-80 hover:scale-[1.02]"
               }`}
               style={{
@@ -288,7 +291,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
                 border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
               }}
             >
-              <s.icon size={18} strokeWidth={2} style={{ color: active ? "#14181F" : "var(--color-accent)" }} />
+              <s.icon size={18} strokeWidth={2} style={{ color: active ? "var(--color-text-on-accent)" : "var(--color-accent)" }} />
               <span>{s.label}</span>
             </button>
           );
@@ -356,13 +359,15 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
         )}
       </div>
 
-      <PdfExportModal
-        open={showPdfModal}
-        onClose={() => setShowPdfModal(false)}
-        config={config}
-        casos={allCases}
-        showToast={showToast}
-      />
+      <Suspense fallback={null}>
+        <PdfExportModal
+          open={showPdfModal}
+          onClose={() => setShowPdfModal(false)}
+          config={config}
+          casos={allCases}
+          showToast={showToast}
+        />
+      </Suspense>
     </div>
   );
 }

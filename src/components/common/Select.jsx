@@ -2,6 +2,7 @@ import React from "react";
 
 export function Select({
   label,
+  id,
   value,
   onChange,
   options = [],
@@ -17,6 +18,7 @@ export function Select({
     >
       {label && (
         <label
+          htmlFor={id}
           className="text-xs font-medium"
           style={{ color: "var(--color-text-muted)" }}
         >
@@ -24,6 +26,7 @@ export function Select({
         </label>
       )}
       <select
+        id={id}
         value={value}
         onChange={onChange}
         className="input-optimized"

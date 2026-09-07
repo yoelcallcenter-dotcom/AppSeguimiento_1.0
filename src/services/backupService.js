@@ -20,7 +20,7 @@ import { notifyChange, SYNC_EVENTS } from "../core/sync/syncService";
 import { migrateBackup, validateMigratedBackup, needsMigration } from "../utils/backup/backupMigrator";
 
 export const BACKUP_KIND = "appseguimiento-backup";
-export const BACKUP_SCHEMA_VERSION = 2;
+export const BACKUP_SCHEMA_VERSION = 3;
 
 /** Tablas de datos del usuario (excluye diagnostics/logs). */
 const DB_TABLES = [
@@ -29,6 +29,7 @@ const DB_TABLES = [
   { db: "appDB", name: "notes" },
   { db: "appDB", name: "events" },
   { db: "appDB", name: "note_versions" },
+  { db: "appDB", name: "auto_backups" },
 ];
 
 const DB_INSTANCES = { casesDB, appDB };
@@ -192,7 +193,15 @@ export async function importBackup(backup, options = {}) {
   const checksumOk = await verifyChecksum(effectiveBackup);
   if (!checksumOk) {
     if (migrationInfo) {
-      console.warn('[backupService] Checksum no coincide después de migración; se omite verificación.');
+      // Recalcular checksum del payload migrado para detectar corrupción
+      const recalculated = await computeChecksum(effectiveBackup.data);
+      if (recalculated === effectiveBackup.checksum) {
+        warnings.push('Checksum verificado post-migración.');
+      } else {
+        warnings.push(
+          'Advertencia: el checksum no coincide después de la migración. Los datos pudieran estar corruptos.'
+        );
+      }
     } else {
       throw new Error("El backup está corrupto (checksum no coincide)");
     }
@@ -363,15 +372,21 @@ export async function importBackup(backup, options = {}) {
         const isRawKey = (key) =>
           localStorageAdapter.unprefixedInclude(key);
 
-        // getAllKeys() devuelve claves crudas (prefijadas app_* y sin prefijo).
-        // Se convierten a su forma lógica para compararlas contra `storage`
-        // y se eliminan correctamente sin volver a aplicar el prefijo.
+        // Claves conocidas por el adapter (prefijo app_ o en unprefixedInclude,
+        // no excluidas). Estas NUNCA se eliminan durante un restore para
+        // preservar datos de versiones más recientes que el backup importado.
+        const isKnownKey = (rawKey) =>
+          (rawKey.startsWith(localStorageAdapter.prefix) ||
+           localStorageAdapter.unprefixedInclude(rawKey)) &&
+          !localStorageAdapter.backupExclude(rawKey);
+
         const currentRawKeys = localStorageAdapter.getAllKeys();
         for (const rawKey of currentRawKeys) {
           const logicalKey = rawKey.startsWith(localStorageAdapter.prefix)
             ? rawKey.slice(localStorageAdapter.prefix.length)
             : rawKey;
           if (!(logicalKey in storage)) {
+            if (isKnownKey(rawKey)) continue;
             if (isRawKey(rawKey)) localStorageAdapter.removeRaw(rawKey);
             else localStorageAdapter.remove(logicalKey);
           }
@@ -437,7 +452,7 @@ export async function importBackup(backup, options = {}) {
       if (opts.config) {
         for (const [key, value] of Object.entries(beforeStorage)) {
           try {
-            if (key.startsWith("conversaciones_") || key === "calendario-eventos") {
+            if (localStorageAdapter.unprefixedInclude(key)) {
               localStorageAdapter.setRaw(key, value);
             } else {
               localStorageAdapter.set(key, value);

@@ -7,13 +7,13 @@ import { EmptyState } from '../../../components/common/EmptyState';
 
 const CARDS = [
   { key: 'total', label: 'Casos totales', icon: Users, color: 'var(--color-accent)', drill: { tipo: 'grupo', valor: 'todos' } },
-  { key: 'activos', label: 'Activos', icon: Activity, color: '#60A5FA', drill: { tipo: 'grupo', valor: 'activos' } },
-  { key: 'cerrados', label: 'Cerrados', icon: CheckCircle2, color: '#34D399', drill: { tipo: 'grupo', valor: 'cerrados' } },
-  { key: 'firmas', label: 'Firmas', icon: PenLine, color: '#10B981', drill: { tipo: 'grupo', valor: 'firmas' } },
-  { key: 'perdidos', label: 'Perdidos', icon: XCircle, color: '#F87171', drill: { tipo: 'grupo', valor: 'perdidos' } },
-  { key: 'sinReporte', label: 'Sin reporte', icon: FileWarning, color: '#FBBF24', drill: { tipo: 'grupo', valor: 'sinReporte' } },
-  { key: 'tasaConversion', label: 'Conversión', icon: Percent, color: '#818CF8', format: 'percentage' },
-  { key: 'avgResolutionDays', label: 'Resolución', icon: Timer, color: '#F97316', suffix: ' días', inverse: true },
+  { key: 'activos', label: 'Activos', icon: Activity, color: 'var(--chart-color-contact)', drill: { tipo: 'grupo', valor: 'activos' } },
+  { key: 'cerrados', label: 'Cerrados', icon: CheckCircle2, color: 'var(--chart-color-success)', drill: { tipo: 'grupo', valor: 'cerrados' } },
+  { key: 'firmas', label: 'Firmas', icon: PenLine, color: 'var(--chart-color-signed)', drill: { tipo: 'grupo', valor: 'firmas' } },
+  { key: 'perdidos', label: 'Perdidos', icon: XCircle, color: 'var(--chart-color-danger-light)', drill: { tipo: 'grupo', valor: 'perdidos' } },
+  { key: 'sinReporte', label: 'Sin reporte', icon: FileWarning, color: 'var(--chart-color-warning)', drill: { tipo: 'grupo', valor: 'sinReporte' } },
+  { key: 'tasaConversion', label: 'Conversión', icon: Percent, color: 'var(--chart-color-conversion)', format: 'percentage' },
+  { key: 'avgResolutionDays', label: 'Resolución', icon: Timer, color: 'var(--chart-color-orange)', suffix: ' días', inverse: true },
 ];
 
 function formatValue(value, card) {
@@ -31,7 +31,7 @@ function getTrend(current, previous, inverse = false) {
   return { type: positive ? 'up' : 'down', pct };
 }
 
-export default function KPICards({ metrics, onDrill, prevMetrics }) {
+export default React.memo(function KPICards({ metrics, onDrill, prevMetrics }) {
   if (!metrics || metrics.total === 0) {
     return (
       <EmptyState
@@ -75,15 +75,15 @@ export default function KPICards({ metrics, onDrill, prevMetrics }) {
             </div>
             {trend && (
               <div className="flex items-center gap-1 mt-1">
-                {trend.type === 'up' && <TrendingUp size={10} style={{ color: '#34D399' }} />}
-                {trend.type === 'down' && <TrendingDown size={10} style={{ color: '#F87171' }} />}
+                {trend.type === 'up' && <TrendingUp size={10} style={{ color: 'var(--chart-color-success)' }} />}
+                {trend.type === 'down' && <TrendingDown size={10} style={{ color: 'var(--chart-color-danger-light)' }} />}
                 {trend.type === 'equal' && <Minus size={10} style={{ color: 'var(--color-text-muted)' }} />}
                 <span
-                  className="text-[9px] font-medium"
+                  className="text-ds-xs font-medium"
                   style={{
                     color: trend.type === 'equal'
                       ? 'var(--color-text-muted)'
-                      : trend.type === 'up' ? '#34D399' : '#F87171',
+                      : trend.type === 'up' ? 'var(--chart-color-success)' : 'var(--chart-color-danger-light)',
                   }}
                 >
                   {trend.pct > 0 ? `${trend.type === 'down' ? '-' : '+'}${trend.pct}%` : 'Sin cambio'}
@@ -95,4 +95,4 @@ export default function KPICards({ metrics, onDrill, prevMetrics }) {
       })}
     </div>
   );
-}
+});

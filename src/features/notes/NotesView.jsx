@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, CalendarPlus, History, Link, Save, ExternalLink } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
+import { Skeleton, SkeletonText } from '../../components/common/Skeleton';
 import { CaseLinker } from '../../components/common/CaseLinker';
 import NotesEditor from './NotesEditor';
 import NotesList from './NotesList';
@@ -231,8 +232,16 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-accent)' }} />
+      <div className="flex gap-4">
+        <div className="w-80 flex-shrink-0 space-y-3">
+          <Skeleton width={60} height={14} />
+          <Skeleton variant="list" lines={6} />
+        </div>
+        <div className="flex-1 space-y-2">
+          <Skeleton width={120} height={18} />
+          <SkeletonText lines={4} />
+          <Skeleton variant="button" width={100} />
+        </div>
       </div>
     );
   }
@@ -303,7 +312,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
                 <button
                   onClick={handleSave}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors hover:opacity-85"
-                  style={{ backgroundColor: dirty ? 'var(--color-accent)' : 'var(--color-surface2)', color: dirty ? '#14181F' : 'var(--color-text-muted)', border: '1px solid ' + (dirty ? 'var(--color-accent)' : 'var(--color-border)') }}
+                  style={{ backgroundColor: dirty ? 'var(--color-accent)' : 'var(--color-surface2)', color: dirty ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)', border: '1px solid ' + (dirty ? 'var(--color-accent)' : 'var(--color-border)') }}
                   title="Guardar cambios"
                 >
                   <Save size={14} /> Guardar
@@ -332,7 +341,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
               {(selectedNote.tags || []).map(tag => (
                 <span
                   key={tag}
-                  className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full cursor-pointer hover:opacity-70"
+                  className="flex items-center gap-1 pill-sm cursor-pointer hover:opacity-70"
                   style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
                   onClick={() => handleRemoveTag(tag)}
                 >
@@ -434,7 +443,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
               <div className="text-[10px] font-medium" style={{ color: 'var(--color-text)' }}>
                 {v.title}
               </div>
-              <div className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+              <div className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
                 {formatDate(v.createdAt)}
               </div>
             </div>

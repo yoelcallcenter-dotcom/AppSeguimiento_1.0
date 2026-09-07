@@ -36,7 +36,7 @@ export function OverlayPanel({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
       style={{
         backgroundColor: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(4px)",

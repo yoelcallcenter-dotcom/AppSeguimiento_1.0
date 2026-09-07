@@ -68,7 +68,7 @@ export class ErrorBoundary extends React.Component {
               borderRadius: '0.375rem',
               border: 'none',
               backgroundColor: 'var(--color-accent, #ffbf00)',
-              color: '#14181F',
+              color: 'var(--color-text-on-accent)',
               fontWeight: 600,
               fontSize: '0.875rem',
               cursor: 'pointer',

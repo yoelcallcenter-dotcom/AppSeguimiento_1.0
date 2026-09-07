@@ -3,6 +3,7 @@ import { Calendar, Link, X, ExternalLink } from "lucide-react";
 import { Btn } from "../../components/common/Btn";
 import { BtnOutline } from "../../components/common/BtnOutline";
 import { TextInput } from "../../components/common/TextInput";
+import { reportError } from "../../core/error/reportError";
 
 /**
  * InlineEventForm (Sistema de Citas, 1.5.0)
@@ -43,7 +44,7 @@ export default function InlineEventForm({ caso, onCancel, onCreated, onOpenFull 
       });
       onCreated && onCreated(evt);
     } catch (e) {
-      console.warn("[InlineEventForm] No se pudo crear el evento:", e);
+      reportError(e, { context: 'InlineEventForm:createEvent' });
     } finally {
       setSaving(false);
     }

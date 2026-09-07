@@ -77,7 +77,7 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
         <CalendarDays size={16} color="var(--color-accent)" />
         <span className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>Mi disponibilidad</span>
         <span
-          className="text-[10px] px-2 py-0.5 rounded-full"
+          className="pill-sm"
           style={{ backgroundColor: "var(--color-surface2)", color: "var(--color-text-muted)" }}
           title="Los datos de disponibilidad no salen de este dispositivo"
         >
@@ -117,7 +117,7 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
                 className="ml-0.5 px-1.5 rounded-full text-[9px] font-bold"
                 style={{
                   backgroundColor: active ? "var(--color-accent)" : "var(--color-surface2)",
-                  color: active ? "#14181F" : "var(--color-text-muted)",
+                  color: active ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
                 }}
               >
                 {count}
@@ -231,7 +231,7 @@ export function AvailabilityCard({ availability, updateAvailability, showToast }
                     </span>
                     {isActive && (
                       <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        className="pill-compact font-bold"
                         style={{
                           backgroundColor: (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)') + '22',
                           color: (tab === 'vacaciones' ? 'var(--color-accent)' : tab === 'feriados' ? '#F59E0B' : tab === 'inasistencias' ? '#EF4444' : 'var(--color-text-muted)'),

@@ -96,7 +96,7 @@ export function PersistentAlertContainer() {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] flex flex-col gap-2 w-full max-w-md px-4">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-alert flex flex-col gap-2 w-full max-w-md px-4">
       {alerts.map((a) => (
         <PersistentAlert
           key={a.id}

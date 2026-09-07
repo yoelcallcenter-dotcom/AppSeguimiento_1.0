@@ -17,7 +17,7 @@ const cargarHistorial = () => {
 };
 
 const GroupHeader = React.memo(({ label }) => (
-  <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+  <div className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
     {label}
   </div>
 ));
@@ -31,7 +31,7 @@ const ResultItem = React.memo(({ icon: Icon, title, subtitle, onSelect }) => (
     <Icon size={14} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
     <div className="min-w-0 flex-1">
       <div className="text-xs font-medium truncate" style={{ color: 'var(--color-text)' }}>{title}</div>
-      <div className="text-[9px] truncate" style={{ color: 'var(--color-text-muted)' }}>{subtitle}</div>
+      <div className="text-ds-xs truncate" style={{ color: 'var(--color-text-muted)' }}>{subtitle}</div>
     </div>
   </button>
 ));
@@ -181,7 +181,10 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-start justify-center pt-[12vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Búsqueda global"
+      className="fixed inset-0 z-search flex items-start justify-center pt-[12vh]"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={close}
     >
@@ -201,7 +204,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
             className="flex-1 bg-transparent border-none outline-none text-sm"
             style={{ color: 'var(--color-text)' }}
           />
-          <span className="hidden sm:flex items-center gap-1 text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+          <span className="hidden sm:flex items-center gap-1 text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
             <span style={{ color: 'var(--color-accent)' }}><Hash size={10} />tag</span>
             <span style={{ color: 'var(--color-accent)' }}><AtSign size={10} />comentario</span>
           </span>
@@ -214,7 +217,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
           {!query.trim() ? (
             recientes.length > 0 ? (
               <div>
-                <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                <div className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
                   <History size={10} /> Vistos recientemente
                 </div>
                 {recientes.slice(0, 5).map((r, i) => {
@@ -228,14 +231,14 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                     >
                       <rIcon size={12} style={{ color: 'var(--color-accent)' }} />
                       <span className="font-medium">{r.name}</span>
-                      <span className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>{r.type === 'insurer' ? 'Aseguradora' : r.type === 'lawFirm' ? 'Estudio' : 'Caso'}</span>
+                      <span className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>{r.type === 'insurer' ? 'Aseguradora' : r.type === 'lawFirm' ? 'Estudio' : 'Caso'}</span>
                     </button>
                   );
                 })}
               </div>
             ) : historial.length > 0 && cfg.busquedaHistorial !== false ? (
               <div>
-                <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                <div className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
                   <Clock size={10} /> Búsquedas recientes
                 </div>
                 {historial.map((h, i) => (
@@ -321,7 +324,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
           )}
         </div>
 
-        <div className="px-4 py-2 border-t flex gap-3 text-[9px]" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+        <div className="px-4 py-2 border-t flex gap-3 text-ds-xs" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
           <span><span style={{ color: 'var(--color-accent)' }}>&uarr;&darr;</span> Navegar</span>
           <span><span style={{ color: 'var(--color-accent)' }}>Enter</span> Abrir</span>
           <span><span style={{ color: 'var(--color-accent)' }}>Esc</span> Cerrar</span>

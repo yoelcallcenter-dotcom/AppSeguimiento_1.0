@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import appDB from '../db/appDB';
+import casesDB from '../db/casesDB';
 import { reportError } from '../error/reportError';
 import { normalizarCasos } from '../../utils/ubicacionUtils';
 import { caseRepository } from '../cases/caseRepository';
@@ -113,9 +114,17 @@ const useAppStore = create(
         : updates;
       const updated = await caseRepository.update(id, normal);
       if (!updated) return;
-      set((s) => ({
-        cases: s.cases.map((c) => (c.id === id ? updated : c)),
-      }));
+      // Optimización 1.6.6: si el caso no cambió (misma referencia), no recrear
+      // el array ni disparar re-renders innecesarios en los consumidores.
+      set((s) => {
+        const current = s.cases;
+        const idx = current.findIndex((c) => c.id === id);
+        if (idx === -1) return { cases: [...current, updated] };
+        if (current[idx] === updated) return {};
+        const next = current.slice();
+        next[idx] = updated;
+        return { cases: next };
+      });
     } catch (err) {
       reportError({ type: 'db', message: 'Error updating case', context: err });
       throw err;
@@ -124,6 +133,18 @@ const useAppStore = create(
 
   deleteCase: async (id) => {
     try {
+      const removeCaseRef = (ids) => Array.isArray(ids) ? ids.filter((cid) => cid !== id) : ids;
+
+      await Promise.all([
+        appDB.notes.filter((note) => Array.isArray(note.relatedCaseIds) && note.relatedCaseIds.includes(id)).modify((note) => {
+          note.relatedCaseIds = removeCaseRef(note.relatedCaseIds);
+        }),
+        appDB.events.filter((event) => Array.isArray(event.relatedCaseIds) && event.relatedCaseIds.includes(id)).modify((event) => {
+          event.relatedCaseIds = removeCaseRef(event.relatedCaseIds);
+        }),
+        casesDB.case_history.where('caseId').equals(id).delete(),
+      ]);
+
       await caseRepository.remove(id);
       set((s) => ({ cases: s.cases.filter((c) => c.id !== id) }));
     } catch (err) {
@@ -171,7 +192,12 @@ const useAppStore = create(
     try {
       const id = await appDB.notes.add(touchVersion(note));
       notifyChange(SYNC_EVENTS.NOTES_UPDATED, { action: 'create', id });
-      set((s) => ({ notes: [{ ...note, id }, ...s.notes] }));
+      const created = { ...note, id };
+      set((s) =>
+        s.notes.some((n) => n.id === id)
+          ? {}
+          : { notes: [created, ...s.notes] }
+      );
       return id;
     } catch (err) {
       reportError({ type: 'db', message: 'Error adding note', context: err });
@@ -187,9 +213,16 @@ const useAppStore = create(
       const merged = touchVersion({ ...existing, ...updates });
       await appDB.notes.put(merged);
       notifyChange(SYNC_EVENTS.NOTES_UPDATED, { action: 'update', id });
-      set((s) => ({
-        notes: s.notes.map((n) => (n.id === id ? merged : n)),
-      }));
+      // Optimización 1.6.6: mantener la referencia del array si no hubo cambios.
+      set((s) => {
+        const current = s.notes;
+        const idx = current.findIndex((n) => n.id === id);
+        if (idx === -1) return {};
+        if (current[idx] === merged) return {};
+        const next = current.slice();
+        next[idx] = merged;
+        return { notes: next };
+      });
     } catch (err) {
       reportError({ type: 'db', message: 'Error updating note', context: err });
       throw err;
@@ -221,7 +254,12 @@ const useAppStore = create(
     try {
       const id = await appDB.events.add(touchVersion(event));
       notifyChange(SYNC_EVENTS.EVENTS_UPDATED, { action: 'create', id });
-      set((s) => ({ events: [...s.events, { ...event, id }] }));
+      const created = { ...event, id };
+      set((s) =>
+        s.events.some((e) => e.id === id)
+          ? {}
+          : { events: [...s.events, created] }
+      );
       return id;
     } catch (err) {
       reportError({ type: 'db', message: 'Error adding event', context: err });
@@ -237,9 +275,16 @@ const useAppStore = create(
       const merged = touchVersion({ ...existing, ...updates });
       await appDB.events.put(merged);
       notifyChange(SYNC_EVENTS.EVENTS_UPDATED, { action: 'update', id });
-      set((s) => ({
-        events: s.events.map((e) => (e.id === id ? merged : e)),
-      }));
+      // Optimización 1.6.6: mantener la referencia del array si no hubo cambios.
+      set((s) => {
+        const current = s.events;
+        const idx = current.findIndex((e) => e.id === id);
+        if (idx === -1) return {};
+        if (current[idx] === merged) return {};
+        const next = current.slice();
+        next[idx] = merged;
+        return { events: next };
+      });
     } catch (err) {
       reportError({ type: 'db', message: 'Error updating event', context: err });
       throw err;
@@ -272,11 +317,20 @@ const useAppStore = create(
   setUIState: (ui) => set((s) => ({ ui: { ...s.ui, ...ui } })),
 
   addToast: (message, type = 'info', duration = 3000) => {
-    const id = Date.now().toString(36);
-    set((s) => ({ ui: { ...s.ui, toasts: [...s.ui.toasts, { id, message, type }] } }));
-    setTimeout(() => {
-      set((s) => ({ ui: { ...s.ui, toasts: s.ui.toasts.filter((t) => t.id !== id) } }));
-    }, duration);
+    // Enrutado al sistema central de notificaciones (única fuente).
+    // ui.toasts no se renderiza; el mensaje se muestra vía el notificationStore.
+    try {
+      import('../notifications/notificationStore').then(({ default: store }) => {
+        if (!store || !store.getState) return;
+        store.getState().addToast({
+          title: '',
+          message,
+          type,
+          timestamp: Date.now(),
+          duration: duration || 3000,
+        });
+      });
+    } catch {}
   },
 
   removeToast: (id) => set((s) => ({ ui: { ...s.ui, toasts: s.ui.toasts.filter((t) => t.id !== id) } })),

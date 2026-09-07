@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Settings, X, Plus, Trash2 } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { BtnOutline } from '../../components/common/BtnOutline';
 import { Toggle } from '../../components/common/Toggle';
+import { useModal } from '../../hooks/useModal';
 import { ESTADOS } from '../../utils/constants';
 import { getMetricDefs, getDefaultCategories, getDefaultAlerts } from './metricsEngine';
 
 export function MetricsConfigPanel({ config, onSave, onClose }) {
   const metricsConfig = config.metrics || {};
   const metricDefs = getMetricDefs();
+
+  const { dialogRef, handleBackdropClick } = useModal({
+    isOpen: true,
+    onClose,
+    closeOnOverlayClick: true,
+  });
 
   const [categorias, setCategorias] = useState(() => metricsConfig.categorias || getDefaultCategories());
   const [visibleMetrics, setVisibleMetrics] = useState(() => metricsConfig.visible || Object.keys(metricDefs));
@@ -54,13 +61,14 @@ export function MetricsConfigPanel({ config, onSave, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
       style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl rounded-xl flex flex-col"
         style={{ maxHeight: '90vh', backgroundColor: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
@@ -70,7 +78,7 @@ export function MetricsConfigPanel({ config, onSave, onClose }) {
             <Settings size={16} style={{ color: 'var(--color-accent)' }} />
             <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Configuración del Dashboard</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}>
+          <button type="button" aria-label="Cerrar configuración" onClick={onClose} className="p-1 rounded-md hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}>
             <X size={18} />
           </button>
         </div>

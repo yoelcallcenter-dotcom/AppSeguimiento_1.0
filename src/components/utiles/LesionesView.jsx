@@ -93,7 +93,7 @@ export function LesionesView({ lesiones, setLesiones, showToast }) {
         setLesiones({ ...lesiones, ...nuevo });
         showToast("Lesiones importadas", "success");
       } catch {
-        alert("El archivo no es un JSON válido.");
+        showToast("El archivo no es un JSON válido.", "error");
       }
     };
     reader.readAsText(file);
@@ -234,7 +234,7 @@ export function LesionesView({ lesiones, setLesiones, showToast }) {
                       placeholder="Observación..."
                       rows={1}
                       style={{
-                        fontSize: "12px",
+                        fontSize: "var(--font-size-ds-xs)",
                         padding: "4px 8px",
                         minHeight: "30px",
                       }}

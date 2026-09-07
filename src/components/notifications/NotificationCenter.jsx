@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Bell,
   CheckCheck,
@@ -11,7 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import useNotificationStore from "../../core/notifications/notificationStore";
-import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
+import { useModal } from "../../hooks/useModal";
 
 const TYPE_ICONS = {
   success: CheckCircle,
@@ -57,6 +57,74 @@ function formatTimestamp(ts) {
   return d.toLocaleDateString();
 }
 
+// Optimización 1.6.6: notificación extraída y memorizada para no re-renderizar
+// todas las filas al cambiar una única notificación o el filtro.
+const NotificationItem = React.memo(function NotificationItem({ n, onMarkAsRead, onRemove }) {
+  const Icon = TYPE_ICONS[n.type] || Info;
+  const color = TYPE_COLORS[n.type] || "var(--color-text-muted)";
+  const borderColor = PRIORITY_BORDER_COLORS[n.priority] || "var(--color-text-muted)";
+  return (
+    <div
+      className="flex items-start gap-2.5 px-4 py-2 border-b transition-colors hover:bg-white/5"
+      style={{
+        borderColor: "var(--color-border)",
+        borderLeft: `3px solid ${borderColor}`,
+        opacity: n.read ? 0.6 : 1,
+      }}
+    >
+      <div className="mt-0.5 flex-shrink-0">
+        <Icon size={14} color={color} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {!n.read && (
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: "var(--color-accent)" }}
+            />
+          )}
+          <span
+            className="text-xs font-semibold truncate"
+            style={{ color: "var(--color-text)" }}
+          >
+            {n.title}
+          </span>
+          <span
+            className="text-[10px] flex-shrink-0"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            {formatTimestamp(n.timestamp)}
+          </span>
+          <div className="flex gap-1.5 ml-auto flex-shrink-0">
+            {!n.read && (
+              <button
+                onClick={() => onMarkAsRead(n.id)}
+                className="text-[10px] font-medium transition-colors hover:opacity-70"
+                style={{ color: "var(--color-accent)" }}
+              >
+                Leído
+              </button>
+            )}
+            <button
+              onClick={() => onRemove(n.id)}
+              className="text-[10px] font-medium transition-colors hover:opacity-70"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+        <p
+          className="text-[11px] mt-0 line-clamp-2"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {n.message}
+        </p>
+      </div>
+    </div>
+  );
+});
+
 export function NotificationCenter() {
   const notifications = useNotificationStore((s) => s.notifications);
   const showCenter = useNotificationStore((s) => s.showCenter);
@@ -67,13 +135,24 @@ export function NotificationCenter() {
   const clearAll = useNotificationStore((s) => s.clearAll);
 
   const [filter, setFilter] = useState("all");
+  const [isLeaving, setIsLeaving] = useState(false);
 
+  const { dialogRef } = useModal({
+    isOpen: showCenter,
+    onClose: () => setShowCenter(false),
+    closeOnOverlayClick: false,
+    onEscape: () => startClose(),
+  });
+
+  const startClose = () => {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    setTimeout(() => setShowCenter(false), 250);
+  };
+
+  // Restaurar estado de salida al reabrir
   useEffect(() => {
-    if (showCenter) {
-      lockBodyScroll();
-      return () => unlockBodyScroll();
-    }
-    return undefined;
+    if (showCenter) setIsLeaving(false);
   }, [showCenter]);
 
   const filtered = useMemo(() => {
@@ -90,14 +169,17 @@ export function NotificationCenter() {
 
   return (
     <div
-      className="fixed inset-0 z-[110] animate-fade-in"
+      className={`fixed inset-0 z-notification ${isLeaving ? "animate-fade-out" : "animate-fade-in"}`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="notification-center-title"
     >
       <div
-        className="absolute right-0 top-0 bottom-0 w-full max-w-lg rounded-l-xl shadow-2xl animate-slide-up flex flex-col"
+        ref={dialogRef}
+        className={`absolute right-0 top-0 bottom-0 w-full max-w-lg rounded-l-xl shadow-2xl flex flex-col ${
+          isLeaving ? "animate-slide-out-right" : "animate-slide-up"
+        }`}
         style={{
           backgroundColor: "var(--color-surface)",
           borderLeft: "1px solid var(--color-border)",
@@ -137,7 +219,7 @@ export function NotificationCenter() {
               <Trash2 size={16} />
             </button>
             <button
-              onClick={() => setShowCenter(false)}
+              onClick={startClose}
               className="p-1.5 rounded transition-colors hover:bg-white/5"
               style={{ color: "var(--color-text-muted)" }}
               aria-label="Cerrar"
@@ -177,72 +259,14 @@ export function NotificationCenter() {
               No hay notificaciones{filter !== "all" ? " con este filtro" : ""}
             </div>
           ) : (
-            filtered.map((n) => {
-              const Icon = TYPE_ICONS[n.type] || Info;
-              const color = TYPE_COLORS[n.type] || "var(--color-text-muted)";
-              const borderColor = PRIORITY_BORDER_COLORS[n.priority] || "var(--color-text-muted)";
-              return (
-                <div
-                  key={n.id}
-                  className="flex items-start gap-2.5 px-4 py-2 border-b transition-colors hover:bg-white/5"
-                  style={{
-                    borderColor: "var(--color-border)",
-                    borderLeft: `3px solid ${borderColor}`,
-                    opacity: n.read ? 0.6 : 1,
-                  }}
-                >
-                  <div className="mt-0.5 flex-shrink-0">
-                    <Icon size={14} color={color} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {!n.read && (
-                        <span
-                          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: "var(--color-accent)" }}
-                        />
-                      )}
-                      <span
-                        className="text-xs font-semibold truncate"
-                        style={{ color: "var(--color-text)" }}
-                      >
-                        {n.title}
-                      </span>
-                      <span
-                        className="text-[10px] flex-shrink-0"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        {formatTimestamp(n.timestamp)}
-                      </span>
-                      <div className="flex gap-1.5 ml-auto flex-shrink-0">
-                        {!n.read && (
-                          <button
-                            onClick={() => markAsRead(n.id)}
-                            className="text-[10px] font-medium transition-colors hover:opacity-70"
-                            style={{ color: "var(--color-accent)" }}
-                          >
-                            Leído
-                          </button>
-                        )}
-                        <button
-                          onClick={() => removeNotification(n.id)}
-                          className="text-[10px] font-medium transition-colors hover:opacity-70"
-                          style={{ color: "var(--color-text-muted)" }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                    <p
-                      className="text-[11px] mt-0 line-clamp-2"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {n.message}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
+            filtered.map((n) => (
+              <NotificationItem
+                key={n.id}
+                n={n}
+                onMarkAsRead={markAsRead}
+                onRemove={removeNotification}
+              />
+            ))
           )}
         </div>
 

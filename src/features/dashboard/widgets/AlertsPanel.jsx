@@ -4,9 +4,9 @@ import { EmptyState } from '../../../components/common/EmptyState';
 import { getCasesNeedingAttention } from '../../../core/alerts/attentionRules';
 
 const SEVERITY = {
-  danger: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
-  warning: { color: '#FBBF24', bg: 'rgba(251,191,36,0.12)' },
-  info: { color: '#60A5FA', bg: 'rgba(96,165,250,0.12)' },
+  danger: { color: 'var(--chart-color-danger)', bg: 'var(--chart-color-danger-bg)' },
+  warning: { color: 'var(--chart-color-warning)', bg: 'var(--chart-color-warning-bg)' },
+  info: { color: 'var(--chart-color-contact)', bg: 'var(--chart-color-contact-bg)' },
 };
 
 const GROUP_ICONS = {

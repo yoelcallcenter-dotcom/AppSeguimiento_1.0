@@ -5,7 +5,7 @@ import { CHART_TICK, CHART_GRID } from './chartTheme';
 import ChartTooltip from './ChartTooltip';
 import ChartCard from './ChartCard';
 
-const CURSOR_FILL = 'rgba(148,163,184,0.15)';
+const CURSOR_FILL = 'var(--chart-color-cursor)';
 
 const DESC_DEFAULT =
   'Casos ingresados y firmas acumuladas por semana (últimos 30 días hábiles), con la tasa de conversión semanal.';
@@ -35,9 +35,9 @@ export default function WeeklyTrend({ data, desc }) {
               />
               <Legend wrapperStyle={{ fontSize: 11, color: 'var(--color-text-muted)' }} />
               <ReferenceLine yAxisId="der" y={50} stroke="var(--color-accent)" strokeDasharray="4 4" strokeOpacity={0.35} />
-              <Bar yAxisId="izq" dataKey="total" name="Casos" fill="#D9A441" radius={[4, 4, 0, 0]} barSize={18} />
-              <Bar yAxisId="izq" dataKey="firmas" name="Firmas" fill="#10B981" radius={[4, 4, 0, 0]} barSize={18} />
-              <Line yAxisId="der" type="monotone" dataKey="conversion" name="Conversión" stroke="#818CF8" strokeWidth={2} dot={{ r: 3 }} />
+              <Bar yAxisId="izq" dataKey="total" name="Casos" fill="var(--chart-color-cases)" radius={[4, 4, 0, 0]} barSize={18} />
+              <Bar yAxisId="izq" dataKey="firmas" name="Firmas" fill="var(--chart-color-signed)" radius={[4, 4, 0, 0]} barSize={18} />
+              <Line yAxisId="der" type="monotone" dataKey="conversion" name="Conversión" stroke="var(--chart-color-conversion)" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

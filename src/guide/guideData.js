@@ -20,7 +20,7 @@ Todos los datos se almacenan localmente en el navegador, sin necesidad de conexi
   {
     id: "primeros-pasos",
     title: "2. Primeros Pasos",
-    content: `Al abrir la aplicacion por primera vez, se inicia automaticamente el Tour interactivo (14 pasos). Luego veras el Dashboard con un resumen general.
+    content: `Al abrir la aplicacion por primera vez, se inicia automaticamente el Tour interactivo (17 pasos). Luego veras el Dashboard con un resumen general.
 
 PASO 1: Configura tu nombre
 Ve a Configuracion → Ajustes Generales e ingresa tu nombre como operador. Este nombre se usara en las conversaciones sugeridas (variable {OPERADOR}).

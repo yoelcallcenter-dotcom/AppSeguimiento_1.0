@@ -9,8 +9,12 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-export function useDialogA11y(ref, enabled = true) {
+export function useDialogA11y(ref, enabled = true, options = {}) {
   const previousFocus = useRef(null);
+  const { onEscape } = options;
+
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
 
   useEffect(() => {
     if (!enabled || !ref || !ref.current) return undefined;
@@ -35,6 +39,13 @@ export function useDialogA11y(ref, enabled = true) {
     }
 
     const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (onEscapeRef.current) {
+          e.stopPropagation();
+          onEscapeRef.current();
+        }
+        return;
+      }
       if (e.key !== "Tab") return;
       const focusable = getFocusable();
       if (focusable.length === 0) return;

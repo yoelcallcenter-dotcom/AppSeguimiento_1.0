@@ -8,69 +8,61 @@
 
 export const DOC_README = `# AppSeguimiento
 
-Versión 1.2.4 — Sistema de gestión de casos ART para seguimiento de derivaciones, diseñado para operadores de call center.
+**Versión 1.6.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
-## Características
+## Stack tecnológico
+
+- **React 18** (Create React App / react-scripts 5)
+- **Zustand 5** — estado global
+- **Dexie 4 / IndexedDB** — persistencia local (casos, notas, eventos, backups)
+- **Tailwind CSS 3** + CSS variables (theming completo)
+- **Recharts** — gráficos del dashboard
+- **Tiptap** — editor de notas enriquecido
+- **lucide-react** — íconos
+- **Fuse.js** — búsqueda difusa
+- **DOMPurify** — sanitización de HTML
+- **Vitest** + jsdom + fake-indexeddb — testing
+
+## Características principales
 
 ### Mi Espacio (personal)
-- La app abre siempre en Mi Espacio, con mensaje de bienvenida destacado y 10 saludos aleatorios diarios (día, hora y nombre corto del operador).
-- Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual
-- Resumen de la jornada: estado del día, progreso de metas y ritmo necesario
-- Disponibilidad: vacaciones, feriados, inasistencias y días no laborables
-- Metas personales: objetivo diario de casos y reportes y objetivo mensual de casos, reportes y firmas ("Firmo") sobre días efectivos
-- Mensajes de aliento automáticos los últimos 15 minutos antes del cierre de jornada si la meta diaria no se cumplió
-- Accesos y credenciales personales (solo locales, nunca se exportan)
-- Sugerencias inteligentes personales
+- Abre siempre en Mi Espacio, con bienvenida destacada y saludos según día y hora.
+- Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual.
+- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/mensuales con ritmo necesario.
+- Accesos y credenciales personales (solo locales, nunca se exportan).
 
 ### Gestión de Casos
-- Kanban Board: Arrastra casos entre estados (Cita virtual, No responde, Firmo, etc.)
-- Vista Tabla: Ordena y filtra casos con columnas personalizables
-- Reportes: Historial completo de reportes por caso
-- Búsqueda: Búsqueda en tiempo real por nombre, teléfono o localidad
-- Bloc de Notas: Notas personales accesibles desde el header, con guardado manual mediante el botón Guardar
+- **Kanban**: arrastrar casos entre estados (Cita virtual, No responde, Firmo, etc.).
+- **Tabla**: ordenar, filtrar y seleccionar casos con columnas personalizables.
+- **Reportes**: historial completo de reportes por caso.
+- **Calendario**: eventos vinculados a casos, reprogramación y citas.
+- **Bloc de Notas**: notas enriquecidas (Tiptap) con vínculo a casos.
+- **Búsqueda global** (\`GlobalSearch\`): búsqueda en tiempo real por nombre, teléfono, localidad, \`#etiquetas\` y \`@comentarios\`.
 
-### Estadísticas
-- Dashboard con 6 pestañas: Analítica, Resumen, Rendimiento, Geografía, Estudios y Estados
-- Analítica: KPIs, insights automáticos, distribución por estado/categoría, tendencia 30 días, barras apiladas, tipos de ingreso y evolución
-- La Meta Diaria y la Micro-analítica se muestran dentro de Analítica y respetan el filtro de día seleccionado
-- Los días no disponibles configurados en Mi Espacio se renderizan en el filtro de día y las estadísticas
-- KPIs (Total, Activos, Firmados, Sin Reporte, No Viables) con tendencia
-- Logro de Objetivos: seguimiento de 14 firmas por mes
-- Alertas automáticas y funnel de conversión
-- Mapa de casos por localidad y próximos eventos
-- Pestañas, widgets y métricas configurables
-
-### Ayuda y Tours
-- Tour interactivo completo (13 pasos) que recorre todas las funcionalidades
-- Acerca de Vistas, FAQ, Glosario y Guía de Usuario
-- Guía imprimible (PDF/TXT)
+### Estadísticas y Analítica
+- Dashboard multi-pestaña (Analítica, Resumen, Rendimiento, Geografía, Estudios, Estados).
+- KPIs, insights automáticos, distribución por estado/categoría, tendencia 30 días, barras apiladas, tipos de ingreso y evolución.
+- Logro de objetivos, funnel de conversión, mapa por localidad, próximos eventos.
+- Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- Speechs: Guiones predefinidos para llamadas con copia al portapapeles y edición directa en el modal
-- Objeciones: Respuestas para objeciones comunes
-- Conversaciones Sugeridas: Plantillas por categoría con reemplazo de variables ({OPERADOR})
-- Aseguradoras: Gestión de ART y Tránsito
-- Lesiones: Categorización de lesiones por tipo
-- Pasos a Seguir: Protocolo de trabajo
-- Tips: Consejos para llamados
-- Links útiles: Recursos de referencia
-- Estudios Jurídicos: Mapeo por localidad con filtros
-- Condicionales de Estudios Jurídicos: agrupados por estudio (Estudio | Condición | Aseguradora | Observaciones)
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa.
+- **Objeciones**, **Conversaciones Sugeridas** (con variables \`{OPERADOR}\`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
+- **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 
-### Mi Espacio (personal)
+### Ayuda y Tours
+- Tour interactivo completo que recorre todas las funcionalidades.
+- Acerca de Vistas, FAQ, Glosario, Guía de Usuario y guía imprimible (PDF/TXT).
 
 ### Personalización
-- Temas: Oscuro, Claro o Personalizado
-- Tamaño de fuente: Pequeño, Mediano o Grande
-- Colores Base: 3 colores (Primario, Secundario, Terciario) que generan toda la paleta
-- Colores por estado de caso: Personaliza cada estado individualmente
+- Temas: Oscuro, Claro o Personalizado.
+- Tamaño de fuente: Pequeño, Mediano o Grande.
+- Colores base (Primario, Secundario, Terciario) que generan toda la paleta, y colores por estado de caso.
 
-### Almacenamiento
-- IndexedDB: Todos los datos se guardan localmente en el navegador (via Dexie)
-- Backup completo: Exporta e importa todos tus datos (casos, notas, eventos y configuración) en JSON
-- Sin conexión a internet: La aplicación funciona completamente offline
-
----
+### Almacenamiento y Backup
+- Todo se guarda localmente en el navegador (IndexedDB vía Dexie).
+- Backup completo: exportar/importar datos (casos, notas, eventos, configuración) en JSON, con auto-backups y migración de esquema.
+- Funciona completamente sin conexión.
 
 ## Sistema de Notificaciones
 
@@ -83,48 +75,29 @@ src/core/events/
 src/core/notifications/
 ├── notificationStore.js    # Zustand store global de notificaciones
 ├── notificationManager.js  # Orquestador: recibe eventos, decide qué notificar
-├── ruleEngine.js           # Motor inteligente: dedup, agrupación, prioridad
-└── soundSystem.js          # Motor de sonido con tonos generados por Web Audio API
+├── ruleEngine.js           # Motor: dedup, agrupación, prioridad
+├── actionFeedback.js       # Catálogo de acciones de feedback (copiar, crear, guardar…)
+└── soundSystem.js          # Motor de sonido (Web Audio API)
 
 src/components/notifications/
 ├── ToastContainer.jsx      # Toasts efímeros (auto-dismiss)
 ├── NotificationBell.jsx    # Campana con badge + dropdown
 ├── NotificationCenter.jsx  # Panel lateral con historial completo + filtros
 └── PersistentAlert.jsx     # Alertas persistentes (warning/error)
-
-src/hooks/
-└── useNotify.js            # Hook fácil: notify(), success(), error(), warning(), info()
 \`\`\`
 
 ### Flujo de Datos
 
-1. Evento de app → \`eventBus.emit(AppEvents.XXX, data)\`
-2. NotificationManager recibe el evento, lo normaliza y evalúa con RuleEngine
-3. RuleEngine decide: ¿es duplicado? ¿se debe agrupar? ¿está en modo no molestar?
-4. NotificationStore guarda la notificación en estado + localStorage
-5. SoundSystem reproduce sonido si está habilitado
-6. ToastContainer renderiza toast si notificaciones in-app están activas
-7. NotificationBell actualiza badge de no leídas
-8. NotificationCenter muestra historial persistente
+1. **Evento de app** → \`eventBus.emit(AppEvents.XXX, data)\`
+2. **NotificationManager** recibe el evento, lo normaliza y evalúa con RuleEngine.
+3. **RuleEngine** decide: ¿es duplicado? ¿se agrupa? ¿modo no molestar?
+4. **NotificationStore** guarda la notificación (estado + localStorage).
+5. **SoundSystem** reproduce sonido si está habilitado.
+6. **ToastContainer** renderiza toast si notificaciones in-app están activas.
+7. **NotificationBell** actualiza el badge de no leídas.
+8. **NotificationCenter** muestra el historial persistente.
 
-### Eventos Disponibles
-
-| Evento | Tipo | Cuándo se dispara |
-|--------|------|--------------------|
-| \`CASE_CREATED\` | success | Nuevo caso guardado |
-| \`CASE_UPDATED\` | info | Caso modificado |
-| \`CASE_DELETED\` | info | Caso eliminado |
-| \`CASE_STATUS_CHANGED\` | info | Estado de caso cambiado |
-| \`NOTE_CREATED\` | info | Nota creada |
-| \`NOTE_UPDATED\` | info | Nota modificada |
-| \`EVENT_CREATED\` | info | Evento de calendario creado |
-| \`EVENT_UPDATED\` | info | Evento modificado |
-| \`BACKUP_COMPLETED\` | success | Backup exportado |
-| \`BACKUP_IMPORTED\` | info | Datos importados |
-| \`GOAL_ACHIEVED\` | success | Meta de firmas alcanzada |
-| \`ERROR_OCCURRED\` | error | Error del sistema |
-| \`SYNC_COMPLETED\` | info | Sincronización completada |
-| \`DATA_CLEARED\` | warning | Todos los datos eliminados |
+Prioridades: **BAJA** (Centro, sin toast, sin sonido) · **MEDIA** (Centro + toast, sin sonido) · **ALTA/GRAVE** (Centro + toast + sonido). Deduplicación por \`eventKey\`.
 
 ### Uso desde componentes
 
@@ -153,25 +126,14 @@ notificationManager.notify({
 });
 \`\`\`
 
-### Configuración
+### Configuración y persistencia
 
-Las opciones se gestionan en Configuración → Notificaciones:
-- Canales: In-App (toasts) y Sonido. No se usan notificaciones del navegador.
-- Tipos: filtrar eventos por tipo (cambio de estado, reportes, backup, errores)
-- Frecuencia: agrupación para evitar spam (5/15/30 min, 1 h)
-- No molestar: silencia todas las notificaciones
-
-### Persistencia
-
-Las notificaciones se almacenan en localStorage bajo \`app_notification_center\`, límite 200. Sobreviven a recargas de página.
-
----
+- Se gestiona en **Configuración → Notificaciones**: canales (In-App, Sonido), tipos, frecuencia de agrupación y modo No molestar.
+- Las notificaciones se almacenan en localStorage bajo \`app_notification_center\` (límite 200) y sobreviven a recargas.
 
 ## Sistema de Temas
 
-### Arquitectura
-
-El sistema de temas está centralizado en \`src/core/theme/\` y sigue una arquitectura de tokens:
+Centralizado en \`src/core/theme/\` con arquitectura de tokens:
 
 \`\`\`
 src/core/theme/
@@ -180,167 +142,104 @@ src/core/theme/
 └── colorUtils.js        # Utilidades de color (mezcla, generación de paletas)
 \`\`\`
 
-### Flujo de Aplicación
+\`themeManager.init()\` carga el tema guardado y aplica cada valor como CSS variable en \`<html>\`. Para tema personalizado, los colores base pasan por \`generatePalette()\` para generar la paleta completa.
 
-1. \`themeManager.init()\` se llama al arrancar la app (desde \`ThemeContext\` y \`App.jsx\`)
-2. Carga el tema guardado, colores personalizados y colores de estado desde \`localStorage\`
-3. \`applyThemeVariables()\` recorre el \`cssVarMap\` y aplica cada valor como CSS variable en \`<html>\`
-4. Para tema personalizado, los colores base (primario, secundario, terciario) se pasan por \`generatePalette()\` para generar la paleta completa
-5. \`ThemeContext\` expone \`theme\`, \`customColors\`, \`estadoColors\` y los métodos \`changeTheme()\`, \`updateCustomColors()\`, etc.
+**Variables clave**: \`--color-bg\`, \`--color-surface\`, \`--color-surface2\`, \`--color-text\`, \`--color-text-muted\`, \`--color-accent\`, \`--color-border\`, \`--color-primary\`, \`--color-secondary\`, \`--color-success\`, \`--color-warning\`, \`--color-danger\`, \`--color-estado-*\` (por estado de caso).
 
-### Variables CSS Disponibles
-
-| Variable | Propósito |
-|----------|-----------|
-| \`--color-bg\` | Fondo principal |
-| \`--color-surface\` | Superficie de tarjetas |
-| \`--color-surface2\` | Superficie secundaria (inputs, columnas kanban) |
-| \`--color-text\` | Texto principal |
-| \`--color-text-muted\` | Texto secundario / metadata |
-| \`--color-accent\` | Color de acento (botones principales, highlights) |
-| \`--color-border\` | Bordes estándar |
-| \`--color-border-light\` | Bordes suaves |
-| \`--color-primary\` | Color primario (acciones principales) |
-| \`--color-secondary\` | Color secundario (acciones secundarias) |
-| \`--color-success\` | Estados de éxito |
-| \`--color-warning\` | Estados de advertencia |
-| \`--color-danger\` | Estados de error/peligro |
-| \`--color-estado-*\` | Colores por estado de caso (ej: \`--color-estado-Firmo\`) |
-
-### Diseño de Espaciado y Tipografía
-
-| Token | Valor por defecto |
-|-------|-------------------|
-| \`--space-1\` | 0.25rem |
-| \`--space-2\` | 0.5rem |
-| \`--space-3\` | 0.75rem |
-| \`--space-4\` | 1rem |
-| \`--space-6\` | 1.5rem |
-| \`--space-8\` | 2rem |
-| \`--radius-sm\` | 0.25rem |
-| \`--radius-md\` | 0.375rem |
-| \`--radius-lg\` | 0.5rem |
-| \`--radius-xl\` | 0.75rem |
-
-### Sistema de Botones
-
-\`src/components/common/Btn.jsx\` exporta:
-- \`Btn\` — Componente base con variantes: \`solid\`, \`outline\`, \`ghost\`
-- \`PrimaryButton\` — Atajo para \`Btn\` con color primario
-- \`SecondaryButton\` — Atajo para \`Btn\` con color secundario
-- \`OutlineButton\` — Atajo para \`Btn\` con variante outline
-- \`BtnOutline\` — Mantenido para compatibilidad (wrapper de \`Btn\` con \`variant="outline"\`)
-
-Tamaños: \`sm\` (2rem altura), \`md\` (2.5rem), \`lg\` (3rem).  
-Estados: hover (lift + opacity), active (press con \`animate-press\`), disabled (50% opacity), focus-visible (ring).
-
----
+**Sistema de botones** (\`src/components/common/Btn.jsx\`): \`Btn\` con variantes \`solid\`, \`outline\`, \`ghost\`, y atajos \`PrimaryButton\`, \`SecondaryButton\`, \`OutlineButton\`. Tamaños \`sm\`/\`md\`/\`lg\`; estados hover (lift + opacity), active (press), disabled y focus-visible (ring).
 
 ## Estructura de la UI
 
 \`\`\`
 src/
 ├── components/
-│   ├── common/           # Componentes base reutilizables
-│   │   ├── Btn.jsx       # Botón + PrimaryButton, SecondaryButton, OutlineButton
-│   │   ├── DayFilter.jsx # Filtro de día unificado (Select dropdown)
-│   │   ├── Select.jsx    # Select estilizado
-│   │   ├── Pill.jsx      # Badge de estado
-│   │   └── ...
-│   ├── configuracion/    # Panel de configuración
-│   ├── kanban/           # Vista Kanban/Tablero
-│   ├── tabla/            # Vista Tabla
-│   ├── reportes/         # Vista Reportes
-│   ├── estadisticas/     # Componentes estadísticos
-│   └── notifications/    # Centro de notificaciones, campana, toasts, alertas
+│   ├── common/           # Btn, Modal, ConfirmDialog, EmptyState, Spinner, Skeleton,
+│   │                     # OverlayPanel, Paginacion,
+│   │                     # DayFilter, MonthDayFilterBar, etc.
+│   ├── notifications/    # NotificationBell, NotificationCenter, PersistentAlert, ToastContainer
+│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ calendar/ entities/
+│   ├── configuracion/ utiles/ ayuda/ diagnostico/
 ├── core/
-│   ├── theme/            # Sistema de temas (tokens, manager, color utils)
-│   ├── events/           # EventBus centralizado (pub-sub)
-│   ├── notifications/    # NotificationStore, Manager, RuleEngine, SoundSystem
-│   ├── storage/          # Adaptadores y manager de almacenamiento
-│   ├── sync/             # Sincronización de eventos
-│   └── store/            # Zustand store global
-├── context/              # React Context providers
-├── features/             # Dashboard, Calendar, Notes, Search, etc.
-├── styles/
-│   └── globals.css       # CSS global con variables, temas y utilidades
-└── utils/                # Utilidades (formatos, backups, etc.)
+│   ├── theme/            # themeTokens, themeManager, colorUtils
+│   ├── store/            # useAppStore (Zustand global)
+│   ├── db/               # appDB, casesDB, indexedDB, versioning, dbLifecycle
+│   ├── notifications/    # notificationStore/Manager/RuleEngine, actionFeedback, soundSystem
+│   ├── events/           # eventBus pub-sub
+│   ├── sync/             # sincronización entre pestañas (BroadcastChannel)
+│   ├── alerts/ rules/ integrity/ entities/ cases/ status/ i18n/ error/ monitoring/ storage/
+├── context/              # ThemeContext, FiltersContext, CalendarContext, UXContext, etc.
+├── hooks/                # useModal, useDialogA11y, useViewTransition, useDebounce,
+│                         # useKeyboardShortcuts, useNotify, useCalendar, etc.
+├── features/             # dashboard, operator ("Mi Espacio"), calendar, notes, search, export
+├── services/             # backupService, autoBackup, EstudioService, StorageService
+├── utils/                # backups/, csvUtils, csvParse, exportPDF, searchEngine, etc.
+├── styles/globals.css    # CSS global con variables, temas, utilidades y animaciones
+└── test/                 # Suite de tests (Vitest + jsdom + fake-indexeddb)
 \`\`\`
 
----
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| \`npm install\` | Instala dependencias |
+| \`npm start\` | Dev server (regenera docs) |
+| \`npm run build\` | Build de producción a \`build/\` |
+| \`npm run test:run\` | Suite completa con Vitest (una pasada) |
+| \`npm run test\` | Vitest en modo watch |
+| \`npx vitest run <archivo>\` | Un solo archivo de test |
 
 ## Atajos de Teclado
 
 | Atajo | Acción |
 |-------|--------|
-| Ctrl + N | Nuevo caso |
-| Ctrl + R | Cargar reporte |
-| Ctrl + F | Buscar casos |
-| Ctrl + S | Guardar datos |
-| Ctrl + D | Duplicar caso |
-| Ctrl + E | Exportar seleccionados |
-| Ctrl + H | Abrir ayuda |
-| Ctrl + K | Búsqueda global |
-| Ctrl + 1-5 | Cambiar vista (Dashboard, Tablero, Tabla, Reportes, Útiles) |
-| Escape | Cerrar modal |
-
-## Instalación
-
-\`\`\`bash
-git clone <repo>
-npm install
-npm start      # Desarrollo
-npm run build  # Producción
-\`\`\`
+| \`Ctrl + N\` | Nuevo caso |
+| \`Ctrl + R\` | Cargar reporte |
+| \`Ctrl + F\` | Buscar casos |
+| \`Ctrl + S\` | Guardar datos |
+| \`Ctrl + D\` | Duplicar caso |
+| \`Ctrl + E\` | Exportar seleccionados |
+| \`Ctrl + H\` | Abrir ayuda |
+| \`Ctrl + K\` | Búsqueda global |
+| \`Ctrl + 1-5\` | Cambiar vista |
+| \`Escape\` | Cerrar modal |
 
 ---
 
 ## PWA: Instalación y uso offline
 
-La aplicación es una Progressive Web App (PWA): se instala como una app nativa,
-funciona sin conexión y se actualiza sola cuando hay una nueva versión.
+La aplicación es una **Progressive Web App (PWA)**: se instala como una app nativa,
+funciona **sin conexión** y se **actualiza sola** cuando hay una nueva versión.
 
 ### Cómo instalar en PC (Windows/Linux)
 
-1. Abrí la app en Chrome o Edge (si la publicaste, tiene que estar servida por HTTPS).
-2. Hacé click en el botón "Instalar" que aparece en la barra superior de la app.
-3. Confirmá en el diálogo del navegador. Queda un acceso en el escritorio o en el menú de inicio.
+1. Abrí la app en **Chrome** o **Edge** (servida por **HTTPS**).
+2. Hacé click en el botón **"Instalar"** que aparece en la barra superior.
+3. Confirmá en el diálogo del navegador. Queda un acceso en el escritorio o el menú de inicio.
 
-> También podés usar el menú del navegador → "Instalar AppSeguimiento".
+> También podés usar el menú del navegador → **"Instalar AppSeguimiento"**.
 
 ### Cómo instalar en celular (Android)
 
 1. Abrí la app en Chrome.
-2. Tocá el botón "Instalar" en la barra superior, o el menú ⋮ → "Agregar a pantalla de inicio".
+2. Tocá **"Instalar"** en la barra superior, o el menú ⋮ → **"Agregar a pantalla de inicio"**.
 3. Confirmá. El icono queda en la pantalla de inicio y abre a pantalla completa.
 
 ### Cómo instalar en iPhone/iPad (iOS)
 
-1. Abrí la app en Safari.
-2. Tocá el botón Compartir (cuadrado con flecha) en la barra del navegador.
-3. Elegí "Agregar a pantalla de inicio" y confirmá.
-4. La app abre a pantalla completa desde el icono (el botón "Instalar" de la app muestra estos pasos).
+1. Abrí la app en **Safari**.
+2. Tocá el botón **Compartir** → **"Agregar a pantalla de inicio"** y confirmá.
+3. La app abre a pantalla completa desde el icono.
 
-### Actualizaciones
+### Actualizaciones y uso offline
 
-- La app detecta automáticamente una nueva versión cuando la abrís y estás en línea.
-- Aparece un aviso "Nueva versión disponible" con un botón Actualizar.
-- Al tocarlo, la app recarga y queda en la versión más reciente. Podés ignorarlo y
-  seguir trabajando; se te volverá a ofrecer la próxima vez.
-- Los datos nunca se pierden: se guardan localmente en el dispositivo (IndexedDB).
-
-### Uso offline
-
-- Una vez cargada, la app funciona completamente sin conexión.
-- Podés crear, editar y consultar casos aunque no haya internet.
-- Cuando vuelvas a tener conexión, la app se sincroniza con la última versión.
-- El banner de estado muestra si estás en línea / sin conexión.
+- La app detecta automáticamente una nueva versión y ofrece **"Nueva versión disponible"** con botón **Actualizar**.
+- Podés ignorarlo y seguir trabajando; se vuelve a ofrecer la próxima vez.
+- Los datos nunca se pierden: se guardan localmente (IndexedDB).
+- Una vez cargada, la app **funciona completamente sin conexión**. El banner de estado muestra si estás en línea / sin conexión.
 
 ### Shortcuts (íconos de acción rápida)
 
-Al instalar la app en Android se agregan accesos directos de acción:
-- Panel principal
-- Nuevo caso
+Al instalar en Android se agregan accesos directos: **Panel principal** y **Nuevo caso**.
 
 ---
 
@@ -350,7 +249,6 @@ Al instalar la app en Android se agregan accesos directos de acción:
 
 \`\`\`bash
 npm run build
-# Subí el repo a GitHub y conectalo en Vercel
 # Build command: npm run build
 # Output directory: build
 # Framework preset: Create React App
@@ -365,18 +263,17 @@ npm run build
 # SPA fallback: /*  →  /index.html
 \`\`\`
 
-### Servidor propio (Nginx / Caddy / cualquier host estático)
+### Servidor propio (Nginx / Caddy / host estático)
 
 \`\`\`bash
 npm run build
 # Subí el contenido de /build
 \`\`\`
 
-Importante para que la PWA funcione:
-- Servir por HTTPS (o localhost) — es obligatorio para service workers.
-- Configurar el servidor para que \`asset-manifest.json\` y \`sw.js\` no se cacheaden
-  de forma agresiva (\`Cache-Control: no-cache\`).
-- Para Vercel/Netlify no hace falta nada extra: ya manejan esto por defecto.
+**Importante para la PWA:**
+- Servir por **HTTPS** (o localhost) — obligatorio para service workers.
+- Configurar el servidor para que \`asset-manifest.json\` y \`sw.js\` no se cacheaden de forma agresiva (\`Cache-Control: no-cache\`).
+- Para Vercel/Netlify no hace falta nada extra.
 
 ### Probar localmente
 
@@ -387,6 +284,13 @@ npx serve -s build      # o: npm run preview
 \`\`\`
 
 El service worker solo se activa en el build de producción (\`npm run build\`).
+
+---
+
+## Documentación
+
+- **Changelog**: todas las novedades desde 1.6.0 en adelante en \`src/docs/CHANGELOG.md\` (y su copia \`public/docs/CHANGELOG.md\`).
+- **Contexto técnico del proyecto**: \`PROJECT_CONTEXT.md\` (arquitectura, comandos, gestión de datos y versiones).
 `;
 
 export const DOC_CHANGELOG = `# Changelog
@@ -397,6 +301,333 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.6.8] - Auditoría final, QA y estabilización
+
+### Eliminación de código muerto (FASE 1)
+
+- Eliminados 11 archivos sin uso en producción: \`common/Input.jsx\` (reemplazado por \`TextInput\`), \`common/EditableForm.jsx\` (+ su test), \`common/ShortcutsHelp.jsx\`, \`common/SelectorTema.jsx\`, \`common/ModoNoMolestar.jsx\`, \`common/BlocNotas.jsx\`, \`common/Card.jsx\`, \`common/NoteList.jsx\`, \`common/NoteCard.jsx\`, el hook \`hooks/useBlocNotas.js\` y toda la carpeta \`components/notes/\` (supersedida por \`features/notes/\`).
+
+### Paleta de gráficos centralizada (FASE 2)
+
+- Nuevos tokens CSS \`--chart-color-*\` en \`globals.css\` (cases, signed, contact, danger, warning, success, danger-light, conversion, muted, orange, rose, cursor + fondos de severidad).
+- Migrados a los tokens: \`KPICards\`, \`ProvinceBars\`, \`TypeBars\`, \`StudyBars\`, \`StackedBars\`, \`WeeklyTrend\`, \`TimeMetrics\`, \`ConversionBars\`, \`AlertsPanel\`, \`InsightsPanel\`, \`CaseDistribution\` y \`computeMetrics\` (~70 valores hex/rgba).
+- Corregida inconsistencia de paleta en \`computeMetrics\` (\`#FB923C\` → \`--chart-color-orange\`, alineado con los widgets).
+
+### Reporte de errores consolidado (FASE 3)
+
+- Los \`console.warn\`/\`console.error\` de flujos de producción en \`App.jsx\`, \`InlineEventForm\`, \`InlineNoteForm\`, \`caseHistory\`, \`CalendarContext\`, \`backupManager\` y \`typographyManager\` migran al sistema centralizado \`reportError()\` (con \`silent: true\` donde el usuario ya está notificado o la degradación es esperada).
+- Se conservan los logs intencionales: \`TourContext\` (flujo esperado del tour), \`dbLifecycle\` (detalles de multipestaña) y el fallback de \`reportError\` mismo.
+
+### Documentación actualizada (FASE 4)
+
+- Tour interactivo: corregidos los contadores (13/14 → 17 pasos) en \`ComoUsarView\` y \`guideData\`.
+- README: atajos \`Ctrl + 1-7\` → \`Ctrl + 1-5\` (coherente con \`AtajosTeclado\`); eliminadas referencias a componentes eliminados (\`ShortcutsHelp\`, \`EditableForm\`, \`components/notes/\`) en el árbol de estructura.
+- \`EjemplosCasos\`: badge de tags migrado de \`text-[9px]\` a \`text-ds-xs\` (pendiente de 1.6.7).
+
+### Versionado (FASE 5)
+
+- Bump a **1.6.8** en \`package.json\`, \`package-lock.json\`, \`src/core/version.js\` y los tres README. \`PROJECT_CONTEXT.md\` actualizado (versión, baseline, historial y árbol de componentes).
+
+### Verificación (FASE 6)
+
+- Suite completa de tests (Vitest) y build de producción sin errores.
+
+## [1.6.7] - Accesibilidad, Responsive y robustez
+
+### Formularios accesibles (FASE 1)
+
+- \`Field\`: asocia el \`<label>\` con su control mediante \`htmlFor\`/\`id\`, con id único generado con \`useId()\` (o \`id\` explícito opcional). Asociados los labels de \`EventModal\`, \`CsvExportModal\` y \`FeedbackForm\`; \`Select\` propaga \`id\`.
+- \`Modal\` expone \`aria-labelledby\` hacia el título (id generado con \`useId()\`).
+
+### Modales (FASE 2)
+
+- \`CasoEditModal\`, \`VerCasoModal\` y \`ReporteRapidoModal\`: cierre con Escape y bloqueo de scroll de fondo, sin depender del setup global del wrapper \`Modal\`.
+
+### Operables por teclado (FASE 3)
+
+- Nuevo helper \`src/utils/a11y.js\` (\`onKeyActivate\`/\`accessibleClickProps\`): Enter/Espacio activan acciones en elementos no nativos.
+- Aplicado en filas y encabezados ordenables de \`TablaView\`, celdas y chips de \`CalendarView\`, segmentos de \`PipelineBar\`, artículos de dashboard/notas/speechs, drop zone de \`CSVImporter\` (convertida en \`<label>\`) y resaltados de \`VerCasoModal\`.
+
+### ARIA (FASE 4)
+
+- Errores de formulario anunciados con \`role="alert"\` + \`aria-live\` (\`CasoEditModal\`, \`EditableForm\`, \`EventModal\`).
+- Estado de controles con \`aria-pressed\` (prioridad del evento, estados de exportación CSV, toggles de exportación PDF, filtros de \`PipelineBar\`).
+- Colapsables de \`VerCasoModal\` con \`aria-expanded\`; búsqueda global como \`role="dialog"\` + \`aria-modal\`.
+- Tablas con \`aria-label\`, \`scope="col"\`, \`aria-sort\` y checkboxes con \`aria-label\`; botones de solo ícono con \`aria-label\`.
+
+### Contraste (FASE 5)
+
+- \`--text-muted\` ajustado para contraste: \`#B0B8C4\` en oscuro y \`#5B6370\` en claro; los textos sobre fondo accent usan \`--text-on-accent\`.
+
+### Tipografía (FASE 6)
+
+- Migrados los \`text-[9px]\` visibles a \`text-ds-xs\` (12px) y los \`fontSize\` inline sueltos a tokens del Design System (\`--font-size-ds-xs\`, \`--font-size-ds-sm\`, \`--fs-title\`).
+- Se conservan los badges/pills decorativos y el calendario mensual denso para no romper el layout.
+
+### Responsive y robustez (FASE 7 y 8)
+
+- \`SmartTable\`: contenedor con \`overflow-x-auto\` (la tabla ya no se recorta en pantallas angostas) y empty state con \`EmptyState\` cuando no hay datos.
+- Kanban: el selector de orden de columna gana área táctil mínima en \`@media (pointer: coarse)\`; \`.text-xs\` sube a \`0.7rem\` en pantallas ≤768px.
+- \`ComentariosUI\`: evita renderizar "Invalid Date" con fechas inválidas.
+
+### Tests de accesibilidad (FASE 9)
+
+- Nueva suite \`src/test/a11y.test.jsx\` (15 tests): asociación Field label→input, Escape/ARIA del \`Modal\`, \`onKeyActivate\`, errores con \`aria-live\` y prioridad con \`aria-pressed\` en \`EventModal\`, empty state de \`SmartTable\`. Total de la suite: 506 tests.
+
+## [1.6.6] - Optimización y rendimiento
+
+### Persistencia y filtros (FASE 2)
+
+- \`useStorage\`: guardado debounced 500ms (evita una escritura a localStorage por keystroke) con persistencia final al desmontar.
+- \`FiltersContext\`: la búsqueda (\`searchQuery\`) se persiste con debounce de 300ms; el resto de los filtros (mes, año, día, vista) se siguen guardando de forma inmediata.
+
+### Stores (FASE 3)
+
+- \`Celebration\`: selectores granulares (\`active\`, \`message\`, \`pieces\`, \`dismiss\`) para no re-renderizar por cambios de otras claves del store.
+- \`useAppStore\`: estabilidad de referencias en mutaciones frecuentes (\`updateCase\`, \`updateNote\`, \`updateEvent\`, \`addNote\`, \`addEvent\`). Si el dato resultante no cambió (misma referencia), el array no se recrea y los consumidores no se re-renderizan innecesariamente.
+
+### Cálculos y consultas (FASE 5)
+
+- \`CasoEditModal\`: chequeo de duplicado y datalists (aseguradoras y estudios) memoizados (solo se recalculan cuando cambian sus dependencias).
+- \`CalendarView\`: un único \`caseMap\` (Map) reutilizado por todos los eventos (reemplaza el \`.find()\` lineal por evento), \`todayStr\` memoizado y orden/mapa de la vista lista memoizados.
+- \`calendarService\`: \`checkUpcomingEvents\` ahora consulta solo los eventos de hoy por rango de fecha (antes leía la tabla completa cada 60s).
+- \`metricsEngine\`: \`computeFunnel\` procesa el embudo en una sola pasada sobre los casos (pasadas O(n·m) → O(n)).
+
+### Renderizado de listas (FASE 4)
+
+- \`TablaView\`: fila extraída a \`TablaRow\` (React.memo); se memoizan el slice de la página, las columnas visibles y los callbacks de selección.
+- \`KanbanView\`: columna extraída a \`KanbanColumn\` (React.memo); agrupación por estado y callbacks memoizados.
+- \`NotificationCenter\`: item extraído a \`NotificationItem\` (React.memo) para no re-renderizar todas las notificaciones al cambiar una o el filtro.
+
+### Carga bajo demanda (FASE 6)
+
+- \`CaseTimeline\` (VerCasoModal), \`PdfExportModal\` (OperatorView) e \`IntegridadPanel\` (SystemLogs) ahora se cargan de forma perezosa (chunk separado) solo cuando se necesitan.
+
+### Dashboard (FASE 8)
+
+- Handlers estables (\`handleActivitySelect\`, \`handleNavigateToEvent\`) para los widgets; \`KPICards\`, \`InsightsPanel\`, \`ProximasAcciones\` y \`ActivityFeed\` memorizados.
+
+### Perfilado (FASE 1)
+
+- \`@welldone-software/why-did-you-render\` instalado como devDependency; \`src/wdyr.js\` (solo en desarrollo, conmutable por \`WDYR=0\`) vigila \`TablaRow\`, \`CasoCard\`, \`KanbanColumn\` y \`NotificationItem\`.
+
+## [1.6.5] - Navegación fluida y coherente
+
+### Header estable (FASE 1)
+
+- Header multi-fila estabilizado: la franja de pestañas ya no se recalcula ni re-anima al cambiar de vista (eliminado el re-disparo de \`animate-stagger\`); las pestañas se desbordan con scroll horizontal sin romper línea (\`tab-strip\` + \`scrollbar-hide\`).
+- Eliminado código muerto inalcanzable: vistas \`configuracion\` y \`como-usar\` fuera del arreglo de pestañas y su lazy import de \`ComoUsarView\`.
+
+### Transiciones entre vistas (FASE 2)
+
+- Nuevo \`useViewTransition\`: fondo crossfade (la vista anterior queda montada durante la transición y se desmonta al terminar), con preservación de la posición de scroll por vista y clases \`view-transition-enter\`/\`view-transition-exit\`.
+
+### Modales y overlays unificados (FASE 3)
+
+- Nuevo wrapper \`Modal.jsx\` + hook \`useModal\`: trampa de foco, cierre con Escape, bloqueo de scroll de fondo (ref-counted) y cierre por backdrop, con animación de entrada/salida unificada y prop \`zIndex\`.
+- \`useDialogA11y\` ahora acepta \`onEscape\` y restaura el foco al desmontar.
+- Migrados a comportamiento unificado: \`EventModal\` (wrapper \`<Modal>\`), \`NotificationCenter\` (Escape, foco, \`slide-out-right\`), \`ConfirmDialog\` (Escape, bloqueo de scroll, sin cierre por backdrop), \`ShortcutsHelp\` (Escape), \`CsvExportModal\`, \`PdfExportModal\` y \`MetricsConfigPanel\` (\`useModal\`).
+- OverlayPanel: backdrop movido de \`z-toast\` a \`z-modal\` (escala de z-index unificada).
+- Previews de importación de \`ConfiguracionView\` (CSV, utilidades, notas/calendario): cierre con Escape evitando doble-cierre con el overlay subyacente.
+
+### Guardado con datos sin guardar (FASE 4)
+
+- \`ReporteRapidoModal\`: al cerrar con datos sin guardar (texto, fecha o reprogramación pendiente) muestra un \`ConfirmDialog\` antes de descartar.
+
+### Contexto preservado (FASE 5)
+
+- Abrir un caso desde Calendario o Bloc de Notas mantiene el overlay subyacente abierto debajo de \`VerCasoModal\`.
+
+### Animaciones (FASE 7)
+
+- \`CasoEditModal\`: animaciones de entrada (\`fade-in\` backdrop + \`scale-in\` tarjeta). Respeto a \`prefers-reduced-motion\` ya existente.
+
+### Tests de integración (FASE 9)
+
+- \`src/test/modal.test.jsx\`: 8 tests del wrapper \`Modal\` (render, ARIA, backdrop, Escape, aria-label, z-index) con fake timers.
+- \`src/hooks/useViewTransition.test.js\`: transición crossfade y preservación de scroll.
+
+## [1.6.4] - Sistema centralizado de notificaciones y feedback
+
+### Pipeline central único
+
+- Toda notificación sigue ahora el flujo: Acción → Evento → Prioridad → Sistema de notificación → Centro / Toast / Sonido, a través de \`notificationManager\`. No se permiten implementaciones paralelas.
+- Nuevo \`src/core/notifications/actionFeedback.js\`: catálogo de acciones de feedback (copiar, crear, guardar, eliminar, importar, exportar, restaurar, reprogramar, cancelar) con prioridad y tipo determinados, enrutadas por el pipeline central.
+- Prioridades: BAJA (Centro, sin toast, sin sonido) · MEDIA (Centro + toast, sin sonido) · ALTA/GRAVE (Centro + toast + sonido), gobernadas por \`ruleEngine\` y configuración del usuario.
+
+### Sistemas paralelos eliminados
+
+- Eliminado \`src/utils/notifications.js\` (legacy \`NotificationService\`): tenía historial paralelo bajo \`app_notifications\`. \`CalendarContext\` y \`calendarService\` migrados a \`notificationManager\`.
+- Eliminado \`src/components/common/Toast.jsx\` (muerto, 0 importaciones).
+- \`useAppStore.addToast()\` corregido: enrutaba a \`ui.toasts\` que nunca se renderizaba (toasts invisibles). Ahora enruta al \`notificationStore\` central. Esto arregla \`alertsSystem\` y \`CSVImporter\`.
+- Reemplazados los \`alert()\` del navegador (MapeoView, AseguradorasView, LesionesView, SpeechsView, ComoUsarView, exportPDF) por toasts internos.
+
+### Deduplicación
+
+- \`notifyAccion\` genera \`eventKey\` estable por acción+mensaje; combinado con la dedup del \`ruleEngine\` (ventana 2s) y del store (ventana 3s), una acción lógica genera una sola notificación.
+- Sonidos centralizados en \`soundSystem\` (éxito/error/advertencia/importantes), respetando preferencias del usuario (notifSonido, volumen, por nivel).
+
+### Tests
+
+- \`src/core/notifications/feedback.test.js\`: 14 tests (mapeo de catálogo, pipeline BAJA/MEDIA/ALTA → centro/toast/sonido, deduplicación, manager inicializado, helpers de acción).
+
+## [1.6.3] - Integridad de datos, Backup y Export/Import
+
+### Unificación del sistema de datos
+
+- Eliminado \`casesManager.js\` (muerto: 0 importaciones, solo \`caseHistory.js\` era la fuente real).
+- Eliminado \`STORAGE_KEYS.CASES\` de constants.js (nunca era referenciado).
+- \`deleteCase\` ahora ejecuta cascade delete: limpia \`notes.relatedCaseIds\`, \`events.relatedCaseIds\` y \`case_history\` antes de eliminar el caso.
+
+### Backup fortalecido
+
+- \`BACKUP_SCHEMA_VERSION\` subido a 3. Migración v0→v1→v2→v3 automática.
+- Nueva tabla \`auto_backups\` incluida en exportación de backup.
+- Restore de configuración ahora preserva claves conocidas (\`app_*\` + \`unprefixedInclude\`) para no perder datos de versiones más recientes que el backup importado.
+- Post-migration checksum ahora recalcula y compara en lugar de omitir silenciosamente.
+- Rollback usa \`unprefixedInclude\` en lugar de lista hardcodeada.
+
+### CSV unificado
+
+- Nueva fuente única: \`csvUtils.js\` consolida todas las funciones CSV (escapeCSV, sanitizeCSV, parseReportesString con soporte [origen], parseNotasVinculadas, parseAgendaVinculada, parseHistorialVinculada, etc.).
+- \`parsers.js\` reescrito para importar desde csvUtils (elimina duplicación).
+- \`importCases.js\` reescrito con opción \`mode: 'append' | 'replace'\` (default: append).
+- CSVImporter actualizado para usar las nuevas funciones nombradas.
+- Nuevas funciones de exportación independientes: \`exportNotesToCSV()\` y \`exportEventsToCSV()\` con headers propios, sanitización y soporte para arrays como parámetro.
+
+### localStorageAdapter
+
+- Expandido \`unprefixedInclude\` con 12 claves \`app_*\` que faltaban: app-theme, app-palette, app-estado-colors, app-typography-preset, app-font-size, app_ui_settings, app_notifications, app_notification_center, app_easter_egg_behavior, app-view-orders, app_integrity_log, app_integrity_last_check.
+- \`isKnownKey\` en backupService ahora cubre tanto prefijados como unprefixedInclude.
+
+### Tests
+
+- 114 tests nuevos en 8 archivos:
+  - Unitarios: sanitize.js (16), redact.js (15), dbLifecycle.js (4), localStorageAdapter.js (25)
+  - Integración roundtrip: 12 tests (backup→restore, checksum, auto_backups, cascade delete, CSV modes)
+  - Edge cases: 27 tests (backup corrupto, migración, CSV injection, parsers, import, restore parcial)
+
+## [1.6.1] - Design System y Consistencia Visual Global
+
+### Design Tokens centralizados
+
+- Nuevos tokens CSS: \`--text-on-accent\` (reemplaza 46 ocurrencias de \`#14181F\` hardcodeado), \`--border-light\` (dark + light themes).
+- \`themeTokens.js\`: expandido \`cssVarMap\` con \`textOnAccent\` y \`borderLight\`.
+- \`tailwind.config.js\`: mapeo completo de CSS variables a Tailwind (\`colors\`, \`zIndex\`, \`borderRadius\`, \`spacing\`, \`height\`, \`fontSize\`, \`boxShadow\`, \`transitionDuration\`, \`transitionTimingFunction\`).
+
+### Z-index centralizado
+
+- Nueva escala semántica en \`tailwind.config.js\`: \`z-dropdown\` (10), \`z-sticky\` (30), \`z-modal\` (50), \`z-submodal\` (60), \`z-banner\` (70), \`z-alert\` (90), \`z-toast\` (100), \`z-notification\` (110), \`z-calendar-modal\` (200), \`z-search\` (300), \`z-tour\` (999).
+- 29 archivos actualizados de valores hardcodeados (\`z-[100]\`, \`z-[60]\`, \`z-[999]\`, etc.) a clases semánticas Tailwind.
+
+### Botones unificados
+
+- Nuevas variantes \`positive\` (acciones de éxito, verde) y \`contextual\` (acciones neutrales) en \`Btn.jsx\` y \`globals.css\`.
+- 46 reemplazos de \`#14181F\` → \`var(--color-text-on-accent)\` en 28 archivos.
+
+### Pills estandarizadas
+
+- 4 clases CSS nuevas: \`.pill-sm\` (10px), \`.pill-md\` (xs), \`.pill-lg\` (sm), \`.pill-compact\` (9px).
+- \`Pill.jsx\` actualizado para usar clases estandarizadas.
+- 36 reemplazos de pills inline en 15 archivos (MiJornadaView, VerCasoModal, CondicionalesView, OperatorView, etc.).
+
+### Cards mejoradas
+
+- \`Card.jsx\`: nuevas variantes \`accent\` (fondo de acento) y \`compact\` (padding reducido).
+
+### Inputs y formularios
+
+- \`Toggle.jsx\`: soporte \`disabled\` con cursor \`not-allowed\` y opacidad reducida.
+- \`TextInput.jsx\`: eliminado focus ring duplicado que conflictuaba con \`input-optimized\`.
+
+### Modales, animaciones y responsive
+
+- Verificados como ya consistentes: OverlayPanel y ConfirmDialog usan patrones estándar (overlay \`animate-fade-in\`, contenido \`animate-scale-in\`).
+- Touch targets (44px mínimo) y breakpoints responsive (768px, 480px) verificados.
+
+## [1.6.2] - Consistencia funcional (skeletons y formulario de edición)
+
+> **Contexto**: Este sprint fue planificado originalmente sin ejecutarse como versión
+> independiente; sus otros objetivos (feedback centralizado, confirmaciones, estados vacíos,
+> búsqueda/filtros, eliminación diferenciada) se absorbieron en 1.6.3/1.6.4/1.6.5. Aquí se
+> documentan las áreas de consistencia que quedaron pendientes y que se completaron a posteriori.
+
+### Skeletons de carga
+
+- Nuevo componente \`src/components/common/Skeleton.jsx\` sobre el shimmer estandarizado
+  \`.animate-skeleton\` (definido en \`globals.css\`).
+- Variants: \`text\`, \`avatar\`/\`circle\`, \`button\`, \`card\`, \`list\` (con líneas), \`table\`.
+- Subcomponentes \`SkeletonText\` (párrafo de líneas) y \`SkeletonTable\` (tabla simulada).
+- Accesible: \`aria-hidden="true"\` (los skeletons son decorativos, no contenido).
+- Integrado en \`NotesView.jsx\`: el estado de carga reemplaza el spinner único por un layout
+  de skeleton (lista + editor) coherente con la vista final.
+
+### Formulario de edición reutilizable
+
+- Nuevo componente \`src/components/common/EditableForm.jsx\`: endpoint config-driven para
+  crear/editar entidades con validación, errores, feedback y acciones Guardar/Cancelar
+  consistentes.
+- Campos soportados: texto, date, textarea, select, toggle y datalist.
+- Validación configurable por prop \`validator\` (array o \`{ valid, errors }\`), errores
+  externos vía \`externalErrors\`, y estado \`saving\`.
+- Reutiliza los primitivos existentes (\`Field\`, \`TextInput\`, \`TextArea\`, \`Select\`, \`Toggle\`,
+  \`Btn\`, \`BtnOutline\`) y el patrón de bloque de errores estandarizado de los modales.
+
+### Tests
+
+- \`Skeleton.test.jsx\`: 12 pruebas (variants, dimensiones, líneas, accesibilidad).
+- \`EditableForm.test.jsx\`: 11 pruebas (render, validación, errores externos, cancelar,
+  saving, footer).
+
+## [1.6.0] - Auditoría Técnica Integral
+
+### Auditoría de arquitectura
+
+- Auditoría completa del codebase (~265 archivos, React 18, Zustand 5, Dexie 4, Tailwind 3, Vitest 4).
+- Inventario de dependencias, configuración de build y estructura de proyecto.
+
+### State management
+
+- Mapeo de todos los stores Zustand (useAppStore, useNotificationStore, useOperatorStore, calendarStore, notesStore, useSettingsStore, useFeedbackStore, useSearchHistoryStore).
+- Identificación de estado duplicado entre stores.
+
+### Sistema de notificaciones
+
+- Identificación de 3 sistemas paralelos: nuevo \`src/core/notifications/\` (deshabilitado), legacy \`NotificationService\` (activo), \`useAppStore.addToast()\` (directo).
+- Documentación de impacto: sonidos no funcionan, notificaciones duplicadas, prioridad desordenada.
+
+### God Component
+
+- Documentación de \`App.jsx\` (~1642 líneas, 13+ useStorage, 14+ useState, 7+ useMemo) como punto de deuda técnica principal.
+
+### Colores de estado
+
+- Identificación de 3 fuentes incompatibles: \`constants.js\`, \`themeTokens.js\`, \`globals.css\` con valores diferentes para los mismos estados.
+
+### Navegación
+
+- Mapeo completo del sistema de navegación basado en estado (sin router), incluyendo loss de contexto en transiciones de vista.
+
+### Backup/Export/Import
+
+- Identificación de 3 sistemas paralelos con modelos de datos diferentes y funciones duplicadas (\`escapeCSV\`, \`parseCSVLine\`, etc.).
+
+### Performance
+
+- Documentación de issues: \`config\` como dependencia cascada, ConfiguracionView renderizado dos veces, memoización parcial.
+
+### Plan de acción v1.6.1–1.6.8
+
+- Plan detallado de 8 sprints para corrección de hallazgos: Design System (1.6.1), Consistencia funcional (1.6.2), Datos y persistencia (1.6.3), Notificaciones (1.6.4), Navegación y modals (1.6.5), Performance (1.6.6), Accesibilidad (1.6.7), QA final (1.6.8).
+
+> **Nota sobre 1.6.2**: El sprint "Consistencia funcional" fue planificado pero no se publicó
+> como versión independiente en su momento. Sus objetivos se absorbieron parcialmente en las
+> versiones posteriores: 1.6.3 (integridad de datos y export/import), 1.6.4 (sistema
+> centralizado de notificaciones y feedback) y 1.6.5 (navegación contextual, modales/overlays
+> unificados y gestor de animaciones). Posteriormente se completaron las áreas que quedaron
+> pendientes (formulario de edición reutilizable y skeletons) y se publicó la entrada 1.6.2
+> consolidada más abajo.
 
 ## [1.5.1] - Configuración, Backup/Export/Import, Ayuda y Correcciones
 

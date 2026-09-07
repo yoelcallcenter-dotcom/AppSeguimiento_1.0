@@ -5,7 +5,8 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { notificationService } from "../utils/notifications";
+import { notificationManager } from "../core/notifications/notificationManager";
+import { reportError } from "../core/error/reportError";
 
 const CalendarContext = createContext(null);
 const STORAGE_KEY = "calendar-events";
@@ -22,7 +23,7 @@ export function CalendarProvider({ children }) {
         setEvents(JSON.parse(saved));
       }
     } catch (error) {
-      console.error("Error loading calendar events:", error);
+      reportError(error, { context: 'CalendarContext:loadEvents' });
     }
     setLoading(false);
   }, []);
@@ -33,8 +34,32 @@ export function CalendarProvider({ children }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newEvents));
       setEvents(newEvents);
     } catch (error) {
-      console.error("Error saving calendar events:", error);
+      reportError(error, { context: 'CalendarContext:saveEvents' });
     }
+  }, []);
+
+  // Notificar evento (recordatorio programado o manual)
+  const scheduleReminder = useCallback((eventData) => {
+    if (!eventData) return null;
+    const fecha = eventData.fecha || (eventData.startDate ? eventData.startDate.slice(0, 10) : '');
+    if (!fecha) return null;
+
+    const eventDate = new Date(`${fecha}T${eventData.hora || "09:00:00"}`);
+    const timeDiff = eventDate.getTime() - Date.now();
+    if (timeDiff <= 0) return null;
+
+    const reminderTime = timeDiff - 3600000; // 1 hora antes
+    if (reminderTime > 0 && reminderTime < 86400000 * 3) {
+      return setTimeout(() => {
+        notificationManager.notify({
+          type: "info",
+          title: `Recordatorio: ${eventData.titulo || eventData.title || ""}`,
+          message: `Evento programado para ${fecha} ${eventData.hora || ""}`,
+          source: "calendar",
+        });
+      }, reminderTime);
+    }
+    return null;
   }, []);
 
   // Agregar evento
@@ -52,14 +77,13 @@ export function CalendarProvider({ children }) {
 
       // Notificar si hay recordatorio
       if (eventData.recordatorio) {
-        notificationService.scheduleReminder(newEvent);
+        scheduleReminder(newEvent);
       }
 
       return newEvent;
     },
-    [events, saveEvents]
+    [events, saveEvents, scheduleReminder]
   );
-
   // Actualizar evento
   const updateEvent = useCallback(
     (id, updates) => {
@@ -117,10 +141,12 @@ export function CalendarProvider({ children }) {
       const event = events.find((e) => e.id === id);
       if (!event) return false;
 
-      notificationService.show(
-        `Recordatorio: ${event.titulo}`,
-        `Fecha: ${event.fecha} ${event.hora || ""}\n${event.descripcion || ""}`
-      );
+      notificationManager.notify({
+        type: "info",
+        title: `Recordatorio: ${event.titulo || event.title || ""}`,
+        message: `Fecha: ${event.fecha || event.startDate || ""} ${event.hora || ""}${event.descripcion ? `\n${event.descripcion}` : ""}`,
+        source: "calendar",
+      });
 
       updateEvent(id, { notificado: true });
       return true;

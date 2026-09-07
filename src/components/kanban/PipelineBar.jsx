@@ -2,6 +2,7 @@ import React from "react";
 import { getEstados } from "../../utils/catalogos";
 import { useTheme } from "../../context/ThemeContext";
 import { useFilters } from "../../context/FiltersContext";
+import { onKeyActivate } from "../../utils/a11y";
 
 export function PipelineBar({ casos, config, activeFilter }) {
   const theme = useTheme();
@@ -33,8 +34,12 @@ export function PipelineBar({ casos, config, activeFilter }) {
           return (
             <div
               key={e.v}
+              role="button"
+              tabIndex={0}
+              aria-label={`${e.v}: ${count} casos. Clic para filtrar`}
               title={`${e.v}: ${count} — clic para filtrar`}
               onClick={() => handleFilter(e.v)}
+              onKeyDown={onKeyActivate(() => handleFilter(e.v))}
               className="cursor-pointer transition-opacity hover:brightness-125"
               style={{
                 width: `${(count / total) * 100}%`,
@@ -57,6 +62,8 @@ export function PipelineBar({ casos, config, activeFilter }) {
           return (
             <button
               key={e.v}
+              type="button"
+              aria-pressed={active}
               onClick={() => handleFilter(e.v)}
               className="flex items-center gap-1.5 text-[11px] rounded px-1 py-0.5 transition-opacity hover:bg-white/5"
               style={{

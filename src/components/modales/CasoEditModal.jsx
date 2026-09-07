@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   X,
   Save,
@@ -31,6 +31,7 @@ import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
 import { validateCaso } from "../../validators/casoValidator";
 import { matchEstudio } from "../../services/EstudioService";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { getEstados, getTiposIngreso } from "../../utils/catalogos";
 import { soundSystem } from "../../core/notifications/soundSystem";
 import InlineNoteForm from "./InlineNoteForm";
@@ -49,7 +50,12 @@ export function CasoEditModal({
   showToast,
 }) {
   const dialogRef = useRef(null);
-  useDialogA11y(dialogRef, true);
+  useDialogA11y(dialogRef, true, { onEscape: onClose });
+
+  useEffect(() => {
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, []);
   const [caso, setCaso] = useState(casoInicial);
   const [pegado, setPegado] = useState("");
   const [showPegar, setShowPegar] = useState(!casoInicial.nombre);
@@ -68,9 +74,24 @@ export function CasoEditModal({
   const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
 
   const set = (k, v) => setCaso((c) => ({ ...c, [k]: v }));
-  const duplicado =
-    caso.telefono &&
-    casos.some((c) => c.id !== caso.id && c.telefono === caso.telefono);
+  // Optimización 1.6.6: el chequeo de duplicado se memoiza para no recorrer
+  // todos los casos en cada render (cada keystroke dentro del modal).
+  const duplicado = useMemo(
+    () =>
+      caso.telefono &&
+      casos.some((c) => c.id !== caso.id && c.telefono === caso.telefono),
+    [caso.telefono, caso.id, casos]
+  );
+
+  // Optimización 1.6.6: datalists memoizadas (evitan reconstruir arrays en cada render).
+  const opcionesAseguradoras = useMemo(
+    () => [...new Set(casos.map((c) => c.aseguradora).filter(Boolean))],
+    [casos]
+  );
+  const opcionesEstudios = useMemo(
+    () => [...new Set(mapeo.map((m) => m.estudio))],
+    [mapeo]
+  );
 
   const procesarPegado = () => {
     if (!pegado.trim()) return;
@@ -199,7 +220,7 @@ export function CasoEditModal({
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4"
+      className="fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       role="dialog"
       aria-modal="true"
@@ -207,7 +228,7 @@ export function CasoEditModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl rounded-xl my-6"
+        className="w-full max-w-2xl rounded-xl my-6 animate-scale-in"
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
@@ -272,6 +293,8 @@ export function CasoEditModal({
 
           {validationErrors.length > 0 && (
             <div
+              role="alert"
+              aria-live="assertive"
               className="rounded-md p-3"
               style={{
                 backgroundColor: "var(--color-danger)22",
@@ -397,9 +420,7 @@ COMENTARIOS:`}
                 placeholder="ART"
               />
               <datalist id="lista-aseguradoras">
-                {[
-                  ...new Set(casos.map((c) => c.aseguradora).filter(Boolean)),
-                ].map((a) => (
+                {opcionesAseguradoras.map((a) => (
                   <option key={a} value={a} />
                 ))}
               </datalist>
@@ -471,7 +492,7 @@ COMENTARIOS:`}
                 </BtnOutline>
               </div>
               <datalist id="lista-estudios">
-                {[...new Set(mapeo.map((m) => m.estudio))].map((e) => (
+                {opcionesEstudios.map((e) => (
                   <option key={e} value={e} />
                 ))}
               </datalist>

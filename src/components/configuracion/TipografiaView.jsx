@@ -73,7 +73,7 @@ function PresetCard({ preset, active, onClick }) {
           className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
           style={{ backgroundColor: "var(--color-accent)" }}
         >
-          <Check size={12} color="#14181F" strokeWidth={3} />
+          <Check size={12} color="var(--color-text-on-accent)" strokeWidth={3} />
         </span>
       )}
 
@@ -156,7 +156,7 @@ export function TipografiaView({ showToast }) {
               onClick={() => setFontSize(fs.value)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 ${
                 fontSize === fs.value
-                  ? "bg-[var(--color-accent)] text-[#14181F]"
+                  ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                   : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
               }`}
             >

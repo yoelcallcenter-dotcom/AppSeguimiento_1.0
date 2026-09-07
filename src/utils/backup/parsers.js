@@ -1,256 +1,14 @@
 /**
  * backup/parsers.js
  * Parser CSV robusto y serializador
+ * Importa funciones base de csvUtils.js (fuente única de verdad).
  */
 
-import { CSV_HEADERS, CSV_FIELD_MAP, STORAGE_KEYS } from "./constants";
+import { CSV_HEADERS, CSV_FIELD_MAP } from "./constants";
 import appDB from "../../core/db/appDB";
 import casesDB from "../../core/db/casesDB";
-import { sanitizeCSV } from "./csvUtils";
+import { sanitizeCSV, escapeCSV, unescapeCSV, parseCSVLine, parseTagsString, parseReportesString, parseComentariosString, parseNotasVinculadas, parseAgendaVinculada, parseHistorialVinculada, serializarNotasVinculadas, serializarAgendaVinculada } from "./csvUtils";
 import { parseCSV } from "../csvParse";
-
-/**
- * Escapa un valor para CSV
- * @param {*} value - Valor a escapar
- * @returns {string} Valor escapado
- */
-export function escapeCSV(value) {
-  if (value === null || value === undefined) return "";
-  const str = String(value);
-
-  // Si contiene caracteres especiales, envolver en comillas
-  if (
-    str.includes(",") ||
-    str.includes('"') ||
-    str.includes("\n") ||
-    str.includes("\r")
-  ) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-/**
- * Desescapa un valor de CSV
- * @param {string} value - Valor a desescapar
- * @returns {string} Valor desescapado
- */
-export function unescapeCSV(value) {
-  if (!value) return "";
-  let str = value.trim();
-
-  // Quitar comillas exteriores si existen
-  if (str.startsWith('"') && str.endsWith('"')) {
-    str = str.slice(1, -1).replace(/""/g, '"');
-  }
-
-  return str;
-}
-
-/**
- * Parsea una línea CSV respetando comillas
- * @param {string} line - Línea CSV
- * @returns {string[]} Array de valores
- */
-export function parseCSVLine(line) {
-  const result = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        // Doble comilla dentro de comillas (escape)
-        current += '"';
-        i++;
-      } else {
-        // Alternar estado de comillas
-        inQuotes = !inQuotes;
-      }
-    } else if (char === "," && !inQuotes) {
-      // Fin de campo
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  // Último campo
-  result.push(current.trim());
-  return result;
-}
-
-/**
- * Parsea reportes desde string
- * @param {string} str - String de reportes
- * @returns {Array} Array de reportes
- */
-export function parseReportesString(str) {
-  if (!str || typeof str !== "string") return [];
-
-  const ORIGEN_MAP = { "Operador": "Operador", "Primera Atención": "Primera Atención", "Estudio Jurídico": "Estudio Jurídico" };
-
-  const items = str.split("//").filter((s) => s.trim());
-  return items
-    .map((item) => {
-      const match = item.trim().match(/^\(([^)]+)\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
-      if (match) {
-        const origen = match[2] && ORIGEN_MAP[match[2]] ? ORIGEN_MAP[match[2]] : "Operador";
-        return {
-          fecha: match[1].trim(),
-          texto: match[3].trim(),
-          origen,
-        };
-      }
-      return {
-        fecha: "",
-        texto: item.trim(),
-        origen: "Operador",
-      };
-    })
-    .filter((r) => r.texto);
-}
-
-/**
- * Parsea comentarios desde string
- * @param {string} str - String de comentarios
- * @returns {Array} Array de comentarios
- */
-export function parseComentariosString(str) {
-  if (!str || typeof str !== "string") return [];
-
-  const items = str.split("//").filter((s) => s.trim());
-  return items
-    .map((item) => {
-      const match = item.trim().match(/^\(([^)]+)\)\s*(.*)/);
-      if (match) {
-        return {
-          fecha: match[1].trim(),
-          texto: match[2].trim(),
-          usuario: "Usuario",
-        };
-      }
-      return {
-        fecha: new Date().toISOString(),
-        texto: item.trim(),
-        usuario: "Usuario",
-      };
-    })
-    .filter((c) => c.texto);
-}
-
-/**
- * Parsea tags desde string
- * @param {string} str - String de tags
- * @returns {Array} Array de tags
- */
-export function parseTagsString(str) {
-  if (!str || typeof str !== "string") return [];
-  return str
-    .split(";")
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
-/**
- * Serializa notas vinculadas para CSV
- * @param {Array} notas - Array de notas
- * @returns {string} String serializado
- */
-export function serializarNotasVinculadas(notas) {
-  if (!notas || notas.length === 0) return "";
-  return notas
-    .map((n) => `${n.titulo || n.title || ""}: ${n.contenido || n.content || ""} (${n.fecha || ""})`)
-    .join(" // ");
-}
-
-/**
- * Parsea notas vinculadas desde CSV
- * @param {string} str - String de notas
- * @returns {Array} Array de notas
- */
-export function parseNotasVinculadas(str) {
-  if (!str || typeof str !== "string") return [];
-  return str
-    .split("//")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const match = item.match(/^([^:]+):\s*(.*)\s*\(([^)]*)\)$/);
-      if (match) {
-        return {
-          titulo: match[1].trim(),
-          contenido: match[2].trim(),
-          fecha: match[3].trim() || new Date().toISOString(),
-        };
-      }
-      return { titulo: "", contenido: item, fecha: new Date().toISOString() };
-    });
-}
-
-/**
- * Serializa agenda vinculada para CSV
- * @param {Array} eventos - Array de eventos
- * @returns {string} String serializado
- */
-export function serializarAgendaVinculada(eventos) {
-  if (!eventos || eventos.length === 0) return "";
-  return eventos
-    .map((e) => {
-      const fecha = e.fecha || (e.startDate ? e.startDate.slice(0, 10) : "");
-      return `${e.titulo || e.title || ""} (${fecha})`;
-    })
-    .join(" // ");
-}
-
-/**
- * Parsea agenda vinculada desde CSV
- * @param {string} str - String de agenda
- * @returns {Array} Array de eventos
- */
-export function parseAgendaVinculada(str) {
-  if (!str || typeof str !== "string") return [];
-  return str
-    .split("//")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const match = item.match(/^(.+)\s*\(([^)]*)\)$/);
-      if (match) {
-        return {
-          titulo: match[1].trim(),
-          fecha: match[2].trim() || new Date().toISOString().slice(0, 10),
-        };
-      }
-      return { titulo: item.trim(), fecha: new Date().toISOString().slice(0, 10) };
-    });
-}
-
-/**
- * Parsea string de historial de cambios
- * Formato: "fecha|type|title|description; fecha2|type2|title2|description2"
- * @param {string} str - String a parsear
- * @returns {Array} Array de eventos de historial
- */
-export function parseHistorialVinculada(str) {
-  if (!str || typeof str !== "string") return [];
-  return str
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((item) => {
-      const parts = item.split("|");
-      return {
-        timestamp: parts[0] ? new Date(parts[0]).getTime() || Date.now() : Date.now(),
-        type: parts[1] || "manual",
-        title: parts[2] || "",
-        description: parts[3] || "",
-      };
-    });
-}
 
 /**
  * Parsea CSV a array de casos
@@ -265,7 +23,6 @@ export function parseCSVToCases(csvData) {
     throw new Error("El archivo CSV está vacío o es inválido");
   }
 
-  // Parsear headers
   const normalizedHeaders = headers.map((h) => unescapeCSV(h).trim());
 
   const cases = [];
@@ -303,7 +60,6 @@ export function parseCSVToCases(csvData) {
       }
     });
 
-    // Validar que tenga al menos nombre o teléfono
     if (caso.nombre || caso.telefono) {
       cases.push(caso);
     }
@@ -316,11 +72,6 @@ export function parseCSVToCases(csvData) {
   return cases;
 }
 
-/**
- * Obtiene notas vinculadas a un caso desde la base de datos (appDB)
- * @param {string} caseId - ID del caso
- * @returns {Promise<Array>} Array de notas vinculadas
- */
 async function getNotasPorCaso(caseId) {
   try {
     const all = await appDB.notes.toArray();
@@ -330,11 +81,6 @@ async function getNotasPorCaso(caseId) {
   }
 }
 
-/**
- * Obtiene eventos vinculados a un caso desde la base de datos (appDB)
- * @param {string} caseId - ID del caso
- * @returns {Promise<Array>} Array de eventos vinculados
- */
 async function getEventosPorCaso(caseId) {
   try {
     const all = await appDB.events.toArray();
@@ -344,11 +90,6 @@ async function getEventosPorCaso(caseId) {
   }
 }
 
-/**
- * Obtiene historial de cambios de un caso desde la base de datos (casesDB)
- * @param {string} caseId - ID del caso
- * @returns {Promise<Array>} Array de eventos de historial
- */
 async function getHistorialPorCaso(caseId) {
   try {
     const all = await casesDB.case_history.toArray();
@@ -390,7 +131,6 @@ export async function generateCSVFromCases(cases) {
     return comentarios.map((c) => `(${c.fecha}) ${c.texto}`).join(" // ");
   };
 
-  // Generar filas
   const rows = await Promise.all(cases.map(async (c) => {
     const notas = c.notasVinculadas || (await getNotasPorCaso(c.id));
     const agenda = c.agendaVinculada || (await getEventosPorCaso(c.id));

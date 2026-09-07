@@ -1,19 +1,25 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
 import { OrigenBadge } from "../common/OrigenBadge";
 import { ComentariosUI } from "./ComentariosUI";
-import { CaseTimeline } from "./CaseTimeline";
+// Optimización 1.6.6: CaseTimeline se carga bajo demanda (solo al abrir el modal).
+const CaseTimeline = lazy(() =>
+  import("./CaseTimeline").then((m) => ({ default: m.CaseTimeline }))
+);
 import { sanitizeString } from "../../utils/sanitize";
 import { formatDateWithConfig } from "../../utils/configFormatters";
 import { PhoneLink } from "../common/PhoneLink";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstadoAccent } from "../../utils/catalogos";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { useClipboard } from "../../hooks/useClipboard";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import { onKeyActivate } from "../../utils/a11y";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import {
   getCaseHistory,
   resolveLastActivity,
@@ -75,7 +81,13 @@ export function VerCasoModal({
   objeciones = [],
 }) {
   const dialogRef = useRef(null);
-  useDialogA11y(dialogRef, !!caso);
+  useDialogA11y(dialogRef, !!caso, { onEscape: onClose });
+
+  useEffect(() => {
+    if (!caso) return undefined;
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, [caso]);
   const notas = useAppStore((s) => s.notes);
   const eventos = useAppStore((s) => s.events);
   const estadoColor = getEstadoAccent(config, caso?.estado) || "#6B7280";
@@ -90,6 +102,7 @@ export function VerCasoModal({
   const { copiar: copiarTelefono, copiado: telefonoCopiado } = useClipboard();
   const [mostrarFormNota, setMostrarFormNota] = useState(false);
   const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (caso && caso.comentarios) {
@@ -195,11 +208,14 @@ export function VerCasoModal({
   };
 
   const handleDeleteCaso = () => {
-    if (confirm("¿Eliminar este caso?")) {
-      onDelete(caso.id);
-      onClose();
-      if (showToast) showToast("Caso eliminado", "info");
-    }
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDeleteCaso = () => {
+    setConfirmDeleteOpen(false);
+    onDelete(caso.id);
+    onClose();
+    if (showToast) showToast("Caso eliminado", "info");
   };
 
   const handleBuscarProlegal = () => {
@@ -217,7 +233,7 @@ export function VerCasoModal({
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 animate-fade-in"
+      className="fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       role="dialog"
       aria-modal="true"
@@ -271,10 +287,14 @@ export function VerCasoModal({
         >
           <div>
             <div
+              role="button"
+              tabIndex={0}
+              aria-label={`Buscar ${caso.nombre || "el caso"} en Prolegal`}
               className="text-lg font-semibold cursor-pointer hover:opacity-80 transition-opacity"
               id="ver-caso-title"
               style={{ color: "var(--color-text)", textDecoration: "underline", textDecorationStyle: "solid", textUnderlineOffset: "3px", textDecorationColor: "var(--color-text-muted)" }}
               onClick={handleBuscarProlegal}
+              onKeyDown={onKeyActivate(handleBuscarProlegal)}
               title="Buscar en Prolegal"
             >
               {navigationStack.length > 0
@@ -286,7 +306,7 @@ export function VerCasoModal({
               <PillMemo estado={caso.estado} />
               {caso.leido === false && (
                 <span
-                  className="text-[10px] px-2 py-0.5 rounded-full"
+                  className="pill-sm"
                   style={{
                     backgroundColor: "var(--color-accent)22",
                     color: "var(--color-accent)",
@@ -320,7 +340,7 @@ export function VerCasoModal({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <span
-                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1"
                   style={{ color: "var(--color-text-muted)" }}
                 >
                   <Activity size={9} /> Última actividad
@@ -331,7 +351,7 @@ export function VerCasoModal({
               </div>
               <div>
                 <span
-                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1"
                   style={{ color: "var(--color-text-muted)" }}
                 >
                   <Clock size={9} /> Último cambio
@@ -346,7 +366,7 @@ export function VerCasoModal({
               </div>
               <div>
                 <span
-                  className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1"
                   style={{ color: "var(--color-text-muted)" }}
                 >
                   <Calendar size={9} /> Próximo seguimiento
@@ -424,7 +444,7 @@ export function VerCasoModal({
                   <span className="truncate">{sanitizeString(caso.aseguradora)}</span>
                   {casosByInsurer.length > 0 && (
                     <span
-                      className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      className="pill-compact flex-shrink-0"
                       style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
                     >
                       +{casosByInsurer.length}
@@ -470,7 +490,7 @@ export function VerCasoModal({
                   <span className="truncate">{sanitizeString(caso.estudioJuridico)}</span>
                   {casosByLawFirm.length > 0 && (
                     <span
-                      className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                      className="pill-compact flex-shrink-0"
                       style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
                     >
                       +{casosByLawFirm.length}
@@ -486,7 +506,7 @@ export function VerCasoModal({
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Etiquetas</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {caso.tags.map((t) => (
-                    <span key={t} className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)44" }}>
+                    <span key={t} className="pill-sm" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)44" }}>
                       {sanitizeString(t)}
                     </span>
                   ))}
@@ -502,7 +522,7 @@ export function VerCasoModal({
           {/* HERRAMIENTAS RELACIONADAS */}
           {toolsData.hasContent && (
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+              <button aria-expanded={mostrarHerramientas} onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
                 {mostrarHerramientas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <ClipboardList size={14} /> Herramientas
               </button>
@@ -584,7 +604,7 @@ export function VerCasoModal({
           {/* NOTAS VINCULADAS */}
           {notasFiltradas.length > 0 && (
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button onClick={() => setMostrarNotas(!mostrarNotas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+              <button aria-expanded={mostrarNotas} onClick={() => setMostrarNotas(!mostrarNotas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
                 {mostrarNotas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <FileText size={14} /> Notas vinculadas ({notasFiltradas.length})
               </button>
@@ -593,9 +613,13 @@ export function VerCasoModal({
                   {notasFiltradas.map((n) => (
                     <div
                       key={n.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Abrir nota ${n.title || "Sin título"}`}
                       className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
                       style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
                       onClick={() => onNavigateToNote && onNavigateToNote(n.id)}
+                      onKeyDown={onKeyActivate(() => onNavigateToNote && onNavigateToNote(n.id))}
                     >
                       <Link size={10} style={{ color: "var(--color-text-muted)" }} />
                       <span className="font-medium" style={{ color: "var(--color-text)" }}>{n.title || "Sin título"}</span>
@@ -610,7 +634,7 @@ export function VerCasoModal({
           {/* EVENTOS VINCULADOS */}
           {eventosFiltrados.length > 0 && (
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button onClick={() => setMostrarEventos(!mostrarEventos)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+              <button aria-expanded={mostrarEventos} onClick={() => setMostrarEventos(!mostrarEventos)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
                 {mostrarEventos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <Calendar size={14} /> Eventos vinculados ({eventosFiltrados.length})
               </button>
@@ -619,9 +643,13 @@ export function VerCasoModal({
                   {eventosFiltrados.map((e) => (
                     <div
                       key={e.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Abrir evento ${e.title || "Sin título"}`}
                       className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
                       style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
                       onClick={() => onNavigateToEvent && onNavigateToEvent(e.id)}
+                      onKeyDown={onKeyActivate(() => onNavigateToEvent && onNavigateToEvent(e.id))}
                     >
                       <Calendar size={10} style={{ color: "var(--color-text-muted)" }} />
                       <span className="font-medium" style={{ color: "var(--color-text)" }}>{e.title || "Sin título"}</span>
@@ -635,7 +663,7 @@ export function VerCasoModal({
 
           {/* COMENTARIOS */}
           <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-            <button onClick={() => setMostrarComentarios(!mostrarComentarios)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
+            <button aria-expanded={mostrarComentarios} onClick={() => setMostrarComentarios(!mostrarComentarios)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
               {mostrarComentarios ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <MessageSquare size={14} />
               Comentarios ({comentariosLocales.length || 0})
@@ -667,7 +695,11 @@ export function VerCasoModal({
             </button>
             {mostrarTimeline && (
               <div className="mt-2">
-                <CaseTimeline eventos={historial} config={config} />
+                <Suspense
+                  fallback={<div style={{ color: "var(--color-text-muted)" }}>Cargando historial...</div>}
+                >
+                  <CaseTimeline eventos={historial} config={config} />
+                </Suspense>
               </div>
             )}
           </div>
@@ -727,6 +759,15 @@ export function VerCasoModal({
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Eliminar caso"
+        message={`¿Eliminar el caso "${caso?.nombre}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        confirmColor="var(--color-danger)"
+        onConfirm={confirmDeleteCaso}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </div>
   );
 }

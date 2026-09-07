@@ -5,7 +5,7 @@ import { BtnOutline } from '../../components/common/BtnOutline';
 import { PhoneLink } from '../../components/common/PhoneLink';
 import useAppStore from '../../core/store/useAppStore';
 import { reportError } from '../../core/error/reportError';
-import { parseReportesString, parseComentariosString, parseNotasString, parseAgendaString, parseHistorialVinculada } from '../../utils/backup';
+import { parseReportesString, parseComentariosString, parseNotasVinculadas, parseAgendaVinculada, parseHistorialVinculada } from '../../utils/backup';
 import { readConfig } from '../../utils/configFormatters';
 import { normalizeDate } from '../../utils/dateFilters';
 import { parseCSV as parseCSVShared } from '../../utils/csvParse';
@@ -132,10 +132,10 @@ export function mapRowToCase(row, mappings) {
           caso.comentarios = parseComentariosString(val);
           break;
         case 'notasVinculadas':
-          caso.notasVinculadas = parseNotasString(val);
+          caso.notasVinculadas = parseNotasVinculadas(val);
           break;
         case 'agendaVinculada':
-          caso.agendaVinculada = parseAgendaString(val);
+          caso.agendaVinculada = parseAgendaVinculada(val);
           break;
         case 'caseHistory':
           caso.caseHistory = parseHistorialVinculada(val);
@@ -332,18 +332,27 @@ export default function CSVImporter({ onComplete }) {
   if (step === 'upload') {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div
-          className="w-full max-w-md rounded-xl p-8 text-center cursor-pointer hover:opacity-80 transition-opacity"
+        <label
+          htmlFor="csv-input"
+          className="block w-full max-w-md rounded-xl p-8 text-center cursor-pointer hover:opacity-80 transition-opacity"
           style={{ backgroundColor: 'var(--color-surface)', border: '2px dashed var(--color-border)' }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-          onClick={() => document.getElementById('csv-input')?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Subir archivo CSV"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              document.getElementById('csv-input')?.click();
+            }
+          }}
         >
           <Upload size={32} className="mx-auto mb-3" style={{ color: 'var(--color-accent)' }} />
           <div className="text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>Subir archivo CSV</div>
           <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Arrastra un archivo o haz click para seleccionar</div>
           <input id="csv-input" type="file" accept=".csv" className="hidden" onChange={(e) => handleFile(e.target.files[0])} />
-        </div>
+        </label>
       </div>
     );
   }
@@ -412,7 +421,7 @@ export default function CSVImporter({ onComplete }) {
             <AlertTriangle size={14} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: 1 }} />
             <div>
               <div className="text-[10px] font-semibold" style={{ color: 'var(--color-danger)' }}>{validationErrors.length} errores</div>
-              <div className="text-[9px] mt-1 space-y-0.5" style={{ color: 'var(--color-text-muted)' }}>
+              <div className="text-ds-xs mt-1 space-y-0.5" style={{ color: 'var(--color-text-muted)' }}>
                 {validationErrors.slice(0, 5).map((e, i) => (
                   <div key={i}>Fila {e.row}: {e.msg}</div>
                 ))}
@@ -424,13 +433,13 @@ export default function CSVImporter({ onComplete }) {
 
         {/* Integridad (1.3.3): clasificación de filas antes de aplicar */}
         <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
-          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-success)22', color: 'var(--color-success)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'var(--color-success)22', color: 'var(--color-success)' }}>
             {resumenClasificacion.validos} válidas
           </span>
-          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-warning)22', color: 'var(--color-warning)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'var(--color-warning)22', color: 'var(--color-warning)' }}>
             {resumenClasificacion.advertencias} con advertencias
           </span>
-          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--color-danger)22', color: 'var(--color-danger)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'var(--color-danger)22', color: 'var(--color-danger)' }}>
             {resumenClasificacion.invalidos} inválidas (no se importan)
           </span>
         </div>
@@ -461,7 +470,7 @@ export default function CSVImporter({ onComplete }) {
               })}
               {rows.length > 10 && (
                 <tr>
-                  <td colSpan={5} className="px-2 py-2 text-center text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+                  <td colSpan={5} className="px-2 py-2 text-center text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
                     ...y {rows.length - 10} filas más
                   </td>
                 </tr>

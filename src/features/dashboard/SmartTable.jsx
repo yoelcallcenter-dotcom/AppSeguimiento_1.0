@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export const SmartTable = React.memo(({ title, columns, data, maxRows = 10, icon: Icon }) => {
   const [expanded, setExpanded] = useState(false);
-  if (!data || data.length === 0) return null;
+  if (!data || data.length === 0) {
+    return (
+      <div
+        className="rounded-xl p-5 animate-fade-in"
+        style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      >
+        <EmptyState
+          message="Sin datos aún"
+          submessage={title ? `Todavía no hay registros de ${title.toLowerCase()}` : undefined}
+        />
+      </div>
+    );
+  }
 
   const showAll = expanded || data.length <= maxRows;
   const rows = showAll ? data : data.slice(0, maxRows);
@@ -21,13 +34,14 @@ export const SmartTable = React.memo(({ title, columns, data, maxRows = 10, icon
           <span className="text-[10px] ml-auto" style={{ color: 'var(--color-text-muted)' }}>{data.length} registros</span>
         </div>
       )}
-      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
-        <table className="w-full text-xs">
+      <div className="rounded-lg overflow-x-auto" style={{ border: '1px solid var(--color-border)' }}>
+        <table className="w-full text-xs" aria-label={title || "Tabla de datos"}>
           <thead>
             <tr style={{ backgroundColor: 'var(--color-surface2)' }}>
               {columns.map((col) => (
                 <th
                   key={col.key}
+                  scope="col"
                   className="px-3 py-2 text-left font-bold uppercase tracking-wider"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
@@ -53,6 +67,7 @@ export const SmartTable = React.memo(({ title, columns, data, maxRows = 10, icon
                   return (
                     <td
                       key={col.key}
+                      title={typeof val === 'string' ? val : undefined}
                       className={`px-3 py-2 whitespace-nowrap ${isBold ? 'font-semibold' : ''}`}
                       style={{
                         color: col.colorFn?.(row) || 'var(--color-text)',
@@ -72,6 +87,8 @@ export const SmartTable = React.memo(({ title, columns, data, maxRows = 10, icon
       </div>
       {hasMore && (
         <button
+          type="button"
+          aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-1 mx-auto mt-2 text-[11px] font-semibold hover:opacity-70 transition-opacity"
           style={{ color: 'var(--color-accent)' }}

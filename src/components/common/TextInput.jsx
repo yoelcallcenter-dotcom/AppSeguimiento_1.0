@@ -15,7 +15,7 @@ export function TextInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`input-optimized focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] ${className}`}
+      className={`input-optimized ${className}`}
       style={style}
       {...props}
     />

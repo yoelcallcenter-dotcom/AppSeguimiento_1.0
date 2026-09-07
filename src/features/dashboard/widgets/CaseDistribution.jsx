@@ -17,7 +17,7 @@ export default function CaseDistribution({ data, onDrill, desc }) {
     const top = sorted.slice(0, MAX_SLICES - 1);
     const rest = sorted.slice(MAX_SLICES - 1);
     const otros = rest.reduce((acc, r) => acc + r.value, 0);
-    return [...top, { name: 'Otros', value: otros, color: '#94A3B8' }];
+    return [...top, { name: 'Otros', value: otros, color: 'var(--chart-color-muted)' }];
   }, [data]);
 
   const total = chartData.reduce((acc, d) => acc + d.value, 0);

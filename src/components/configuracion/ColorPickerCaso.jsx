@@ -102,7 +102,7 @@ export function ColorPickerCaso({ estado, color, onChange }) {
 
       {isOpen && (
         <div
-          className="absolute left-0 top-full mt-2 z-50 p-3 rounded-lg shadow-xl w-64"
+          className="absolute left-0 top-full mt-2 z-dropdown p-3 rounded-lg shadow-xl w-64"
           style={{
             backgroundColor: "var(--color-surface)",
             border: "1px solid var(--color-border)",

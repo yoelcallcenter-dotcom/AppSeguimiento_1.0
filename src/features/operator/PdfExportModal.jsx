@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { FileText, X, Check, User, ClipboardList, BarChart3, Target, TrendingUp } from "lucide-react";
 import { useOperatorState } from "./useOperatorState";
 import {
@@ -11,6 +11,7 @@ import {
 } from "./operatorMetrics";
 import { getDailyGreeting } from "./operatorMessages";
 import { Btn, OutlineButton } from "../../components/common/Btn";
+import { useModal } from "../../hooks/useModal";
 
 const SECCIONES = [
   { key: "perfil", label: "Perfil del operador", Icon: User },
@@ -34,6 +35,12 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
   const [selected, setSelected] = useState(() => SECCIONES.map((s) => s.key));
   const [exportando, setExportando] = useState(false);
   const { profile, availability, goals } = useOperatorState();
+
+  const { dialogRef, handleBackdropClick } = useModal({
+    isOpen: open,
+    onClose,
+    closeOnOverlayClick: true,
+  });
 
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
@@ -245,14 +252,15 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="pdf-export-title"
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-xl my-6 animate-scale-in"
         style={{
@@ -279,6 +287,7 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
           <div className="space-y-2 mb-4">
             <button
               onClick={toggleAll}
+              aria-pressed={selected.length === SECCIONES.length}
               className="w-full flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-md transition-colors"
               style={{
                 backgroundColor: "var(--color-surface)",
@@ -295,11 +304,13 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
               return (
                 <button
                   key={s.key}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => toggle(s.key)}
                   className="w-full flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-md transition-colors"
                   style={{
                     backgroundColor: active ? "var(--color-accent)" : "var(--color-surface)",
-                    color: active ? "#14181F" : "var(--color-text-muted)",
+                    color: active ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
                     border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
                   }}
                 >

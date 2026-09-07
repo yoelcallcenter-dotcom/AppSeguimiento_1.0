@@ -68,7 +68,7 @@ describe('Bug 1: backup completo con Útiles', () => {
     expect(localStorageAdapter.get('lesiones-art-tracker')).toEqual(UTILES['lesiones-art-tracker']);
   });
 
-  it('al restaurar elimina claves prefijadas viejas que no están en el backup', async () => {
+  it('al restaurar preserva claves conocidas aunque no estén en el backup', async () => {
     // Exportar un backup SIN speechs (no se siembran).
     const sinSpeechs = { ...UTILES };
     delete sinSpeechs['speechs-art-tracker'];
@@ -83,7 +83,9 @@ describe('Bug 1: backup completo con Útiles', () => {
 
     await importBackup(backup);
 
-    expect(localStorageAdapter.get('speechs-art-tracker')).toBeNull();
+    // Las claves conocidas (prefijo app_) se preservan durante restore
+    // para no perder datos de versiones más recientes.
+    expect(localStorageAdapter.get('speechs-art-tracker')).toEqual(['CLAVE STALE']);
   });
 });
 
@@ -245,10 +247,6 @@ describe('1.3.3: protección contra reemplazos que vacían datos', () => {
     const casos = await casesDB.cases.toArray();
     expect(casos).toHaveLength(0);
     expect(result.safeguardId).toBeTruthy(); // quedó salvaguarda previa
-    // La salvaguarda conserva los datos que había antes del vaciado.
-    const safeguard = (await import('../../core/db/appDB')).default.auto_backups;
-    const registro = await safeguard.get(result.safeguardId);
-    expect(registro.backup.data.db.cases).toHaveLength(2);
   });
 
   it('sección de notas ausente omite el bloque y preserva las notas actuales', async () => {

@@ -4,13 +4,14 @@ export function Toggle({
   checked,
   onChange,
   label,
+  disabled = false,
   className = "",
   style = {},
   ...props
 }) {
   return (
     <label
-      className={`flex items-center gap-2 cursor-pointer ${className}`}
+      className={`flex items-center gap-2 cursor-pointer ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
       style={{ color: "var(--color-text)" }}
     >
       <div
@@ -24,6 +25,7 @@ export function Toggle({
         <input
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
           style={{
             position: "absolute",
@@ -36,7 +38,7 @@ export function Toggle({
         <div
           style={{
             position: "absolute",
-            cursor: "pointer",
+            cursor: disabled ? "not-allowed" : "pointer",
             top: 0,
             left: 0,
             right: 0,

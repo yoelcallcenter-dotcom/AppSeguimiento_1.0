@@ -22,7 +22,19 @@ class LocalStorageAdapter {
       key === "userGoals" ||
       key === "userContextMemory" ||
       key === "backup-frecuencia" ||
-      key === "backup-last-jornada-run";
+      key === "backup-last-jornada-run" ||
+      key === "app-theme" ||
+      key === "app-palette" ||
+      key === "app-estado-colors" ||
+      key === "app-typography-preset" ||
+      key === "app-font-size" ||
+      key === "app_ui_settings" ||
+      key === "app_notifications" ||
+      key === "app_notification_center" ||
+      key === "app_easter_egg_behavior" ||
+      key === "app-view-orders" ||
+      key === "app_integrity_log" ||
+      key === "app_integrity_last_check";
     // Claves internas/transitorias que NO se respaldan ni restauran.
     this.backupExclude = (key) =>
       key === "app-filters" ||

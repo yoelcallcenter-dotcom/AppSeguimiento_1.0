@@ -4,6 +4,7 @@ import { Btn } from "../../components/common/Btn";
 import { BtnOutline } from "../../components/common/BtnOutline";
 import { TextInput } from "../../components/common/TextInput";
 import { TextArea } from "../../components/common/TextArea";
+import { reportError } from "../../core/error/reportError";
 
 /**
  * InlineNoteForm (Sistema de Citas, 1.5.0)
@@ -31,7 +32,7 @@ export default function InlineNoteForm({ caso, onCancel, onCreated, onOpenFull }
       });
       onCreated && onCreated(note);
     } catch (e) {
-      console.warn("[InlineNoteForm] No se pudo crear la nota:", e);
+      reportError(e, { context: 'InlineNoteForm:createNote' });
     } finally {
       setSaving(false);
     }

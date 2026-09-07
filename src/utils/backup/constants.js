@@ -8,7 +8,6 @@ export const BACKUP_VERSION = "1.1";
 export const LEGACY_BACKUP_KINDS = ["seguimiento-art-backup"];
 
 export const STORAGE_KEYS = {
-  CASES: "casos-art-tracker",
   CONFIG: "config-art-tracker",
   PASOS: "pasos-art-tracker",
   TIPS: "tips-art-tracker",

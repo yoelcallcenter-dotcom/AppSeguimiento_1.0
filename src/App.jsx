@@ -47,6 +47,7 @@ import { useStorage } from "./hooks/useStorage";
 import { useCases } from "./hooks/useCases";
 import { useDebounce } from "./hooks/useDebounce";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useViewTransition } from "./hooks/useViewTransition";
 
 import { recordGoalAction, pushLastCase } from "./features/productivity/productivityStore";
 
@@ -58,6 +59,7 @@ import { notificationManager } from "./core/notifications/notificationManager";
 import { soundSystem } from "./core/notifications/soundSystem";
 import { eventBus, AppEvents } from "./core/events/eventBus";
 import { notifyChange, SYNC_EVENTS } from "./core/sync/syncService";
+import { reportError } from "./core/error/reportError";
 import { localStorageAdapter } from "./core/storage/localStorageAdapter";
 import { setupAutoBackupWatcher } from "./services/autoBackup";
 import { startSystemStatusMonitor } from "./core/status/storageHealth";
@@ -111,6 +113,7 @@ import { Btn } from "./components/common/Btn";
 import { BtnOutline } from "./components/common/BtnOutline";
 import { TextInput } from "./components/common/TextInput";
 import { Spinner } from "./components/common/Spinner";
+import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { OverlayPanel } from "./components/common/OverlayPanel";
 
 // Features (lazy: se cargan bajo demanda para reducir el bundle inicial)
@@ -144,7 +147,6 @@ const GlobalStatsHeader = lazy(() => import("./components/common/GlobalStatsHead
 
 const UtilesView = lazy(() => import("./components/utiles/UtilesView").then((m) => ({ default: m.UtilesView })));
 const ConfiguracionView = lazy(() => import("./components/configuracion/ConfiguracionView").then((m) => ({ default: m.ConfiguracionView })));
-const ComoUsarView = lazy(() => import("./components/ayuda/ComoUsarView").then((m) => ({ default: m.ComoUsarView })));
 const OperatorView = lazy(() => import("./features/operator/OperatorView").then((m) => ({ default: m.OperatorView })));
 
 // Tour
@@ -236,10 +238,10 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
         className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow ${
           isActive
             ? isMiEspacio
-              ? "text-[#14181F] shadow-md"
+              ? "text-[var(--color-text-on-accent)] shadow-md"
               : "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
             : isMiEspacio
-              ? "bg-[var(--color-accent)] text-[#14181F] shadow-sm"
+              ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)] shadow-sm"
               : "text-[var(--color-text-muted)] hover:opacity-70"
         }`}
         style={
@@ -255,12 +257,14 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 pb-2 animate-stagger">
-      <div className="flex gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5">
+    <div className="tab-strip scrollbar-hide items-center gap-0.5 pb-2">
+      <div className="flex gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5 flex-shrink-0">
         {grupoPrincipal.map(renderBtn)}
       </div>
-      <div className="w-px h-5 mx-1" style={{ backgroundColor: "var(--color-border)" }} />
-      {grupoSecundario.map(renderBtn)}
+      <div className="w-px h-5 mx-1 flex-shrink-0" style={{ backgroundColor: "var(--color-border)" }} />
+      <div className="flex gap-0.5 flex-shrink-0">
+        {grupoSecundario.map(renderBtn)}
+      </div>
     </div>
   );
 }
@@ -281,6 +285,8 @@ function AppContent() {
     quickFilter,
     setQuickFilter,
   } = useFilters();
+
+  const { showView, classNameFor } = useViewTransition(selectedView);
 
   // ============ STORAGE STATE ============
   const [casos, setCasos, casosLoaded, clearCasos, reloadCasos, casosError] = useCases();
@@ -335,6 +341,7 @@ function AppContent() {
   const [undoState, setUndoState] = useState(null);
   // Navegación contextual: pila de contextos para breadcrumb/back.
   const [navigationStack, setNavigationStack] = useState([]);
+  const [confirmDeleteCaso, setConfirmDeleteCaso] = useState(false);
   // Lista memoizada de aseguradoras únicas de los casos
   const aseguradorasFromCases = useMemo(
     () => [...new Set(casos.map((c) => c.aseguradora).filter(Boolean))],
@@ -514,7 +521,7 @@ function AppContent() {
         setSelectedYear(-1);
         setSelectedDays([]);
       } catch (error) {
-        console.error("[App] Error actualizando casos:", error);
+        reportError(error, { context: 'App:reloadCasos' });
       }
     };
 
@@ -728,7 +735,7 @@ function AppContent() {
       try {
         await syncCitaEvent(casoFinal, { config });
       } catch (err) {
-        console.warn("[guardarCaso] Error sincronizando cita:", err);
+        reportError(err, { context: 'guardarCaso:syncCitaEvent', silent: true });
       }
       setModalCaso(null);
       soundSystem.playAction(isNew ? "create" : "save");
@@ -832,7 +839,7 @@ function AppContent() {
           }, { config });
           showToast("Nueva cita de reprogramación creada", "success");
         } catch (reproErr) {
-          console.warn("[ReporteRapido] No se pudo crear la reprogramación:", reproErr);
+          reportError(reproErr, { context: 'ReporteRapido:reprogramacion', silent: true });
           showToast("El caso se guardó pero no se pudo crear la reprogramación", "warning");
         }
       }
@@ -961,7 +968,7 @@ function AppContent() {
         appDB.auto_backups.clear(),
       ]);
     } catch (e) {
-      console.error("[App] Error clearing databases:", e);
+      reportError(e, { context: 'App:clearDatabases' });
     }
 
     notifyChange(SYNC_EVENTS.DATA_CLEARED, { source: "app" });
@@ -1060,9 +1067,12 @@ function AppContent() {
     onAyuda: () => setOverlayOpen("help"),
     onEliminar: () => {
       if (!verCaso) return;
-      if (config.confirmaciones && !confirm(`Eliminar caso "${verCaso.nombre}"?`)) return;
-      eliminarCaso(verCaso.id);
-      setVerCaso(null);
+      if (config.confirmaciones) {
+        setConfirmDeleteCaso(true);
+      } else {
+        eliminarCaso(verCaso.id);
+        setVerCaso(null);
+      }
     },
     enabled: config.atajosTeclado !== false,
   });
@@ -1144,7 +1154,7 @@ function AppContent() {
       />
 
       {/* HEADER */}
-      <header className="app-header sticky top-0 z-30">
+      <header className="app-header sticky top-0 z-sticky">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 w-full">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-3">
             <div className="flex items-center gap-3 flex-shrink-0">
@@ -1158,7 +1168,7 @@ function AppContent() {
                     backgroundColor: "var(--color-accent)",
                     width: "38px",
                     height: "38px",
-                    color: "#14181F",
+                    color: "var(--color-text-on-accent)",
                   }}
                 >
                   <Briefcase size={20} strokeWidth={2.5} />
@@ -1286,8 +1296,8 @@ function AppContent() {
       {/* CONTENIDO */}
       <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
         <SystemStatusBanner />
-        {selectedView === "dashboard" && (
-          <div key="view-dashboard" className="view-transition-enter">
+        {showView("dashboard") && (
+          <div key="view-dashboard" className={classNameFor("dashboard")}>
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <Dashboard
               config={config}
@@ -1301,8 +1311,8 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "kanban" && (
-          <div key="view-kanban" className="view-transition-enter">
+        {showView("kanban") && (
+          <div key="view-kanban" className={classNameFor("kanban")}>
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <KanbanView
               casos={casosFiltrados}
@@ -1315,8 +1325,8 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "tabla" && (
-          <div key="view-tabla" className="view-transition-enter">
+        {showView("tabla") && (
+          <div key="view-tabla" className={classNameFor("tabla")}>
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <TablaView
               casos={casosFiltrados}
@@ -1329,8 +1339,8 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "reportes" && (
-          <div key="view-reportes" className="view-transition-enter">
+        {showView("reportes") && (
+          <div key="view-reportes" className={classNameFor("reportes")}>
             <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <ReportesView
               casos={casosFiltrados}
@@ -1340,8 +1350,8 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "mi-espacio" && (
-          <div key="view-mi-espacio" className="view-transition-enter">
+        {showView("mi-espacio") && (
+          <div key="view-mi-espacio" className={classNameFor("mi-espacio")}>
             <OperatorView
               config={config}
               casos={casosFiltrados}
@@ -1352,8 +1362,8 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "utiles" && (
-          <div key="view-utiles" className="view-transition-enter">
+        {showView("utiles") && (
+          <div key="view-utiles" className={classNameFor("utiles")}>
             <UtilesView
               config={config}
               setConfig={setConfig}
@@ -1384,45 +1394,6 @@ function AppContent() {
             />
           </div>
         )}
-        {selectedView === "configuracion" && (
-          <div key="view-config" className="view-transition-enter">
-            <ConfiguracionView
-              config={config}
-              setConfig={setConfig}
-              pasos={pasos}
-              setPasos={setPasos}
-              tips={tips}
-              setTips={setTips}
-              links={links}
-              setLinks={setLinks}
-              speechs={speechs}
-              setSpeechs={setSpeechs}
-              objeciones={objeciones}
-              setObjeciones={setObjeciones}
-              art={art}
-              setArt={setArt}
-              transito={transito}
-              setTransito={setTransito}
-              lesiones={lesiones}
-              setLesiones={setLesiones}
-              mapeo={mapeo}
-              setMapeo={setMapeo}
-              observacionesTransito={observacionesTransito}
-              setObservacionesTransito={setObservacionesTransito}
-              condicionales={condicionales}
-              setCondicionales={setCondicionales}
-              showToast={showToast}
-              casos={casos}
-              onEliminarTodos={eliminarTodosLosDatos}
-              setCasos={setCasos}
-            />
-          </div>
-        )}
-        {selectedView === "como-usar" && (
-          <div key="view-como-usar" className="view-transition-enter">
-            <ComoUsarView showToast={showToast} />
-          </div>
-        )}
       </div>
 
       {/* CALENDARIO - Overlay */}
@@ -1439,7 +1410,7 @@ function AppContent() {
             onClose={() => setShowCalendar(false)}
             casos={casos}
             config={config}
-            onVerCaso={(c) => { setShowCalendar(false); setVerCaso(c); }}
+            onVerCaso={(c) => { setVerCaso(c); }}
           />
         </OverlayPanel>
       )}
@@ -1459,7 +1430,7 @@ function AppContent() {
             selectedNoteId={pendingNoteId}
             onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
             onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
-            onVerCaso={(c) => { setShowBlocNotas(false); setVerCaso(c); }}
+            onVerCaso={(c) => { setVerCaso(c); }}
           />
         </OverlayPanel>
       )}
@@ -1554,8 +1525,22 @@ function AppContent() {
            condicionales={condicionales}
            speechs={speechs}
            objeciones={objeciones}
-         />
+          />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteCaso}
+        title="Eliminar caso"
+        message={`¿Eliminar el caso "${verCaso?.nombre}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        confirmColor="var(--color-danger)"
+        onConfirm={() => {
+          setConfirmDeleteCaso(false);
+          eliminarCaso(verCaso.id);
+          setVerCaso(null);
+        }}
+        onCancel={() => setConfirmDeleteCaso(false)}
+      />
 
       {modalCaso && (
         <CasoEditModal

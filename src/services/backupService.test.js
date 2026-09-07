@@ -35,7 +35,7 @@ describe('backupService — export', () => {
     const backup = await exportBackup();
 
     expect(backup.kind).toBe(BACKUP_KIND);
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(3);
     expect(backup.timestamp).toBeTruthy();
     expect(typeof backup.checksum).toBe('string');
     expect(backup.data.db.cases).toHaveLength(1);

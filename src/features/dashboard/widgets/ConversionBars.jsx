@@ -5,9 +5,10 @@ import { CHART_TICK, CHART_GRID } from './chartTheme';
 import ChartTooltip from './ChartTooltip';
 import ChartCard from './ChartCard';
 
-const CURSOR_FILL = 'rgba(148,163,184,0.15)';
+const CURSOR_FILL = 'var(--chart-color-cursor)';
 
-const barColor = (v) => (v >= 50 ? '#10B981' : v >= 25 ? '#D9A441' : '#EF4444');
+const barColor = (v) =>
+  v >= 50 ? 'var(--chart-color-signed)' : v >= 25 ? 'var(--chart-color-cases)' : 'var(--chart-color-danger)';
 
 /**
  * ConversionBars

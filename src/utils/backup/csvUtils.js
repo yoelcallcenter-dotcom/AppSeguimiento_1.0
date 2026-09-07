@@ -1,6 +1,7 @@
 /**
  * csvUtils.js
  * Utilidades para manejo de CSV (escape, parseo, etc.)
+ * Fuente única de verdad para todas las funciones CSV.
  */
 
 /**
@@ -79,8 +80,11 @@ export function parseCSVLine(line) {
   return result;
 }
 
+const ORIGEN_MAP = { "Operador": "Operador", "Primera Atención": "Primera Atención", "Estudio Jurídico": "Estudio Jurídico" };
+
 /**
- * Parsea reportes desde string (legacy)
+ * Parsea reportes desde string
+ * Soporta formato con tag [origen]: (fecha) [origen] texto
  */
 export function parseReportesString(str) {
   if (!str || typeof str !== "string") return [];
@@ -88,23 +92,26 @@ export function parseReportesString(str) {
   const items = str.split("//").filter((s) => s.trim());
   return items
     .map((item) => {
-      const match = item.trim().match(/^\(([^)]+)\)\s*(.*)/);
+      const match = item.trim().match(/^\(([^)]+)\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
       if (match) {
+        const origen = match[2] && ORIGEN_MAP[match[2]] ? ORIGEN_MAP[match[2]] : "Operador";
         return {
           fecha: match[1].trim(),
-          texto: match[2].trim(),
+          texto: match[3].trim(),
+          origen,
         };
       }
       return {
         fecha: "",
         texto: item.trim(),
+        origen: "Operador",
       };
     })
     .filter((r) => r.texto);
 }
 
 /**
- * Parsea comentarios desde string (legacy)
+ * Parsea comentarios desde string
  */
 export function parseComentariosString(str) {
   if (!str || typeof str !== "string") return [];
@@ -130,7 +137,7 @@ export function parseComentariosString(str) {
 }
 
 /**
- * Parsea tags desde string (legacy)
+ * Parsea tags desde string
  */
 export function parseTagsString(str) {
   if (!str || typeof str !== "string") return [];
@@ -140,7 +147,10 @@ export function parseTagsString(str) {
     .filter(Boolean);
 }
 
-export function parseNotasString(str) {
+/**
+ * Parsea notas vinculadas desde CSV
+ */
+export function parseNotasVinculadas(str) {
   if (!str || typeof str !== "string") return [];
   return str.split("//").map((s) => s.trim()).filter(Boolean).map((item) => {
     const m = item.match(/^([^:]+):\s*(.*)\s*\(([^)]*)\)$/);
@@ -149,11 +159,58 @@ export function parseNotasString(str) {
   });
 }
 
-export function parseAgendaString(str) {
+/**
+ * Serializa notas vinculadas para CSV
+ */
+export function serializarNotasVinculadas(notas) {
+  if (!notas || notas.length === 0) return "";
+  return notas
+    .map((n) => `${n.titulo || n.title || ""}: ${n.contenido || n.content || ""} (${n.fecha || ""})`)
+    .join(" // ");
+}
+
+/**
+ * Parsea agenda vinculada desde CSV
+ */
+export function parseAgendaVinculada(str) {
   if (!str || typeof str !== "string") return [];
   return str.split("//").map((s) => s.trim()).filter(Boolean).map((item) => {
     const m = item.match(/^(.+)\s*\(([^)]*)\)$/);
     if (m) return { titulo: m[1].trim(), fecha: m[2].trim() || "" };
     return { titulo: item.trim(), fecha: "" };
   });
+}
+
+/**
+ * Serializa agenda vinculada para CSV
+ */
+export function serializarAgendaVinculada(eventos) {
+  if (!eventos || eventos.length === 0) return "";
+  return eventos
+    .map((e) => {
+      const fecha = e.fecha || (e.startDate ? e.startDate.slice(0, 10) : "");
+      return `${e.titulo || e.title || ""} (${fecha})`;
+    })
+    .join(" // ");
+}
+
+/**
+ * Parsea string de historial de cambios
+ * Formato: "fecha|type|title|description; fecha2|type2|title2|description2"
+ */
+export function parseHistorialVinculada(str) {
+  if (!str || typeof str !== "string") return [];
+  return str
+    .split(";")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const parts = item.split("|");
+      return {
+        timestamp: parts[0] ? new Date(parts[0]).getTime() || Date.now() : Date.now(),
+        type: parts[1] || "manual",
+        title: parts[2] || "",
+        description: parts[3] || "",
+      };
+    });
 }

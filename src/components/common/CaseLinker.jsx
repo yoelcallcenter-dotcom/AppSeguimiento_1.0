@@ -70,7 +70,7 @@ export function CaseLinker({ casos = [], selectedIds = [], onChange }) {
           />
         </div>
         {showDropdown && query && (
-          <div className="absolute z-10 mt-1 w-full rounded-md shadow-lg max-h-48 overflow-y-auto"
+          <div className="absolute z-dropdown mt-1 w-full rounded-md shadow-lg max-h-48 overflow-y-auto"
             style={{
               backgroundColor: 'var(--color-bg)',
               border: '1px solid var(--color-border)',

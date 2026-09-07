@@ -42,7 +42,7 @@ export function InstallButton() {
 
       {showIosHelp && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+          className="fixed inset-0 z-banner flex items-center justify-center p-4"
           style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
           onClick={() => setShowIosHelp(false)}
         >

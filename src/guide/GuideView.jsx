@@ -32,7 +32,7 @@ function makeHTML(dateStr) {
     ${dateStr}
   </div>
   <div class="no-print" style="text-align:center; margin-top:30px;">
-    <button type="button" class="btn-print" style="padding:12px 30px; background:#D4AF37; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:14px; color:#14181F;">
+    <button type="button" class="btn-print" style="padding:12px 30px; background:#D4AF37; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:14px; color:var(--color-text-on-accent);">
       Imprimir / Guardar como PDF
     </button>
   </div>
@@ -70,7 +70,7 @@ export function GuideView({ showToast }) {
           Guia de Usuario
         </span>
         <span
-          className="text-[10px] px-2 py-0.5 rounded-full"
+          className="pill-sm"
           style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
         >
           {GUIDE_SECTIONS.length} secciones

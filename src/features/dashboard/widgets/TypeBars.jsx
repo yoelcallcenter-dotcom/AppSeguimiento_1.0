@@ -5,8 +5,19 @@ import { CHART_TICK, CHART_GRID } from './chartTheme';
 import ChartTooltip from './ChartTooltip';
 import ChartCard from './ChartCard';
 
-const COLORS = ['#D9A441', '#60A5FA', '#34D399', '#F87171', '#818CF8', '#FBBF24', '#94A3B8', '#F97316', '#E11D48', '#10B981'];
-const CURSOR_FILL = 'rgba(148,163,184,0.15)';
+const COLORS = [
+  'var(--chart-color-cases)',
+  'var(--chart-color-contact)',
+  'var(--chart-color-success)',
+  'var(--chart-color-danger-light)',
+  'var(--chart-color-conversion)',
+  'var(--chart-color-warning)',
+  'var(--chart-color-muted)',
+  'var(--chart-color-orange)',
+  'var(--chart-color-rose)',
+  'var(--chart-color-signed)',
+];
+const CURSOR_FILL = 'var(--chart-color-cursor)';
 
 const DESC_DEFAULT =
   'Casos según el tipo de ingreso cargado (web, llamada, derivación, etc.). Haz clic en una barra para filtrar la tabla.';

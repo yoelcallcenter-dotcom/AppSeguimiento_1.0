@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Flag, AlignLeft, Link, User, Trash2, Tag, ExternalLink, Info } from 'lucide-react';
+import { Calendar, User, Trash2, Tag, ExternalLink, Info } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
 import { BtnOutline } from '../../components/common/BtnOutline';
 import { TextInput } from '../../components/common/TextInput';
 import { TextArea } from '../../components/common/TextArea';
 import { CaseLinker } from '../../components/common/CaseLinker';
 import TagsPills from '../../components/common/TagsPills';
+import { Modal } from '../../components/common/Modal';
 import { sanitizeString } from '../../utils/sanitize';
 
 const PRIORITIES = [
@@ -152,65 +153,56 @@ export default function EventModal({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={event ? 'Editar evento' : 'Nuevo evento'}
+      size="lg"
+      zIndex="z-calendar-modal"
+      closeOnOverlayClick
     >
-      <div
-        className="rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            {event ? 'Editar evento' : 'Nuevo evento'}
-          </span>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {(form.eventType === 'cita' || form.eventType === 'reprogramacion') && (
-            <div
-              className="rounded-md p-2.5 text-xs flex items-start gap-2"
-              style={{
-                backgroundColor: 'var(--color-accent)11',
-                border: '1px solid var(--color-accent)44',
-                color: 'var(--color-text)',
-              }}
-            >
-              <Info size={14} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 1 }} />
-              <span>
-                {form.eventType === 'cita'
-                  ? 'Evento automático generado desde el campo CITA del caso. Se sincroniza automáticamente.'
-                  : 'Evento de reprogramación vinculado a un caso. Representa la nueva cita agendada.'}
-              </span>
-            </div>
-          )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {(form.eventType === 'cita' || form.eventType === 'reprogramacion') && (
+          <div
+            className="rounded-md p-2.5 text-xs flex items-start gap-2"
+            style={{
+              backgroundColor: 'var(--color-accent)11',
+              border: '1px solid var(--color-accent)44',
+              color: 'var(--color-text)',
+            }}
+          >
+            <Info size={14} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 1 }} />
+            <span>
+              {form.eventType === 'cita'
+                ? 'Evento automático generado desde el campo CITA del caso. Se sincroniza automáticamente.'
+                : 'Evento de reprogramación vinculado a un caso. Representa la nueva cita agendada.'}
+            </span>
+          </div>
+        )}
           <div>
-            <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+            <label htmlFor="ev-title" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               Titulo <span style={{ color: 'var(--color-danger)' }}>*</span>
             </label>
             <div className="relative">
               <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
               <TextInput
+                id="ev-title"
                 value={form.title}
                 onChange={e => handleChange('title', e.target.value)}
                 placeholder="Titulo del evento"
                 className="pl-8"
               />
             </div>
-            {errors.title && <span className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.title}</span>}
+            {errors.title && <span role="alert" aria-live="polite" className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.title}</span>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+              <label htmlFor="ev-startDate" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Fecha inicio
               </label>
               <input
+                id="ev-startDate"
                 type="date"
                 value={form.startDate}
                 onChange={e => handleChange('startDate', e.target.value)}
@@ -222,13 +214,14 @@ export default function EventModal({
                   height: '2.5rem',
                 }}
               />
-              {errors.startDate && <span className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.startDate}</span>}
+              {errors.startDate && <span role="alert" aria-live="polite" className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.startDate}</span>}
             </div>
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+              <label htmlFor="ev-startTime" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Hora inicio
               </label>
               <input
+                id="ev-startTime"
                 type="time"
                 value={form.startTime}
                 onChange={e => handleChange('startTime', e.target.value)}
@@ -245,10 +238,11 @@ export default function EventModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+              <label htmlFor="ev-endDate" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Fecha fin
               </label>
               <input
+                id="ev-endDate"
                 type="date"
                 value={form.endDate}
                 onChange={e => handleChange('endDate', e.target.value)}
@@ -260,13 +254,14 @@ export default function EventModal({
                   height: '2.5rem',
                 }}
               />
-              {errors.endDate && <span className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.endDate}</span>}
+              {errors.endDate && <span role="alert" aria-live="polite" className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{errors.endDate}</span>}
             </div>
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+              <label htmlFor="ev-endTime" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Hora fin
               </label>
               <input
+                id="ev-endTime"
                 type="time"
                 value={form.endTime}
                 onChange={e => handleChange('endTime', e.target.value)}
@@ -282,10 +277,11 @@ export default function EventModal({
           </div>
 
           <div>
-            <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+            <label htmlFor="ev-description" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               Descripcion
             </label>
             <TextArea
+              id="ev-description"
               rows={3}
               value={form.description}
               onChange={e => handleChange('description', e.target.value)}
@@ -295,10 +291,11 @@ export default function EventModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+              <label htmlFor="ev-status" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Estado
               </label>
               <select
+                id="ev-status"
                 value={form.status}
                 onChange={e => handleChange('status', e.target.value)}
                 className="w-full rounded-md px-3 py-2 text-sm"
@@ -318,11 +315,16 @@ export default function EventModal({
               <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
                 Prioridad
               </label>
-              <div className="flex gap-1 h-[2.5rem] items-center">
+              <div
+                role="group"
+                aria-label="Prioridad"
+                className="flex gap-1 h-[2.5rem] items-center"
+              >
                 {PRIORITIES.map(p => (
                   <button
                     key={p.value}
                     type="button"
+                    aria-pressed={form.priority === p.value}
                     onClick={() => handleChange('priority', p.value)}
                     className="flex-1 h-full rounded text-xs font-semibold transition-colors"
                     style={{
@@ -357,10 +359,11 @@ export default function EventModal({
           </div>
 
           <div>
-            <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
+            <label htmlFor="ev-relatedNoteId" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               Vincular nota
             </label>
             <select
+              id="ev-relatedNoteId"
               value={form.relatedNoteId || ''}
               onChange={e => handleChange('relatedNoteId', e.target.value || null)}
               className="w-full rounded-md px-3 py-2 text-sm"
@@ -432,7 +435,6 @@ export default function EventModal({
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

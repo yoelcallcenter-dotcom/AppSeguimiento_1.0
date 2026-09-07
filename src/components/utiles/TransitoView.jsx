@@ -105,7 +105,7 @@ export function TransitoView({
                     onClick={() => toggleSeleccion(`${a.nombre}_${op}`)}
                     className={`text-[10px] px-2 py-0.5 rounded-full transition-colors hover:opacity-70 ${
                       seleccionActivas.includes(`${a.nombre}_${op}`)
-                        ? "bg-[var(--color-accent)] text-[#14181F]"
+                        ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                         : "bg-[var(--color-surface2)] text-[var(--color-text-muted)]"
                     }`}
                     style={{ border: "1px solid var(--color-border)" }}

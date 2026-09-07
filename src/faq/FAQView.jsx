@@ -33,7 +33,7 @@ export function FAQView({ showToast }) {
           Preguntas Frecuentes
         </span>
         <span
-          className="text-[10px] px-2 py-0.5 rounded-full"
+          className="pill-sm"
           style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
         >
           {FAQ_CATEGORIES.reduce((a, c) => a + c.items.length, 0)} preguntas

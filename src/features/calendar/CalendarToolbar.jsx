@@ -98,7 +98,7 @@ export default function CalendarToolbar({
                 className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors"
                 style={{
                   backgroundColor: isActive ? 'var(--color-accent)' : 'transparent',
-                  color: isActive ? '#14181F' : 'var(--color-text-muted)',
+                  color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
                 }}
               >
                 <Icon size={13} />

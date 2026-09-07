@@ -150,7 +150,7 @@ export function MiJornadaView({
             </span>
           </div>
           <span
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+            className="inline-flex items-center gap-1.5 pill-lg"
             style={{
               backgroundColor: dayStateColor(dayState.key) + "22",
               color: dayStateColor(dayState.key),
@@ -362,7 +362,7 @@ function TodayActivityCard({ cases, todayISO, onVerCaso }) {
               {c.nombre || "Sin nombre"}
             </span>
             <span
-              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              className="pill-compact flex-shrink-0"
               style={{
                 backgroundColor: "var(--color-accent)22",
                 color: "var(--color-accent)",
@@ -406,7 +406,7 @@ function UpcomingCommitmentsCard({ cases, events, todayISO, onVerCaso, onNavigat
               {event.title || "Sin título"}
             </span>
             <span
-              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              className="pill-compact flex-shrink-0"
               style={{
                 backgroundColor: daysUntil === 0 ? "var(--color-warning)22" : "var(--color-accent)22",
                 color: daysUntil === 0 ? "var(--color-warning)" : "var(--color-accent)",
@@ -450,7 +450,7 @@ function PendingFollowUpsCard({ cases, events, todayISO, onVerCaso }) {
               {caso.nombre || "Sin nombre"}
             </span>
             <span
-              className="text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+              className="pill-compact flex-shrink-0"
               style={{
                 backgroundColor: "var(--color-warning)22",
                 color: "var(--color-warning)",
@@ -643,7 +643,7 @@ function GoalProgressRow({ goal }) {
 function GoalStatusBadge({ met, percent, status }) {
   if (met) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+      <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
         style={{ backgroundColor: "var(--color-success)22", color: "var(--color-success)" }}>
         <CheckCircle2 size={9} />
         Completado
@@ -652,7 +652,7 @@ function GoalStatusBadge({ met, percent, status }) {
   }
   if (percent >= 75) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+      <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
         style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}>
         Cerca
       </span>
@@ -740,7 +740,7 @@ function WeeklyGoalsCard({ weeklyProgress }) {
               <div className="flex items-center gap-1.5">
                 <span style={{ color: "var(--color-text)" }}>{g.label}</span>
                 {g.met && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                  <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
                     style={{ backgroundColor: "var(--color-success)22", color: "var(--color-success)" }}>
                     <CheckCircle2 size={9} />
                     Logrado
@@ -849,7 +849,7 @@ function BackupStatusCard({ backupStatus }) {
         <div className="flex items-center gap-2">
           <span className="font-semibold" style={{ color: "var(--color-text)" }}>Backup automático</span>
           {warning && (
-            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+            <span className="pill-compact font-semibold"
               style={{ backgroundColor: "var(--color-warning)22", color: "var(--color-warning)" }}>
               {warning}
             </span>

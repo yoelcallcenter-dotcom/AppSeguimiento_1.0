@@ -37,7 +37,10 @@ function ConfettiPiece({ tx, ty, rot, delay, duration, color, size }) {
 }
 
 export function CelebrationBanner() {
-  const { active, message, pieces, dismiss } = useCelebrationStore();
+  const active = useCelebrationStore((s) => s.active);
+  const message = useCelebrationStore((s) => s.message);
+  const pieces = useCelebrationStore((s) => s.pieces);
+  const dismiss = useCelebrationStore((s) => s.dismiss);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {

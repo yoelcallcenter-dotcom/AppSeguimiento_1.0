@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { PillMemo } from "../common/Pill";
+import { onKeyActivate } from "../../utils/a11y";
 
 export function UltimosCasos({ casos, onVerCaso, limite = 5 }) {
   const ultimos = useMemo(() => {
@@ -21,7 +22,11 @@ export function UltimosCasos({ casos, onVerCaso, limite = 5 }) {
       {ultimos.map((c) => (
         <div
           key={c.id}
+          role="button"
+          tabIndex={0}
+          aria-label={`Ver caso ${c.nombre || "Sin nombre"}`}
           onClick={() => onVerCaso(c.id)}
+          onKeyDown={onKeyActivate(() => onVerCaso(c.id))}
           className="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer hover:bg-white/5 transition-colors text-xs"
           style={{
             backgroundColor: "var(--color-surface)",

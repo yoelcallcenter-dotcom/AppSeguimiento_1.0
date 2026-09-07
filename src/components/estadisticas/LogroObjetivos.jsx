@@ -4,6 +4,7 @@ import { PillMemo } from "../common/Pill";
 import { sanitizeString } from "../../utils/sanitize";
 import { ESTADOS } from "../../utils/constants";
 import { useFilters } from "../../context/FiltersContext";
+import { onKeyActivate } from "../../utils/a11y";
 
 export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
   const { selectedMonth, selectedYear } = useFilters();
@@ -212,7 +213,11 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
               return (
                 <div
                   key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver caso ${c.nombre || "Sin nombre"}`}
                   onClick={() => onVerCaso(c.id)}
+                  onKeyDown={onKeyActivate(() => onVerCaso(c.id))}
                   className="flex items-center gap-2 rounded px-2 py-1 cursor-pointer hover:opacity-70 transition-opacity text-xs"
                   style={{ backgroundColor: "var(--color-surface)" }}
                 >

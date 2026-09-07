@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Calendar, Clock, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PillMemo } from "../common/Pill";
+import { onKeyActivate } from "../../utils/a11y";
 
 const INITIAL_SHOW = 3;
 
@@ -23,7 +24,11 @@ function CategoriaSection({ icon: Icon, label, count, color, casos, onVerCaso })
         {visible.map((c) => (
           <div
             key={c.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`Ver caso ${c.nombre || 'Sin nombre'}`}
             onClick={() => onVerCaso(c.id)}
+            onKeyDown={onKeyActivate(() => onVerCaso(c.id))}
             className="flex items-center gap-2 rounded px-2 py-1 cursor-pointer hover:bg-white/5 transition-colors"
             style={{ backgroundColor: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
           >

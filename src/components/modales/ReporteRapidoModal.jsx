@@ -25,13 +25,21 @@ import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
 import { hoyDDMM } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { getEstados } from "../../utils/catalogos";
 import { soundSystem } from "../../core/notifications/soundSystem";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { parseCita, resolveCitaDate } from "../../utils/citaParser";
 
 export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoInicial, config }) {
   const dialogRef = useRef(null);
-  useDialogA11y(dialogRef, true);
+  const [confirmClose, setConfirmClose] = useState(false);
+  useDialogA11y(dialogRef, true, { onEscape: () => requestClose() });
+
+  useEffect(() => {
+    lockBodyScroll();
+    return () => unlockBodyScroll();
+  }, []);
   const [query, setQuery] = useState("");
   const [seleccionado, setSeleccionado] = useState(null);
   const [estado, setEstado] = useState("Cita virtual");
@@ -47,6 +55,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nuevaHoraIni, setNuevaHoraIni] = useState("09:00");
   const [nuevaHoraFin, setNuevaHoraFin] = useState("10:00");
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState(null);
 
   // Pre-select case if casoInicial is provided
   useEffect(() => {
@@ -220,12 +229,24 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     onClose();
   };
 
+  // Datos sin guardar: hay texto/fecha de reporte o reprogramación tipeada
+  // que se perdería al cerrar sin guardar.
+  const hasUnsavedData =
+    (texto && texto.trim() !== "") ||
+    (fecha && fecha.trim() !== "") ||
+    (estado === "Reprogramado" && nuevaFecha);
+
+  const requestClose = () => {
+    if (hasUnsavedData) setConfirmClose(true);
+    else onClose();
+  };
+
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-      onClick={onClose}
+      onClick={requestClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reporte-rapido-title"
@@ -247,7 +268,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
             <ClipboardList size={18} color="var(--color-accent)" /> Nuevo reporte
           </div>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
             aria-label="Cerrar"
           >
@@ -540,9 +561,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                   </button>
                                   <button
                                     onClick={() => {
-                                      if (window.confirm("¿Eliminar este reporte?")) {
-                                        eliminarReporte(i);
-                                      }
+                                      setConfirmDeleteIndex(i);
                                     }}
                                     className="p-1 rounded hover:bg-white/5 transition-colors"
                                     style={{ color: "var(--color-danger)" }}
@@ -569,7 +588,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           style={{ borderTop: "1px solid var(--color-border)" }}
         >
           <BtnOutline
-            onClick={onClose}
+            onClick={requestClose}
             color="var(--color-text-muted)"
             size="sm"
           >
@@ -580,6 +599,30 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           </Btn>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDeleteIndex !== null}
+        title="Eliminar reporte"
+        message="¿Eliminar este reporte? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        confirmColor="var(--color-danger)"
+        onConfirm={() => {
+          eliminarReporte(confirmDeleteIndex);
+          setConfirmDeleteIndex(null);
+        }}
+        onCancel={() => setConfirmDeleteIndex(null)}
+      />
+      <ConfirmDialog
+        open={confirmClose}
+        title="Descartar reporte sin guardar"
+        message="Hay datos sin guardar en el reporte. ¿Deseas descartarlos y cerrar?"
+        confirmLabel="Descartar"
+        confirmColor="var(--color-danger)"
+        onConfirm={() => {
+          setConfirmClose(false);
+          onClose();
+        }}
+        onCancel={() => setConfirmClose(false)}
+      />
     </div>
   );
 }

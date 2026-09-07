@@ -6,7 +6,7 @@ Léelo primero en cada sesión. Evita re-explorar la arquitectura en cada tarea.
 ## 1. Identidad del proyecto
 
 - Nombre: **AppSeguimiento** (antes "Seguimiento de Derivaciones" / "Seg. ART"; entradas históricas del CHANGELOG conservan el nombre viejo).
-- Versión actual: **1.5.1** (verificada en `package.json` y `src/core/version.js`).
+- Versión actual: **1.6.8** (verificada en `package.json` y `src/core/version.js`).
 - Framework: React 18 (Create React App, react-scripts 5).
 - Build: `react-scripts build` (webpack). Pre-build genera docs (`scripts/build-docs.js` → `src/docs/docsContent.js`, se regenera solo).
 - Gestor de paquetes: npm.
@@ -36,12 +36,12 @@ src/
 ├── App.jsx             # Composición principal: vistas, modales, atajos, lógica de casos
 ├── components/         # UI por dominio (kanban/, tabla/, reportes/, configuracion/,
 │                       # modales/, utiles/, notifications/, common/, ayuda/,
-│                       # diagnostico/, entities/, estadisticas/, notes/)
+│                       # diagnostico/, entities/, estadisticas/)
 │   ├── common/         # Base reutilizable: Btn, BtnOutline, Select, TextInput, Toggle,
 │   │                   # Pill, Field, Paginacion, TagsManager, Celebration, TagsPills,
-│   │                   # Card, EmptyState, Input, OverlayPanel, ConfirmDialog, Spinner,
+│   │                   # EmptyState, OverlayPanel, ConfirmDialog, Spinner,
 │   │                   # SystemStatusBanner, UndoBanner, Breadcrumbs, CaseLinker,
-│   │                   # GlobalStatsHeader, PhoneLink, MonthDayFilterBar, ModoNoMolestar
+│   │                   # GlobalStatsHeader, PhoneLink, MonthDayFilterBar, Modal, Skeleton
 │   ├── notifications/  # NotificationBell, NotificationCenter, PersistentAlert, ToastContainer
 │   ├── diagnostico/    # IntegridadPanel (verificación de integridad de datos)
 │   └── entities/       # EntityPanel (panel de entidades)
@@ -59,7 +59,7 @@ src/
 │   ├── entities/       # entityRelations.js (relaciones entre entidades)
 │   ├── integrity/      # dataValidation.js, integrityService.js, referentialChecks.js,
 │   │                   # validationResult.js (capa de integridad de datos)
-│   ├── cases/          # caseHistory.js (timeline), caseRepository.js, casesManager.js,
+│   ├── cases/          # caseHistory.js (timeline), caseRepository.js,
 │   │                   # caseRelations.js, activityFeed.js
 │   ├── status/         # storageHealth.js, systemStatusStore.js (monitoreo de salud)
 │   ├── i18n/ error/ monitoring/ storage/ validation/ user/ notes/
@@ -88,8 +88,8 @@ src/
 ├── hooks/              # useClipboard.js, useCases.js, useStorage.js, useDebounce.js,
 │                       # useKeyboardShortcuts.js, useTheme.js, useFontSize.js,
 │                       # useLiveQuery.js, useNotify.js, useRecentEntities.js,
-│                       # useAdvancedSearch.js, useBlocNotas.js, useCalendar.js,
-│                       # useDialogA11y.js
+│                       # useAdvancedSearch.js, useCalendar.js,
+│                       # useDialogA11y.js, useModal.js, useViewTransition.js
 ├── validators/         # casoValidator.js (validación de casos)
 ├── pages/              # Vistas auxiliares (SystemLogs)
 ├── pwa/ tour/ help/ guide/ faq/ glossary/ docs/ styles/ test/
@@ -127,7 +127,7 @@ public/                 # index.html, manifest.json, sw.js, docs/ (copias genera
 - Backups: JSON con checksum e importación atómica con rollback (`services/backupService.js`).
   `BACKUP_KIND = "appseguimiento-backup"`; se acepta el legacy `"seguimiento-art-backup"`
   (NO eliminar esa compatibilidad). Motor de migración (`utils/backup/backupMigrator.js`)
-  detecta y migra backups en formatos v0 y v1 al formato actual (v2) antes de restaurarlos.
+   detecta y migra backups en formatos v0 y v1 al formato actual (v3) antes de restaurarlos.
   Backup automático antes del cierre de jornada configurable (15 min antes, una vez por jornada).
   Importaciones selectivas soportadas por opciones (casos/notas/eventos/config, categorías
   de útiles, duplicados).
@@ -223,8 +223,14 @@ Módulos verificados presentes:
 - **Ayuda**: guía (guide/), FAQ (faq/), glosario, "Cómo usar", feedback, SystemLogs,
   tour interactivo (tour/).
 - **PWA**: instalación, actualización con aviso, shortcuts, offline total (pwa/, public/sw.js).
-- **Notificaciones**: toasts, campana, centro de notificaciones, alertas persistentes,
-  sonidos Web Audio (soundSystem) gated por configuración.
+- **Notificaciones** (core/notifications + components/notifications): pipeline central único
+  Acción → Evento → Prioridad → Sistema → Centro/Toast/Sonido vía `notificationManager`
+  (orquestador), `ruleEngine` (prioridad baja/media/grave y deduplicación), `soundSystem`
+  (Web Audio) y `actionFeedback` (catálogo copiar/crear/guardar/eliminar/importar/exportar/
+  restaurar/reprogramar). Toasts, campana, centro y alertas persistentes renderizados desde
+  componentes de notifications. NO se usa Browser Notification API ni alert() nativo.
+  Los recordatorios de calendario se enrutan por `notificationManager`. `useAppStore.addToast`
+  también enruta al `notificationStore` central (única fuente).
 - **Sistema de animaciones** (v1.3.4): tokens centralizados de duración/easing, transiciones
   por propiedad (no `transition-all`), soporte `prefers-reduced-motion`, botones con estados
   loading/success-flash, modales con scale-in, toasts con entrada/salida secuencial.
@@ -401,17 +407,49 @@ real de la tarea lo justifique.
 
 ## 11. Contexto de versión estable
 
-- Versión baseline: **1.5.1** (verificada en `package.json` y `src/core/version.js`).
+- Versión baseline: **1.6.8** (verificada en `package.json` y `src/core/version.js`).
 - Esta versión es la línea base estable de trabajo. No incrementarla ni renombrar la app
   salvo solicitud explícita del usuario.
 - Cambios de versión requieren actualizar como mínimo `package.json`,
   `package-lock.json` y `src/core/version.js`, además de una entrada en
-  `src/docs/CHANGELOG.md` (y su copia `public/docs/CHANGELOG.md`).
-- 1.5.1 = "Configuración, Backup/Export/Import, Ayuda y Correcciones":
-  Configuración de Citas y Calendario (4 opciones: auto-crear, auto-actualizar,
-  auto-reprogramar, info en eventos), corrección de zona horaria en calendario
-  (toLocalDateStr), corrección de formato telefónico (+549), overlay con Portal
-  (Speechs cubre header), deduplicación de notificaciones (showToast via
-  NotificationManager), eliminación de Entidades conectadas (EntityPanel),
-  integración de reprogramaciones en Dashboard, ayuda/tour/glosario actualizados.
-  NO usa IA ni integración de calendarios externos.
+  `src/docs/CHANGELOG.md` (y su copia `public/docs/CHANGELOG.md`), y mantener en sync los
+  README (`README.md`, `src/docs/README.md`, `public/docs/README.md`).
+- 1.6.8 = "Auditoría final, QA y estabilización": eliminados 11 archivos muertos
+  (Input, EditableForm, ShortcutsHelp, SelectorTema, ModoNoMolestar, BlocNotas, Card,
+  NoteList, NoteCard en common/, hook `useBlocNotas`, carpeta `components/notes/`);
+  palette de gráficos centralizada en CSS vars `--chart-color-*` (12 widgets +
+  computeMetrics, fijada inconsistencia `#FB923C`→`#F97316`); console.warn/error de
+  producción consolidados al sistema `reportError()`; documentación actualizada
+  (tour 17 pasos, atajos Ctrl+1-5, árbol de componentes). Release candidate de la base estable.
+- 1.6.7 = "Accesibilidad, Responsive y robustez": labels asociados por htmlFor/id en `Field`
+  (useId) y sus formularios (`EventModal`, `CsvExportModal`, `FeedbackForm`); Escape + bloqueo
+  de scroll en `CasoEditModal`/`VerCasoModal`/`ReporteRapidoModal`; clicables no nativos
+  operables por teclado vía `src/utils/a11y.js`; ARIA (`role="alert"`/`aria-live`,
+  `aria-pressed`, `aria-expanded`, `aria-sort`, `scope="col"`, `aria-label` en botones de
+  solo ícono y en la búsqueda global); contraste de `--text-muted` (`#B0B8C4` / `#5B6370`);
+  `text-[9px]` visibles → `text-ds-xs` y `fontSize` inline sueltos → tokens del DS;
+  `SmartTable` con `overflow-x-auto` y empty state, `ComentariosUI` sin "Invalid Date",
+  touch target del selector de kanban en `pointer: coarse`, `.text-xs` a `0.7rem` en móvil;
+  suite de tests de accesibilidad nueva (15 tests).
+- 1.6.6 = "Optimización y rendimiento": usoStorage/FiltersContext con guardado debounced;
+  referencias estables en useAppStore y selectores granulares en Celebration; hot paths de cálculo
+  memoizados (CasoEditModal duplicado/datalists, CalendarView caseMap/todayStr/orden, funnel
+  de una sola pasada, calendario por rango de fecha); filas/columnas/notificaciones extraídas
+  con React.memo (TablaRow, KanbanColumn, NotificationItem); carga perezosa de
+  CaseTimeline/PdfExportModal/IntegridadPanel; handlers y widgets del Dashboard memorizados;
+  perfilado con why-did-you-render (dev).
+- 1.6.5 = "Navegación fluida y coherente": header estable (tab-strip con scroll), transición
+  crossfade entre vistas con preservación de scroll (`useViewTransition`), modales/overlays
+  unificados (`Modal`, `useModal`, `useDialogA11y` con Escape/foco/bloqueo de scroll),
+  confirmación de datos sin guardar en `ReporteRapidoModal`, contexto preservado al abrir un
+  caso desde Calendario o Bloc de Notas, animaciones de entrada/salida y pruebas de integración.
+- 1.6.2 = "Consistencia funcional" (consolidada): completadas las áreas de consistencia que
+  quedaron pendientes de las versiones 1.6.3/1.6.4/1.6.5 — `Skeleton` (variants text/avatar/
+  circle/button/card/list/table + `SkeletonText`/`SkeletonTable`, integrado en `NotesView`) y
+  `EditableForm` (formulario config-driven con validación, errores y Guardar/Cancelar
+  unificados). Tests en `Skeleton.test.jsx` y `EditableForm.test.jsx`.
+- 1.6.4 = "Sistema centralizado de notificaciones y feedback": pipeline central único
+  vía notificationManager/ruleEngine/soundSystem y nuevo actionFeedback; eliminados los
+  sistemas paralelos (legacy NotificationService, Toast.jsx muerto); corregido el router
+  roto de useAppStore.addToast (alertsSystem/CSVImporter); reemplazados alert() nativos por
+  toasts; deduplicación por eventKey. Prioridades BAJA/MEDIA/ALTA → Centro/Toast/Sonido.

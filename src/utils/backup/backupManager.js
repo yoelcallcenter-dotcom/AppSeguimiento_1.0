@@ -5,6 +5,7 @@ import { BACKUP_VERSION, STORAGE_KEYS, CONFIG_KEYS, MESSAGES } from './constants
 import { isValidCase, normalizeCase, deduplicateCases, validateConfigExport } from './validators';
 import { parseCSVToCases, generateCSVFromCases } from './parsers';
 import { isSameMonth } from '../dateFilters';
+import { reportError } from '../../core/error/reportError';
 
 /**
  * Fusiona la configuración importada con los valores por defecto para que
@@ -58,7 +59,7 @@ export async function exportCasesToCSV(months = null) {
 
     return generateCSVFromCases(filteredCases);
   } catch (error) {
-    console.error('[BackupManager] Error exportando casos a CSV:', error);
+    reportError(error, { context: 'BackupManager:exportCasesToCSV' });
     throw error;
   }
 }
@@ -87,7 +88,7 @@ export async function importCasesFromCSV(csvData) {
 
     return { success: true, count: deduplicated.length, normalized: true };
   } catch (error) {
-    console.error('[BackupManager] Error importando casos desde CSV:', error);
+    reportError(error, { context: 'BackupManager:importCasesFromCSV' });
     return { success: false, error: error.message || MESSAGES.PARSE_ERROR };
   }
 }
@@ -134,7 +135,7 @@ export async function exportConfigToJSON() {
 
     return JSON.stringify(data, null, 2);
   } catch (error) {
-    console.error('[BackupManager] Error exportando configuración:', error);
+    reportError(error, { context: 'BackupManager:exportConfigToJSON' });
     throw error;
   }
 }
@@ -195,7 +196,7 @@ export async function importConfigFromJSON(jsonData, options = {}) {
             localStorage.setItem(key, JSON.stringify(mensajes));
             importedCount++;
           } catch (e) {
-            console.warn('[BackupManager] Error restaurando conversaciones:', key, e);
+            reportError(e, { context: 'BackupManager:restoreConversaciones', silent: true });
           }
         }
       }
@@ -210,7 +211,7 @@ export async function importConfigFromJSON(jsonData, options = {}) {
 
     return { success: true, count: importedCount };
   } catch (error) {
-    console.error('[BackupManager] Error importando configuración:', error);
+    reportError(error, { context: 'BackupManager:importConfigFromJSON' });
     return { success: false, error: error.message || MESSAGES.PARSE_ERROR };
   }
 }

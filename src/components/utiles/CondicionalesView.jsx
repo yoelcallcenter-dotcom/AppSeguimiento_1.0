@@ -254,7 +254,7 @@ export function CondicionalesView({
       {lista.map((v) => (
         <span
           key={v}
-          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+          className="inline-flex items-center gap-1 pill-sm font-semibold"
           style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
         >
           {v}
@@ -277,11 +277,11 @@ export function CondicionalesView({
         <div className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
           Condicionales de Estudios Jurídicos
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+        <span className="pill-sm" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
           {total} registradas
         </span>
         {noToma > 0 && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: "#EF4444" + "22", color: "#EF4444" }}>
+          <span className="pill-sm" style={{ backgroundColor: "#EF4444" + "22", color: "#EF4444" }}>
             {noToma} no toman
           </span>
         )}
@@ -516,7 +516,7 @@ export function CondicionalesView({
                   )}
                   <Scale size={14} style={{ color: "var(--color-accent)" }} />
                   <span className="text-xs font-bold" style={{ color: "var(--color-text)" }}>{sanitizeString(g.estudio)}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full ml-auto" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                  <span className="pill-sm ml-auto" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
                     {g.items.length} condición{g.items.length !== 1 ? "es" : ""}
                   </span>
                 </button>

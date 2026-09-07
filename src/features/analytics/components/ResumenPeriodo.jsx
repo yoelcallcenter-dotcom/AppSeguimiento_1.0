@@ -43,25 +43,25 @@ export default function ResumenPeriodo({ resumen }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Período */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
             <CalendarDays size={9} aria-hidden="true" /> Período
           </div>
           <div className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{resumen.periodo}</div>
-          <div className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
             {resumen.habiles} día(s) hábil(es)
           </div>
         </div>
 
         {/* Casos */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Casos</div>
+          <div className="text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Casos</div>
           <div className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{resumen.casos}</div>
           <ChipVariacion pct={resumen.variacion.casosPct} />
         </div>
 
         {/* Firmas */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
             <PenLine size={9} aria-hidden="true" /> Firmas
           </div>
           <div className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>{resumen.firmas}</div>
@@ -70,7 +70,7 @@ export default function ResumenPeriodo({ resumen }) {
 
         {/* Conversión */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
             <Percent size={9} aria-hidden="true" /> Conversión
           </div>
           <div className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{resumen.conversion}%</div>
@@ -83,25 +83,25 @@ export default function ResumenPeriodo({ resumen }) {
 
         {/* Promedio diario */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
             <Gauge size={9} aria-hidden="true" /> Promedio diario
           </div>
           <div className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
             {String(resumen.promedioDiario).replace('.', ',')}
-            <span className="text-[9px] font-medium" style={{ color: 'var(--color-text-muted)' }}> firmas/día</span>
+            <span className="text-ds-xs font-medium" style={{ color: 'var(--color-text-muted)' }}> firmas/día</span>
           </div>
-          <div className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+          <div className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
             hábil · antes: {String(resumen.previo.promedioDiario).replace('.', ',')}
           </div>
         </div>
 
         {/* Mejor día */}
         <div>
-          <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Mejor día</div>
+          <div className="text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>Mejor día</div>
           {mejorDia ? (
             <>
               <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{mejorDia.label}</div>
-              <div className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>
+              <div className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
                 {String(mejorDia.promedio).replace('.', ',')} firmas/día en promedio
               </div>
             </>

@@ -83,7 +83,7 @@ export function AseguradorasView({
         setLista([...lista, ...sanitized]);
         showToast(`${sanitized.length} aseguradoras importadas`, "success");
       } catch {
-        alert("El archivo no es un JSON válido.");
+        showToast("El archivo no es un JSON válido.", "error");
       }
     };
     reader.readAsText(file);
@@ -105,7 +105,7 @@ export function AseguradorasView({
             onClick={() => setTipo("ART")}
             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${
               tipo === "ART"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
@@ -115,7 +115,7 @@ export function AseguradorasView({
             onClick={() => setTipo("Tránsito")}
             className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${
               tipo === "Tránsito"
-                ? "bg-[var(--color-accent)] text-[#14181F]"
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >

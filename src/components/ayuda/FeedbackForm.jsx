@@ -279,6 +279,7 @@ Navegador: ${navigator.userAgent}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label
+              htmlFor="fb-nombre"
               className="text-xs font-medium mb-1 block"
               style={{ color: "var(--color-text-muted)" }}
             >
@@ -291,6 +292,7 @@ Navegador: ${navigator.userAgent}
               </span>
             </label>
             <TextInput
+              id="fb-nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Juan Perez"
@@ -299,6 +301,7 @@ Navegador: ${navigator.userAgent}
           </div>
           <div>
             <label
+              htmlFor="fb-email"
               className="text-xs font-medium mb-1 block"
               style={{ color: "var(--color-text-muted)" }}
             >
@@ -311,6 +314,7 @@ Navegador: ${navigator.userAgent}
               </span>
             </label>
             <TextInput
+              id="fb-email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Ej: juan@email.com"
@@ -335,7 +339,7 @@ Navegador: ${navigator.userAgent}
                 onClick={() => setCategoria(c.value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors transition-transform hover:scale-[1.02] ${
                   categoria === c.value
-                    ? "bg-[var(--color-accent)] text-[#14181F]"
+                    ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                     : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
                 }`}
               >
@@ -361,7 +365,7 @@ Navegador: ${navigator.userAgent}
                 onClick={() => setPuntuacion(p.value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors transition-transform hover:scale-[1.02] ${
                   puntuacion === p.value
-                    ? "bg-[var(--color-accent)] text-[#14181F]"
+                    ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                     : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
                 }`}
               >
@@ -400,12 +404,14 @@ Navegador: ${navigator.userAgent}
 
         <div>
           <label
+            htmlFor="fb-mensaje"
             className="text-xs font-medium mb-1 block"
             style={{ color: "var(--color-text-muted)" }}
           >
             Mensaje <span className="text-[var(--color-danger)]">*</span>
           </label>
           <TextArea
+            id="fb-mensaje"
             rows={4}
             value={mensaje}
             onChange={(e) => setMensaje(e.target.value)}

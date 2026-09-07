@@ -13,12 +13,20 @@ import { normalizarUbicacion } from "../../utils/ubicacionUtils";
 import { buildUnifiedActivityFeed } from "../../core/cases/activityFeed";
 
 const CHART_COLORS = [
-  "#D9A441", "#60A5FA", "#34D399", "#F87171", "#818CF8",
-  "#FBBF24", "#94A3B8", "#E11D48", "#FB923C", "#10B981",
+  "var(--chart-color-cases)",
+  "var(--chart-color-contact)",
+  "var(--chart-color-success)",
+  "var(--chart-color-danger-light)",
+  "var(--chart-color-conversion)",
+  "var(--chart-color-warning)",
+  "var(--chart-color-muted)",
+  "var(--chart-color-rose)",
+  "var(--chart-color-orange)",
+  "var(--chart-color-signed)",
 ];
 
 export function colorDeEstado(estado, config) {
-  return getEstadoAccent(config, estado) || "#94A3B8";
+  return getEstadoAccent(config, estado) || "var(--chart-color-muted)";
 }
 
 export function getChartColors() {
@@ -309,10 +317,10 @@ export function computeMetrics(cases, filters = {}, config = {}) {
 
   // Categorías del pipeline (para donut/cards).
   const byCategory = [
-    { key: 'activos', name: 'Activos', value: activos.length, color: '#60A5FA' },
-    { key: 'firmas', name: 'Firmados', value: firmas.length, color: '#10B981' },
-    { key: 'perdidos', name: 'Perdidos', value: perdidos.length, color: '#EF4444' },
-    { key: 'sinReporte', name: 'Sin reporte', value: sinReporte.length, color: '#FBBF24' },
+    { key: 'activos', name: 'Activos', value: activos.length, color: 'var(--chart-color-contact)' },
+    { key: 'firmas', name: 'Firmados', value: firmas.length, color: 'var(--chart-color-signed)' },
+    { key: 'perdidos', name: 'Perdidos', value: perdidos.length, color: 'var(--chart-color-danger)' },
+    { key: 'sinReporte', name: 'Sin reporte', value: sinReporte.length, color: 'var(--chart-color-warning)' },
   ].filter((x) => x.value > 0);
 
   const byStudy = groupByField(base, 'estudioJuridico', cats, { max: 10 });

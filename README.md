@@ -1,55 +1,60 @@
-[README.md](https://github.com/user-attachments/files/30711876/README.md)
 # AppSeguimiento
 
-**Versión 1.2.4** — Sistema de gestión de casos ART para seguimiento de derivaciones, diseñado para operadores de call center.
+**Versión 1.6.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
-## Características
+## Stack tecnológico
 
-### Gestión de Casos
-- Kanban Board: Arrastra casos entre estados (Cita virtual, No responde, Firmo, etc.)
-- Vista Tabla: Ordena y filtra casos con columnas personalizables
-- Reportes: Historial completo de reportes por caso
-- Búsqueda: Búsqueda en tiempo real por nombre, teléfono o localidad
-- Bloc de Notas: Notas personales accesibles desde el header
+- **React 18** (Create React App / react-scripts 5)
+- **Zustand 5** — estado global
+- **Dexie 4 / IndexedDB** — persistencia local (casos, notas, eventos, backups)
+- **Tailwind CSS 3** + CSS variables (theming completo)
+- **Recharts** — gráficos del dashboard
+- **Tiptap** — editor de notas enriquecido
+- **lucide-react** — íconos
+- **Fuse.js** — búsqueda difusa
+- **DOMPurify** — sanitización de HTML
+- **Vitest** + jsdom + fake-indexeddb — testing
 
-### Estadísticas
-- Dashboard con KPIs (Total, Activos, Firmados, Sin Reporte, No Viables)
-- Logro de Objetivos: seguimiento de 14 firmas por mes
-- Últimos casos agregados
-- Tareas del día (citas hoy, casos inactivos, sin reporte)
-- Mapa de casos por localidad
-
-### Útiles
-- Speechs: Guiones predefinidos para llamadas con copia al portapapeles
-- Objeciones: Respuestas para objeciones comunes
-- Conversaciones Sugeridas: Plantillas por categoría con reemplazo de variables ({OPERADOR})
-- Aseguradoras: Gestión de ART y Tránsito
-- Lesiones: Categorización de lesiones por tipo
-- Pasos a Seguir: Protocolo de trabajo
-- Tips: Consejos para llamados
-- Links útiles: Recursos de referencia
-- Estudios Jurídicos: Mapeo por localidad con filtros
+## Características principales
 
 ### Mi Espacio (personal)
-- Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual
-- Resumen de la jornada: estado del día, progreso de metas y ritmo necesario
-- Disponibilidad: vacaciones, feriados, inasistencias y días no laborables
-- Metas personales: objetivo diario y mensual de casos y reportes sobre días efectivos
-- Accesos y credenciales personales (solo locales, nunca se exportan)
-- Sugerencias inteligentes personales
+- Abre siempre en Mi Espacio, con bienvenida destacada y saludos según día y hora.
+- Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual.
+- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/mensuales con ritmo necesario.
+- Accesos y credenciales personales (solo locales, nunca se exportan).
+
+### Gestión de Casos
+- **Kanban**: arrastrar casos entre estados (Cita virtual, No responde, Firmo, etc.).
+- **Tabla**: ordenar, filtrar y seleccionar casos con columnas personalizables.
+- **Reportes**: historial completo de reportes por caso.
+- **Calendario**: eventos vinculados a casos, reprogramación y citas.
+- **Bloc de Notas**: notas enriquecidas (Tiptap) con vínculo a casos.
+- **Búsqueda global** (`GlobalSearch`): búsqueda en tiempo real por nombre, teléfono, localidad, `#etiquetas` y `@comentarios`.
+
+### Estadísticas y Analítica
+- Dashboard multi-pestaña (Analítica, Resumen, Rendimiento, Geografía, Estudios, Estados).
+- KPIs, insights automáticos, distribución por estado/categoría, tendencia 30 días, barras apiladas, tipos de ingreso y evolución.
+- Logro de objetivos, funnel de conversión, mapa por localidad, próximos eventos.
+- Pestañas, widgets y métricas configurables.
+
+### Útiles
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa.
+- **Objeciones**, **Conversaciones Sugeridas** (con variables `{OPERADOR}`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
+- **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
+
+### Ayuda y Tours
+- Tour interactivo completo que recorre todas las funcionalidades.
+- Acerca de Vistas, FAQ, Glosario, Guía de Usuario y guía imprimible (PDF/TXT).
 
 ### Personalización
-- Temas: Oscuro, Claro o Personalizado
-- Tamaño de fuente: Pequeño, Mediano o Grande
-- Colores Base: 3 colores (Primario, Secundario, Terciario) que generan toda la paleta
-- Colores por estado de caso: Personaliza cada estado individualmente
+- Temas: Oscuro, Claro o Personalizado.
+- Tamaño de fuente: Pequeño, Mediano o Grande.
+- Colores base (Primario, Secundario, Terciario) que generan toda la paleta, y colores por estado de caso.
 
-### Almacenamiento
-- IndexedDB: Todos los datos se guardan localmente en el navegador (via Dexie)
-- Backup completo: Exporta e importa todos tus datos (casos, notas, eventos y configuración) en JSON
-- Sin conexión a internet: La aplicación funciona completamente offline
-
----
+### Almacenamiento y Backup
+- Todo se guarda localmente en el navegador (IndexedDB vía Dexie).
+- Backup completo: exportar/importar datos (casos, notas, eventos, configuración) en JSON, con auto-backups y migración de esquema.
+- Funciona completamente sin conexión.
 
 ## Sistema de Notificaciones
 
@@ -62,48 +67,29 @@ src/core/events/
 src/core/notifications/
 ├── notificationStore.js    # Zustand store global de notificaciones
 ├── notificationManager.js  # Orquestador: recibe eventos, decide qué notificar
-├── ruleEngine.js           # Motor inteligente: dedup, agrupación, prioridad
-└── soundSystem.js          # Motor de sonido con tonos generados por Web Audio API
+├── ruleEngine.js           # Motor: dedup, agrupación, prioridad
+├── actionFeedback.js       # Catálogo de acciones de feedback (copiar, crear, guardar…)
+└── soundSystem.js          # Motor de sonido (Web Audio API)
 
 src/components/notifications/
 ├── ToastContainer.jsx      # Toasts efímeros (auto-dismiss)
 ├── NotificationBell.jsx    # Campana con badge + dropdown
 ├── NotificationCenter.jsx  # Panel lateral con historial completo + filtros
 └── PersistentAlert.jsx     # Alertas persistentes (warning/error)
-
-src/hooks/
-└── useNotify.js            # Hook fácil: notify(), success(), error(), warning(), info()
 ```
 
 ### Flujo de Datos
 
 1. **Evento de app** → `eventBus.emit(AppEvents.XXX, data)`
-2. **NotificationManager** recibe el evento, lo normaliza y evalúa con RuleEngine
-3. **RuleEngine** decide: ¿es duplicado? ¿se debe agrupar? ¿está en modo no molestar?
-4. **NotificationStore** guarda la notificación en estado + localStorage
-5. **SoundSystem** reproduce sonido si está habilitado
-6. **ToastContainer** renderiza toast si notificaciones in-app están activas
-7. **NotificationBell** actualiza badge de no leídas
-8. **NotificationCenter** muestra historial persistente
+2. **NotificationManager** recibe el evento, lo normaliza y evalúa con RuleEngine.
+3. **RuleEngine** decide: ¿es duplicado? ¿se agrupa? ¿modo no molestar?
+4. **NotificationStore** guarda la notificación (estado + localStorage).
+5. **SoundSystem** reproduce sonido si está habilitado.
+6. **ToastContainer** renderiza toast si notificaciones in-app están activas.
+7. **NotificationBell** actualiza el badge de no leídas.
+8. **NotificationCenter** muestra el historial persistente.
 
-### Eventos Disponibles
-
-| Evento | Tipo | Cuándo se dispara |
-|--------|------|--------------------|
-| `CASE_CREATED` | success | Nuevo caso guardado |
-| `CASE_UPDATED` | info | Caso modificado |
-| `CASE_DELETED` | info | Caso eliminado |
-| `CASE_STATUS_CHANGED` | info | Estado de caso cambiado |
-| `NOTE_CREATED` | info | Nota creada |
-| `NOTE_UPDATED` | info | Nota modificada |
-| `EVENT_CREATED` | info | Evento de calendario creado |
-| `EVENT_UPDATED` | info | Evento modificado |
-| `BACKUP_COMPLETED` | success | Backup exportado |
-| `BACKUP_IMPORTED` | info | Datos importados |
-| `GOAL_ACHIEVED` | success | Meta de firmas alcanzada |
-| `ERROR_OCCURRED` | error | Error del sistema |
-| `SYNC_COMPLETED` | info | Sincronización completada |
-| `DATA_CLEARED` | warning | Todos los datos eliminados |
+Prioridades: **BAJA** (Centro, sin toast, sin sonido) · **MEDIA** (Centro + toast, sin sonido) · **ALTA/GRAVE** (Centro + toast + sonido). Deduplicación por `eventKey`.
 
 ### Uso desde componentes
 
@@ -132,25 +118,14 @@ notificationManager.notify({
 });
 ```
 
-### Configuración
+### Configuración y persistencia
 
-Las opciones se gestionan en **Configuración → Notificaciones**:
-- **Canales**: In-App, Sonido, Escritorio
-- **Tipos**: filtrar eventos por tipo (cambio de estado, reportes, backup, errores)
-- **Frecuencia**: agrupación para evitar spam
-- **No molestar**: silencia todas las notificaciones
-
-### Persistencia
-
-Las notificaciones se almacenan en localStorage bajo `app_notification_center`, límite 200. Sobreviven a recargas de página.
-
----
+- Se gestiona en **Configuración → Notificaciones**: canales (In-App, Sonido), tipos, frecuencia de agrupación y modo No molestar.
+- Las notificaciones se almacenan en localStorage bajo `app_notification_center` (límite 200) y sobreviven a recargas.
 
 ## Sistema de Temas
 
-### Arquitectura
-
-El sistema de temas está centralizado en `src/core/theme/` y sigue una arquitectura de tokens:
+Centralizado en `src/core/theme/` con arquitectura de tokens:
 
 ```
 src/core/theme/
@@ -159,167 +134,104 @@ src/core/theme/
 └── colorUtils.js        # Utilidades de color (mezcla, generación de paletas)
 ```
 
-### Flujo de Aplicación
+`themeManager.init()` carga el tema guardado y aplica cada valor como CSS variable en `<html>`. Para tema personalizado, los colores base pasan por `generatePalette()` para generar la paleta completa.
 
-1. **`themeManager.init()`** se llama al arrancar la app (desde `ThemeContext` y `App.jsx`)
-2. Carga el tema guardado, colores personalizados y colores de estado desde `localStorage`
-3. **`applyThemeVariables()`** recorre el `cssVarMap` y aplica cada valor como CSS variable en `<html>`
-4. Para tema personalizado, los colores base (primario, secundario, terciario) se pasan por `generatePalette()` para generar la paleta completa
-5. `ThemeContext` expone `theme`, `customColors`, `estadoColors` y los métodos `changeTheme()`, `updateCustomColors()`, etc.
+**Variables clave**: `--color-bg`, `--color-surface`, `--color-surface2`, `--color-text`, `--color-text-muted`, `--color-accent`, `--color-border`, `--color-primary`, `--color-secondary`, `--color-success`, `--color-warning`, `--color-danger`, `--color-estado-*` (por estado de caso).
 
-### Variables CSS Disponibles
-
-| Variable | Propósito |
-|----------|-----------|
-| `--color-bg` | Fondo principal |
-| `--color-surface` | Superficie de tarjetas |
-| `--color-surface2` | Superficie secundaria (inputs, columnas kanban) |
-| `--color-text` | Texto principal |
-| `--color-text-muted` | Texto secundario / metadata |
-| `--color-accent` | Color de acento (botones principales, highlights) |
-| `--color-border` | Bordes estándar |
-| `--color-border-light` | Bordes suaves |
-| `--color-primary` | Color primario (acciones principales) |
-| `--color-secondary` | Color secundario (acciones secundarias) |
-| `--color-success` | Estados de éxito |
-| `--color-warning` | Estados de advertencia |
-| `--color-danger` | Estados de error/peligro |
-| `--color-estado-*` | Colores por estado de caso (ej: `--color-estado-Firmo`) |
-
-### Diseño de Espaciado y Tipografía
-
-| Token | Valor por defecto |
-|-------|-------------------|
-| `--space-1` | 0.25rem |
-| `--space-2` | 0.5rem |
-| `--space-3` | 0.75rem |
-| `--space-4` | 1rem |
-| `--space-6` | 1.5rem |
-| `--space-8` | 2rem |
-| `--radius-sm` | 0.25rem |
-| `--radius-md` | 0.375rem |
-| `--radius-lg` | 0.5rem |
-| `--radius-xl` | 0.75rem |
-
-### Sistema de Botones
-
-`src/components/common/Btn.jsx` exporta:
-- **`Btn`** — Componente base con variantes: `solid`, `outline`, `ghost`
-- **`PrimaryButton`** — Atajo para `Btn` con color primario
-- **`SecondaryButton`** — Atajo para `Btn` con color secundario
-- **`OutlineButton`** — Atajo para `Btn` con variante outline
-- **`BtnOutline`** — Mantenido para compatibilidad (wrapper de `Btn` con `variant="outline"`)
-
-Tamaños: `sm` (2rem altura), `md` (2.5rem), `lg` (3rem).  
-Estados: hover (lift + opacity), active (press), disabled (50% opacity), focus-visible (ring).
-
----
+**Sistema de botones** (`src/components/common/Btn.jsx`): `Btn` con variantes `solid`, `outline`, `ghost`, y atajos `PrimaryButton`, `SecondaryButton`, `OutlineButton`. Tamaños `sm`/`md`/`lg`; estados hover (lift + opacity), active (press), disabled y focus-visible (ring).
 
 ## Estructura de la UI
 
 ```
 src/
 ├── components/
-│   ├── common/           # Componentes base reutilizables
-│   │   ├── Btn.jsx       # Botón + PrimaryButton, SecondaryButton, OutlineButton
-│   │   ├── DayFilter.jsx # Filtro de día unificado (Select dropdown)
-│   │   ├── Select.jsx    # Select estilizado
-│   │   ├── Pill.jsx      # Badge de estado
-│   │   └── ...
-│   ├── configuracion/    # Panel de configuración
-│   ├── kanban/           # Vista Kanban/Tablero
-│   ├── tabla/            # Vista Tabla
-│   ├── reportes/         # Vista Reportes
-│   ├── estadisticas/     # Componentes estadísticos
-│   └── notifications/    # Centro de notificaciones, campana, toasts, alertas
+│   ├── common/           # Btn, Modal, ConfirmDialog, EmptyState, Spinner, Skeleton,
+│   │                     # EditableForm, OverlayPanel, ShortcutsHelp, Paginacion,
+│   │                     # DayFilter, MonthDayFilterBar, etc.
+│   ├── notifications/    # NotificationBell, NotificationCenter, PersistentAlert, ToastContainer
+│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ notes/ calendar/
+│   ├── configuracion/ utiles/ ayuda/ diagnostico/ entities/
 ├── core/
-│   ├── theme/            # Sistema de temas (tokens, manager, color utils)
-│   ├── events/           # EventBus centralizado (pub-sub)
-│   ├── notifications/    # NotificationStore, Manager, RuleEngine, SoundSystem
-│   ├── storage/          # Adaptadores y manager de almacenamiento
-│   ├── sync/             # Sincronización de eventos
-│   └── store/            # Zustand store global
-├── context/              # React Context providers
-├── features/             # Dashboard, Calendar, Notes, Search, etc.
-├── styles/
-│   └── globals.css       # CSS global con variables, temas y utilidades
-└── utils/                # Utilidades (formatos, backups, etc.)
+│   ├── theme/            # themeTokens, themeManager, colorUtils
+│   ├── store/            # useAppStore (Zustand global)
+│   ├── db/               # appDB, casesDB, indexedDB, versioning, dbLifecycle
+│   ├── notifications/    # notificationStore/Manager/RuleEngine, actionFeedback, soundSystem
+│   ├── events/           # eventBus pub-sub
+│   ├── sync/             # sincronización entre pestañas (BroadcastChannel)
+│   ├── alerts/ rules/ integrity/ entities/ cases/ status/ i18n/ error/ monitoring/ storage/
+├── context/              # ThemeContext, FiltersContext, CalendarContext, UXContext, etc.
+├── hooks/                # useModal, useDialogA11y, useViewTransition, useDebounce,
+│                         # useKeyboardShortcuts, useNotify, useCalendar, etc.
+├── features/             # dashboard, operator ("Mi Espacio"), calendar, notes, search, export
+├── services/             # backupService, autoBackup, EstudioService, StorageService
+├── utils/                # backups/, csvUtils, csvParse, exportPDF, searchEngine, etc.
+├── styles/globals.css    # CSS global con variables, temas, utilidades y animaciones
+└── test/                 # Suite de tests (Vitest + jsdom + fake-indexeddb)
 ```
 
----
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `npm install` | Instala dependencias |
+| `npm start` | Dev server (regenera docs) |
+| `npm run build` | Build de producción a `build/` |
+| `npm run test:run` | Suite completa con Vitest (una pasada) |
+| `npm run test` | Vitest en modo watch |
+| `npx vitest run <archivo>` | Un solo archivo de test |
 
 ## Atajos de Teclado
 
 | Atajo | Acción |
 |-------|--------|
-| Ctrl + N | Nuevo caso |
-| Ctrl + R | Cargar reporte |
-| Ctrl + F | Buscar casos |
-| Ctrl + S | Guardar datos |
-| Ctrl + D | Duplicar caso |
-| Ctrl + E | Exportar seleccionados |
-| Ctrl + H | Abrir ayuda |
-| Ctrl + K | Búsqueda global |
-| Ctrl + 1-7 | Cambiar vista |
-| Escape | Cerrar modal |
-
-## Instalación
-
-```bash
-git clone <repo>
-npm install
-npm start      # Desarrollo
-npm run build  # Producción
-```
+| `Ctrl + N` | Nuevo caso |
+| `Ctrl + R` | Cargar reporte |
+| `Ctrl + F` | Buscar casos |
+| `Ctrl + S` | Guardar datos |
+| `Ctrl + D` | Duplicar caso |
+| `Ctrl + E` | Exportar seleccionados |
+| `Ctrl + H` | Abrir ayuda |
+| `Ctrl + K` | Búsqueda global |
+| `Ctrl + 1-7` | Cambiar vista |
+| `Escape` | Cerrar modal |
 
 ---
 
 ## PWA: Instalación y uso offline
 
-La aplicación es una **Progressive Web App** (PWA): se instala como una app nativa,
+La aplicación es una **Progressive Web App (PWA)**: se instala como una app nativa,
 funciona **sin conexión** y se **actualiza sola** cuando hay una nueva versión.
 
 ### Cómo instalar en PC (Windows/Linux)
 
-1. Abrí la app en **Chrome** o **Edge** (si la publicaste, tiene que estar servida por **HTTPS**).
-2. Hacé click en el botón **"Instalar"** que aparece en la barra superior de la app.
-3. Confirmá en el diálogo del navegador. Queda un acceso en el escritorio o en el menú de inicio.
+1. Abrí la app en **Chrome** o **Edge** (servida por **HTTPS**).
+2. Hacé click en el botón **"Instalar"** que aparece en la barra superior.
+3. Confirmá en el diálogo del navegador. Queda un acceso en el escritorio o el menú de inicio.
 
 > También podés usar el menú del navegador → **"Instalar AppSeguimiento"**.
 
 ### Cómo instalar en celular (Android)
 
 1. Abrí la app en Chrome.
-2. Tocá el botón **"Instalar"** en la barra superior, o el menú ⋮ → **"Agregar a pantalla de inicio"**.
+2. Tocá **"Instalar"** en la barra superior, o el menú ⋮ → **"Agregar a pantalla de inicio"**.
 3. Confirmá. El icono queda en la pantalla de inicio y abre a pantalla completa.
 
 ### Cómo instalar en iPhone/iPad (iOS)
 
 1. Abrí la app en **Safari**.
-2. Tocá el botón **Compartir** (cuadrado con flecha) en la barra del navegador.
-3. Elegí **"Agregar a pantalla de inicio"** y confirmá.
-4. La app abre a pantalla completa desde el icono (el botón "Instalar" de la app muestra estos pasos).
+2. Tocá el botón **Compartir** → **"Agregar a pantalla de inicio"** y confirmá.
+3. La app abre a pantalla completa desde el icono.
 
-### Actualizaciones
+### Actualizaciones y uso offline
 
-- La app **detecta automáticamente** una nueva versión cuando la abrís y estás en línea.
-- Aparece un aviso **"Nueva versión disponible"** con un botón **Actualizar**.
-- Al tocarlo, la app recarga y queda en la versión más reciente. Podés ignorarlo y
-  seguir trabajando; se te volverá a ofrecer la próxima vez.
-- Los datos nunca se pierden: se guardan localmente en el dispositivo (IndexedDB).
-
-### Uso offline
-
-- Una vez cargada, la app **funciona completamente sin conexión**.
-- Podés crear, editar y consultar casos aunque no haya internet.
-- Cuando vuelvas a tener conexión, la app se sincroniza con la última versión.
-- El banner de estado muestra si estás **en línea / sin conexión**.
+- La app detecta automáticamente una nueva versión y ofrece **"Nueva versión disponible"** con botón **Actualizar**.
+- Podés ignorarlo y seguir trabajando; se vuelve a ofrecer la próxima vez.
+- Los datos nunca se pierden: se guardan localmente (IndexedDB).
+- Una vez cargada, la app **funciona completamente sin conexión**. El banner de estado muestra si estás en línea / sin conexión.
 
 ### Shortcuts (íconos de acción rápida)
 
-Al instalar la app en Android se agregan accesos directos de acción:
-- **Panel principal**
-- **Nuevo caso**
+Al instalar en Android se agregan accesos directos: **Panel principal** y **Nuevo caso**.
 
 ---
 
@@ -329,7 +241,6 @@ Al instalar la app en Android se agregan accesos directos de acción:
 
 ```bash
 npm run build
-# Subí el repo a GitHub y conectalo en Vercel
 # Build command: npm run build
 # Output directory: build
 # Framework preset: Create React App
@@ -344,18 +255,17 @@ npm run build
 # SPA fallback: /*  →  /index.html
 ```
 
-### Servidor propio (Nginx / Caddy / cualquier host estático)
+### Servidor propio (Nginx / Caddy / host estático)
 
 ```bash
 npm run build
 # Subí el contenido de /build
 ```
 
-**Importante para que la PWA funcione:**
-- Servir por **HTTPS** (o localhost) — es obligatorio para service workers.
-- Configurar el servidor para que `asset-manifest.json` y `sw.js` no se cacheaden
-  de forma agresiva (`Cache-Control: no-cache`).
-- Para Vercel/Netlify no hace falta nada extra: ya manejan esto por defecto.
+**Importante para la PWA:**
+- Servir por **HTTPS** (o localhost) — obligatorio para service workers.
+- Configurar el servidor para que `asset-manifest.json` y `sw.js` no se cacheaden de forma agresiva (`Cache-Control: no-cache`).
+- Para Vercel/Netlify no hace falta nada extra.
 
 ### Probar localmente
 
@@ -366,3 +276,10 @@ npx serve -s build      # o: npm run preview
 ```
 
 El service worker solo se activa en el build de producción (`npm run build`).
+
+---
+
+## Documentación
+
+- **Changelog**: todas las novedades desde 1.6.0 en adelante en `src/docs/CHANGELOG.md` (y su copia `public/docs/CHANGELOG.md`).
+- **Contexto técnico del proyecto**: `PROJECT_CONTEXT.md` (arquitectura, comandos, gestión de datos y versiones).
