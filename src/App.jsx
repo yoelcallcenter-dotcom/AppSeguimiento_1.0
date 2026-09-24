@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import {
-  Search,
   Plus,
   Briefcase,
   LayoutGrid,
@@ -14,8 +13,11 @@ import {
   Activity,
   AlertCircle,
   UserCircle2,
-  Download,
+  FileSpreadsheet,
   FilePlus,
+  Filter,
+  RotateCcw,
+  X,
 } from "lucide-react";
 
 // Constants
@@ -38,7 +40,12 @@ import {
 import { FontSizeProvider } from "./context/FontSizeContext";
 import { TypographyProvider } from "./context/TypographyContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { FiltersProvider, useFilters } from "./context/FiltersContext";
+import {
+  FiltersProvider,
+  useFilters,
+  aplicarFiltroGlobal,
+  normalizarValorFiltro,
+} from "./context/FiltersContext";
 import { I18nProvider, useI18n } from "./context/I18nContext";
 import { UXProvider } from "./context/UXContext";
 import { getDefaultCategories } from "./features/dashboard/metricsEngine";
@@ -48,12 +55,14 @@ import { useCases } from "./hooks/useCases";
 import { useDebounce } from "./hooks/useDebounce";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useViewTransition } from "./hooks/useViewTransition";
+import { useModalStack } from "./hooks/useModalStack";
 
 import { recordGoalAction, pushLastCase } from "./features/productivity/productivityStore";
 
 // Utils
 import { casoEnMes, getAvailableMonthsConReportes } from "./utils/dateFilters";
 import { casoCoincide } from "./utils/searchEngine";
+import { aplicarQuickFilter } from "./utils/filtrarQuickFilter";
 import { trackEvent, evaluate } from "./utils/behaviorEngine";
 import { notificationManager } from "./core/notifications/notificationManager";
 import { soundSystem } from "./core/notifications/soundSystem";
@@ -110,8 +119,10 @@ function celebrarLogroSiCorresponde(casos, caso) {
 
 // Components - Common
 import { Btn } from "./components/common/Btn";
+import { FilterChip } from "./components/common/filters";
 import { BtnOutline } from "./components/common/BtnOutline";
 import { TextInput } from "./components/common/TextInput";
+import { SearchInput } from "./components/common/SearchInput";
 import { Spinner } from "./components/common/Spinner";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { OverlayPanel } from "./components/common/OverlayPanel";
@@ -143,8 +154,6 @@ import { formatCita } from "./utils/citaParser";
 const KanbanView = lazy(() => import("./components/kanban/KanbanView").then((m) => ({ default: m.KanbanView })));
 const TablaView = lazy(() => import("./components/tabla/TablaView").then((m) => ({ default: m.TablaView })));
 const ReportesView = lazy(() => import("./components/reportes/ReportesView").then((m) => ({ default: m.ReportesView })));
-const GlobalStatsHeader = lazy(() => import("./components/common/GlobalStatsHeader").then((m) => ({ default: m.GlobalStatsHeader })));
-
 const UtilesView = lazy(() => import("./components/utiles/UtilesView").then((m) => ({ default: m.UtilesView })));
 const ConfiguracionView = lazy(() => import("./components/configuracion/ConfiguracionView").then((m) => ({ default: m.ConfiguracionView })));
 const OperatorView = lazy(() => import("./features/operator/OperatorView").then((m) => ({ default: m.OperatorView })));
@@ -158,6 +167,7 @@ import { HelpProvider } from "./help";
 const VerCasoModal = lazy(() => import("./components/modales/VerCasoModal").then((m) => ({ default: m.VerCasoModal })));
 const CasoEditModal = lazy(() => import("./components/modales/CasoEditModal").then((m) => ({ default: m.CasoEditModal })));
 const ReporteRapidoModal = lazy(() => import("./components/modales/ReporteRapidoModal").then((m) => ({ default: m.ReporteRapidoModal })));
+const FilterModal = lazy(() => import("./features/filtros/FilterModal").then((m) => ({ default: m.FilterModal })));
 
 // Components - Overlays (lazy)
 const HelpPanel = lazy(() => import("./components/ayuda/HelpPanel"));
@@ -284,6 +294,9 @@ function AppContent() {
     setSearchQuery,
     quickFilter,
     setQuickFilter,
+    filtroGlobal,
+    setFiltroGlobal,
+    resetFiltroGlobal,
   } = useFilters();
 
   const { showView, classNameFor } = useViewTransition(selectedView);
@@ -329,14 +342,19 @@ function AppContent() {
   const [modalCaso, setModalCaso] = useState(null);
   const [modalReporte, setModalReporte] = useState(false);
   const [casoReporteRapido, setCasoReporteRapido] = useState(null);
+  const [estadoReporteRapido, setEstadoReporteRapido] = useState(null);
   const [modalComentarios, setModalComentarios] = useState(null);
   const [verCaso, setVerCaso] = useState(null);
   const [casosSeleccionados, setCasosSeleccionados] = useState([]);
   const [overlayOpen, setOverlayOpen] = useState(null);
+  // Pila de modales (1.8.1): Editar y Reporte se apilan sobre VerCaso sin desmontarlo.
+  const modalStack = useModalStack({ verCaso, modalCaso, modalReporte });
   const [showCalendar, setShowCalendar] = useState(false);
   const [showBlocNotas, setShowBlocNotas] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [pendingNoteId, setPendingNoteId] = useState(null);
+  const [pendingEventId, setPendingEventId] = useState(null);
   // Deshacer: snapshot previo de casos para revertir la última mutación.
   const [undoState, setUndoState] = useState(null);
   // Navegación contextual: pila de contextos para breadcrumb/back.
@@ -350,12 +368,24 @@ function AppContent() {
 
   // Callbacks estables para GlobalSearch
   const handleGlobalSearchSelectCase = useCallback((id) => {
-    const c = casos.find((c) => c.id === id);
+    const c = casos.find((c) => String(c.id) === String(id));
     if (c) setVerCaso(c);
   }, [casos]);
 
-  const handleGlobalSearchSelectNote = useCallback(() => setShowBlocNotas(true), []);
-  const handleGlobalSearchSelectEvent = useCallback(() => setShowCalendar(true), []);
+  const handleGlobalSearchSelectNote = useCallback((noteId) => {
+    setPendingNoteId(noteId);
+    setShowBlocNotas(true);
+    setVerCaso(null);
+  }, []);
+
+  const handleGlobalSearchSelectEvent = useCallback((eventId) => {
+    setPendingEventId(eventId);
+    setShowCalendar(true);
+  }, []);
+
+  const handleGlobalSearchSelectEntity = useCallback(() => {
+    setSelectedView('utiles');
+  }, []);
 
   const pushUndo = useCallback((label) => {
     setUndoState({ prevCasos: casos, label, ts: Date.now() });
@@ -562,51 +592,70 @@ function AppContent() {
       filtered = filtered.filter((c) => (c.fecha || '').slice(0, 10) === hoy);
     }
 
-    // Filtro rápido de drill-down desde el dashboard (estado/estudio/provincia/grupo).
-    if (quickFilter && quickFilter.tipo && quickFilter.valor) {
-      const qv = String(quickFilter.valor).trim().toUpperCase();
-      if (quickFilter.tipo === "grupo") {
-        switch (qv) {
-          case "ACTIVOS":
-            filtered = filtered.filter((c) => !catsFiltro.lost.includes(c.estado) && !catsFiltro.success.includes(c.estado));
-            break;
-          case "CERRADOS":
-            filtered = filtered.filter((c) => catsFiltro.lost.includes(c.estado) || catsFiltro.success.includes(c.estado));
-            break;
-          case "FIRMAS":
-            filtered = filtered.filter((c) => catsFiltro.success.includes(c.estado));
-            break;
-          case "PERDIDOS":
-            filtered = filtered.filter((c) => catsFiltro.lost.includes(c.estado));
-            break;
-          case "SINRESPUESTA":
-            filtered = filtered.filter((c) => catsFiltro.pending.includes(c.estado));
-            break;
-          case "SINREPORTE":
-            filtered = filtered.filter((c) => !c.reporteHistory || c.reporteHistory.length === 0);
-            break;
-          case "SINASIGNACION":
-            filtered = filtered.filter((c) => !(c.estudioJuridico || '').trim());
-            break;
-          default:
-            break;
-        }
-      } else if (quickFilter.tipo === "sinReporte") {
-        filtered = filtered.filter((c) => !c.reporteHistory || c.reporteHistory.length === 0);
-      } else {
-        filtered = filtered.filter((c) =>
-          (c[quickFilter.tipo] || '').toString().trim().toUpperCase() === qv
-        );
-      }
-    }
-
     return filtered;
-  }, [casos, selectedMonth, selectedYear, selectedDays, config.busquedaFiltro, catsFiltro, quickFilter]);
+  }, [casos, selectedMonth, selectedYear, selectedDays, config.busquedaFiltro, catsFiltro]);
+
+  // Casos del alcance actual (mes + día + busquedaFiltro) SIN el quickFilter:
+  // base para la Pipeline Bar, que debe conservar todos los estados visibles
+  // aunque el listado ya esté filtrado por estados (multi-selección).
+  const casosScope = casosFiltradosPorMes;
+
+  const casosQuickFiltrados = useMemo(
+    () => aplicarQuickFilter(casosFiltradosPorMes, quickFilter, catsFiltro),
+    [casosFiltradosPorMes, quickFilter, catsFiltro]
+  );
 
   const casosFiltrados = useMemo(() => {
-    if (!debouncedQuery.trim()) return casosFiltradosPorMes;
-    return casosFiltradosPorMes.filter((c) => casoCoincide(c, debouncedQuery));
-  }, [casosFiltradosPorMes, debouncedQuery]);
+    if (!debouncedQuery.trim()) return casosQuickFiltrados;
+    return casosQuickFiltrados.filter((c) => casoCoincide(c, debouncedQuery));
+  }, [casosQuickFiltrados, debouncedQuery]);
+
+  // 1.8.7 (#3-7): filtro global con modal — capa única aplicada UNA vez sobre
+  // casosFiltrados; todas las vistas (Dashboard/Tabla/Reportes/Kanban/MiEspacio)
+  // lo heredan por composición sin tocar su pipeline interno.
+  const casosGlobales = useMemo(
+    () => aplicarFiltroGlobal(casosFiltrados, filtroGlobal),
+    [casosFiltrados, filtroGlobal]
+  );
+
+  const filtrosDetalle = useMemo(() => {
+    if (!filtroGlobal) return [];
+    const labels = {
+      estado: "Estado",
+      aseguradora: "Aseguradora",
+      localidad: "Localidad",
+      estudio: "Estudio",
+      provincia: "Provincia",
+      tipo: "Tipo",
+      origen: "Origen",
+    };
+    const activos = Object.entries(labels).flatMap(([k, label]) =>
+      normalizarValorFiltro(filtroGlobal[k])
+        .filter((v) => String(v).trim())
+        .map((v) => ({
+          key: `${k}:${v}`,
+          label,
+          valor: v,
+          limpiar: () =>
+            setFiltroGlobal({
+              ...filtroGlobal,
+              [k]: normalizarValorFiltro(filtroGlobal[k]).filter((x) => x !== v),
+            }),
+        }))
+    );
+    const tel = (filtroGlobal.telefono || "").trim();
+    if (tel) {
+      activos.push({
+        key: "telefono",
+        label: "Teléfono",
+        valor: tel,
+        limpiar: () => setFiltroGlobal({ ...filtroGlobal, telefono: "" }),
+      });
+    }
+    return activos;
+  }, [filtroGlobal, setFiltroGlobal]);
+
+  const filtrosActivos = filtrosDetalle.length > 0;
 
   // Casos del mes seleccionado SIN el filtro de día: sirve para que el selector
   // de día siga mostrando todos los días con casos aunque ya se haya elegido uno.
@@ -928,6 +977,7 @@ function AppContent() {
 
   const handleReporteRapido = useCallback((caso) => {
     setCasoReporteRapido(caso);
+    setEstadoReporteRapido(null);
     setModalReporte(true);
   }, []);
 
@@ -1181,6 +1231,44 @@ function AppContent() {
               <InstallButton />
               <NotificationBell />
               <button
+                onClick={() => setShowFilterModal(true)}
+                className="relative p-2.5 rounded-md transition-colors hover:bg-white/5"
+                style={{
+                  color:
+                    showFilterModal || filtrosActivos
+                      ? "var(--color-accent)"
+                      : "var(--color-text-muted)",
+                }}
+                aria-label="Filtros globales"
+                title={filtrosActivos ? "Filtros globales (filtro activo)" : "Filtros globales"}
+                data-tour="filtros-globales"
+              >
+                <Filter size={20} />
+                {filtrosActivos && (
+                  <span
+                    className="absolute top-1 right-1 w-2 h-2 rounded-full"
+                    style={{
+                      backgroundColor: "var(--color-danger)",
+                      border: "1px solid var(--color-bg)",
+                    }}
+                  />
+                )}
+              </button>
+              <button
+                onClick={() => setShowCsvModal(true)}
+                className="p-2.5 rounded-md transition-colors hover:bg-white/5"
+                style={{
+                  color: showCsvModal
+                    ? "var(--color-accent)"
+                    : "var(--color-text-muted)",
+                }}
+                aria-label="Exportar CSV"
+                title="Exportar casos a CSV"
+                data-tour="exportar-csv"
+              >
+                <FileSpreadsheet size={20} />
+              </button>
+              <button
                 onClick={() => setShowCalendar(true)}
                 className="p-2.5 rounded-md transition-colors hover:bg-white/5"
                 style={{
@@ -1242,21 +1330,41 @@ function AppContent() {
           </div>
 
           <div className="flex items-center gap-2 pb-2.5 flex-wrap">
-            <div className="relative flex-1 min-w-[160px]">
-              <Search
-                size={14}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2"
-                style={{ color: "var(--color-text-muted)" }}
-              />
-              <TextInput
+            <div className="flex-1 min-w-[160px]">
+              <SearchInput
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar por nombre, teléfono, #etiqueta o @comentario..."
-                className="pl-8"
                 style={{ width: "100%" }}
                 data-tour="buscar"
               />
             </div>
+            {filtrosActivos && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {filtrosDetalle.map((f) => (
+                  <FilterChip
+                    key={f.key}
+                    active
+                    onClick={f.limpiar}
+                    title={`Quitar filtro: ${f.label} = ${f.valor}`}
+                  >
+                    {f.label}: {f.valor}
+                    <X size={10} />
+                  </FilterChip>
+                ))}
+                <FilterChip
+                  onClick={resetFiltroGlobal}
+                  title="Limpiar todos los filtros"
+                  style={{
+                    color: "var(--color-danger)",
+                    border: "1px solid var(--color-danger)",
+                  }}
+                >
+                  <RotateCcw size={10} />
+                  Limpiar
+                </FilterChip>
+              </div>
+            )}
             <div className="flex items-center gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5">
               <Btn
                 onClick={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
@@ -1266,27 +1374,17 @@ function AppContent() {
               >
                 Caso
               </Btn>
-              <button
+              <Btn
                 onClick={() => setModalReporte(true)}
                 onMouseDown={(e) => e.preventDefault()}
+                variant="outline"
+                icon={ClipboardList}
+                size="sm"
                 data-tour="cargar-reporte"
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow text-[var(--color-text-muted)] hover:opacity-70"
               >
-                <ClipboardList size={13} />
                 Reporte
-              </button>
+              </Btn>
             </div>
-            <div className="w-px h-5 self-center mx-1" style={{ backgroundColor: "var(--color-border)" }} />
-            <Btn
-              onClick={() => setShowCsvModal(true)}
-              icon={Download}
-              size="sm"
-              color="var(--color-success)"
-              textColor="#ffffff"
-              data-tour="exportar-csv"
-            >
-              Exportar
-            </Btn>
           </div>
 
           <ViewTabs tabs={tabs} selectedView={selectedView} onSelect={setSelectedView} />
@@ -1298,10 +1396,9 @@ function AppContent() {
         <SystemStatusBanner />
         {showView("dashboard") && (
           <div key="view-dashboard" className={classNameFor("dashboard")}>
-            <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <Dashboard
               config={config}
-              casos={casosFiltrados}
+              casos={casosGlobales}
               casosMes={casosDelMes}
               mesesDisponibles={mesesDisponibles}
               onVerCaso={handleVerCaso}
@@ -1313,9 +1410,9 @@ function AppContent() {
         )}
         {showView("kanban") && (
           <div key="view-kanban" className={classNameFor("kanban")}>
-            <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <KanbanView
-              casos={casosFiltrados}
+              casos={casosGlobales}
+              casosBase={casosScope}
               casosMes={casosDelMes}
               config={config}
               onOpen={setVerCaso}
@@ -1327,9 +1424,9 @@ function AppContent() {
         )}
         {showView("tabla") && (
           <div key="view-tabla" className={classNameFor("tabla")}>
-            <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <TablaView
-              casos={casosFiltrados}
+              casos={casosGlobales}
+              casosBase={casosScope}
               casosMes={casosDelMes}
               config={config}
               onOpen={setVerCaso}
@@ -1341,12 +1438,14 @@ function AppContent() {
         )}
         {showView("reportes") && (
           <div key="view-reportes" className={classNameFor("reportes")}>
-            <GlobalStatsHeader casos={casosFiltrados} quickFilter={quickFilter} onClearQuickFilter={() => setQuickFilter(null)} />
             <ReportesView
-              casos={casosFiltrados}
+              casos={casosGlobales}
+              casosBase={casosScope}
               casosMes={casosDelMes}
               onVerCaso={setVerCaso}
               mesesDisponibles={mesesDisponibles}
+              setConfig={setConfig}
+              showToast={showToast}
             />
           </div>
         )}
@@ -1354,11 +1453,17 @@ function AppContent() {
           <div key="view-mi-espacio" className={classNameFor("mi-espacio")}>
             <OperatorView
               config={config}
-              casos={casosFiltrados}
+              casos={casosGlobales}
               showToast={showToast}
               onChangeView={setSelectedView}
               onVerCaso={(c) => setVerCaso(c)}
               onNavigateToEvent={(e) => setShowCalendar(true)}
+              onNuevoCaso={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
+              onNuevoReporte={() => { setCasoReporteRapido(null); setEstadoReporteRapido(null); setModalReporte(true); }}
+              onNuevaNota={() => setShowBlocNotas(true)}
+              onNuevoEvento={() => setShowCalendar(true)}
+              onBuscar={() => useAppStore.getState().setUIState({ globalSearchOpen: true })}
+              onExportar={() => setShowCsvModal(true)}
             />
           </div>
         )}
@@ -1400,17 +1505,19 @@ function AppContent() {
       {showCalendar && (
         <OverlayPanel
           isOpen={showCalendar}
-          onClose={() => setShowCalendar(false)}
+          onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
           title="Calendario de Citas"
           icon={CalendarIcon}
           fullscreen
         >
           <CalendarView
             showToast={showToast}
-            onClose={() => setShowCalendar(false)}
+            onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
             casos={casos}
             config={config}
             onVerCaso={(c) => { setVerCaso(c); }}
+            initialEventId={pendingEventId}
+            onInitialEventConsumed={() => setPendingEventId(null)}
           />
         </OverlayPanel>
       )}
@@ -1427,6 +1534,7 @@ function AppContent() {
           <NotesView
             showToast={showToast}
             casos={casos}
+            config={config}
             selectedNoteId={pendingNoteId}
             onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
             onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
@@ -1507,15 +1615,15 @@ function AppContent() {
           onClose={() => { setVerCaso(null); clearNavigation(); }}
           onEdit={(caso) => {
             setModalCaso(caso);
-            setVerCaso(null);
-            clearNavigation();
           }}
+          covered={modalStack.stacked}
           onComentarios={actualizarCaso}
+          onActualizarCaso={actualizarCaso}
           onDelete={(id) => { eliminarCaso(id); clearNavigation(); }}
            onNuevaNota={handleNuevaNota}
            onNuevoEvento={handleNuevoEvento}
-           onReporteRapido={handleReporteRapido}
-           onNavigateToNote={handleNavigateToNote}
+            onReporteRapido={handleReporteRapido}
+            onNavigateToNote={handleNavigateToNote}
            onNavigateToEvent={(eventId) => { setShowCalendar(true); }}
            onNavigateInsurer={(name) => navigateContextual('insurer', name, { name })}
            onNavigateLawFirm={(name) => navigateContextual('lawFirm', name, { name })}
@@ -1550,7 +1658,14 @@ function AppContent() {
           config={config}
           onConfigChange={setConfig}
           onSave={guardarCaso}
-          onDelete={eliminarCaso}
+          onDelete={(id) => {
+            eliminarCaso(id);
+            if (verCaso && String(verCaso.id) === String(id)) {
+              setVerCaso(null);
+              clearNavigation();
+            }
+          }}
+          stacked={modalStack.stacked}
           onClose={() => setModalCaso(null)}
           onNuevaNota={handleNuevaNota}
           onNuevoEvento={handleNuevoEvento}
@@ -1562,9 +1677,11 @@ function AppContent() {
         <ReporteRapidoModal
           casos={casos}
           casoInicial={casoReporteRapido}
+          estadoInicial={estadoReporteRapido}
           config={config}
           onGuardar={guardarReporteRapido}
-          onClose={() => { setModalReporte(false); setCasoReporteRapido(null); }}
+          onClose={() => { setModalReporte(false); setCasoReporteRapido(null); setEstadoReporteRapido(null); }}
+          stacked={modalStack.stacked}
           showToast={showToast}
         />
       )}
@@ -1574,10 +1691,24 @@ function AppContent() {
         onSelectCase={handleGlobalSearchSelectCase}
         onSelectNote={handleGlobalSearchSelectNote}
         onSelectEvent={handleGlobalSearchSelectEvent}
+        onSelectEntity={handleGlobalSearchSelectEntity}
         condicionales={condicionales}
         aseguradoras={aseguradorasFromCases}
         mapeo={mapeo}
       />
+
+      <Suspense fallback={null}>
+        <FilterModal
+          isOpen={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          casos={casos}
+          total={casosGlobales.length}
+          filtroGlobal={filtroGlobal}
+          onChange={setFiltroGlobal}
+          onReset={resetFiltroGlobal}
+          showToast={showToast}
+        />
+      </Suspense>
 
       <CsvExportModal
         open={showCsvModal}

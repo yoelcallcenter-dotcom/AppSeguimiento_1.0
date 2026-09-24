@@ -1,23 +1,25 @@
 import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
-import { UserCircle2, CalendarDays, Target, KeyRound, Lightbulb, Sun, ArrowRight, Clock, CalendarClock, Sparkles, MessagesSquare, Trophy, Zap, FileDown } from "lucide-react";
+import { UserCircle2, CalendarDays, Target, KeyRound, Sun, ArrowRight, FileDown } from "lucide-react";
 import useCelebrationStore from "../../core/celebrations/celebrationStore";
 import { useOperatorState } from "./useOperatorState";
 import { getDayState, getDailyGoalProgress, getMonthlyGoalProgress, getRequiredDailyPace, getEffectiveWorkDays, getAvailabilitySummary, buildPersonalSuggestions, getPerEffectiveDayMetrics } from "./operatorMetrics";
-import { DAY_STATES, DAY_LABELS } from "./operatorDefaults";
+import { DAY_STATES } from "./operatorDefaults";
 import { getDailyGreeting, buildEncouragementMessage } from "./operatorMessages";
 import { ProfileCard } from "./components/ProfileCard";
-import { AvailabilityCard } from "./components/AvailabilityCard";
+import { AvailabilityCard } from "./components/availability";
 import { GoalsSection } from "./components/GoalsSection";
 import { CredentialsSection } from "./components/CredentialsSection";
-import { MiJornadaView } from "./MiJornadaView";
+import { TodayCenter } from "./TodayCenter";
 // Optimización 1.6.6: PdfExportModal se carga bajo demanda (solo al exportar).
 const PdfExportModal = lazy(() =>
   import("./PdfExportModal").then((m) => ({ default: m.PdfExportModal }))
 );
 import { readOperatorCases } from "./operatorStore";
 import useAppStore from "../../core/store/useAppStore";
+import { NavDock } from "../../components/common/UINav";
+import { ConfigTip } from "../../components/configuracion/ui";
 
-export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso, onNavigateToEvent }) {
+export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso, onNavigateToEvent, onNuevoCaso, onNuevoReporte, onNuevaNota, onNuevoEvento, onBuscar, onExportar }) {
   const state = useOperatorState();
   const { profile, availability, goals, settings } = state;
   const notes = useAppStore((s) => s.notes);
@@ -49,7 +51,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
   const monthly = getMonthlyGoalProgress(goals, allCases, year, month);
   const pace = getRequiredDailyPace(goals, allCases, year, month, availability, profile.workingDays, todayISO);
   const effective = getEffectiveWorkDays(availability, year, month, profile.workingDays);
-  const availabilitySummary = getAvailabilitySummary(availability, year, month);
+  const availabilitySummary = getAvailabilitySummary(availability, year, month, profile.workingDays);
   const suggestions = buildPersonalSuggestions({ goals, cases: allCases, availability, profile, year, month, todayISO, settings });
   const perDay = getPerEffectiveDayMetrics(allCases, availability, year, month, profile.workingDays);
 
@@ -122,20 +124,18 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
   const metaDiariaCumplida = (daily.cases.enabled && daily.cases.met) && (daily.reports.enabled && daily.reports.met) && (!daily.firmas?.enabled || daily.firmas.met);
 
   const sections = [
-    { key: "hoy", label: "Mi Jornada", icon: Sun },
+    { key: "hoy", label: "Hoy", icon: Sun },
     { key: "perfil", label: "Mi perfil", icon: UserCircle2 },
     { key: "disponibilidad", label: "Mi disponibilidad", icon: CalendarDays },
     { key: "metas", label: "Mis metas", icon: Target },
     { key: "accesos", label: "Accesos personales", icon: KeyRound },
   ];
 
-  const dayLabel = DAY_LABELS[now.getDay()];
-
   return (
     <div className="space-y-4">
       {/* ENCABEZADO */}
       <div
-        className="rounded-lg p-4"
+        className="rounded-xl p-4"
         style={{
           backgroundColor: "var(--color-surface)",
           border: "1px solid var(--color-border)",
@@ -158,7 +158,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
               Mi Espacio
             </div>
             <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-              Tu jornada, tus objetivos y tu organización personal.
+              Hoy — tu centro de trabajo diario.
             </div>
           </div>
           {dayState && (
@@ -187,121 +187,34 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
             Exportar PDF
           </button>
         </div>
-
-        <div
-          className="mt-3 rounded-md px-3 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1"
-          style={{ backgroundColor: "var(--color-accent)11", border: "1px solid var(--color-accent)44" }}
-        >
-          <span className="flex items-center gap-2 min-w-0">
-            <Sparkles size={14} className="flex-shrink-0" style={{ color: "var(--color-accent)" }} />
-            <span className="text-sm font-bold truncate" style={{ color: "var(--color-accent)" }}>
-              {greeting.text}
-            </span>
-          </span>
-          <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-            {dayLabel} {now.getDate()} de {now.toLocaleDateString("es-AR", { month: "long" })} · {String(now.getHours()).padStart(2, "0")}:{String(now.getMinutes()).padStart(2, "0")} hs
-          </span>
-        </div>
-
-        {(metaDiariaCumplida || encouragement) && (
-          <div className="mt-2 space-y-2">
-            {metaDiariaCumplida && (
-              <div
-                className="rounded-md px-3 py-2 flex items-center gap-2 animate-fade-in"
-                style={{ backgroundColor: "var(--color-success)11", border: "1px solid var(--color-success)44" }}
-                role="status"
-              >
-                <Trophy size={15} className="flex-shrink-0" style={{ color: "var(--color-success)" }} />
-                <div className="text-xs font-bold" style={{ color: "var(--color-success)" }}>
-                  ¡Meta diaria cumplida! Completaste tus objetivos de casos y reportes de hoy.
-                </div>
-              </div>
-            )}
-            {encouragement && (
-              <div
-                className="rounded-md px-3 py-2 flex items-start gap-2 animate-fade-in"
-                style={{ backgroundColor: "var(--color-warning)11", border: "1px solid var(--color-warning)44" }}
-                role="status"
-              >
-                <MessagesSquare size={15} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-warning)" }} />
-                <div className="text-xs font-semibold" style={{ color: "var(--color-warning)" }}>
-                  {encouragement.text}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div
-          className="mt-3 pt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs"
-          style={{ borderTop: "1px solid var(--color-border)" }}
-        >
-          {profile.workSchedule?.start && (
-            <span className="flex items-center gap-1.5" style={{ color: "var(--color-text)" }}>
-              <CalendarClock size={13} color="var(--color-accent)" />
-              Jornada: {profile.workSchedule.start} — {profile.workSchedule.end || "..."}
-            </span>
-          )}
-          <span className="flex items-center gap-1.5" style={{ color: "var(--color-text)" }}>
-            <Target size={13} color="var(--color-accent)" />
-            Meta diaria: {daily.cases.enabled ? `${daily.cases.current}/${daily.cases.target}` : "—"} ·{" "}
-            {daily.reports.enabled ? `${daily.reports.current}/${daily.reports.target}` : "—"} ·{" "}
-            {daily.firmas?.enabled ? `${daily.firmas.current}/${daily.firmas.target}` : "—"}
-          </span>
-          <span className="flex items-center gap-1.5" style={{ color: "var(--color-text)" }}>
-            <CalendarDays size={13} color="var(--color-accent)" />
-            {effective.effective} / {effective.scheduled} días efectivos · {availabilitySummary.totalDays} ausencias
-          </span>
-        </div>
       </div>
 
       {/* SUGERENCIAS */}
       {suggestions.length > 0 && (
-        <div
-          className="rounded-lg p-3 space-y-2"
-          style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)" }}
-        >
-          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--color-accent)" }}>
-            <Lightbulb size={14} /> Sugerencias para vos
+        <ConfigTip title="Sugerencias para vos">
+          <div className="space-y-1.5">
+            {suggestions.map((s) => (
+              <div key={s.id} className="flex items-start gap-2 text-xs" style={{ color: "var(--color-text)" }}>
+                <ArrowRight size={12} className="mt-0.5 flex-shrink-0" style={{ color: suggestionColor(s.type) }} />
+                <span>{s.text}</span>
+              </div>
+            ))}
           </div>
-          {suggestions.map((s) => (
-            <div key={s.id} className="flex items-start gap-2 text-xs" style={{ color: "var(--color-text)" }}>
-              <ArrowRight size={12} className="mt-0.5 flex-shrink-0" style={{ color: suggestionColor(s.type) }} />
-              <span>{s.text}</span>
-            </div>
-          ))}
-        </div>
+        </ConfigTip>
       )}
 
       {/* NAVEGACIÓN DE SECCIONES */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {sections.map((s) => {
-          const active = activeSection === s.key;
-          return (
-            <button
-              key={s.key}
-              onClick={() => setActiveSection(s.key)}
-              className={`flex flex-col items-center gap-1.5 text-xs font-semibold px-3 py-3 rounded-xl transition-shadow transition-transform transition-colors ${
-                active
-                  ? "text-[var(--color-text-on-accent)] shadow-md scale-[1.03]"
-                  : "text-[var(--color-text-muted)] hover:opacity-80 hover:scale-[1.02]"
-              }`}
-              style={{
-                backgroundColor: active ? "var(--color-accent)" : "var(--color-surface)",
-                border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
-              }}
-            >
-              <s.icon size={18} strokeWidth={2} style={{ color: active ? "var(--color-text-on-accent)" : "var(--color-accent)" }} />
-              <span>{s.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <NavDock
+        items={sections.map((s) => ({ id: s.key, label: s.label, icon: s.icon }))}
+        active={activeSection}
+        onSelect={setActiveSection}
+        ariaLabel="Secciones de Mi Espacio"
+      />
 
       {/* CONTENIDO POR SECCIÓN */}
       <div className="space-y-4">
         {activeSection === "hoy" && (
-          <MiJornadaView
+          <TodayCenter
             profile={profile}
             availability={availability}
             goals={goals}
@@ -313,7 +226,6 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
             monthly={monthly}
             pace={pace}
             effective={effective}
-            perDay={perDay}
             todayISO={todayISO}
             now={now}
             onChangeView={onChangeView}
@@ -321,8 +233,20 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
             showPace={settings.showPace !== false}
             settings={settings}
             showInsight={config?.insightEnJornada !== false}
+            greeting={greeting}
+            encouragement={encouragement}
+            metaDiariaCumplida={metaDiariaCumplida}
+            credentials={state.credentials}
             onVerCaso={onVerCaso}
             onNavigateToEvent={onNavigateToEvent}
+            onNavigateMetas={() => setActiveSection("metas")}
+            onNavigateAccesos={() => setActiveSection("accesos")}
+            onNuevoCaso={onNuevoCaso}
+            onNuevoReporte={onNuevoReporte}
+            onNuevaNota={onNuevaNota}
+            onNuevoEvento={onNuevoEvento}
+            onBuscar={onBuscar}
+            onExportar={onExportar}
           />
         )}
         {activeSection === "perfil" && (
@@ -365,6 +289,7 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
           onClose={() => setShowPdfModal(false)}
           config={config}
           casos={allCases}
+          eventos={events}
           showToast={showToast}
         />
       </Suspense>

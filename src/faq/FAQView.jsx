@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Search, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { SearchInput } from "../components/common/SearchInput";
 import { FAQ_CATEGORIES } from "./faqData";
 
 export function FAQView({ showToast }) {
@@ -40,14 +41,11 @@ export function FAQView({ showToast }) {
         </span>
       </div>
 
-      <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
-        <input
-          type="text"
+      <div>
+        <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar en preguntas frecuentes..."
-          className="w-full input-optimized pl-8"
         />
       </div>
 

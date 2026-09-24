@@ -35,7 +35,7 @@ export default React.memo(function ProvinceBars({ data, onDrill, desc }) {
               <XAxis dataKey="key" tick={CHART_TICK} tickLine={false} axisLine={false} interval={0} angle={-25} textAnchor="end" height={60} />
               <YAxis tick={CHART_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
               <Tooltip
-                content={<ChartTooltip formatter={(value) => [`${value} casos`, 'Casos']} />}
+                content={<ChartTooltip formatter={(value) => [value, '']} />}
                 cursor={{ fill: CURSOR_FILL }}
               />
               <Bar

@@ -8,6 +8,7 @@ import { Inbox } from "lucide-react";
 import { ESTADOS } from "../../utils/constants";
 import { getEstados } from "../../utils/catalogos";
 import { casoVieneDeReporte } from "../../utils/dateFilters";
+import { SectionHeader } from "../configuracion/ui";
 import { trackEvent } from "../../utils/behaviorEngine";
 import { useFilters } from "../../context/FiltersContext";
 import useAppStore from '../../core/store/useAppStore';
@@ -115,6 +116,7 @@ const KanbanColumn = React.memo(function KanbanColumn({
 
 export function KanbanView({
   casos,
+  casosBase = [],
   casosMes,
   config,
   onOpen,
@@ -217,7 +219,7 @@ export function KanbanView({
 
   const kanbanSections = useAppStore((s) => s.kanbanSections);
   const KANBAN_SECTIONS = {
-    pipelineBar: () => casos.length > 0 && <PipelineBar casos={casos} config={config} />,
+    pipelineBar: () => casosBase.length > 0 && <PipelineBar casos={casosBase} config={config} />,
     columnas: () => (
       <div className="space-y-3">
         {estados.map((e) => {
@@ -245,6 +247,13 @@ export function KanbanView({
 
   return (
     <div>
+      <SectionHeader
+        icon={Inbox}
+        titulo="Tablero Kanban"
+        descripcion="Organizá tus casos por estado con arrastrar y soltar."
+        storageKey="kanban"
+        overlayCollapsed
+      />
       <MonthDayFilterBar mesesDisponibles={mesesDisponibles} total={casos.length} casos={casos} casosMes={casosMes} />
       {kanbanSections.map((sec) => {
         const fn = KANBAN_SECTIONS[sec];

@@ -7,6 +7,7 @@ import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString } from "../../utils/sanitize";
 import { DEFAULT_PLANTILLAS } from "../../utils/constants";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 
 export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
   const [categoria, setCategoria] = useState("Accidente Laboral");
@@ -154,11 +155,10 @@ export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
               </div>
               <div className="flex flex-col gap-1">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const texto = m.replace(/\{OPERADOR\}/g, operador);
-                    navigator.clipboard.writeText(texto).then(() => {
-                      showToast("Mensaje copiado", "success");
-                    });
+                    const ok = await copyToClipboard(texto);
+                    showToast(ok ? "Mensaje copiado" : "No se pudo copiar", ok ? "success" : "error");
                   }}
                   className="p-1 rounded hover:opacity-70 transition-opacity"
                   title="Copiar mensaje"

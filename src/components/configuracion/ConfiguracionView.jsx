@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { SectionHeader as UISectionHeader } from "./ui";
 import {
   Settings, Palette, Layout, Database, AlertTriangle, Download, Upload,
   FileSpreadsheet, FileText, Trash2, Bug, CheckCircle, XCircle,
   Globe, Bell, LayoutDashboard, Search, FileUp, Cpu, Navigation,
   ToggleLeft, Eye, EyeOff, Clock, ArrowUpDown, Tag, Mail, X,
-  GripVertical, ChevronUp, ChevronDown, BarChart3, CircleDot, MapPin, Building2,
-  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sparkles,
+  GripVertical, ChevronUp, ChevronDown, CircleDot, Lightbulb,
+  LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sun,
+  CalendarDays, ListTodo, Zap, Lock, Columns, MoreHorizontal, GitBranch,
+  ListOrdered, MessageSquare, MessagesSquare, ShieldAlert, HeartPulse, Scale, Car, FileSearch,
+  BarChart3, Building2, Filter,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -16,9 +20,16 @@ import { PersonalizacionColores } from "./PersonalizacionColores";
 import { TipografiaView } from "./TipografiaView";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
 import { getOperatorSettings, saveOperatorSettings } from "../../features/operator/operatorStore";
+import { getOrderedMiEspacioKeys, MI_ESPACIO_LABELS, DEFAULT_MI_ESPACIO_ORDER } from "../../features/operator/miEspacioConfig";
 import { getMetricDefs, getDefaultCategories, getDefaultAlerts } from '../../features/dashboard/metricsEngine';
-import { ESTADOS, TIPOS_INGRESO_SUGERIDOS } from '../../utils/constants';
-import { getEstados, getTiposIngreso } from '../../utils/catalogos';
+import {
+  DASH_TAB_MAP,
+  DASH_WIDGET_REGISTRY,
+  getOrderedDashWidgets,
+} from "../../features/dashboard/dashboardConfig";
+import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS } from '../../utils/constants';
+import { getEstados, getTiposIngreso, getTemplateCategories } from '../../utils/catalogos';
+import { getAllTemplates } from '../../features/templates/templatesStore';
 import {
   FORMATOS_FECHA, FORMATOS_TELEFONO, OPCIONES_CASOS_POR_PAGINA, COLUMNAS_DISPONIBLES,
 } from "../../utils/constants";
@@ -43,6 +54,7 @@ import {
   getBackupFrequency, setBackupFrequency, daysSinceLastBackup,
   BACKUP_FREQUENCY_OPTIONS, getJornadaBackupSchedule,
 } from "../../services/autoBackup";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 
 function formatUtilesValue(value) {
   if (value === null || value === undefined) return "";
@@ -75,6 +87,48 @@ function formatUtilesValue(value) {
     return json.length > 300 ? json.slice(0, 300) + "…" : json;
   }
   return String(value);
+}
+
+// ============ REDESIGN 1.8.4: encabezados unificados de sección ============
+const SECTION_META = {
+  general: "Preferencias del operador: nombre, formato de fecha/hora, idioma, sonidos y paginación.",
+  columnas: "Muestra u oculta las columnas de la vista Tabla y su orden.",
+  datos: "Backup completo, auto-backup, exportar/importar configuración y limpieza de datos.",
+  citas: "Ajustes del calendario y de las citas vinculadas a casos.",
+  plantillas: "Plantillas de reportes para agilizar el registro.",
+  apariencia: "Tema claro/oscuro, paletas de color y colores por estado de caso.",
+  tipografia: "Presets tipográficos y tamaño de fuente de toda la app.",
+  dashboard: "Orden de pestañas y widgets del Dashboard, Mi Espacio, Tablero, Tabla, Reportes y Útiles.",
+  notificaciones: "Canales, prioridades, sonido y agrupación de notificaciones.",
+  busqueda: "Campos indexados e historial de la búsqueda global.",
+  productividad: "Funciones personales: memoria operativa, objetivos, micro-analítica y Mi Espacio.",
+  ux: "Animaciones, microinteracciones, modo bajo consumo y confirmaciones.",
+  "dashboard-config": "Métricas visibles, widgets, categorías de estado y reglas de alerta del Dashboard.",
+  "estados-caso": "Estados del pipeline de casos y su configuración.",
+  "tipos-ingreso": "Tipos de ingreso detectados al pegar una ficha.",
+  importacion: "Importación de casos desde CSV y mapeo de columnas.",
+  diagnostico: "Autodiagnóstico, logs y estado general del sistema.",
+};
+
+function sectionMetaFor(seccion, grupos) {
+  for (const g of grupos) {
+    for (const item of g.items) {
+      if (item.id === seccion) return { grupo: g, item };
+    }
+  }
+  return { grupo: grupos[0], item: grupos[0]?.items?.[0] };
+}
+
+function SectionHeader({ seccion, grupos }) {
+  const { item } = sectionMetaFor(seccion, grupos);
+  return (
+    <UISectionHeader
+      icon={item?.icon || Settings}
+      titulo={item?.label}
+      descripcion={SECTION_META[seccion]}
+      storageKey="configuracion"
+    />
+  );
 }
 
 export function ConfiguracionView({
@@ -116,6 +170,13 @@ export function ConfiguracionView({
   useEffect(() => {
     updateContext({ currentView: "settings" });
   }, [updateContext]);
+
+  useEffect(() => {
+    if (config.idioma && !["es", "en"].includes(config.idioma)) {
+      setConfig({ ...config, idioma: "es" });
+    }
+  }, []);
+
   const [confirmFinal, setConfirmFinal] = useState(false);
   const [confirmDeleteNotes, setConfirmDeleteNotes] = useState(false);
   const [confirmDeleteEvents, setConfirmDeleteEvents] = useState(false);
@@ -256,6 +317,7 @@ export function ConfiguracionView({
         { id: "columnas", label: "Columnas", icon: Layout },
         { id: "datos", label: "Datos", icon: Database },
         { id: "citas", label: "Citas y Calendario", icon: CalendarClock },
+        { id: "plantillas", label: "Plantillas", icon: FileText },
       ],
     },
     {
@@ -286,8 +348,6 @@ export function ConfiguracionView({
     },
     {
       // Grupo fusionado (ex "Sistema" + ex "Avanzado").
-      // El id interno se mantiene como "sistema" para no romper
-      // los valores guardados en localStorage ("config-tab-activa").
       id: "sistema", label: "Avanzado", icon: Cpu,
       items: [
         { id: "ux", label: "UX/Navegación", icon: Navigation },
@@ -300,35 +360,21 @@ export function ConfiguracionView({
     },
   ];
 
-  const [grupoActivo, setGrupoActivo] = useState(() => {
-    const saved = localStorage.getItem("config-tab-activa");
-    if (saved && GRUPOS_CONFIG.some((g) => g.items.some((i) => i.id === saved))) {
-      const grupo = GRUPOS_CONFIG.find((g) => g.items.some((i) => i.id === saved));
-      return grupo.id;
-    }
-    return "general";
-  });
+  const [grupoActivo, setGrupoActivo] = useState("general");
 
-  const [seccion, setSeccion] = useState(() => {
-    return localStorage.getItem("config-tab-activa") || "general";
-  });
+  const [seccion, setSeccion] = useState("general");
 
   const cambiarGrupo = (groupId) => {
     setGrupoActivo(groupId);
     const grupo = GRUPOS_CONFIG.find((g) => g.id === groupId);
     if (grupo) {
       setSeccion(grupo.items[0].id);
-      localStorage.setItem("config-tab-activa", grupo.items[0].id);
     }
   };
 
   const cambiarSubseccion = (subId) => {
     setSeccion(subId);
-    localStorage.setItem("config-tab-activa", subId);
   };
-
-  // Aplanar para busqueda de seccion
-  const seccionesConfig = GRUPOS_CONFIG.flatMap((g) => g.items);
 
   const mesesDisponibles = getAvailableMonths(casos, "fecha");
 
@@ -1226,14 +1272,13 @@ export function ConfiguracionView({
                     Idioma
                   </label>
                   <Select
-                    value={config.idioma || "es"}
+                    value={["es", "en"].includes(config.idioma) ? config.idioma : "es"}
                     onChange={(e) =>
                       actualizarConfig("idioma", e.target.value)
                     }
                     options={[
                       { value: "es", label: "Español" },
                       { value: "en", label: "English" },
-                      { value: "pt", label: "Português" },
                     ]}
                   />
                 </div>
@@ -1326,7 +1371,7 @@ export function ConfiguracionView({
               <p>¿Tenés una sugerencia o encontraste un error? Envianos tu feedback directamente por correo.</p>
               <div className="flex items-center gap-2 mt-2">
                 <Btn onClick={() => { window.location.href = `mailto:yoelcallcenter@gmail.com?subject=${encodeURIComponent("[Feedback] " + (config.operador || "Usuario"))}&body=${encodeURIComponent("Escribe tu mensaje aqui...")}`; }} icon={Mail} size="sm" color="var(--color-accent)">Enviar sugerencia</Btn>
-                <BtnOutline onClick={() => { navigator.clipboard.writeText("yoelcallcenter@gmail.com"); showToast("Email copiado al portapapeles", "success"); }} size="sm">Copiar email</BtnOutline>
+                <BtnOutline onClick={async () => { const ok = await copyToClipboard("yoelcallcenter@gmail.com"); showToast(ok ? "Email copiado al portapapeles" : "No se pudo copiar el email", ok ? "success" : "error"); }} size="sm">Copiar email</BtnOutline>
               </div>
             </div>
           </div>
@@ -1507,7 +1552,7 @@ export function ConfiguracionView({
                   { key: "widgetMiDia", label: "Mi día" },
                   { key: "widgetLogroObjetivos", label: "Logro de Objetivos" },
                   { key: "widgetVistaMapa", label: "Mapa de casos" },
-                  { key: "insightEnJornada", label: "Insight destacado en Mi Jornada" },
+                  { key: "insightEnJornada", label: "Insight destacado en el 'Hoy'" },
                 ].map(({ key, label }) => (
                   <Toggle key={key} checked={config[key] !== false} onChange={(v) => actualizarConfig(key, v)} label={label} />
                 ))}
@@ -1588,13 +1633,26 @@ export function ConfiguracionView({
 
             <div className="config-section">
               <div className="config-section-title flex items-center gap-2">
+                <Sun size={14} color="var(--color-accent)" />
+                Mi Espacio — secciones del "Hoy"
+              </div>
+              <div className="text-[10px] mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                Arrastrá para reordenar los bloques del centro de trabajo diario
+              </div>
+              <MiEspacioOrderEditor />
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--color-border)', margin: '0.75rem 0' }} />
+
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
                 <LayoutGrid size={14} color="var(--color-accent)" />
                 Tablero (Kanban) — secciones
               </div>
               <div className="text-[10px] mb-2" style={{ color: 'var(--color-text-muted)' }}>
                 Arrastrá para reordenar las secciones del tablero Kanban
               </div>
-              <ViewSectionEditor items={kanbanSections} setItems={setKanbanSections} labels={{ pipelineBar: 'Barra de distribución', columnas: 'Columnas del tablero' }} />
+              <ViewSectionEditor items={kanbanSections} setItems={setKanbanSections} labels={{ pipelineBar: 'Barra de distribución', columnas: 'Columnas del tablero' }} iconMap={TABLERO_ICONS} />
             </div>
 
             <div className="config-section">
@@ -1605,7 +1663,7 @@ export function ConfiguracionView({
               <div className="text-[10px] mb-2" style={{ color: 'var(--color-text-muted)' }}>
                 Arrastrá para reordenar las secciones de la vista de tabla
               </div>
-              <ViewSectionEditor items={tablaSections} setItems={setTablaSections} labels={{ pipelineBar: 'Barra de distribución', tabla: 'Tabla de casos', paginacion: 'Paginación' }} />
+              <ViewSectionEditor items={tablaSections} setItems={setTablaSections} labels={{ pipelineBar: 'Barra de distribución', tabla: 'Tabla de casos', paginacion: 'Paginación' }} iconMap={TABLA_ICONS} />
             </div>
 
             <div className="config-section">
@@ -1616,7 +1674,7 @@ export function ConfiguracionView({
               <div className="text-[10px] mb-2" style={{ color: 'var(--color-text-muted)' }}>
                 Arrastrá para reordenar las secciones de la vista de reportes
               </div>
-              <ViewSectionEditor items={reportesSections} setItems={setReportesSections} labels={{ pipelineBar: 'Barra de distribución', lista: 'Lista de reportes', paginacion: 'Paginación' }} />
+              <ViewSectionEditor items={reportesSections} setItems={setReportesSections} labels={{ pipelineBar: 'Barra de distribución', lista: 'Lista de reportes', paginacion: 'Paginación' }} iconMap={REPORTES_ICONS} />
             </div>
 
             <div className="config-section">
@@ -1632,7 +1690,7 @@ export function ConfiguracionView({
                 objeciones: 'Objeciones', conversacion: 'Conversaciones',
                 aseguradoras: 'Aseguradoras', lesiones: 'Lesiones', prolegal: 'Prolegal',
                 transito: 'Tránsito', mapeo: 'Estudios Jurídicos',
-              }} />
+              }} iconMap={UTILES_ICONS} />
             </div>
           </div>
         );
@@ -1680,7 +1738,7 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Indexá los campos que más usás en las búsquedas diarias para mejores resultados.</p>
                 <p>• Ajustá el máximo histórico para liberar espacio en navegadores con límites de almacenamiento.</p>
@@ -1877,7 +1935,7 @@ export function ConfiguracionView({
             </div>
 
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Usá la vista previa para verificar datos antes de cargarlos.</p>
                 <p>• La validación de duplicados evita ingresar casos que ya existen en el sistema.</p>
@@ -1922,7 +1980,7 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Desactivar animaciones en equipos con recursos limitados mejora el rendimiento.</p>
                 <p>• Los atajos de teclado aceleran tareas repetitivas (Ctrl+K para buscar, Ctrl+N para nuevo caso).</p>
@@ -1992,7 +2050,7 @@ export function ConfiguracionView({
               </BtnOutline>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Mostrá solo las columnas que necesitás para una vista más limpia y rápida.</p>
                 <p>• Usá "Restaurar básicas" si te perdés entre tantas columnas.</p>
@@ -2625,7 +2683,7 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Exportá respaldos periódicos de los datos antes de hacer limpieza general.</p>
                 <p>• La importación de notas y eventos en JSON preserva todas las relaciones.</p>
@@ -2810,7 +2868,7 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• El peso se usa para corregir estadísticas como el resumen del dashboard (suma ponderada).</p>
                 <p>• Renombrar un estado actualiza automáticamente las categorías del dashboard.</p>
@@ -2823,14 +2881,17 @@ export function ConfiguracionView({
       case "tipos-ingreso":
         const tiposList = getTiposIngreso(config);
 
-        const actualizarTipo = (idx, valor) => {
+        const actualizarTipo = (idx, campo, valor) => {
           const next = [...tiposList];
-          next[idx] = valor;
+          next[idx] = { ...next[idx], [campo]: valor };
           actualizarConfig("tiposIngreso", next);
         };
 
         const agregarTipo = () => {
-          actualizarConfig("tiposIngreso", [...tiposList, ""]);
+          actualizarConfig("tiposIngreso", [
+            ...tiposList,
+            { v: "Nuevo tipo de ingreso", keywords: [], keywordsPriority: 3 },
+          ]);
         };
 
         const eliminarTipo = (idx) => {
@@ -2851,22 +2912,44 @@ export function ConfiguracionView({
               </div>
               <div className="text-[10px] mb-3" style={{ color: "var(--color-text-muted)" }}>
                 Categorías de ingreso disponibles al cargar un caso (Accidente Laboral,
-                Enfermedad Profesional, etc.).
+                Enfermedad Profesional, etc.). Las palabras clave se usan para detectar
+                automáticamente el tipo de ingreso al pegar una ficha completa
+                (la prioridad 1 es la más alta y gana sobre las demás).
               </div>
               <div className="space-y-2">
                 {tiposList.map((t, idx) => (
-                  <div key={idx} className="flex items-center gap-2" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "8px" }}>
+                  <div key={idx} className="flex items-center gap-2 flex-wrap" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "8px" }}>
                     <TextInput
-                      value={t || ""}
-                      onChange={(ev) => actualizarTipo(idx, ev.target.value)}
-                      className="flex-1"
+                      value={t.v || ""}
+                      onChange={(ev) => actualizarTipo(idx, "v", ev.target.value)}
+                      className="flex-1 min-w-[150px]"
                       placeholder="Nombre del tipo de ingreso"
                     />
+                    <TextInput
+                      value={(Array.isArray(t.keywords) ? t.keywords : []).join(", ")}
+                      onChange={(ev) => actualizarTipo(idx, "keywords", ev.target.value.split(",").map((k) => k.trim()).filter(Boolean))}
+                      className="min-w-[180px] flex-1"
+                      placeholder="Palabras clave (separadas por coma)"
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                      Prioridad:
+                      <select
+                        value={t.keywordsPriority ?? 3}
+                        onChange={(ev) => actualizarTipo(idx, "keywordsPriority", parseInt(ev.target.value, 10))}
+                        className="text-[10px] px-1.5 py-1 rounded"
+                        style={{ backgroundColor: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+                        aria-label={`Prioridad de palabras clave de ${t.v}`}
+                      >
+                        <option value={1}>1 - Alta</option>
+                        <option value={2}>2 - Media</option>
+                        <option value={3}>3 - Baja</option>
+                      </select>
+                    </label>
                     <button
                       onClick={() => eliminarTipo(idx)}
                       className="p-1.5 rounded transition-colors hover:bg-[var(--color-surface)]"
                       style={{ color: "var(--color-danger)" }}
-                      aria-label={`Eliminar ${t}`}
+                      aria-label={`Eliminar ${t.v}`}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -2879,9 +2962,11 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
-              <div className="config-section-title">Sugerencias</div>
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Los tipos de ingreso aparecen como opciones al registrar un caso.</p>
+                <p>• Las palabras clave permiten la detección automática del tipo al pegar una ficha completa.</p>
+                <p>• Prioridad 1 (alta) gana sobre 2 y 3 en caso de coincidencias múltiples.</p>
                 <p>• Podés mantenerlos ordenados: el orden de la lista es el orden de los desplegables.</p>
               </div>
             </div>
@@ -2891,6 +2976,87 @@ export function ConfiguracionView({
       case "diagnostico":
         return <SystemLogs />;
 
+      case "plantillas": {
+        const catsList = getTemplateCategories(config);
+
+        const actualizarCategoria = (idx, valor) => {
+          const next = [...catsList];
+          const prev = next[idx];
+          next[idx] = valor;
+          actualizarConfig("templateCategories", next);
+          if (prev && prev !== valor) {
+            getAllTemplates().then((templates) => {
+              for (const t of templates) {
+                if (t.category === prev) {
+                  import('../../features/templates/templatesStore').then((m) =>
+                    m.updateTemplate(t.id, { category: valor })
+                  );
+                }
+              }
+            });
+          }
+        };
+
+        const agregarCategoria = () => {
+          actualizarConfig("templateCategories", [...catsList, ""]);
+        };
+
+        const eliminarCategoria = (idx) => {
+          actualizarConfig("templateCategories", catsList.filter((_, i) => i !== idx));
+        };
+
+        const restaurarCategorias = () => {
+          actualizarConfig("templateCategories", TEMPLATE_CATEGORIES_SUGERIDOS);
+          showToast("Categorías restauradas a los valores por defecto", "info");
+        };
+
+        return (
+          <div className="space-y-4">
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <FileText size={14} color="var(--color-accent)" />
+                Categorías de plantillas
+              </div>
+              <div className="text-[10px] mb-3" style={{ color: "var(--color-text-muted)" }}>
+                Categorías disponibles al crear o editar plantillas en Útiles → Plantillas.
+                Se muestran como opciones en el selector de categoría.
+              </div>
+              <div className="space-y-2">
+                {catsList.map((cat, idx) => (
+                  <div key={idx} className="flex items-center gap-2" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "8px" }}>
+                    <TextInput
+                      value={cat || ""}
+                      onChange={(ev) => actualizarCategoria(idx, ev.target.value)}
+                      className="flex-1"
+                      placeholder="Nombre de la categoría"
+                    />
+                    <button
+                      onClick={() => eliminarCategoria(idx)}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--color-surface)]"
+                      style={{ color: "var(--color-danger)" }}
+                      aria-label={`Eliminar ${cat}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <Btn onClick={agregarCategoria} size="sm" icon={Plus}>Agregar categoría</Btn>
+                <BtnOutline onClick={restaurarCategorias} size="sm" color="var(--color-text-muted)">Restaurar por defecto</BtnOutline>
+              </div>
+            </div>
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
+              <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
+                <p>• Las categorías aparecen como opciones al crear o editar una plantilla.</p>
+                <p>• Si renombrás una categoría, se actualiza automáticamente en todas las plantillas que la usen.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -2898,45 +3064,49 @@ export function ConfiguracionView({
 
   return (
     <><div className="space-y-4">
-      <div className="flex flex-wrap gap-1 mb-3">
+      <div
+        className="flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl"
+        style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+      >
         {GRUPOS_CONFIG.map((g) => (
           <button
             key={g.id}
             onClick={() => cambiarGrupo(g.id)}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors hover:opacity-70 ${
+            className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors hover:opacity-80 ${
               grupoActivo === g.id
                 ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
                 : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
-            <g.icon size={14} /> {g.label}
+            <g.icon size={14} aria-hidden="true" /> {g.label}
           </button>
         ))}
       </div>
 
       <div
-        className="rounded-lg p-4"
+        className="rounded-xl p-4"
         style={{
           backgroundColor: "var(--color-surface)",
           border: "1px solid var(--color-border)",
           minHeight: 300,
         }}
       >
-        <div className="flex items-center gap-1 mb-4 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
           {GRUPOS_CONFIG.find((g) => g.id === grupoActivo)?.items.map((s) => (
             <button
               key={s.id}
               onClick={() => cambiarSubseccion(s.id)}
-              className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md transition-colors hover:opacity-70 ${
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
                 seccion === s.id
-                  ? "bg-[var(--color-surface2)] text-[var(--color-accent)]"
-                  : "text-[var(--color-text-muted)]"
+                  ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
+                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               }`}
             >
-              <s.icon size={12} /> {s.label}
+              <s.icon size={14} aria-hidden="true" /> {s.label}
             </button>
           ))}
         </div>
+        <SectionHeader seccion={seccion} grupos={GRUPOS_CONFIG} />
         {renderSeccion()}
       </div>
     </div>
@@ -3338,57 +3508,6 @@ function DashboardTabOrderEditor() {
   const [dragType, setDragType] = useState(null); // 'tab' | 'widget'
   const [dragTabId, setDragTabId] = useState(null);
 
-  const TAB_MAP_CFG = {
-    insights: { id: 'insights', label: 'Insights', icon: Sparkles },
-    analitica: { id: 'analitica', label: 'Analítica', icon: BarChart3 },
-    resumen: { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-    rendimiento: { id: 'rendimiento', label: 'Rendimiento', icon: BarChart3 },
-    geografia: { id: 'geografia', label: 'Geografía', icon: MapPin },
-    estudios: { id: 'estudios', label: 'Estudios', icon: Building2 },
-    estados: { id: 'estados', label: 'Estados', icon: CircleDot },
-  };
-
-  const WIDGET_REGISTRY_CFG = {
-    resumen: {
-      alertBanner: { label: 'Alertas automáticas' },
-      quickActions: { label: 'Acciones rápidas' },
-      analyticHeader: { label: 'Encabezado analítico' },
-      generalMetrics: { label: 'Métricas generales' },
-      alertsPanel: { label: 'Alertas' },
-      activityFeed: { label: 'Actividad reciente' },
-      eventos: { label: 'Próximos eventos' },
-      sinReporte: { label: 'Casos sin reporte' },
-      notas: { label: 'Notas recientes' },
-      resumen: { label: 'Resumen rápido' },
-      ultimosCasos: { label: 'Últimos casos' },
-      miDia: { label: 'Mi día' },
-    },
-    rendimiento: {
-      perfMetrics: { label: 'Métricas de performance' },
-      timeMetrics: { label: 'Métricas de tiempo' },
-      logroObjetivos: { label: 'Logro de Objetivos' },
-    },
-    geografia: {
-      provinciasTable: { label: 'Tabla de provincias' },
-      topProvincias: { label: 'Mejores provincias' },
-      vistaMapa: { label: 'Mapa de casos' },
-    },
-    estudios: {
-      estudiosTable: { label: 'Tabla de estudios' },
-      topEstudios: { label: 'Mejores estudios' },
-    },
-    estados: {
-      estadosTable: { label: 'Distribución por estado' },
-    },
-  };
-
-  const DEFAULT_WIDGET_ORDER_CFG = Object.fromEntries(
-    Object.entries(WIDGET_REGISTRY_CFG).map(([tab, widgets]) => [
-      tab,
-      Object.keys(widgets),
-    ])
-  );
-
   const moveTab = (from, to) => {
     if (from === to) return;
     const next = [...tabOrder];
@@ -3399,7 +3518,7 @@ function DashboardTabOrderEditor() {
 
   const moveWidget = (tabId, from, to) => {
     if (from === to) return;
-    const order = [...(dashWidgetOrder[tabId] || DEFAULT_WIDGET_ORDER_CFG[tabId])];
+    const order = getOrderedDashWidgets(dashWidgetOrder[tabId] || [], tabId);
     const [moved] = order.splice(from, 1);
     order.splice(to, 0, moved);
     setDashWidgetOrder({ ...dashWidgetOrder, [tabId]: order });
@@ -3453,13 +3572,27 @@ function DashboardTabOrderEditor() {
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+          Arrastra para reordenar. Haz clic en un tab para ver sus widgets.
+        </span>
+        <button
+          onClick={() => {
+            useAppStore.getState().restoreDashboardDefaults();
+          }}
+          className="text-[10px] px-2 py-1 rounded transition-colors hover:bg-white/10"
+          style={{ color: 'var(--color-accent)', border: '1px solid var(--color-border)' }}
+        >
+          Restaurar defecto
+        </button>
+      </div>
       {tabOrder.map((id, idx) => {
-        const t = TAB_MAP_CFG[id];
+        const t = DASH_TAB_MAP[id];
         if (!t) return null;
-        const hasWidgets = !!WIDGET_REGISTRY_CFG[id];
+        const hasWidgets = !!DASH_WIDGET_REGISTRY[id];
         const isExpanded = hasWidgets && expandedTab === id;
-        const wOrder = dashWidgetOrder[id] || DEFAULT_WIDGET_ORDER_CFG[id] || [];
+        const wOrder = getOrderedDashWidgets(dashWidgetOrder[id] || [], id);
         const isOver = dragOverIdx === idx && dragType === 'tab';
         return (
           <div key={id}>
@@ -3489,9 +3622,10 @@ function DashboardTabOrderEditor() {
             {isExpanded && (
               <div className="ml-4 mt-1 space-y-1 pl-3" style={{ borderLeft: '2px solid var(--color-border)' }}>
                 {wOrder.map((wid, wIdx) => {
-                  const wDef = WIDGET_REGISTRY_CFG[id]?.[wid];
+                  const wDef = DASH_WIDGET_REGISTRY[id]?.[wid];
                   if (!wDef) return null;
                   const isWOver = dragOverIdx === wIdx && dragType === 'widget' && dragTabId === id;
+                  const WidgetIcon = wDef.icon;
                   return (
                     <div
                       key={wid}
@@ -3510,6 +3644,7 @@ function DashboardTabOrderEditor() {
                       }}
                     >
                       <GripVertical size={11} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                      {WidgetIcon && <WidgetIcon size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />}
                       <span className="text-[11px] flex-1" style={{ color: 'var(--color-text)' }}>{wDef.label}</span>
                     </div>
                   );
@@ -3524,7 +3659,70 @@ function DashboardTabOrderEditor() {
 }
 
 // ============ SIMPLE DRAG-AND-DROP SECTION EDITOR ============
-function ViewSectionEditor({ items, setItems, labels }) {
+const MI_ESPACIO_ICONS = {
+  hoy: Sun,
+  jornada: Clock,
+  proxima: CalendarClock,
+  eventos: CalendarDays,
+  pendientes: ListTodo,
+  productividad: BarChart3,
+  metas: Target,
+  acciones: Zap,
+  accesos: Lock,
+};
+
+const TABLERO_ICONS = { columnas: Columns, pipelineBar: Filter };
+const TABLA_ICONS = { tabla: Table2, pipelineBar: Filter, paginacion: MoreHorizontal };
+const REPORTES_ICONS = { lista: ClipboardList, pipelineBar: Filter, paginacion: MoreHorizontal };
+const UTILES_ICONS = {
+  condicionales: GitBranch,
+  pasos: ListOrdered,
+  speechs: MessageSquare,
+  objeciones: ShieldAlert,
+  conversacion: MessagesSquare,
+  aseguradoras: Building2,
+  lesiones: HeartPulse,
+  prolegal: Scale,
+  transito: Car,
+  mapeo: FileSearch,
+};
+
+function MiEspacioOrderEditor() {
+  const [order, setOrder] = useState(() =>
+    getOrderedMiEspacioKeys(getOperatorSettings().miEspacioOrder)
+  );
+
+  const apply = (next) => {
+    const sanitized = getOrderedMiEspacioKeys(next);
+    setOrder(sanitized);
+    saveOperatorSettings({ miEspacioOrder: sanitized });
+  };
+
+  const restore = () => {
+    setOrder([...DEFAULT_MI_ESPACIO_ORDER]);
+    saveOperatorSettings({ miEspacioOrder: [...DEFAULT_MI_ESPACIO_ORDER] });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+          Hoy / Bienvenida, Mi Jornada, Próxima actividad, Próximos eventos, Pendientes, Productividad, Metas, Acciones rápidas y Accesos personales
+        </span>
+        <button
+          onClick={restore}
+          className="text-[10px] px-2 py-1 rounded transition-colors hover:bg-white/10 flex-shrink-0"
+          style={{ color: 'var(--color-accent)', border: '1px solid var(--color-border)' }}
+        >
+          Restaurar defecto
+        </button>
+      </div>
+      <ViewSectionEditor items={order} setItems={apply} labels={MI_ESPACIO_LABELS} iconMap={MI_ESPACIO_ICONS} />
+    </div>
+  );
+}
+
+function ViewSectionEditor({ items, setItems, labels, iconMap }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
@@ -3540,6 +3738,7 @@ function ViewSectionEditor({ items, setItems, labels }) {
     <div className="space-y-1">
       {items.map((id, idx) => {
         const isOver = dragOverIdx === idx;
+        const ItemIcon = iconMap?.[id];
         return (
           <div
             key={id}
@@ -3558,6 +3757,7 @@ function ViewSectionEditor({ items, setItems, labels }) {
             }}
           >
             <GripVertical size={12} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+            {ItemIcon && <ItemIcon size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />}
             <span className="text-[11px] flex-1" style={{ color: 'var(--color-text)' }}>{labels[id] || id}</span>
           </div>
         );

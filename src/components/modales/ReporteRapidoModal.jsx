@@ -16,6 +16,7 @@ import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { Field } from "../common/Field";
 import { TextInput } from "../common/TextInput";
+import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
 import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
@@ -27,11 +28,12 @@ import { hoyDDMM } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { getEstados } from "../../utils/catalogos";
+import { TemplateSelector } from "../common/TemplateSelector";
 import { soundSystem } from "../../core/notifications/soundSystem";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { parseCita, resolveCitaDate } from "../../utils/citaParser";
 
-export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoInicial, config }) {
+export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoInicial, estadoInicial, config, stacked = false }) {
   const dialogRef = useRef(null);
   const [confirmClose, setConfirmClose] = useState(false);
   useDialogA11y(dialogRef, true, { onEscape: () => requestClose() });
@@ -61,11 +63,11 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   useEffect(() => {
     if (casoInicial) {
       setSeleccionado(casoInicial);
-      setEstado(casoInicial.estado || "Cita virtual");
+      setEstado(estadoInicial || casoInicial.estado || "Cita virtual");
       setQuery(casoInicial.nombre || "");
       originalLenRef.current = (casoInicial.reporteHistory || []).length;
     }
-  }, [casoInicial]);
+  }, [casoInicial, estadoInicial]);
 
   const resultados = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -244,7 +246,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
+      className={`fixed inset-0 ${stacked ? "z-submodal" : "z-modal"} flex items-center justify-center p-4 animate-fade-in`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       onClick={requestClose}
       role="dialog"
@@ -277,20 +279,15 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
         </div>
 
         <div className="p-5 space-y-4" style={{ minHeight: '380px', maxHeight: '80vh', overflowY: 'auto' }}>
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-text-muted)" }}
-            />
-            <TextInput
+          <div>
+            <SearchInput
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSeleccionado(null);
               }}
               placeholder="Buscar por nombre, telefono o localidad..."
-              className="pl-8"
+              iconSize={16}
               autoFocus
             />
           </div>
@@ -467,7 +464,18 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
               )}
 
               <Field label="Origen del reporte" className="mt-3">
-                <OrigenSelector value={origen} onChange={setOrigen} />
+                <div className="flex items-center gap-2">
+                  <OrigenSelector value={origen} onChange={setOrigen} />
+                  <TemplateSelector
+                    type="reporte"
+                    caso={seleccionado}
+                    config={config}
+                    onSelect={(resolved) => {
+                      if (resolved.texto) setTexto(resolved.texto);
+                      if (resolved.origen) setOrigen(resolved.origen);
+                    }}
+                  />
+                </div>
               </Field>
 
               <Field label="Texto del reporte" className="mt-3">

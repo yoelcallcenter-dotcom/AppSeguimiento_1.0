@@ -35,7 +35,7 @@ PASO 4: Configura el Dashboard
 Ve a Configuracion → Apariencia → Dashboard para definir pestanas, widgets, metricas y reglas de alerta a tu gusto.
 
 PASO 5: Crea tu primer caso
-Haz clic en "Nuevo caso" y completa los datos del prospecto. Puedes pegar una ficha completa con formato estructurado o importar varios casos desde CSV.
+Haz clic en "Nuevo caso" y completa los datos del prospecto. Puedes pegar una ficha completa con formato estructurado o importar varios casos desde CSV. Si configuraste palabras clave en Tipos de Ingreso, el tipo se asigna automaticamente al pegar.
 
 PASO 6: Configura tu jornada
 Ve a Mi Espacio → Perfil y configura tu horario de trabajo. Esto habilita el control de jornada y el calculo de metas.
@@ -49,7 +49,7 @@ Ve a Ayuda → Tour interactivo. El recorrido guiado cubre todas las funcionalid
     content: `CREAR UN CASO
 - Haz clic en "Nuevo caso" en el header
 - Completa: nombre, telefono, localidad, ART, profesion, ingreso, lesion, tipo de ingreso, cita
-- Opcional: pegar ficha completa con formato NOMBRE:, TELEFONO:, etc.
+- Opcional: pegar ficha completa con formato NOMBRE:, TELEFONO:, etc. (detecta tipo de ingreso automaticamente)
 - Haz clic en "Guardar"
 
 IMPORTAR CASOS DESDE CSV
@@ -131,8 +131,22 @@ Ademas, desde el header accedes al Calendario, Bloc de Notas, Busqueda Global (C
   },
   {
     id: "mi-jornada",
-    title: "5. Mi Jornada y Productividad",
-    content: `Mi Espacio es el centro personal del operador. Accede desde la pestana "Mi Espacio" en el menu principal.
+    title: "5. Mi Espacio: centro de trabajo Hoy",
+    content: `Mi Espacio es el centro de trabajo del operador (accede desde la pestaña "Mi Espacio" en el menu principal). Su seccion principal, "Hoy", es el centro de trabajo diario.
+
+CENTRO DE TRABAJO "HOY"
+Una sola pagina con bloques en orden configurable:
+- Hoy/Bienvenida: saludo, fecha, hora, dias restantes del mes y estado de la meta diaria
+- Mi Jornada: estado del dia, hora de inicio/fin, transcurrido, restante y barra de progreso
+- Proxima actividad: el compromiso mas cercano del calendario
+- Proximos eventos: los proximos compromisos (max. 5)
+- Pendientes: casos que requieren tu atencion hoy (si hay casos activos)
+- Productividad: casos, reportes, firmas y actividad del dia, ritmo actual vs promedio y proyeccion mensual
+- Metas: objetivo diario, progreso semanal y proximo hito
+- Acciones rapidas: alta de caso, reporte, nota, evento, busqueda y exportacion CSV
+- Accesos personales: resumen de credenciales (nunca muestra contrasenas) con acceso a la gestion completa
+
+El orden de los bloques se reordena desde Configuracion → Apariencia → Vistas → "Mi Espacio".
 
 PERFIL
 Configura tu informacion personal:
@@ -142,7 +156,7 @@ Configura tu informacion personal:
 - Jornada habitual: horario de inicio y fin (soporta jornadas que cruzan la medianoche, ej. 22:00 a 06:00)
 - Dias laborables de la semana
 
-RESUMEN DE LA JORNADA
+ESTADO DE LA JORNADA
 Muestra el estado del dia:
 - En jornada: estas dentro de tu horario habitual
 - Meta cumplida: alcanzaste la meta diaria de casos/reportes
@@ -164,7 +178,10 @@ Administra tus ausencias y dias especiales:
 - Inasistencias (personales, enfermedad, otros)
 - Dias no laborables personalizados
 
-Los dias efectivos del mes se recalculan automaticamente descontando estas ausencias.
+Los dias efectivos del mes se recalculan automaticamente: DH = total del mes − fines de
+semana (segun tus dias laborables) − inasistencias − feriados − vacaciones. Vacaciones y
+fechas que caen en tu fin de semana no se descuentan dos veces (los feriados dentro de unas
+vacaciones cuentan una sola vez).
 
 SUGERENCIAS INTELIGENTES
 La app te avisa automaticamente:
@@ -479,6 +496,36 @@ Durante llamadas importantes, activa el Modo No Molestar para evitar distraccion
 
 10. CONFIGURA TU JORNADA
 Define tu horario de trabajo en Mi Espacio para obtener metricas precisas de productividad y sugerencias personalizadas.`,
+  },
+  {
+    id: "exportaciones",
+    title: "16. Exportaciones",
+    content: `La app ofrece varias formas de sacar tus datos: CSV analitico, PDF de Mi Espacio, casos individuales en PDF y backups JSON completos.
+
+EXPORTAR CSV DESDE EL DASHBOARD
+Con un clic en "Exportar CSV" (Reportes, Tabla o Dynamico) generas un archivo con el detalle de los casos visibles, respetando los filtros activos.
+
+EXPORTAR CSV ANALITICO (RESUMEN)
+Desde el modal de exportacion CSV elegis el tipo "Analitico (resumen)":
+- Alterna entre "Detalle por caso" (listado completo) y "Analitico (resumen)".
+- El resumen analitico arma un unico archivo con secciones: KPIs, Productividad, Conversion, Estados, Estudios, Aseguradoras, Localidades, Tendencias, Comparativas, Peridos y Metricas.
+- El KPI "Dias habiles efectivos en periodo" descuenta fines de semana, inasistencias, feriados y vacaciones de la disponibilidad del operador; las series de Tendencias omiten esos dias.
+- Incluye los N casos filtrados del periodo seleccionado (rango desde/hasta o año actual).
+- Nombre de archivo: AppSeguimiento_Analitico_YYYY-MM-DD.csv
+
+EXPORTAR PDF DE MI ESPACIO (REPORTE DE SUPERVISOR)
+Desde Mi Espacio, el boton "Exportar PDF" genera un reporte completo del operador en el periodo seleccionado:
+- Perfil, Jornada y Metas personales
+- Metricas: efectividad por dia efectivo, ritmo del dia, progreso semanal y diario
+- Resumen del periodo: casos, reportes, firmas, aseguradoras
+- Disponibilidad, proximos eventos y configuracion del operador
+Util para reportar a supervision sin revelar datos de otros operadores.
+
+EXPORTAR PDF INDIVIDUAL
+Desde el detalle de cualquier caso, podés generar un PDF con toda la información del caso, sus reportes y notas vinculadas.
+
+BACKUP (JSON)
+Configuracion → Datos → Exportar/Importar configuración: genera un JSON completo con casos, notas, eventos, plantillas, reportes guardados y preferencias. Ideal para respaldo y migration entre equipos.`,
   },
   {
     id: "solucion-problemas",

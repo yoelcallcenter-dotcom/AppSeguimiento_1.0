@@ -16,11 +16,17 @@ export const ESTADOS = [
 ];
 
 export const TIPOS_INGRESO_SUGERIDOS = [
-  "Accidente + Cirugía",
-  "Accidente + Tratamiento",
-  "Accidente sin tratamiento",
-  "Enfermedad Profesional",
-  "Accidente in itinere",
+  { v: "Accidente + Cirugía", keywords: ["cirugia", "cirugía", "operacion", "operación"], keywordsPriority: 1 },
+  { v: "Accidente + Tratamiento", keywords: ["tratamiento", "reposo"], keywordsPriority: 2 },
+  { v: "Accidente sin tratamiento", keywords: [], keywordsPriority: 3 },
+  { v: "Enfermedad Profesional", keywords: ["enfermedad profesional", "enfermedad"], keywordsPriority: 1 },
+  { v: "Accidente in itinere", keywords: ["itinere", "viaje", "camino"], keywordsPriority: 1 },
+];
+
+export const TEMPLATE_CATEGORIES_SUGERIDOS = [
+  "Seguimiento",
+  "Reprogramación",
+  "Información",
 ];
 
 /**

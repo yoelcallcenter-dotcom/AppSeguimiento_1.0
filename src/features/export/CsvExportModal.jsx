@@ -1,13 +1,16 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Download, X, Check } from "lucide-react";
+import { FileSpreadsheet, Check, BarChart3 } from "lucide-react";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstados } from "../../utils/catalogos";
 import { CSV_HEADERS } from "../../utils/backup/constants";
 import { escapeCSV, sanitizeCSV } from "../../utils/backup/csvUtils";
 import { Btn, OutlineButton } from "../../components/common/Btn";
-import { useModal } from "../../hooks/useModal";
+import { SidePanel } from "../../components/common/SidePanel";
+import { FilterChip } from "../../components/common/filters";
 import casesDB from "../../core/db/casesDB";
 import appDB from "../../core/db/appDB";
+import { buildCsvAnalitico } from "./csvAnalitico";
+import { getOperatorAvailability } from "../operator/operatorStore";
 
 const CAMPOS = [
   "id", "fecha", "nombre", "telefono", "localidad", "aseguradora",
@@ -17,7 +20,12 @@ const CAMPOS = [
 
 function formatearReportes(reportes) {
   if (!reportes || reportes.length === 0) return "";
-  return reportes.map((r) => `(${r.fecha}) ${r.texto}`).join(" // ");
+  return reportes
+    .map((r) => {
+      const origen = r.origen ? `[${r.origen}] ` : "";
+      return `(${r.fecha}) ${origen}${r.texto}`;
+    })
+    .join(" // ");
 }
 
 function formatearComentarios(comentarios) {
@@ -35,13 +43,8 @@ export function CsvExportModal({ open, onClose, showToast }) {
   const [aseguradora, setAseguradora] = useState("");
   const [estudioJuridico, setEstudioJuridico] = useState("");
   const [localidad, setLocalidad] = useState("");
+  const [tipoExport, setTipoExport] = useState("casos");
   const [exportando, setExportando] = useState(false);
-
-  const { dialogRef, handleBackdropClick } = useModal({
-    isOpen: open,
-    onClose,
-    closeOnOverlayClick: true,
-  });
 
   const estados = useMemo(() => getEstados(config), [config]);
 
@@ -93,6 +96,38 @@ export function CsvExportModal({ open, onClose, showToast }) {
     if (casosFiltrados.length === 0) return;
     setExportando(true);
     try {
+      if (tipoExport === "analitico") {
+        const hoy = new Date();
+        const desde = fechaDesde ? new Date(fechaDesde + "T00:00:00") : new Date(hoy.getFullYear(), 0, 1);
+        const hasta = fechaHasta ? new Date(fechaHasta + "T23:59:59") : new Date(hoy);
+        const isoDe = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${dd}`;
+        };
+        const rango = {
+          id: "personalizado",
+          label: "Período seleccionado",
+          startISO: isoDe(desde),
+          endISO: isoDe(hasta),
+        };
+        const csv = buildCsvAnalitico(casosFiltrados, config, {
+          fecha: hoy,
+          rango,
+          availability: getOperatorAvailability() || {},
+        });
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `AppSeguimiento_Analitico_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`CSV analítico exportado (${casosFiltrados.length} caso(s))`, "success");
+        onClose();
+        return;
+      }
       const serializarNotas = (notas) => {
         if (!notas || notas.length === 0) return '';
         return notas.map((n) => `${n.titulo || n.title || ''}: ${n.contenido || n.content || ''} (${n.fecha || ''})`).join(' // ');
@@ -148,166 +183,28 @@ export function CsvExportModal({ open, onClose, showToast }) {
     } finally {
       setExportando(false);
     }
-  }, [casosFiltrados, estadosSeleccionados, showToast, onClose]);
+  }, [casosFiltrados, estadosSeleccionados, tipoExport, fechaDesde, fechaHasta, config, showToast, onClose]);
 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
-      style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-      onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="csv-export-title"
-    >
-      <div
-        ref={dialogRef}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-xl my-6 animate-scale-in max-h-[80vh] overflow-y-auto"
-        style={{
-          backgroundColor: "var(--color-surface2)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
+    <SidePanel
+      isOpen={open}
+      onClose={onClose}
+      title="Exportar casos a CSV"
+      icon={FileSpreadsheet}
+      footer={
         <div
-          className="modal-header flex items-center justify-between"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
+          className="flex items-center justify-between gap-2 px-4 py-3 border-t"
+          style={{ borderColor: "var(--color-border)" }}
         >
-          <div className="flex items-center gap-2" id="csv-export-title">
-            <Download size={18} style={{ color: "var(--color-accent)" }} />
-            <span className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
-              Exportar casos a CSV
-            </span>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-md hover:opacity-70 transition-opacity" aria-label="Cerrar">
-            <X size={18} style={{ color: "var(--color-text-muted)" }} />
-          </button>
-        </div>
-
-        <div className="p-5">
-          <div className="space-y-3">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                Estado
-              </label>
-              <div className="flex flex-wrap gap-1">
-                {estados.map((e) => {
-                  const sel = estadosSeleccionados.includes(e.v);
-                  return (
-                    <button
-                      key={e.v}
-                      type="button"
-                      aria-pressed={sel}
-                      onClick={() => toggleEstado(e.v)}
-                      className="flex items-center gap-1 pill-md font-semibold transition-colors"
-                      style={{
-                        backgroundColor: sel ? e.accent : "var(--color-surface)",
-                        color: sel ? "var(--color-text-on-accent)" : "var(--color-text-muted)",
-                        border: `1px solid ${sel ? e.accent : "var(--color-border)"}`,
-                      }}
-                    >
-                      {sel && <Check size={10} />}
-                      {e.v}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label htmlFor="csv-fechaDesde" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                  Fecha desde
-                </label>
-                <input
-                  id="csv-fechaDesde"
-                  type="date"
-                  value={fechaDesde}
-                  onChange={(e) => setFechaDesde(e.target.value)}
-                  className="w-full text-xs px-2 py-1.5 rounded border"
-                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
-                />
-              </div>
-              <div>
-                <label htmlFor="csv-fechaHasta" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                  Fecha hasta
-                </label>
-                <input
-                  id="csv-fechaHasta"
-                  type="date"
-                  value={fechaHasta}
-                  onChange={(e) => setFechaHasta(e.target.value)}
-                  className="w-full text-xs px-2 py-1.5 rounded border"
-                  style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="csv-aseguradora" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                Aseguradora
-              </label>
-              <select
-                id="csv-aseguradora"
-                value={aseguradora}
-                onChange={(e) => setAseguradora(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 rounded border"
-                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
-              >
-                <option value="">Todas</option>
-                {aseguradorasUnicas.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="csv-estudioJuridico" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                Estudio Jurídico
-              </label>
-              <select
-                id="csv-estudioJuridico"
-                value={estudioJuridico}
-                onChange={(e) => setEstudioJuridico(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 rounded border"
-                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
-              >
-                <option value="">Todos</option>
-                {estudiosUnicos.map((ej) => (
-                  <option key={ej} value={ej}>{ej}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="csv-localidad" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
-                Localidad
-              </label>
-              <input
-                id="csv-localidad"
-                type="text"
-                value={localidad}
-                onChange={(e) => setLocalidad(e.target.value)}
-                placeholder="Filtrar por localidad..."
-                className="w-full text-xs px-2 py-1.5 rounded border"
-                style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderTop: "1px solid var(--color-border)" }}
-        >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-              Se exportarán{" "}
+              {tipoExport === "analitico" ? "Resume " : "Se exportarán "}
               <span className="font-bold" style={{ color: "var(--color-accent)" }}>
                 {casosFiltrados.length}
               </span>{" "}
-              caso(s)
+              {tipoExport === "analitico" ? "caso(s) en el resumen analítico" : "caso(s)"}
             </span>
             {hasFilters && (
               <button
@@ -319,7 +216,7 @@ export function CsvExportModal({ open, onClose, showToast }) {
               </button>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             <OutlineButton onClick={onClose} size="sm">
               Cancelar
             </OutlineButton>
@@ -327,7 +224,7 @@ export function CsvExportModal({ open, onClose, showToast }) {
               onClick={handleExport}
               disabled={casosFiltrados.length === 0}
               loading={exportando}
-              icon={Download}
+              icon={FileSpreadsheet}
               size="sm"
               color="var(--color-success)"
               textColor="#ffffff"
@@ -336,7 +233,133 @@ export function CsvExportModal({ open, onClose, showToast }) {
             </Btn>
           </div>
         </div>
+      }
+    >
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <FilterChip
+            active={tipoExport === "casos"}
+            onClick={() => setTipoExport("casos")}
+            title="Detalle por caso"
+            className="justify-center"
+          >
+            <FileSpreadsheet size={11} />
+            Detalle por caso
+          </FilterChip>
+          <FilterChip
+            active={tipoExport === "analitico"}
+            onClick={() => setTipoExport("analitico")}
+            title="Analítico (resumen)"
+            className="justify-center"
+          >
+            <BarChart3 size={11} />
+            Analítico (resumen)
+          </FilterChip>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+            Estado
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {estados.map((e) => {
+              const sel = estadosSeleccionados.includes(e.v);
+              return (
+                <FilterChip
+                  key={e.v}
+                  active={sel}
+                  onClick={() => toggleEstado(e.v)}
+                  style={sel ? { backgroundColor: e.accent, borderColor: e.accent } : {}}
+                >
+                  {sel && <Check size={10} />}
+                  {e.v}
+                </FilterChip>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label htmlFor="csv-fechaDesde" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              Fecha desde
+            </label>
+            <input
+              id="csv-fechaDesde"
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 rounded border"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
+            />
+          </div>
+          <div>
+            <label htmlFor="csv-fechaHasta" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              Fecha hasta
+            </label>
+            <input
+              id="csv-fechaHasta"
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 rounded border"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label htmlFor="csv-aseguradora" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              Aseguradora
+            </label>
+            <select
+              id="csv-aseguradora"
+              value={aseguradora}
+              onChange={(e) => setAseguradora(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 rounded border"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
+            >
+              <option value="">Todas</option>
+              {aseguradorasUnicas.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="csv-estudioJuridico" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+              Estudio Jurídico
+            </label>
+            <select
+              id="csv-estudioJuridico"
+              value={estudioJuridico}
+              onChange={(e) => setEstudioJuridico(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 rounded border"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
+            >
+              <option value="">Todos</option>
+              {estudiosUnicos.map((ej) => (
+                <option key={ej} value={ej}>{ej}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="csv-localidad" className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: "var(--color-text-muted)" }}>
+            Localidad
+          </label>
+          <input
+            id="csv-localidad"
+            type="text"
+            value={localidad}
+            onChange={(e) => setLocalidad(e.target.value)}
+            placeholder="Filtrar por localidad..."
+            className="w-full text-xs px-2 py-1.5 rounded border"
+            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}
+          />
+        </div>
       </div>
-    </div>
+    </SidePanel>
   );
 }

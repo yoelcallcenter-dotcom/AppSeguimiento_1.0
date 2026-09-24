@@ -1,40 +1,39 @@
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
-import { Select } from '../../../components/common/Select';
+import { MultiSelect } from '../../../components/common/MultiSelect';
+import { FilterBar, FilterGroup } from '../../../components/common/filters';
+import { normalizarValorFiltro } from '../../../context/FiltersContext';
+
+const DIMENSIONES = ['estado', 'aseguradora', 'localidad', 'estudio', 'provincia', 'tipo'];
 
 export default function DashboardFilters({ filters, onChange, options, onReset }) {
-  const set = (key) => (e) => onChange({ ...filters, [key]: e.target.value });
+  const set = (key) => (vals) => onChange({ ...filters, [key]: vals });
 
   const fields = [
     { label: 'Estado', key: 'estado', items: options?.estados || [], all: 'Todos los estados' },
+    { label: 'Aseguradora', key: 'aseguradora', items: options?.aseguradoras || [], all: 'Todas las aseguradoras' },
+    { label: 'Localidad', key: 'localidad', items: options?.localidades || [], all: 'Todas las localidades' },
     { label: 'Estudio', key: 'estudio', items: options?.estudios || [], all: 'Todos los estudios' },
     { label: 'Provincia', key: 'provincia', items: options?.provincias || [], all: 'Todas las provincias' },
     { label: 'Tipo', key: 'tipo', items: options?.tipos || [], all: 'Todos los tipos' },
   ];
 
-  const hasActive =
-    filters &&
-    (filters.estado !== 'todos' ||
-      filters.estudio !== 'todos' ||
-      filters.provincia !== 'todos' ||
-      filters.tipo !== 'todos');
+  const hasActive = filters && DIMENSIONES.some((k) => normalizarValorFiltro(filters[k]).length > 0);
 
   return (
-    <div className="flex items-end gap-3 flex-wrap">
+    <FilterBar>
       {fields.map((field) => {
-        const { label, key, items } = field;
+        const { label, key, items, all } = field;
         return (
-        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 150 }}>
-          <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>{label}</label>
-          <Select
-            value={String(filters?.[key] || 'todos')}
-            onChange={set(key)}
-            options={[
-              { value: 'todos', label: field.all },
-              ...items.map((v) => ({ value: v, label: v })),
-            ]}
-          />
-        </div>
+          <FilterGroup key={key} label={label}>
+            <MultiSelect
+              id={`df-${key}`}
+              value={normalizarValorFiltro(filters?.[key])}
+              onChange={set(key)}
+              options={items.map((v) => ({ value: v, label: v }))}
+              placeholder={all}
+            />
+          </FilterGroup>
         );
       })}
       {hasActive && (
@@ -52,6 +51,6 @@ export default function DashboardFilters({ filters, onChange, options, onReset }
         <Filter size={12} />
         Filtros analíticos
       </span>
-    </div>
+    </FilterBar>
   );
 }

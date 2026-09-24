@@ -272,14 +272,15 @@ describe('resumen de disponibilidad', () => {
     expect(summary.totalDays).toBe(8);
   });
 
-  it('cuenta vacaciones que cruzan meses correctamente', () => {
+  it('cuenta vacaciones que cruzan meses solo en días laborables', () => {
     const avail = {
       vacations: [{ id: 'v1', start: '2026-08-28', end: '2026-09-05' }],
     };
     const aug = getAvailabilitySummary(avail, 2026, 7);
     const sep = getAvailabilitySummary(avail, 2026, 8);
-    expect(aug.vacationDays).toBe(4);
-    expect(sep.vacationDays).toBe(5);
+    // Ago: solo lun-vie dentro del rango (28 vie, 31 lun) = 2. Sep: 1-4 (mar-vie) = 4.
+    expect(aug.vacationDays).toBe(2);
+    expect(sep.vacationDays).toBe(4);
   });
 
   it('cuenta vacaciones de un solo día', () => {
@@ -288,6 +289,32 @@ describe('resumen de disponibilidad', () => {
     };
     const summary = getAvailabilitySummary(avail, 2026, 8);
     expect(summary.vacationDays).toBe(1);
+  });
+
+  it('totalDays deduplica solapes (vacación ∩ feriado = 1 día)', () => {
+    const avail = {
+      vacations: [{ id: 'v1', start: '2026-09-14', end: '2026-09-18' }],
+      holidays: [{ id: 'h1', name: 'Feriado', date: '2026-09-16' }],
+    };
+    const summary = getAvailabilitySummary(avail, 2026, 8);
+    // 22 programados - 5 días de vacaciones (el feriado cae adentro) = 17 efectivos.
+    expect(summary.vacationDays).toBe(5);
+    expect(summary.holidayDays).toBe(1);
+    expect(summary.totalDays).toBe(5);
+  });
+
+  it('respeta workingDays no estándar (mar-sáb) en el conteo', () => {
+    const avail = {
+      vacations: [{ id: 'v1', start: '2026-09-07', end: '2026-09-11' }], // lun-vie
+    };
+    const summary = getAvailabilitySummary(avail, 2026, 8, [2, 3, 4, 5, 6]);
+    // Bajo mar-sáb: 9/7 es lunes (no laboral); cubre mar,mié,jue,vie = 4 días.
+    expect(summary.vacationDays).toBe(4);
+    const domingo = { absences: [{ id: 'a1', date: '2026-09-13', type: 'enfermedad' }] };
+    const s = getAvailabilitySummary(domingo, 2026, 8, [2, 3, 4, 5, 6]);
+    // Domingo es fin de semana (no laborable) para mar-sáb: no suma inasistencia.
+    expect(s.absenceDays).toBe(0);
+    expect(s.totalDays).toBe(0);
   });
 });
 

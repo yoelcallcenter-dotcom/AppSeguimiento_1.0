@@ -4,6 +4,8 @@
  * Todo el estado del operador usa estos defaults como base segura.
  */
 
+import { DEFAULT_MI_ESPACIO_ORDER } from "./miEspacioConfig";
+
 export const OPERATOR_STORAGE_KEYS = {
   PROFILE: "userOperatorProfile",
   AVAILABILITY: "userOperatorAvailability",
@@ -65,6 +67,7 @@ export const DEFAULT_OPERATOR_SETTINGS = {
   showAvailabilityInCalendar: true,
   goalMicroInteractions: true,
   personalSuggestions: true,
+  miEspacioOrder: DEFAULT_MI_ESPACIO_ORDER,
 };
 
 export const ABSENCE_TYPES = [

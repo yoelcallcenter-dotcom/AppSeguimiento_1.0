@@ -5,6 +5,8 @@ import { sanitizeString } from "../../utils/sanitize";
 import { ESTADOS } from "../../utils/constants";
 import { useFilters } from "../../context/FiltersContext";
 import { onKeyActivate } from "../../utils/a11y";
+import { getOperatorGoals } from "../../features/operator/operatorStore";
+import { DEFAULT_GOALS } from "../../features/operator/operatorDefaults";
 
 export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
   const { selectedMonth, selectedYear } = useFilters();
@@ -17,7 +19,7 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
       const [year, month] = fecha.split("-").map(Number);
       return year === selectedYear && month === selectedMonth + 1;
     });
-    const firmados = casosMes.filter((c) => c.estado === "Firmo").length - casosMes.filter((c) => c.estado === "Baja").length;
+    const firmados = Math.max(0, casosMes.filter((c) => c.estado === "Firmo").length - casosMes.filter((c) => c.estado === "Baja").length);
     const pendientes = casosMes.filter(
       (c) =>
         c.estado === "Cita virtual" ||
@@ -30,7 +32,8 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
         c.estado === "Reprogramado" ||
         c.estado === "2do Llamado"
     ).length;
-    const meta = 14;
+    const goals = getOperatorGoals();
+    const meta = goals?.monthly?.signed?.target || DEFAULT_GOALS.monthly.signed.target;
     const progreso = Math.min(100, (firmados / meta) * 100);
     const cumplido = firmados >= meta;
     return {
@@ -150,7 +153,7 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
               className="text-xs"
               style={{ color: "var(--color-text-muted)" }}
             >
-              Meta: 14 firmas por mes
+              Meta: {statsMes.meta} firmas por mes
             </div>
           </div>
         </div>

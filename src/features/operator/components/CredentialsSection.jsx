@@ -5,6 +5,7 @@ import { BtnOutline } from "../../../components/common/BtnOutline";
 import { Field } from "../../../components/common/Field";
 import { TextInput } from "../../../components/common/TextInput";
 import { TextArea } from "../../../components/common/TextArea";
+import { copyToClipboard } from "../../../utils/copyToClipboard";
 
 export function CredentialsSection({ credentials, createCredential, editCredential, removeCredential, showToast }) {
   const [editing, setEditing] = useState(null);
@@ -31,12 +32,12 @@ export function CredentialsSection({ credentials, createCredential, editCredenti
   };
 
   const copy = async (entry) => {
-    try {
-      await navigator.clipboard.writeText(entry.password || "");
+    const ok = await copyToClipboard(entry.password || "");
+    if (ok) {
       setCopiedId(entry.id);
       showToast("Contraseña copiada", "success");
       setTimeout(() => setCopiedId(null), 1500);
-    } catch {
+    } else {
       showToast("No se pudo copiar", "error");
     }
   };

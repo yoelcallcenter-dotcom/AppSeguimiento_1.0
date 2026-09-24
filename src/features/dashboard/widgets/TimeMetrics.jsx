@@ -12,7 +12,7 @@ const fmtFecha = (v) => {
 const DESC_DEFAULT =
   'Evolución diaria de casos ingresados y firmas en los últimos 30 días hábiles. Cada semana se separa con una línea de referencia.';
 
-export default function TimeMetrics({ data, desc }) {
+export default function TimeMetrics({ data, desc, title }) {
   // Separador vertical al inicio de cada semana nueva (campo `semana`).
   const weekSeparators = (data || []).map((d, i) =>
     i > 0 && data[i - 1].semana !== d.semana ? d : null
@@ -23,7 +23,7 @@ export default function TimeMetrics({ data, desc }) {
   );
 
   return (
-    <ChartCard title="Evolución últimos 30 días" icon={TrendingUp} desc={desc || DESC_DEFAULT} right={right}>
+    <ChartCard title={title || "Evolución últimos 30 días"} icon={TrendingUp} desc={desc || DESC_DEFAULT} right={right}>
       {!data || data.length === 0 ? (
         <div className="text-sm py-10 text-center" style={{ color: 'var(--color-text-muted)' }}>Sin datos</div>
       ) : (

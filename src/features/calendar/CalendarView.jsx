@@ -6,17 +6,22 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  getEvent,
   getEventsByMonth,
   getEventsByDateRange,
   getAllEvents,
 } from './calendarStore';
 import CalendarToolbar from './CalendarToolbar';
+import { CalendarFilters, filtrarEventos } from './CalendarFilters';
 import EventModal from './EventModal';
 import TagsPills from '../../components/common/TagsPills';
 import { EmptyState } from '../../components/common/EmptyState';
+import { SectionHeader } from '../../components/configuracion/ui';
 import { getAllNotes } from '../notes/notesStore';
 import { reportError } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
+import casesDB from '../../core/db/casesDB';
+import { syncCitaEvent } from '../../core/cases/citaAutoEvents';
 import { getOperatorAvailability, getOperatorSettings } from '../operator/operatorStore';
 import { onKeyActivate } from '../../utils/a11y';
 import { getAvailabilityOn } from '../operator/operatorMetrics';
@@ -78,6 +83,21 @@ function eventTypeBadge(evt) {
   );
 }
 
+const PRIORITY_LABELS = { low: 'B', medium: 'M', high: 'A' };
+
+function priorityBadge(evt) {
+  const color = PRIORITY_COLORS[evt.priority] || PRIORITY_COLORS.medium;
+  return (
+    <span
+      className="inline-block text-[8px] font-bold rounded px-0.5 mr-0.5 align-middle leading-none"
+      style={{ backgroundColor: color + '33', color }}
+      title={`Prioridad: ${evt.priority === 'low' ? 'Baja' : evt.priority === 'high' ? 'Alta' : 'Media'}`}
+    >
+      {PRIORITY_LABELS[evt.priority] || 'M'}
+    </span>
+  );
+}
+
 const AVAILABILITY_COLORS = {
   vacation: 'var(--color-accent)',
   holiday: 'var(--color-warning)',
@@ -119,7 +139,7 @@ function isSameDay(a, b) {
   return a.slice(0, 10) === b.slice(0, 10);
 }
 
-export default function CalendarView({ showToast, onClose, casos = [], config, onVerCaso }) {
+export default function CalendarView({ showToast, onClose, casos = [], config, onVerCaso, initialEventId, onInitialEventConsumed }) {
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
@@ -133,6 +153,8 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     const s = getOperatorSettings();
     return s.showAvailabilityInCalendar !== false;
   });
+  const [filtros, setFiltros] = useState({ estados: [], prioridades: [], aseguradoras: [], estudios: [], tipos: [] });
+  const [pendingCreate, setPendingCreate] = useState(null);
 
   const { checkUpcomingEvents } = useCalendarService();
 
@@ -141,6 +163,11 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
   const casoMap = useMemo(() => new Map((casos || []).map((c) => [c.id, c])), [casos]);
   // Optimización 1.6.6: la fecha de hoy es estable durante toda la sesión de vista.
   const todayStr = useMemo(() => toLocalDateStr(new Date()), []);
+
+  const eventosFiltrados = useMemo(
+    () => filtrarEventos(events, filtros),
+    [events, filtros]
+  );
 
   const loadEvents = useCallback(async () => {
     try {
@@ -188,19 +215,19 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
   const eventsByDate = useMemo(() => {
     const map = {};
-    for (const e of events) {
+    for (const e of eventosFiltrados) {
       const key = formatDate(e.startDate);
       if (!map[key]) map[key] = [];
       map[key].push(e);
     }
     return map;
-  }, [events]);
+  }, [eventosFiltrados]);
 
   // Optimización 1.6.6: orden y mapa de eventos de la vista lista memoizados
   // (no se reordenan en cada render).
   const listaOrdenada = useMemo(
-    () => [...events].sort((a, b) => a.startDate.localeCompare(b.startDate)),
-    [events]
+    () => [...eventosFiltrados].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    [eventosFiltrados]
   );
   const rawEventsById = useMemo(
     () => new Map(events.map((e) => [e.id, e])),
@@ -248,6 +275,22 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     setModalOpen(true);
   }, []);
 
+  // Navegación directa a un evento desde la Búsqueda Global (1.7.2):
+  // busca el evento por id (aunque esté en otro mes) y abre su modal de edición.
+  useEffect(() => {
+    if (!initialEventId) return undefined;
+    let activo = true;
+    getEvent(initialEventId).then((evt) => {
+      if (!activo || !evt) return;
+      if (onInitialEventConsumed) onInitialEventConsumed();
+      const start = new Date(evt.startDate);
+      if (!isNaN(start.getTime())) setCurrentDate(start);
+      handleEditEvent(evt);
+      loadEvents();
+    });
+    return () => { activo = false; };
+  }, [initialEventId, handleEditEvent, loadEvents, onInitialEventConsumed]);
+
   const handleDeleteEvent = useCallback(async (id) => {
     try {
       await deleteEvent(id);
@@ -263,6 +306,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
   const handleAddEvent = useCallback(() => {
     setEditingEvent(null);
+    setPendingCreate(null);
     setModalOpen(true);
   }, []);
 
@@ -273,14 +317,38 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
       const oldStart = event.startDate;
       const newStart = newStartDate(oldStart, newDateStr);
       const newEnd = event.endDate ? newStartDate(event.endDate, newDateStr) : null;
+
+      // CITA: actualizar campo cita del caso y dejar syncCitaEvent manejar la sincronización.
+      if (event.eventType === EVENT_TYPES.CITA && Array.isArray(event.relatedCaseIds) && event.relatedCaseIds.length) {
+        const caseId = event.relatedCaseIds[0];
+        const caso = (casos || []).find(c => String(c.id) === String(caseId));
+        if (caso) {
+          const d = new Date(newStart);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const tIni = formatTime(newStart);
+          const tFin = formatTime(newEnd || newStart);
+          const nuevaCita = `${day}/${month} - (${tIni} a ${tFin})`;
+          await casesDB.cases.update(String(caseId), { cita: nuevaCita });
+          const casoActualizado = { ...caso, cita: nuevaCita };
+          await syncCitaEvent(casoActualizado, { config });
+          showToast(`Cita reprogramada: ${nuevaCita}`, 'success');
+          loadEvents();
+          useAppStore.getState().loadEvents();
+          return;
+        }
+      }
+
+      // Evento manual / reprogramacion: actualizar directamente.
       await updateEvent(eventId, { startDate: newStart, endDate: newEnd });
       showToast('Evento movido', 'success');
       loadEvents();
       useAppStore.getState().loadEvents();
     } catch (error) {
       showToast('Error al mover el evento', 'error');
+      reportError(error, { operation: 'handleEventDrop', eventId });
     }
-  }, [events, showToast, loadEvents]);
+  }, [events, casos, config, showToast, loadEvents]);
 
   const renderMonthView = () => {
     const year = currentDate.getFullYear();
@@ -324,13 +392,18 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                 : 'var(--color-surface)',
             border: `1px solid ${isToday ? 'var(--color-accent)' : availState ? AVAILABILITY_COLORS[availState.key] + '55' : 'var(--color-border)'}`,
           }}
-          onClick={() => {
-            setCurrentDate(new Date(year, month, day));
-            setView('day');
+          onClick={(e) => {
+            if (e.target.closest('[data-event-pill]')) return;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            setPendingCreate({ startDate: dateStr, startTime: '09:00', endTime: '10:00' });
+            setEditingEvent(null);
+            setModalOpen(true);
           }}
           onKeyDown={onKeyActivate(() => {
-            setCurrentDate(new Date(year, month, day));
-            setView('day');
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            setPendingCreate({ startDate: dateStr, startTime: '09:00', endTime: '10:00' });
+            setEditingEvent(null);
+            setModalOpen(true);
           })}
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
@@ -383,7 +456,8 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                   }}
                 >
                   {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
-                  {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                  {priorityBadge(evt)} {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                  {evt.caseContext?.nombre && <span className="text-[9px] opacity-70 ml-0.5">{evt.caseContext.nombre}</span>}
                 </div>
               );
             })}
@@ -446,10 +520,11 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                   const color = resolveEventColor(evt, casoMap);
                   const caseColor = resolveCaseStateColor(evt, casoMap, config);
                   const cancelled = evt.status === 'cancelled';
-                  return (
-                    <div
-                      key={evt.id}
-                      role="button"
+return (
+                <div
+                  key={evt.id}
+                  data-event-pill
+                  role="button"
                       tabIndex={0}
                       aria-label={`Editar evento ${evt.title || ''}`}
                       draggable
@@ -465,7 +540,8 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                       }}
                     >
                       {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
-                      {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                      {priorityBadge(evt)} {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
+                      {evt.caseContext?.nombre && <span className="text-[9px] opacity-70 ml-0.5">{evt.caseContext.nombre}</span>}
                     </div>
                   );
                 })}
@@ -536,6 +612,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                 >
                   <div className="font-semibold flex items-center gap-1">
                     {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: caseColor }} />}
+                    {priorityBadge(evt)}
                     {eventTypeBadge(evt)}
                     <span className="truncate">{evt.title}</span>
                   </div>
@@ -702,6 +779,12 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
   return (
     <div className="flex flex-col h-full space-y-4">
+      <SectionHeader
+        icon={Calendar}
+        titulo="Calendario"
+        descripcion="Organizá tus eventos, citas y disponibilidad."
+        storageKey="calendario"
+      />
       <CalendarToolbar
         currentView={view}
         onViewChange={setView}
@@ -713,18 +796,26 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
         showAvailability={showAvailability}
         onToggleAvailability={() => setShowAvailability((s) => !s)}
       />
+      <CalendarFilters
+        events={events}
+        config={config}
+        filtros={filtros}
+        onFiltrosChange={setFiltros}
+      />
       <div className="flex-1 overflow-auto">
         {renderContent()}
       </div>
       <EventModal
         isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditingEvent(null); }}
+        onClose={() => { setModalOpen(false); setEditingEvent(null); setPendingCreate(null); }}
         onSave={handleSaveEvent}
         onDelete={handleDeleteEvent}
         event={editingEvent}
         notes={notes}
         casos={casos}
+        config={config}
         onVerCaso={onVerCaso}
+        initialData={pendingCreate}
       />
     </div>
   );

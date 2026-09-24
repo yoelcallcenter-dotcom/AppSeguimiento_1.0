@@ -8,7 +8,6 @@ import { caseRepository } from '../cases/caseRepository';
 import { touchVersion, assertNoConflict } from '../db/versioning';
 import { notifyChange, subscribeToChanges, SYNC_EVENTS } from '../sync/syncService';
 import { repararPreferenciasPersistidas } from '../integrity/referentialChecks';
-
 const savedTheme = (() => {
   try { return localStorage.getItem('app-theme') || 'dark'; } catch { return 'dark'; }
 })();
@@ -26,7 +25,7 @@ export const ORDENES_DEFAULT = {
   kanbanSections: ['pipelineBar', 'columnas'],
   tablaSections: ['pipelineBar', 'tabla', 'paginacion'],
   reportesSections: ['pipelineBar', 'lista', 'paginacion'],
-  utilesTabOrder: ['condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion', 'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo'],
+  utilesTabOrder: ['condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion', 'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo', 'plantillas'],
 };
 
 const useAppStore = create(
@@ -62,6 +61,12 @@ const useAppStore = create(
   setDashTab: (v) => set({ dashTab: v }),
   setDashTabOrder: (v) => set({ dashTabOrder: v }),
   setDashWidgetOrder: (v) => set({ dashWidgetOrder: v }),
+  restoreDashboardDefaults: () => set({
+    dashTabOrder: ORDENES_DEFAULT.dashTabOrder,
+    dashWidgetOrder: {},
+    dashActiveFilter: null,
+    dashTab: 'analitica',
+  }),
 
   // --- View Section Orders ---
   kanbanSections: ORDENES_DEFAULT.kanbanSections,
@@ -108,14 +113,13 @@ const useAppStore = create(
 
   updateCase: async (id, updates) => {
     try {
+      const prev = get().cases.find((c) => c.id === id);
       const hasLoc = 'localidad' in updates || 'provincia' in updates;
       const normal = hasLoc
-        ? normalizarCasos([{ ...get().cases.find((c) => c.id === id), ...updates }])[0]
+        ? normalizarCasos([{ ...prev, ...updates }])[0]
         : updates;
       const updated = await caseRepository.update(id, normal);
       if (!updated) return;
-      // Optimización 1.6.6: si el caso no cambió (misma referencia), no recrear
-      // el array ni disparar re-renders innecesarios en los consumidores.
       set((s) => {
         const current = s.cases;
         const idx = current.findIndex((c) => c.id === id);
@@ -213,7 +217,6 @@ const useAppStore = create(
       const merged = touchVersion({ ...existing, ...updates });
       await appDB.notes.put(merged);
       notifyChange(SYNC_EVENTS.NOTES_UPDATED, { action: 'update', id });
-      // Optimización 1.6.6: mantener la referencia del array si no hubo cambios.
       set((s) => {
         const current = s.notes;
         const idx = current.findIndex((n) => n.id === id);
@@ -275,7 +278,6 @@ const useAppStore = create(
       const merged = touchVersion({ ...existing, ...updates });
       await appDB.events.put(merged);
       notifyChange(SYNC_EVENTS.EVENTS_UPDATED, { action: 'update', id });
-      // Optimización 1.6.6: mantener la referencia del array si no hubo cambios.
       set((s) => {
         const current = s.events;
         const idx = current.findIndex((e) => e.id === id);

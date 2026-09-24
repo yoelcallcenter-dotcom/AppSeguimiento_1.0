@@ -5,49 +5,75 @@ import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
 import { useCases } from "../../hooks/useCases";
 import { casoVacio, hoyISO, uid } from "../../utils/helpers";
+import { copyToClipboard } from "../../utils/copyToClipboard";
+
+const hoyDDMM = () => {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, "0")}/${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}`;
+};
 
 const EJEMPLOS = [
   {
-    nombre: "Juan Perez",
-    telefono: "3814123456",
-    localidad: "San Miguel de Tucuman",
-    aseguradora: "Sancor Salud",
-    profesion: "Albañil",
-    ingreso: "15/07/2026",
-    lesion: "Fractura de miembro inferior derecho",
-    tipoIngreso: "Accidente + Cirugia",
-    cita: "20/07 10:00",
+    nombre: "RAMIREZ EVELIN DAIANA",
+    telefono: "3416699834",
+    localidad: "ZAVALLA",
+    aseguradora: "PREVENCION (88)",
+    profesion: "Laboral",
+    ingreso: "Accidente laboral",
+    lesion: "CONTUSION CADERA",
+    tipoIngreso: "Accidente + Tratamiento",
+    cita: `${hoyDDMM()} - (10:00-10:30)`,
     estado: "Cita virtual",
-    observaciones: "Paciente con buena predisposicion",
-    tags: ["Urgente", "Seguro"],
+    observaciones: "Primera consulta con doctor asignado",
+    tags: ["Primera consulta", "Zavalla"],
+    operador: "Yoel Libay",
   },
   {
-    nombre: "Maria Gomez",
-    telefono: "3815987654",
-    localidad: "Yerba Buena",
-    aseguradora: "Galeno ART",
-    profesion: "Docente",
-    ingreso: "10/07/2026",
-    lesion: "Lesion de columna vertebral",
+    nombre: "BASSANO FRANCO GABRIEL",
+    telefono: "3518089513",
+    localidad: "CORDOBA CAPITAL",
+    aseguradora: "LA SEGUNDA (88)",
+    profesion: "Operario de deposito",
+    ingreso: "Accidente laboral",
+    lesion: "CONTUSION HOMBRO",
+    tipoIngreso: "Accidente + Tratamiento",
+    cita: `${hoyDDMM()} - (10:00-10:30)`,
+    estado: "Cita virtual",
+    observaciones: "Accidente en horario laboral",
+    tags: ["Primera consulta", "Capital"],
+    operador: "Yoel Libay",
+  },
+  {
+    nombre: "CONTRERAS SAAVEDRA CARLOS EDUARDO",
+    telefono: "1123310439",
+    localidad: "BANFIELD",
+    aseguradora: "SWISS MEDICAL (88)",
+    profesion: "Albañil",
+    ingreso: "Accidente laboral",
+    lesion: "CONTUSION MANO",
+    tipoIngreso: "Accidente + Tratamiento",
+    cita: `${hoyDDMM()} - (10:30-11:00)`,
+    estado: "Cita virtual",
+    observaciones: "Estudios complementarios pendientes",
+    tags: ["Primera consulta", "Banfield"],
+    operador: "Yoel Libay",
+  },
+  {
+    nombre: "LOPEZ CARLA CELESTE",
+    telefono: "1136044767",
+    localidad: "SAN MARTIN",
+    aseguradora: "LA SEGUNDA (88)",
+    profesion: "Administrativa",
+    ingreso: "Enfermedad profesional",
+    lesion: "LUMBALGIA CRONICA",
     tipoIngreso: "Enfermedad Profesional",
-    cita: "18/07 15:30",
-    estado: "Cita presencial",
-    observaciones: "Requiere derivacion a traumatologo",
-    tags: ["Prioridad Alta", "Revisar"],
-  },
-  {
-    nombre: "Carlos Rodriguez",
-    telefono: "3814567890",
-    localidad: "Concepcion",
-    aseguradora: "OMINT ART",
-    profesion: "Operario",
-    ingreso: "05/07/2026",
-    lesion: "Traumatismo craneal leve",
-    tipoIngreso: "Accidente sin tratamiento",
-    cita: "21/07 09:00",
-    estado: "Pendiente",
-    observaciones: "En espera de estudios complementarios",
-    tags: ["Seguimiento"],
+    cita: `${hoyDDMM()} - (16:45-17:00)`,
+    estado: "Cita virtual",
+    observaciones: "Derivada a kinesiologia",
+    tags: ["Primera consulta", "San Martin"],
+    operador: "Yoel Libay",
   },
 ];
 
@@ -88,27 +114,21 @@ export function EjemplosCasos({ showToast }) {
     showToast(`${nuevosCasos.length} casos de ejemplo cargados`, "success");
   };
 
-  const copiarFormato = (ejemplo) => {
+  const copiarFormato = async (ejemplo) => {
+    const cita = ejemplo.cita;
     const texto = `NOMBRE: ${ejemplo.nombre}
 TELEFONO: ${ejemplo.telefono}
 LOCALIDAD: ${ejemplo.localidad}
 ART: ${ejemplo.aseguradora}
 INGRESO: ${ejemplo.ingreso}
 LESION: ${ejemplo.lesion}
-CITA: ${ejemplo.cita}
+CITA: ${cita}
 OBSERVACIONES: ${ejemplo.observaciones}`;
 
-    navigator.clipboard.writeText(texto);
+    const ok = await copyToClipboard(texto);
     setCopiado(ejemplo.nombre);
     setTimeout(() => setCopiado(null), 2000);
-    showToast("Formato copiado al portapapeles", "success");
-  };
-
-  const hoyDDMM = () => {
-    const d = new Date();
-    return `${String(d.getDate()).padStart(2, "0")}/${String(
-      d.getMonth() + 1
-    ).padStart(2, "0")}`;
+    showToast(ok ? "Formato copiado al portapapeles" : "No se pudo copiar", ok ? "success" : "error");
   };
 
   return (

@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef } from "react";
-import { Search, FileText, Upload, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { FileText, Upload, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { TextInput } from "../common/TextInput";
+import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
 import { Select } from "../common/Select";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -330,17 +331,11 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex gap-2 items-center flex-wrap">
-          <div className="relative">
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-text-muted)" }}
-            />
-            <TextInput
+          <div>
+            <SearchInput
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar..."
-              className="pl-8"
               style={{ width: 220 }}
             />
           </div>

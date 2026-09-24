@@ -31,13 +31,12 @@ export function InstallButton() {
     <>
       <button
         onClick={handleClick}
-        className="flex items-center gap-1.5 px-2.5 h-9 rounded-md transition-colors hover:bg-white/5 text-xs font-semibold whitespace-nowrap"
-        style={{ color: "var(--color-accent)", border: "1px solid var(--color-border)" }}
+        className="p-2.5 rounded-md transition-colors hover:bg-white/5"
+        style={{ color: "var(--color-text-muted)" }}
         aria-label="Instalar aplicación"
         title="Instalar la app en este dispositivo"
       >
-        <Download size={16} />
-        <span className="hidden sm:inline">Instalar</span>
+        <Download size={20} />
       </button>
 
       {showIosHelp && (

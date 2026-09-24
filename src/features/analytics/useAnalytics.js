@@ -19,6 +19,7 @@ import {
 } from './analyticsEngine';
 import { generarInsightsAnaliticos } from './smartInsights';
 import { PERIODO_DEFAULT } from './periodUtils';
+import { INSIGHTS_CONFIG } from './insightsConfig';
 
 /**
  * @param {Array} allCases todos los casos (IndexedDB vía useAppStore/useCases).
@@ -31,14 +32,15 @@ export function useAnalytics(allCases = [], config = {}, periodoId = PERIODO_DEF
     const rango = getPeriodRange(periodoId);
     const workingDays =
       operator.profile?.workingDays?.length > 0 ? operator.profile.workingDays : [1, 2, 3, 4, 5];
+    const availability = operator.availability || {};
 
-    const resumen = computeResumenPeriodo(allCases, rango, workingDays, config);
+    const resumen = computeResumenPeriodo(allCases, rango, workingDays, config, availability);
     const tendencia = computeTendenciaSemanal(allCases, config);
     const horas = computeFranjasHorarias(allCases, rango);
     const aseguradoras = rendimientoPorGrupo(allCases, rango, 'aseguradora', config);
     const estudios = rendimientoPorGrupo(allCases, rango, 'estudioJuridico', config);
     const sinSeguimientoCount = casosSinSeguimiento(allCases, config).length;
-    const promedioPersonal = promedioPersonalReciente(allCases, config);
+    const promedioPersonal = promedioPersonalReciente(allCases, config, new Date(), INSIGHTS_CONFIG.promedioPersonalDias, workingDays, availability);
 
     let proyeccion = null;
     if (operator.goals && Object.keys(operator.goals).length > 0) {

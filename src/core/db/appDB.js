@@ -78,8 +78,61 @@ appDB.version(5).stores({
   }
 });
 
+// v6: sistema de plantillas reutilizables (1.7.4).
+appDB.version(6).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+});
+
+// v7: (histórico).
+appDB.version(7).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+});
+
+// v8: (histórico).
+appDB.version(8).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+});
+
+// v9: el sistema de automatizaciones fue eliminado; se descartan las tablas
+// automation_rules y automation_execution_logs de instalaciones existentes.
+appDB.version(9).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+});
+
+// v10: reportes guardados (1.7.10) — configuraciones de filtros persistidas
+// desde la vista Reportes, incluidas en backup/export/import.
+appDB.version(10).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+  saved_reports: '++id, nombre, updatedAt',
+});
+
 /** Versión de schema actual que la app conoce. */
-export const APP_DB_SCHEMA_VERSION = 5;
+export const APP_DB_SCHEMA_VERSION = 10;
 
 setupDexieLifecycle(appDB, { name: 'AppData' });
 

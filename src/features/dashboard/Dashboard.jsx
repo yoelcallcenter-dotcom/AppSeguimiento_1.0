@@ -1,9 +1,15 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import {
-  LayoutDashboard, BarChart3, MapPin, Building2, CircleDot,
-  Calendar, AlertTriangle, FileText, MessageSquare, Clock, Target, GripVertical, ChevronUp, ChevronDown, X, Sparkles,
-  Plus, Upload, Play, Shield, TrendingUp,
+  Calendar, AlertTriangle, FileText, MessageSquare, Clock, Target, GripVertical, ChevronUp, ChevronDown, X, Sparkles, Filter, Download,
+  Plus, Upload, Play, Shield, TrendingUp, BarChart3, MapPin, Building2, CircleDot,
 } from 'lucide-react';
+import {
+  DASH_TAB_MAP as TAB_MAP,
+  DEFAULT_DASH_WIDGET_ORDER as DEFAULT_WIDGET_ORDER,
+  getOrderedDashWidgets,
+} from './dashboardConfig';
+import { NavDock } from '../../components/common/UINav';
+import { SectionHeader } from '../../components/configuracion/ui';
 import { LogroObjetivos } from '../../components/estadisticas/LogroObjetivos';
 import { UltimosCasos } from '../../components/estadisticas/UltimosCasos';
 import { MiDiaView } from '../../components/estadisticas/MiDiaView';
@@ -11,6 +17,7 @@ import { VistaMapa } from '../../components/estadisticas/VistaMapa';
 import useAppStore from '../../core/store/useAppStore';
 import { useFilters } from '../../context/FiltersContext';
 import { trackEvent } from '../../utils/behaviorEngine';
+import { escapeCSV, sanitizeCSV } from '../../utils/backup/csvUtils';
 import { MonthDayFilterBar } from '../../components/common/MonthDayFilterBar';
 import { EmptyState } from '../../components/common/EmptyState';
 import { MetricCard } from './MetricCard';
@@ -38,6 +45,10 @@ import AlertsPanel from './widgets/AlertsPanel';
 import ActivityFeed from './widgets/ActivityFeed';
 import InsightsPanel from './widgets/InsightsPanel';
 import ProximasAcciones from './widgets/ProximasAcciones';
+import { CitasWidget } from './widgets/CitasWidget';
+import { ReprogramacionesWidget } from './widgets/ReprogramacionesWidget';
+import { AseguradorasWidget } from './widgets/AseguradorasWidget';
+import DashboardFilters from './widgets/DashboardFilters';
 import { useAnalytics } from '../analytics/useAnalytics';
 import { PERIODO_DEFAULT } from '../analytics/periodUtils';
 import PeriodSelector from '../analytics/components/PeriodSelector';
@@ -56,20 +67,8 @@ import {
 } from './metricsEngine';
 
 // ============================================================
-// TABS
-// ============================================================
-const TAB_MAP = {
-  insights: { id: 'insights', label: 'Insights', icon: Sparkles },
-  analitica: { id: 'analitica', label: 'Analítica', icon: BarChart3 },
-  resumen: { id: 'resumen', label: 'Resumen', icon: LayoutDashboard },
-  rendimiento: { id: 'rendimiento', label: 'Rendimiento', icon: BarChart3 },
-  geografia: { id: 'geografia', label: 'Geografía', icon: MapPin },
-  estudios: { id: 'estudios', label: 'Estudios', icon: Building2 },
-  estados: { id: 'estados', label: 'Estados', icon: CircleDot },
-};
-
-// ============================================================
-// WIDGET CARD (interno)
+// TABS (single-source: ./dashboardConfig)
+// WIDGET REGISTRY (single-source: ./dashboardConfig)
 // ============================================================
 const TAB_HELP = {
   insights: 'Insights inteligentes, resumen de período y tendencia semanal con selector de período propio.',
@@ -86,19 +85,22 @@ const TAB_HELP = {
 // ============================================================
 const WIDGET_REGISTRY = {
   resumen: {
-    generalMetrics: { label: 'Métricas generales', defaultOrder: 0 },
-    alertBanner: { label: 'Alertas automáticas', defaultOrder: 1 },
-    quickActions: { label: 'Acciones rápidas', defaultOrder: 2 },
-    proximasAcciones: { label: 'Próximas acciones', defaultOrder: 3 },
-    analyticHeader: { label: 'Encabezado analítico', defaultOrder: 4 },
+    generalMetrics: { label: 'Metricas generales', defaultOrder: 0 },
+    alertBanner: { label: 'Alertas automaticas', defaultOrder: 1 },
+    quickActions: { label: 'Acciones rapidas', defaultOrder: 2 },
+    proximasAcciones: { label: 'Proximas acciones', defaultOrder: 3 },
+    analyticHeader: { label: 'Encabezado analitico', defaultOrder: 4 },
     alertsPanel: { label: 'Alertas', defaultOrder: 5 },
     activityFeed: { label: 'Actividad reciente', defaultOrder: 6 },
-    eventos: { label: 'Próximos eventos', defaultOrder: 7 },
-    sinReporte: { label: 'Casos sin reporte', defaultOrder: 8 },
-    notas: { label: 'Notas recientes', defaultOrder: 9 },
-    resumen: { label: 'Resumen rápido', defaultOrder: 10 },
-    ultimosCasos: { label: 'Últimos casos', defaultOrder: 11 },
-    miDia: { label: 'Mi día', defaultOrder: 12 },
+    eventos: { label: 'Proximos eventos', defaultOrder: 7 },
+    citasProximas: { label: 'Citas proximas', defaultOrder: 8 },
+    reprogramaciones: { label: 'Reprogramaciones', defaultOrder: 9 },
+    aseguradoras: { label: 'Aseguradoras', defaultOrder: 10 },
+    sinReporte: { label: 'Casos sin reporte', defaultOrder: 11 },
+    notas: { label: 'Notas recientes', defaultOrder: 12 },
+    resumen: { label: 'Resumen rapido', defaultOrder: 13 },
+    ultimosCasos: { label: 'Ultimos casos', defaultOrder: 14 },
+    miDia: { label: 'Mi dia', defaultOrder: 15 },
   },
   rendimiento: {
     perfMetrics: { label: 'Métricas de performance', defaultOrder: 0 },
@@ -119,14 +121,15 @@ const WIDGET_REGISTRY = {
   },
 };
 
-const DEFAULT_WIDGET_ORDER = Object.fromEntries(
-  Object.entries(WIDGET_REGISTRY).map(([tab, widgets]) => [
-    tab,
-    Object.entries(widgets)
-      .sort(([, a], [, b]) => a.defaultOrder - b.defaultOrder)
-      .map(([id]) => id),
-  ])
-);
+const DASH_TAB_DESC = {
+  insights: 'Resumen inteligente de tu operación y analítica personal.',
+  analitica: 'Exploración operativa con filtros y comparativas.',
+  resumen: 'Vista completa del mes con tus métricas y acciones.',
+  rendimiento: 'Metas, objetivos y evolución de tu productividad.',
+  geografia: 'Distribución territorial de tus casos por provincia.',
+  estudios: 'Panorama de estudios jurídicos y su rendimiento.',
+  estados: 'Distribución de tus casos según su estado actual.',
+};
 
 const WidgetCard = React.memo(({ title, icon: Icon, children }) => (
   <div className="rounded-xl p-5 animate-fade-in" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
@@ -171,7 +174,23 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   const {
     selectedMonth, selectedYear, selectedDays,
     setSelectedView, setSearchQuery, setQuickFilter,
+    filtroGlobal, setFiltroGlobal,
   } = useFilters();
+
+  const filterLabel = useMemo(() => {
+    if (selectedDays && selectedDays.length > 0) {
+      if (selectedDays.length === 1) return selectedDays[0];
+      return `${selectedDays.length} dias`;
+    }
+    if (selectedMonth && selectedYear) {
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      return `${monthNames[selectedMonth - 1]} ${selectedYear}`;
+    }
+    return 'Todo';
+  }, [selectedMonth, selectedYear, selectedDays]);
+
+  const QUICK_ACTIONS_LABELS = { pendientes: 'Pendientes', firmas: 'Firmas', perdidos: 'Perdidos', sinReporte: 'Sin reporte' };
+  const activeFilterLabel = activeFilter ? QUICK_ACTIONS_LABELS[activeFilter] || activeFilter : null;
 
   const handleDrill = useCallback((f) => {
     if (!f) return;
@@ -231,10 +250,95 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     return null;
   }, [selectedDays, selectedMonth, selectedYear]);
   const filtrosAnalitica = useMemo(
-    () => ({ mes: mesAnalitica, dias: selectedDays.length > 0 ? selectedDays : undefined }),
-    [mesAnalitica, selectedDays]
+    () => ({
+      mes: mesAnalitica,
+      dias: selectedDays.length > 0 ? selectedDays : undefined,
+      estado: filtroGlobal?.estado,
+      aseguradora: filtroGlobal?.aseguradora,
+      localidad: filtroGlobal?.localidad,
+      estudio: filtroGlobal?.estudio,
+      provincia: filtroGlobal?.provincia,
+      tipo: filtroGlobal?.tipo,
+    }),
+    [mesAnalitica, selectedDays, filtroGlobal]
   );
   const { metrics: analyticsMetrics, insights: analyticsInsights, activity } = useDashboardData(filtrosAnalitica, config);
+
+  const resetAnaliticaFiltros = useCallback(() => {
+    setFiltroGlobal({
+      ...filtroGlobal,
+      estado: [],
+      aseguradora: [],
+      localidad: [],
+      estudio: [],
+      provincia: [],
+      tipo: [],
+    });
+  }, [filtroGlobal, setFiltroGlobal]);
+
+  // Opciones de los filtros de exploración (derivadas del período seleccionado).
+  const filtrosOptions = useMemo(() => {
+    let base = allCases;
+    if (mesAnalitica && mesAnalitica !== 'todos') {
+      const [yy, mm] = mesAnalitica.split('-').map(Number);
+      base = allCases.filter((c) => {
+        if (!c.fecha) return false;
+        const d = new Date(c.fecha);
+        return !isNaN(d.getTime()) && d.getFullYear() === yy && d.getMonth() === mm - 1;
+      });
+    }
+    const unicos = (campo) =>
+      [...new Set(base.map((c) => (c[campo] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    return {
+      estados: unicos('estado'),
+      aseguradoras: unicos('aseguradora'),
+      localidades: unicos('localidad'),
+      estudios: unicos('estudioJuridico'),
+      provincias: unicos('provincia'),
+      tipos: unicos('tipoIngreso'),
+    };
+  }, [allCases, mesAnalitica]);
+
+  // Exportación CSV de la exploración analítica actual (B4).
+  const exportarAnaliticaCSV = useCallback(() => {
+    const e = (v) => escapeCSV(sanitizeCSV(v));
+    const filas = [];
+    const pushKpi = (label, value) => filas.push([e('KPI'), e(label), e(value)]);
+    const pushRow = (section, field, value) => filas.push([e(section), e(field), e(value)]);
+    const pushBreakdown = (titulo, rows) => {
+      for (const r of rows) {
+        pushRow(titulo, r.key || r.name || '', r.total ?? r.value ?? 0);
+      }
+    };
+
+    pushKpi('Casos totales', analyticsMetrics?.total ?? 0);
+    pushKpi('Activos', analyticsMetrics?.activos ?? 0);
+    pushKpi('Cerrados', analyticsMetrics?.cerrados ?? 0);
+    pushKpi('Firmas', analyticsMetrics?.firmas ?? 0);
+    pushKpi('Perdidos', analyticsMetrics?.perdidos ?? 0);
+    pushKpi('Sin reporte', analyticsMetrics?.sinReporte ?? 0);
+    pushKpi('Tasa de conversión (%)', analyticsMetrics?.tasaConversion ?? 0);
+    pushKpi('Tasa de cierre (%)', analyticsMetrics?.tasaCierre ?? 0);
+    pushKpi('Reprogramaciones', analyticsMetrics?.reprogramaciones ?? 0);
+
+    pushBreakdown('Estados', analyticsMetrics?.byStatus || []);
+    pushBreakdown('Categorías', analyticsMetrics?.byCategory || []);
+    pushBreakdown('Aseguradoras', analyticsMetrics?.byAseguradora || []);
+    pushBreakdown('Localidades', analyticsMetrics?.byLocalidad || []);
+    pushBreakdown('Estudios', analyticsMetrics?.byStudy || []);
+    pushBreakdown('Provincias', analyticsMetrics?.byProvince || []);
+    pushBreakdown('Tipos de ingreso', analyticsMetrics?.byType || []);
+
+    const csv = [['Sección', 'Detalle', 'Valor'].join(',')].concat(filas.map((f) => f.join(','))).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const periodo = mesAnalitica && mesAnalitica !== 'todos' ? mesAnalitica : 'todos';
+    a.href = url;
+    a.download = `Analitica_${periodo}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [analyticsMetrics, mesAnalitica]);
 
   // ============================================================
   // INSIGHTS Y ANALÍTICA PERSONAL (1.3.2)
@@ -278,6 +382,20 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   }, [casos, activeFilter, cats]);
 
   const ctx = useMemo(() => ({ filtered: filteredCases, cats }), [filteredCases, cats]);
+
+  const seriesByDayTitle = useMemo(() => {
+    const s = analyticsMetrics?.seriesByDay || [];
+    if (s.length === 0) return null;
+    const from = s[0].label;
+    const to = s[s.length - 1].label;
+    return `Evolución diaria (${from} - ${to})`;
+  }, [analyticsMetrics?.seriesByDay]);
+
+  const weeklyByDayTitle = useMemo(() => {
+    const w = analyticsMetrics?.weeklySeries || [];
+    if (w.length === 0) return null;
+    return `Evolución semanal (${w.length} semana${w.length === 1 ? '' : 's'})`;
+  }, [analyticsMetrics?.weeklySeries]);
 
   // ============================================================
   // PERIODO ANTERIOR (para insight)
@@ -388,9 +506,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     const saved = dashWidgetOrder || {};
     const result = {};
     for (const tabId of Object.keys(DEFAULT_WIDGET_ORDER)) {
-      const valid = new Set(DEFAULT_WIDGET_ORDER[tabId]);
-      const savedOrder = (saved[tabId] || []).filter((id) => valid.has(id));
-      result[tabId] = savedOrder.length ? savedOrder : DEFAULT_WIDGET_ORDER[tabId];
+      result[tabId] = getOrderedDashWidgets(saved[tabId] || [], tabId);
     }
     return result;
   }, [dashWidgetOrder]);
@@ -534,6 +650,18 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         return (
           <SmartTable key="estadosTable" title="Distribución por estado" icon={CircleDot} columns={columnsEstados} data={estadosGroup} />
         );
+      case 'citasProximas':
+        return showWidget('widgetCitas') ? (
+          <CitasWidget key="citasProximas" period={filterLabel} />
+        ) : null;
+      case 'reprogramaciones':
+        return showWidget('widgetReprogramaciones') ? (
+          <ReprogramacionesWidget key="reprogramaciones" period={filterLabel} onVerCaso={onVerCaso} />
+        ) : null;
+      case 'aseguradoras':
+        return showWidget('widgetAseguradoras') ? (
+          <AseguradorasWidget key="aseguradoras" period={filterLabel} onFilter={handleFilter} />
+        ) : null;
       default:
         return null;
     }
@@ -543,7 +671,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     upcomingEvents, sinReporte, recentNotes,
     notes, events, onVerCaso, provincias, estudios, estadosGroup,
     drillDeMetrica, analyticsMetrics, activity, handleDrill,
-    handleNavigateToEvent, handleActivitySelect,
+    handleNavigateToEvent, handleActivitySelect, filterLabel,
   ]);
 
   return (
@@ -562,34 +690,43 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         onMonthChange={handleGlobalMonthChange}
       />
 
+      {activeFilterLabel && (
+        <div className="flex items-center gap-2 mb-3">
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: 'var(--color-accent)18', color: 'var(--color-accent)', border: '1px solid var(--color-accent)44' }}
+          >
+            <Filter size={12} />
+            Filtro activo: {activeFilterLabel}
+          </span>
+          <button
+            onClick={() => setActiveFilter(null)}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+          >
+            <X size={12} />
+            Limpiar filtro
+          </button>
+        </div>
+      )}
+
       {/* ============================================================ */}
       {/* TABS */}
       {/* ============================================================ */}
-      <div
-        className="flex items-center gap-1 mb-4 pb-1 overflow-x-auto"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
-      >
-        {tabOrder.map((id) => {
-          const t = TAB_MAP[id];
-          if (!t) return null;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors whitespace-nowrap"
-              style={{
-                color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
-                marginBottom: '-1px',
-              }}
-            >
-              <t.icon size={13} />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <NavDock
+        items={tabOrder.map((id) => TAB_MAP[id]).filter(Boolean)}
+        active={tab}
+        onSelect={setTab}
+        ariaLabel="Secciones del dashboard"
+      />
+      <SectionHeader
+        icon={TAB_MAP[tab]?.icon}
+        titulo={TAB_MAP[tab]?.label || 'Dashboard'}
+        descripcion={DASH_TAB_DESC[tab] || ''}
+        storageKey="dashboard"
+      />
 
       {/* ============================================================ */}
       {/* TAB CONTENT */}
@@ -609,13 +746,35 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         </div>
       ) : tab === 'analitica' ? (
         <div className="space-y-4" key="analitica">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+              <BarChart3 size={13} style={{ color: 'var(--color-accent)' }} />
+              Exploración operativa
+            </div>
+            <button
+              onClick={exportarAnaliticaCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface2)' }}
+            >
+              <Download size={12} />
+              Exportar CSV
+            </button>
+          </div>
+          <DashboardFilters
+            filters={filtroGlobal}
+            onChange={setFiltroGlobal}
+            options={filtrosOptions}
+            onReset={resetAnaliticaFiltros}
+          />
           <KPICards metrics={analyticsMetrics} onDrill={handleDrill} prevMetrics={prevMetrics} />
           <InsightsPanel insights={analyticsInsights} onDrill={handleDrill} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <CaseDistribution data={analyticsMetrics.byStatus} onDrill={handleDrill} />
             <CategoryDonut data={analyticsMetrics.byCategory} onDrill={handleDrill} />
-            <TimeMetrics data={analyticsMetrics.seriesByDay} />
-            <WeeklyTrend data={analyticsMetrics.weeklySeries} />
+            <TimeMetrics data={analyticsMetrics.seriesByDay} title={seriesByDayTitle} />
+            <WeeklyTrend data={analyticsMetrics.weeklySeries} title={weeklyByDayTitle} />
+            <ReprogramacionesWidget period={filterLabel} onVerCaso={onVerCaso} />
+            <CitasWidget period={filterLabel} />
             <StackedBars
               data={analyticsMetrics.byAseguradora}
               title="Casos por aseguradora"
@@ -645,7 +804,13 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
             <StudyBars data={analyticsMetrics.byStudy} onDrill={handleDrill} />
             {showWidget('widgetFunnel') && <FunnelChart funnel={funnel} />}
             {showWidget('widgetActividad') && (
-              <ActivityChart cases={allCases} selectedDay={activityDay} onSelectDay={setActivityDay} />
+              <ActivityChart
+                cases={allCases}
+                selectedDay={activityDay}
+                onSelectDay={setActivityDay}
+                workingDays={operatorData.profile?.workingDays}
+                availability={operatorData.availability}
+              />
             )}
           </div>
           <ProductivityWidget onOpenCaso={onVerCaso} onChangeView={setTab} dayISO={selectedDayISO} />

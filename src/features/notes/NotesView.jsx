@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, CalendarPlus, History, Link, Save, ExternalLink } from 'lucide-react';
+import { Plus, CalendarPlus, History, Link, Save, ExternalLink, StickyNote } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
+import { SectionHeader } from '../../components/configuracion/ui';
 import { Skeleton, SkeletonText } from '../../components/common/Skeleton';
 import { CaseLinker } from '../../components/common/CaseLinker';
 import NotesEditor from './NotesEditor';
@@ -18,6 +19,7 @@ import {
 import { useNotesService } from './notesService';
 import { reportError } from '../../core/error/reportError';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { TemplateSelector } from '../../components/common/TemplateSelector';
 import { soundSystem } from '../../core/notifications/soundSystem';
 import useAppStore from '../../core/store/useAppStore';
 
@@ -30,7 +32,7 @@ const SORT_OPTIONS = [
   { value: 'title-desc', label: 'Titulo Z-A' },
 ];
 
-export default function NotesView({ showToast, onCreateEvent, casos = [], selectedNoteId, onSelectedNoteIdConsumed, onVerCaso }) {
+export default function NotesView({ showToast, onCreateEvent, casos = [], config = {}, selectedNoteId, onSelectedNoteIdConsumed, onVerCaso }) {
   const [sortOrder, setSortOrder] = useState(() => localStorage.getItem('notas-sort-order') || 'updated-desc');
   const [notes, setNotes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -215,6 +217,11 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
         setSelectedId(selectedNoteId);
         setShowHistory(false);
         if (onSelectedNoteIdConsumed) onSelectedNoteIdConsumed();
+        // Scrollear la nota seleccionada dentro de la lista (1.7.2).
+        setTimeout(() => {
+          const el = document.querySelector(`[data-note-id="${String(selectedNoteId)}"]`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 60);
       }
     }
   }, [selectedNoteId, notes, onSelectedNoteIdConsumed]);
@@ -247,7 +254,14 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
   }
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex flex-col h-full space-y-4">
+      <SectionHeader
+        icon={StickyNote}
+        titulo="Bloc de Notas"
+        descripcion="Registrá observaciones por caso, con eventos y historial."
+        storageKey="notas"
+      />
+      <div className="flex flex-1 min-h-0 gap-4">
       {/* Sidebar - Lista de notas */}
       <div className="w-80 flex-shrink-0 flex flex-col">
         <div className="flex items-center justify-between mb-3">
@@ -335,6 +349,20 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
                 </button>
               </div>
             </div>
+
+            <TemplateSelector
+              type="nota"
+              config={config}
+              onSelect={(resolved) => {
+                setSelectedNote(prev => ({
+                  ...prev,
+                  title: resolved.title || prev.title,
+                  content: resolved.content || prev.content,
+                  tags: resolved.tags || prev.tags,
+                }));
+                setDirty(true);
+              }}
+            />
 
             {/* Tags */}
             <div className="flex items-center gap-1 flex-wrap">
@@ -472,6 +500,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], select
           setConfirmDelete(null);
         }}
       />
+      </div>
     </div>
   );
 }

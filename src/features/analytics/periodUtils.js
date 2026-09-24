@@ -7,6 +7,7 @@
  */
 
 import { normalizeDate } from "../../utils/dateFilters";
+import { isUnavailableOn } from "../operator/operatorMetrics";
 
 export const PERIODOS = [
   { id: 'hoy', label: 'Hoy' },
@@ -110,15 +111,37 @@ export function casosEnRango(casos, rango) {
 /**
  * Días hábiles (según workingDays) transcurridos dentro del rango.
  * Se usa como denominador del promedio diario.
+ * Con availability descuenta además vacaciones, feriados, inasistencias y
+ * días libres (solo sobre días que ya son hábiles): DH = TM − FS − In − Fe − Va.
  */
-export function diasHabilesEnRango(rango, workingDays = [1, 2, 3, 4, 5]) {
+export function diasHabilesEnRango(
+  rango,
+  workingDays = [1, 2, 3, 4, 5],
+  availability = {}
+) {
+  return diasEfectivosEnRango(rango, workingDays, availability).length;
+}
+
+/**
+ * Lista de fechas ISO de días efectivamente laborables dentro del rango:
+ * días que caen en workingDays y no están cubiertos por la disponibilidad
+ * (vacaciones, feriados, inasistencias ni días libres).
+ */
+export function diasEfectivosEnRango(
+  rango,
+  workingDays = [1, 2, 3, 4, 5],
+  availability = {}
+) {
   const wd = new Set(workingDays.length > 0 ? workingDays : [1, 2, 3, 4, 5]);
-  let count = 0;
+  const dias = [];
   const cursor = dateDe(rango.startISO);
   const fin = dateDe(rango.endISO);
   while (cursor <= fin) {
-    if (wd.has(cursor.getDay())) count += 1;
+    if (wd.has(cursor.getDay())) {
+      const iso = isoDe(cursor);
+      if (!isUnavailableOn(availability, iso)) dias.push(iso);
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
-  return count;
+  return dias;
 }

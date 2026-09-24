@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import useAppStore from '../../core/store/useAppStore';
 import { computeMetrics, buildActivityFeed } from './computeMetrics';
 import { generateInsights } from './insightsEngine';
+import { getOperatorProfile, getOperatorAvailability } from '../operator/operatorStore';
 
 export function useDashboardData(filters = {}, config = {}) {
   const cases = useAppStore((s) => s.cases);
@@ -16,7 +17,11 @@ export function useDashboardData(filters = {}, config = {}) {
   const events = useAppStore((s) => s.events);
 
   return useMemo(() => {
-    const metrics = computeMetrics(cases, filters, config);
+    const profile = getOperatorProfile() || {};
+    const metrics = computeMetrics(cases, filters, config, {
+      workingDays: profile.workingDays,
+      availability: getOperatorAvailability() || {},
+    });
     const insights = generateInsights(metrics);
     const activity = buildActivityFeed(cases, notes, events, 15);
     return {

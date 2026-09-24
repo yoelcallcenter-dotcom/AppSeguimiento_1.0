@@ -177,6 +177,25 @@ describe('computeResumenPeriodo', () => {
     // 4 firmas / 5 días hábiles = 0.8
     expect(resumen.promedioDiario).toBe(0.8);
   });
+
+  it('descuenta días no efectivos (inasistencia) del promedio diario', () => {
+    const casos = ['17/08', '18/08', '19/08'].map((f, i) =>
+      casoBase({
+        id: `f${i}`,
+        fecha: '2026-07-03',
+        estado: 'Firmo',
+        reporteHistory: [{ fecha: f, texto: '', origen: '' }],
+      })
+    );
+    const rango = { startISO: '2026-08-17', endISO: '2026-08-21' };
+    const availability = {
+      absences: [{ id: 'a1', date: '2026-08-18', type: 'enfermedad' }],
+    };
+    const resumen = computeResumenPeriodo(casos, rango, [1, 2, 3, 4, 5], {}, availability);
+    // 3 firmas sobre 4 días hábiles efectivos (se descuenta el 18/08) = 0.8
+    expect(resumen.habiles).toBe(4);
+    expect(resumen.promedioDiario).toBe(0.8);
+  });
 });
 
 describe('computeDiaSemana', () => {

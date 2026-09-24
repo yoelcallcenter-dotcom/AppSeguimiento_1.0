@@ -41,7 +41,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         question: "¿Como pegar una ficha completa?",
-        answer: "En el formulario de nuevo caso, haz clic en 'Pegar ficha completa'. Pega el texto con el formato: NOMBRE:, TELEFONO:, LOCALIDAD:, ART:, PROFESION:, INGRESO:, LESION:, CITA:, OBSERVACIONES:, TAGS:, COMENTARIOS:. La app procesara automaticamente los datos y completara los campos correspondientes. Ejemplo:\nNOMBRE: Juan Perez\nTELEFONO: 3814123456\nLOCALIDAD: San Miguel de Tucuman\nART: Sancor Salud\nINGRESO: 15/07/2026\nLESION: Fractura de miembro inferior\nCITA: 20/07 10:00\nPROFESION: Albañil\nTAGS: urgente\nCOMENTARIOS: Pendiente de respuesta",
+        answer: "En el formulario de nuevo caso, haz clic en 'Pegar ficha completa'. Pega el texto con el formato: NOMBRE:, TELEFONO:, LOCALIDAD:, ART:, PROFESION:, INGRESO:, LESION:, CITA:, OBSERVACIONES:, TAGS:, COMENTARIOS:. La app procesa automaticamente los datos y completara los campos correspondientes. Ademas, si configuraste palabras clave en Configuracion → Tipos de Ingreso, el sistema detectara automaticamente el tipo de ingreso mas adecuado segun el contenido de la ficha (por ejemplo, si contiene 'cirugia' asignara 'Accidente + Cirugía'). Ejemplo:\nNOMBRE: Juan Perez\nTELEFONO: 3814123456\nLOCALIDAD: San Miguel de Tucuman\nART: Sancor Salud\nINGRESO: 15/07/2026\nLESION: Fractura de miembro inferior\nCITA: 20/07 10:00\nPROFESION: Albañil\nTAGS: urgente\nCOMENTARIOS: Pendiente de respuesta",
         tags: ["casos", "crear", "ficha"],
       },
       {
@@ -97,7 +97,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         question: "¿Que pasa cuando un caso llega a 'Firmo'?",
-        answer: "El estado 'Firmo' indica que el prospecto firmo el acuerdo con el estudio juridico. Es el estado final exitoso. La app puede configurarse para enviar una alerta de firma automaticamente al alcanzar este estado, en Configuracion → Automatizacion.",
+        answer: "El estado 'Firmo' indica que el prospecto firmo el acuerdo con el estudio juridico. Es el estado final exitoso. La app puede configurarse para mostrar una notificacion al alcanzar este estado, en Configuracion → Notificaciones.",
         tags: ["estados", "firmo"],
       },
       {
@@ -215,7 +215,7 @@ export const FAQ_CATEGORIES = [
     items: [
       {
         question: "¿Que es Mi Espacio?",
-        answer: "Es el centro personal del operador. Reune tu perfil, tu jornada habitual, tu disponibilidad (vacaciones, feriados, inasistencias y dias no laborables), tus metas de trabajo, tus accesos personales a sistemas y sugerencias inteligentes. Todo se guarda localmente en este dispositivo.",
+        answer: "Es el centro de trabajo del operador. Su seccion principal, \"Hoy\", reune los bloques del dia en una sola pagina: bienvenida, jornada, proxima actividad, proximos eventos, pendientes, productividad, metas, acciones rapidas y accesos personales. Tambien incluye tu perfil, disponibilidad (vacaciones, feriados, inasistencias y dias no laborables), metas de trabajo y sugerencias inteligentes. El orden de los bloques se personaliza en Configuracion → Apariencia → Vistas. Todo se guarda localmente en este dispositivo.",
         tags: ["mi-espacio", "personal", "intro"],
       },
       {
@@ -261,7 +261,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         question: "¿Como recupero datos perdidos?",
-        answer: "Si realizaste backup previamente, ve a Configuracion → Configuracion Compartida → Importar y selecciona tu archivo JSON. Si no tienes backup, lamentablemente los datos no son recuperables. Recomendamos configurar backups automaticos en Configuracion → Automatizacion.",
+        answer: "Si realizaste backup previamente, ve a Configuracion → Configuracion Compartida → Importar y selecciona tu archivo JSON. Si no tienes backup, lamentablemente los datos no son recuperables. Recomendamos configurar la frecuencia del backup automatico en Configuracion → General → Datos.",
         tags: ["problemas", "perdida", "recuperar"],
       },
       {

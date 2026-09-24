@@ -11,7 +11,14 @@ function createOtherTabChannel() {
   return new BroadcastChannel(SYNC_CHANNEL_NAME);
 }
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flush = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForMessages(received, min, timeoutMs = 1000) {
+  const start = Date.now();
+  while (received.length < min && Date.now() - start < timeoutMs) {
+    await flush(10);
+  }
+}
 
 describe('syncService', () => {
   it('notifyChange entrega el mensaje a canales de otras pestañas', async () => {
@@ -20,7 +27,7 @@ describe('syncService', () => {
     other.onmessage = (event) => received.push(event.data);
 
     notifyChange(SYNC_EVENTS.CASES_UPDATED, { id: 'c1' });
-    await flush();
+    await waitForMessages(received, 1);
 
     expect(received).toHaveLength(1);
     expect(received[0].type).toBe(SYNC_EVENTS.CASES_UPDATED);
@@ -35,7 +42,7 @@ describe('syncService', () => {
     // Simula otra pestaña publicando directamente en el canal.
     const other = createOtherTabChannel();
     other.postMessage({ type: SYNC_EVENTS.NOTES_UPDATED, payload: { n: 1 }, timestamp: Date.now() });
-    await flush();
+    await waitForMessages(received, 1);
 
     expect(received).toHaveLength(1);
     expect(received[0].type).toBe(SYNC_EVENTS.NOTES_UPDATED);
@@ -43,7 +50,7 @@ describe('syncService', () => {
 
     unsubscribe();
     other.postMessage({ type: SYNC_EVENTS.NOTES_UPDATED, payload: { n: 2 }, timestamp: Date.now() });
-    await flush();
+    await flush(30);
 
     expect(received).toHaveLength(1);
   });

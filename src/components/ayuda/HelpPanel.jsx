@@ -6,7 +6,6 @@ import {
   FileText,
   Mail,
   Play,
-  Zap,
   ScrollText,
   Printer,
   Download,
@@ -15,7 +14,6 @@ import {
   MapPin,
   Building2,
   CircleDot,
-  Edit3,
   LayoutGrid,
   Table2,
   ClipboardList,
@@ -26,14 +24,13 @@ import {
   Bell,
   Search,
   Upload,
-  List,
   ChevronDown,
-  Eye,
   CheckCircle2,
-  Clock,
   Sparkles,
   User,
+  GraduationCap,
 } from "lucide-react";
+import { SectionHeader, ConfigTip } from "../configuracion/ui";
 import { FAQView } from "../../faq";
 import { GlossaryView } from "../../glossary";
 import { GuideView } from "../../guide";
@@ -41,6 +38,7 @@ import { AtajosTeclado } from "./AtajosTeclado";
 import { FeedbackForm } from "./FeedbackForm";
 import { useTour, TOURS } from "../../tour";
 import { DOC_README, DOC_CHANGELOG } from "../../docs/docsContent";
+import { EjemplosCasos } from "./EjemplosCasos";
 
 function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
   const [abierto, setAbierto] = useState(false);
@@ -75,21 +73,72 @@ function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
 
 export default function HelpPanel({ showToast, onClose }) {
   const [seccion, setSeccion] = useState("tour");
+  const [grupoActivo, setGrupoActivo] = useState("comenzar");
   const [docTab, setDocTab] = useState("readme");
   const { startTour } = useTour();
   // Contenidos tomados DIRECTAMENTE de src/docs/ (generados por scripts/build-docs.js).
   const docs = { readme: DOC_README, changelog: DOC_CHANGELOG };
 
-  const secciones = [
-    { id: "tour", label: "Tour interactivo", icon: Play },
-    { id: "vistas", label: "Acerca de Vistas", icon: LayoutDashboard },
-    { id: "faq", label: "Preguntas Frecuentes", icon: MessageSquare },
-    { id: "atajos", label: "Atajos de teclado", icon: Keyboard },
-    { id: "glosario", label: "Glosario", icon: BookOpen },
-    { id: "guiapdf", label: "Guia PDF", icon: Printer },
-    { id: "documentacion", label: "Documentacion", icon: FileText },
-    { id: "feedback", label: "Feedback", icon: Mail },
+  const HELP_SECTION_META = {
+    tour: "Un recorrido guiado por todas las funcionalidades, la forma más rápida de conocer la aplicación.",
+    vistas: "Explicación completa de cada pantalla: qué hace, por qué existe y cómo usarla en el día a día.",
+    ejemplos: "Casos de ejemplo para practicar el flujo completo de carga y seguimiento.",
+    faq: "Respuestas rápidas a las dudas más comunes de uso diario, organizadas por tema.",
+    atajos: "Todas las combinaciones de teclado disponibles para operar sin el mouse.",
+    glosario: "Términos y siglas del mundo ART explicados en lenguaje simple.",
+    guiapdf: "Manual de usuario completo, listo para imprimir o guardar en PDF.",
+    documentacion: "Guía de usuario y historial de versiones del sistema.",
+    feedback: "Envianos sugerencias, ideas o reportes de errores del sistema.",
+  };
+
+  const HELP_GRUPOS = [
+    {
+      id: "comenzar",
+      label: "Comenzar",
+      icon: Play,
+      items: [
+        { id: "tour", label: "Tour interactivo", icon: Play },
+        { id: "vistas", label: "Acerca de Vistas", icon: LayoutDashboard },
+        { id: "ejemplos", label: "Ejemplos de casos", icon: FileText },
+      ],
+    },
+    {
+      id: "referencia",
+      label: "Referencia",
+      icon: BookOpen,
+      items: [
+        { id: "faq", label: "Preguntas Frecuentes", icon: MessageSquare },
+        { id: "glosario", label: "Glosario", icon: BookOpen },
+      ],
+    },
+    {
+      id: "aprender",
+      label: "Aprender",
+      icon: GraduationCap,
+      items: [
+        { id: "atajos", label: "Atajos de teclado", icon: Keyboard },
+        { id: "guiapdf", label: "Guía PDF", icon: Printer },
+      ],
+    },
+    {
+      id: "sistema",
+      label: "Sistema",
+      icon: ScrollText,
+      items: [{ id: "documentacion", label: "Documentación", icon: FileText }],
+    },
+    {
+      id: "contacto",
+      label: "Contacto",
+      icon: Mail,
+      items: [{ id: "feedback", label: "Feedback", icon: Mail }],
+    },
   ];
+
+  const cambiarGrupo = (gid) => {
+    setGrupoActivo(gid);
+    const g = HELP_GRUPOS.find((x) => x.id === gid);
+    if (g?.items?.[0]) setSeccion(g.items[0].id);
+  };
 
   const renderSeccion = () => {
     switch (seccion) {
@@ -189,33 +238,9 @@ export default function HelpPanel({ showToast, onClose }) {
               </div>
             </div>
 
-            <div
-              className="rounded-lg p-3 flex items-start gap-2 w-full"
-              style={{
-                backgroundColor: "var(--color-accent)11",
-                border: "1px solid var(--color-accent)33",
-              }}
-            >
-              <Zap
-                size={16}
-                color="var(--color-accent)"
-                className="flex-shrink-0 mt-0.5"
-              />
-              <div>
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: "var(--color-accent)" }}
-                >
-                  Consejo:
-                </span>
-                <span
-                  className="text-xs ml-1"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  Explora las 6 pestanas del Dashboard (Analitica, Resumen, Rendimiento, Geografia, Estudios y Estados) para ver metricas, funnel, geografia y desempeno de estudios.
-                </span>
-              </div>
-            </div>
+            <ConfigTip title="Consejo">
+              Explora las 6 pestañas del Dashboard (Analitica, Resumen, Rendimiento, Geografia, Estudios y Estados) para ver metricas, funnel, geografia y desempeno de estudios.
+            </ConfigTip>
           </div>
         );
       case "vistas":
@@ -228,16 +253,6 @@ export default function HelpPanel({ showToast, onClose }) {
 
         return (
           <div className="space-y-4 w-full">
-            <div className="rounded-lg p-4" style={{ backgroundColor: SURF, border: `1px solid ${BORD}` }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye size={18} color={ACCENT} />
-                <span className="text-sm font-semibold" style={{ color: TEXT }}>Acerca de Vistas</span>
-              </div>
-              <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
-                Acá vas a encontrar una explicación completa de cada pantalla de la aplicación. No es una lista técnica — es una recorrida por cada vista, contando qué hace, por qué existe y cómo usarla en tu día a día.
-              </p>
-            </div>
-
             <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
               {[
                 { id: "v-dash", label: "Dashboard", icon: LayoutDashboard },
@@ -401,7 +416,7 @@ export default function HelpPanel({ showToast, onClose }) {
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Apariencia → Colores:</b> Elegí entre modo Oscuro, Claro o Personalizado. En el modo personalizado definís 3 colores base y la app genera toda la paleta automáticamente. También podés cambiar el color de cada estado del pipeline individualmente.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Apariencia → Dashboard:</b> Todo lo que se ve en el Dashboard lo configurás acá: orden de pestañas (arrastrando), orden de widgets dentro de cada pestaña, qué métricas se muestran, qué categorías de estado usás (Éxito, Pérdida, Contacto, Pendientes) y las reglas de alerta automática con sus umbrales.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Notificaciones:</b> Elegí qué canales querés (toast en pantalla, sonido, notificación de escritorio), qué tipos de eventos te notifican (cambio de estado, reporte cargado, evento próximo, backup, errores) y cada cuánto se agrupan (en tiempo real, cada 5, 15, 30 minutos o 1 hora).</div>
-                <div className="leading-relaxed"><b style={{ color: TEXT }}>Automatización:</b> Activá reglas como alertar cuando un caso lleva +7 días sin novedades, recordar cargar reporte, crear un evento automáticamente al agendar una cita o hacer backup semanal.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Avanzado:</b> Configurá la navegación (Modo Simple), la frecuencia del backup automático con su historial, los estados de caso disponibles y sus colores, los tipos de ingreso (con sus palabras clave para el pegado inteligente), el modo de importación CSV, la indexación de búsqueda y el panel de diagnóstico de integridad de datos.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Búsqueda:</b> Elegí qué campos se indexan para la búsqueda (nombre, teléfono, localidad, etc.), si querés guardar historial de búsqueda y cuántos items mantener.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Importación:</b> Configurá el mapeo automático de campos del CSV, si querés validar duplicados y teléfonos, y si mostrás una vista previa antes de importar.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Columnas:</b> Mostrá u ocultá columnas de la vista Tabla. Podés marcar/desmarcar individualmente, mostrar todas o restaurar el conjunto básico.</div>
@@ -482,37 +497,36 @@ export default function HelpPanel({ showToast, onClose }) {
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>PDF individual:</b> Desde el detalle de cualquier caso, podés generar un PDF con toda la información del caso, sus reportes y notas vinculadas. Ideal para compartir o imprimir.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Respaldo completo (JSON):</b> Exportá toda la configuración (colores, categorías, útiles, preferencias) a un archivo JSON. Después podés importarlo en otra computadora o después de limpiar el navegador.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Notas y Calendario:</b> También se pueden exportar e importar de forma independiente, sin necesidad de incluir la configuración general.</div>
-                <div className="leading-relaxed"><b style={{ color: TEXT }}>Backup automático:</b> Si activás la opción en Configuración → Automatización, la app hace una copia de seguridad automática cada semana. Nunca te vas a quedar sin respaldo.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Backup automático:</b> Podés programar copias de seguridad automáticas (frecuencia diaria, semanal o de fin de jornada) desde Configuración → General → Datos. Nunca te vas a quedar sin respaldo.</div>
               </div>
             </SeccionAccordeon>
 
-            <SeccionAccordeon id="v-miespacio" titulo="Mi Espacio" icon={User} color="#10b981" badge="centro personal">
+            <SeccionAccordeon id="v-miespacio" titulo="Mi Espacio" icon={User} color="#10b981" badge="centro de trabajo">
               <p className="text-xs mb-2 leading-relaxed" style={{ color: TEXT }}>
-                Mi Espacio es tu centro personal dentro de la app. Aquí gestionás tu perfil, jornada, disponibilidad, metas y accesos. Todo es local y persistente.
+                Mi Espacio es tu centro de trabajo dentro de la app. En la pestaña "Hoy" se ordenan los bloques del día (bienvenida, jornada, próximos eventos, pendientes, productividad, metas, acciones rápidas y accesos) y podés reordenarlos en Configuración → Apariencia → Vistas. También gestionás tu perfil, disponibilidad, metas y accesos. Todo es local y persistente.
               </p>
               <div className="space-y-2 text-xs" style={{ color: MUTED }}>
-                <div className="leading-relaxed"><b style={{ color: TEXT }}>Mi Jornada:</b> Muestra el estado de tu jornada (activa, finalizada, en objetivo), tiempo transcurrido, restante y fecha. Incluye barra de progreso.</div>
-                <div className="leading-relaxed"><b style={{ color: TEXT }}>Objetivos Diarios:</b> Seguimiento de casos, reportes y firmas del día con barras de proyección y meta mensual.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Hoy / Bienvenida:</b> Saludo, fecha y hora, días restantes del mes y estado de la meta diaria.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Mi Jornada:</b> Estado de la jornada (activa, finalizada, en objetivo), tiempo transcurrido, restante y fecha. Incluye barra de progreso.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Productividad:</b> Casos, reportes, firmas y actividad del día, con ritmo actual vs. promedio y proyección mensual.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Metas:</b> Seguimiento de objetivos diarios y semanales, próximo hito y meta mensual.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Disponibilidad:</b> Configurá vacaciones, feriados, inasistencias y días no laborables. El calendario los tiene en cuenta.</div>
-                <div className="leading-relaxed"><b style={{ color: TEXT }}>Próximos Compromisos:</b> Eventos del calendario próximos a vencer, con alertas de vencimiento.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Próximos compromisos:</b> eventos del calendario próximos a vencer, con alertas de vencimiento.</div>
+                <div className="leading-relaxed"><b style={{ color: TEXT }}>Accesos personales:</b> Resumen de tus credenciales sin mostrar contraseñas, con gestión completa.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Resumen de Jornada:</b> Al finalizar el día, muestra un resumen completo de logros, casos atendidos y pendientes.</div>
                 <div className="leading-relaxed"><b style={{ color: TEXT }}>Exportación PDF:</b> Generá un PDF con tu perfil, objetivos, métricas y resumen del período.</div>
               </div>
             </SeccionAccordeon>
 
-            <div className="rounded-lg p-3 flex items-start gap-2" style={{ backgroundColor: `${ACCENT}11`, border: `1px solid ${ACCENT}33` }}>
-              <Clock size={16} color={ACCENT} className="flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="text-xs font-semibold" style={{ color: ACCENT }}>Tip: </span>
-                <span className="text-xs" style={{ color: TEXT }}>
-                  Muchas de estas vistas se abren con atajos de teclado. Presioná Ctrl+1 a Ctrl+5 para cambiar entre Dashboard, Tablero, Tabla, Reportes y Útiles al instante. Ctrl+H abre Ayuda, Ctrl+K abre Búsqueda Global y Escape cierra cualquier panel.
-                </span>
-              </div>
-            </div>
+            <ConfigTip title="Tip">
+              Muchas de estas vistas se abren con atajos de teclado. Presioná Ctrl+1 a Ctrl+5 para cambiar entre Dashboard, Tablero, Tabla, Reportes y Útiles al instante. Ctrl+H abre Ayuda, Ctrl+K abre Búsqueda Global y Escape cierra cualquier panel.
+            </ConfigTip>
           </div>
         );
       case "faq":
         return <FAQView showToast={showToast} />;
+      case "ejemplos":
+        return <EjemplosCasos showToast={showToast} />;
       case "atajos":
         return <AtajosTeclado />;
       case "glosario":
@@ -678,36 +692,65 @@ export default function HelpPanel({ showToast, onClose }) {
     }
   };
 
+  const grupoActual = HELP_GRUPOS.find((g) => g.id === grupoActivo) || HELP_GRUPOS[0];
+  const seccionKey = seccion.startsWith("doc_") ? "documentacion" : seccion;
+  const seccionMeta = HELP_SECTION_META[seccionKey];
+  const seccionItem = HELP_GRUPOS.flatMap((g) => g.items).find((s) => s.id === seccionKey);
+
   return (
     <div className="space-y-4 w-full">
-      <div className="flex gap-1 flex-wrap">
-        {secciones.map((s) => (
+      <div
+        className="flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl"
+        style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+      >
+        {HELP_GRUPOS.map((g) => (
           <button
-            key={s.id}
-            onClick={() => setSeccion(s.id)}
-            className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors hover:opacity-70 whitespace-nowrap ${
-              seccion === s.id ||
-              (seccion.startsWith("doc_") && s.id === "documentacion")
-                ? "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
-                : "text-[var(--color-text-muted)]"
+            key={g.id}
+            onClick={() => cambiarGrupo(g.id)}
+            className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors hover:opacity-80 ${
+              grupoActivo === g.id
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             }`}
           >
-            <s.icon size={13} /> {s.label}
+            <g.icon size={14} aria-hidden="true" /> {g.label}
           </button>
         ))}
       </div>
 
       <div
-        className="rounded-lg p-4 w-full"
+        className="rounded-xl p-4 w-full"
         style={{
-          backgroundColor: "var(--color-surface2)",
+          backgroundColor: "var(--color-surface)",
           border: "1px solid var(--color-border)",
           minHeight: 300,
         }}
       >
+        <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          {grupoActual.items.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSeccion(s.id)}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
+                seccion === s.id ||
+                (seccion.startsWith("doc_") && s.id === "documentacion")
+                  ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
+                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              }`}
+            >
+              <s.icon size={14} aria-hidden="true" /> {s.label}
+            </button>
+          ))}
+        </div>
+
+        <SectionHeader
+          icon={seccionItem?.icon || BookOpen}
+          titulo={seccionItem?.label || seccionKey}
+          descripcion={seccionMeta}
+          storageKey="ayuda"
+        />
         {renderSeccion()}
       </div>
-
     </div>
   );
 }

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale } from "lucide-react";
+import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, CalendarClock, Plus } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
-import { OrigenBadge } from "../common/OrigenBadge";
+import { OrigenBadge, OrigenSelector } from "../common/OrigenBadge";
+import { TextInput } from "../common/TextInput";
+import { TemplateSelector } from "../common/TemplateSelector";
 import { ComentariosUI } from "./ComentariosUI";
 // Optimización 1.6.6: CaseTimeline se carga bajo demanda (solo al abrir el modal).
 const CaseTimeline = lazy(() =>
@@ -11,6 +13,8 @@ const CaseTimeline = lazy(() =>
 );
 import { sanitizeString } from "../../utils/sanitize";
 import { formatDateWithConfig } from "../../utils/configFormatters";
+import { capitalizarSiMayus } from "../../utils/helpers";
+import { hoyDDMM } from "../../utils/dateUtils";
 import { PhoneLink } from "../common/PhoneLink";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstadoAccent } from "../../utils/catalogos";
@@ -65,6 +69,7 @@ export function VerCasoModal({
   onClose,
   onEdit,
   onComentarios,
+  onActualizarCaso,
   onDelete,
   onNuevaNota,
   onNuevoEvento,
@@ -75,13 +80,15 @@ export function VerCasoModal({
   onNavigateLawFirm,
   navigationStack = [],
   onBackNavigation,
+  covered = false,
   showToast,
   condicionales = [],
   speechs = [],
   objeciones = [],
 }) {
   const dialogRef = useRef(null);
-  useDialogA11y(dialogRef, !!caso, { onEscape: onClose });
+  const a11yEnabled = !!caso && !covered;
+  useDialogA11y(dialogRef, a11yEnabled, { onEscape: onClose });
 
   useEffect(() => {
     if (!caso) return undefined;
@@ -103,6 +110,15 @@ export function VerCasoModal({
   const [mostrarFormNota, setMostrarFormNota] = useState(false);
   const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [mostrarReportes, setMostrarReportes] = useState(true);
+  const [nuevoReporteTexto, setNuevoReporteTexto] = useState("");
+  const [nuevoReporteFecha, setNuevoReporteFecha] = useState("");
+  const [nuevoReporteOrigen, setNuevoReporteOrigen] = useState("Operador");
+  const [editandoReporteIndex, setEditandoReporteIndex] = useState(null);
+  const [editandoReporteTexto, setEditandoReporteTexto] = useState("");
+  const [editandoReporteFecha, setEditandoReporteFecha] = useState("");
+  const [editandoReporteOrigen, setEditandoReporteOrigen] = useState("Operador");
+  const [confirmEliminarReporte, setConfirmEliminarReporte] = useState(null);
 
   useEffect(() => {
     if (caso && caso.comentarios) {
@@ -218,6 +234,75 @@ export function VerCasoModal({
     if (showToast) showToast("Caso eliminado", "info");
   };
 
+  // ============ EDITAR / AGREGAR / ELIMINAR REPORTES INLINE (1.8.1) ============
+  const persistirReportes = (entradas) => {
+    if (onActualizarCaso) {
+      onActualizarCaso({ ...caso, reporteHistory: entradas });
+    }
+  };
+
+  const agregarReporte = () => {
+    if (!nuevoReporteTexto.trim()) {
+      if (showToast) showToast("Escribe el texto del reporte", "warning");
+      return;
+    }
+    const entradas = [
+      ...(caso.reporteHistory || []),
+      {
+        fecha: nuevoReporteFecha.trim() || hoyDDMM(),
+        texto: capitalizarSiMayus(sanitizeString(nuevoReporteTexto)),
+        origen: nuevoReporteOrigen || "Operador",
+      },
+    ];
+    persistirReportes(entradas);
+    setNuevoReporteTexto("");
+    setNuevoReporteFecha("");
+    setNuevoReporteOrigen("Operador");
+    soundSystem.playAction("save");
+    if (showToast) showToast("Reporte agregado correctamente", "success");
+  };
+
+  const iniciarEdicionReporte = (index) => {
+    const reporte = caso.reporteHistory?.[index];
+    if (!reporte) return;
+    setEditandoReporteIndex(index);
+    setEditandoReporteTexto(reporte.texto);
+    setEditandoReporteFecha(reporte.fecha || "");
+    setEditandoReporteOrigen(reporte.origen || "Operador");
+  };
+
+  const guardarEdicionReporte = () => {
+    if (!editandoReporteTexto.trim()) {
+      if (showToast) showToast("El texto del reporte no puede estar vacío", "warning");
+      return;
+    }
+    const entradas = [...caso.reporteHistory];
+    entradas[editandoReporteIndex] = {
+      fecha: editandoReporteFecha.trim() || hoyDDMM(),
+      texto: capitalizarSiMayus(sanitizeString(editandoReporteTexto)),
+      origen: editandoReporteOrigen || "Operador",
+    };
+    persistirReportes(entradas);
+    cancelarEdicionReporte();
+    soundSystem.playAction("save");
+    if (showToast) showToast("Reporte actualizado correctamente", "success");
+  };
+
+  const cancelarEdicionReporte = () => {
+    setEditandoReporteIndex(null);
+    setEditandoReporteTexto("");
+    setEditandoReporteFecha("");
+    setEditandoReporteOrigen("Operador");
+  };
+
+  const eliminarReporte = (index) => {
+    const entradas = caso.reporteHistory.filter((_, i) => i !== index);
+    persistirReportes(entradas);
+    setConfirmEliminarReporte(null);
+    soundSystem.playAction("delete");
+    if (showToast) showToast("Reporte eliminado", "info");
+  };
+
   const handleBuscarProlegal = () => {
     const nombre = (caso.nombre || "")
       .trim()
@@ -238,6 +323,7 @@ export function VerCasoModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="ver-caso-title"
+      {...(covered ? { inert: "" } : {})}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -677,6 +763,8 @@ export function VerCasoModal({
                   showToast={showToast}
                   usuario="Usuario"
                   tiposInteraccion={TIPOS_INTERACCION}
+                  caso={caso}
+                  config={config}
                 />
               </div>
             )}
@@ -704,35 +792,154 @@ export function VerCasoModal({
             )}
           </div>
 
-          {/* Historial de reportes */}
+          {/* REPORTES DEL CASO: edición, plantillas y agregado inline (1.8.1) */}
           <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
-              Historial de reportes
-            </span>
-            <div className="space-y-1.5 max-h-32 overflow-y-auto mt-1">
-              {(!caso.reporteHistory || caso.reporteHistory.length === 0) && (
-                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Sin reportes cargados.</div>
-              )}
-              {caso.reporteHistory && caso.reporteHistory.map((r, i) => (
-                <div key={i} className="text-xs flex items-center gap-2" style={{ color: "var(--color-text)" }}>
-                  <OrigenBadge origen={r.origen} />
-                  <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--color-accent)" }}>
-                    [{sanitizeString(r.fecha)}]
-                  </span>
-                  <span className="flex-1">{sanitizeString(r.texto)}</span>
+            <button
+              onClick={() => setMostrarReportes(!mostrarReportes)}
+              className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity"
+              style={{ color: "var(--color-accent)" }}
+              aria-expanded={mostrarReportes}
+            >
+              {mostrarReportes ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <FileText size={14} /> Reportes del caso ({caso.reporteHistory?.length || 0})
+            </button>
+            {mostrarReportes && (
+              <div className="mt-2 space-y-2">
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {(!caso.reporteHistory || caso.reporteHistory.length === 0) && (
+                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      Sin reportes cargados.
+                    </div>
+                  )}
+                  {caso.reporteHistory &&
+                    caso.reporteHistory.map((r, i) => {
+                      const isEditing = editandoReporteIndex === i;
+                      return (
+                        <div
+                          key={i}
+                          className="rounded p-2"
+                          style={{
+                            backgroundColor: isEditing
+                              ? "var(--color-surface)"
+                              : "var(--color-surface2)",
+                            border: isEditing
+                              ? "1px solid var(--color-accent)"
+                              : "1px solid var(--color-border)",
+                          }}
+                        >
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <TextInput
+                                  placeholder="DD/MM"
+                                  style={{ width: 80 }}
+                                  value={editandoReporteFecha}
+                                  onChange={(e) => setEditandoReporteFecha(e.target.value)}
+                                />
+                                <TextInput
+                                  className="flex-1"
+                                  placeholder="Texto del reporte..."
+                                  value={editandoReporteTexto}
+                                  onChange={(e) => setEditandoReporteTexto(e.target.value)}
+                                />
+                              </div>
+                              <OrigenSelector value={editandoReporteOrigen} onChange={setEditandoReporteOrigen} />
+                              <div className="flex gap-2">
+                                <Btn onClick={guardarEdicionReporte} size="sm" color="var(--color-success)">
+                                  Guardar
+                                </Btn>
+                                <BtnOutline onClick={cancelarEdicionReporte} size="sm" color="var(--color-text-muted)">
+                                  Cancelar
+                                </BtnOutline>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex-1 flex items-center gap-1 flex-wrap">
+                                <OrigenBadge origen={r.origen} />
+                                <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--color-accent)" }}>
+                                  ({sanitizeString(r.fecha)})
+                                </span>
+                                <span className="text-xs" style={{ color: "var(--color-text)" }}>
+                                  {sanitizeString(r.texto)}
+                                </span>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => iniciarEdicionReporte(i)}
+                                  className="p-1 rounded hover:opacity-70 transition-colors"
+                                  style={{ color: "var(--color-text-muted)" }}
+                                  aria-label="Editar reporte"
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmEliminarReporte(i)}
+                                  className="p-1 rounded hover:opacity-70 transition-colors"
+                                  style={{ color: "var(--color-danger)" }}
+                                  aria-label="Eliminar reporte"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <TextInput
+                      placeholder="DD/MM"
+                      style={{ width: 100 }}
+                      value={nuevoReporteFecha}
+                      onChange={(e) => setNuevoReporteFecha(e.target.value)}
+                    />
+                    <TextInput
+                      className="flex-1"
+                      placeholder="Agregar novedad..."
+                      value={nuevoReporteTexto}
+                      onChange={(e) => setNuevoReporteTexto(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          agregarReporte();
+                        }
+                      }}
+                    />
+                    <Btn onClick={agregarReporte} size="sm" icon={Plus}>
+                      Agregar
+                    </Btn>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <OrigenSelector value={nuevoReporteOrigen} onChange={setNuevoReporteOrigen} />
+                    <TemplateSelector
+                      type="reporte"
+                      caso={caso}
+                      config={config}
+                      onSelect={(resolved) => {
+                        if (resolved.texto) setNuevoReporteTexto(resolved.texto);
+                        if (resolved.origen) setNuevoReporteOrigen(resolved.origen);
+                        if (resolved.fecha) setNuevoReporteFecha(resolved.fecha);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Acciones */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-4" style={{ borderTop: "1px solid var(--color-border)" }}>
-          <div className="flex flex-wrap gap-1.5">
-            <Btn onClick={() => { onEdit(caso); onClose(); }} icon={Edit3} size="sm">Editar</Btn>
+        {/* Acciones: fila única con wrap (1.8.1) */}
+        <div className="flex flex-wrap items-center gap-1.5 px-5 py-4" style={{ borderTop: "1px solid var(--color-border)" }}>
+          <Btn onClick={() => { onEdit(caso); }} icon={Edit3} size="sm">Editar</Btn>
             {onReporteRapido && (
-              <Btn onClick={() => { onReporteRapido(caso); onClose(); }} icon={ClipboardList} size="sm">Reporte</Btn>
+              <Btn onClick={() => { onReporteRapido(caso); }} icon={ClipboardList} size="sm">Reporte</Btn>
             )}
+            {/* 1.8.6: se quita el botón "Reprogramar". La reprogramación se
+                sigue gestionando desde ReporteRapidoModal con estado
+                "Reprogramado" (requiere nueva fecha/hora de cita). */}
             {onNuevaNota && (
               <BtnOutline
                 onClick={() => {
@@ -753,10 +960,7 @@ export function VerCasoModal({
                 size="sm"
               >Calendario</BtnOutline>
             )}
-          </div>
-          <div className="flex gap-1.5">
-            <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
-          </div>
+          <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
         </div>
       </div>
       <ConfirmDialog
@@ -767,6 +971,15 @@ export function VerCasoModal({
         confirmColor="var(--color-danger)"
         onConfirm={confirmDeleteCaso}
         onCancel={() => setConfirmDeleteOpen(false)}
+      />
+      <ConfirmDialog
+        open={confirmEliminarReporte !== null}
+        title="Eliminar reporte"
+        message={`¿Eliminar este reporte? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        confirmColor="var(--color-danger)"
+        onConfirm={() => eliminarReporte(confirmEliminarReporte)}
+        onCancel={() => setConfirmEliminarReporte(null)}
       />
     </div>
   );

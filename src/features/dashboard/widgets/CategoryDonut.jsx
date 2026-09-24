@@ -50,7 +50,7 @@ export default function CategoryDonut({ data, onDrill, desc }) {
                 </Pie>
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(value) => [`${value} (${total > 0 ? Math.round((value / total) * 100) : 0}%)`, 'Casos']}
+                  formatter={(value) => [`${value} (${total > 0 ? Math.round((value / total) * 100) : 0}%)`, '']}
                 />
               </PieChart>
             </ResponsiveContainer>

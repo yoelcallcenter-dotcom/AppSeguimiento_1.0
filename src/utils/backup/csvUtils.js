@@ -94,7 +94,9 @@ export function parseReportesString(str) {
     .map((item) => {
       const match = item.trim().match(/^\(([^)]+)\)\s*(?:\[([^\]]+)\]\s*)?(.*)/);
       if (match) {
-        const origen = match[2] && ORIGEN_MAP[match[2]] ? ORIGEN_MAP[match[2]] : "Operador";
+        const origen = match[2]
+          ? (ORIGEN_MAP[match[2]] || match[2].trim())
+          : "Operador";
         return {
           fecha: match[1].trim(),
           texto: match[3].trim(),

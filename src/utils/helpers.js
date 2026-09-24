@@ -48,7 +48,11 @@ export function parseFicha(texto) {
   const lesion = extraerCampo(texto, "LESION") || extraerCampo(texto, "LESIó");
   const profesion = extraerCampo(texto, "PROFESION");
   const cita = extraerCampo(texto, "CITA");
-  const observaciones = extraerCampo(texto, "OBSERVACIONES");
+  const observacionesBase = extraerCampo(texto, "OBSERVACIONES");
+  const horarioIngresado = extraerCampo(texto, "HORARIO");
+  const observaciones = observacionesBase + (horarioIngresado
+    ? (observacionesBase ? ". " : "") + "Horario confirmado: " + horarioIngresado
+    : "");
   const tags = extraerCampo(texto, "TAGS")
     .split(/[;,]+/)
     .map((t) => t.trim())

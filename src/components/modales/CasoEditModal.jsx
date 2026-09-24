@@ -32,7 +32,7 @@ import { validateCaso } from "../../validators/casoValidator";
 import { matchEstudio } from "../../services/EstudioService";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
-import { getEstados, getTiposIngreso } from "../../utils/catalogos";
+import { getEstados, getTiposIngreso, detectarTipoIngresoPorKeywords } from "../../utils/catalogos";
 import { soundSystem } from "../../core/notifications/soundSystem";
 import InlineNoteForm from "./InlineNoteForm";
 import InlineEventForm from "./InlineEventForm";
@@ -48,6 +48,7 @@ export function CasoEditModal({
   onNuevaNota,
   onNuevoEvento,
   showToast,
+  stacked = false,
 }) {
   const dialogRef = useRef(null);
   useDialogA11y(dialogRef, true, { onEscape: onClose });
@@ -96,9 +97,18 @@ export function CasoEditModal({
   const procesarPegado = () => {
     if (!pegado.trim()) return;
     const parsed = parseFicha(pegado);
-    setCaso((c) => ({ ...c, ...parsed }));
+    const deteccion = detectarTipoIngresoPorKeywords(pegado, config);
+    const result = {
+      ...parsed,
+      ...(deteccion.tipoIngreso ? { tipoIngreso: deteccion.tipoIngreso } : {}),
+    };
+    setCaso((c) => ({ ...c, ...result }));
     setShowPegar(false);
-    showToast("Ficha procesada correctamente", "success");
+    if (deteccion.tipoIngreso) {
+      showToast(`Tipo de ingreso detectado automáticamente: ${deteccion.tipoIngreso}`, "success");
+    } else {
+      showToast("Ficha procesada correctamente", "success");
+    }
   };
 
   useEffect(() => {
@@ -220,7 +230,7 @@ export function CasoEditModal({
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 animate-fade-in"
+      className={`fixed inset-0 ${stacked ? "z-submodal" : "z-modal"} flex items-start justify-center overflow-y-auto p-4 animate-fade-in`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       role="dialog"
       aria-modal="true"
@@ -459,7 +469,7 @@ COMENTARIOS:`}
               />
               <datalist id="lista-tipos">
                 {getTiposIngreso(config).map((t) => (
-                  <option key={t} value={t} />
+                  <option key={t.v} value={t.v} />
                 ))}
               </datalist>
             </Field>

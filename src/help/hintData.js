@@ -48,8 +48,8 @@ export const HINTS = [
   {
     id: "backup-no-configurado",
     title: "Configura backups automaticos",
-    description: "Evita perder datos configurando backups automaticos en Configuracion → Automatizacion.",
-    action: { label: "Ir a Automatizacion", navigateTo: "config" },
+    description: "Evita perder datos configurando la frecuencia del backup en Configuracion → General → Datos.",
+    action: { label: "Ir a Configuracion", navigateTo: "config" },
     condition: (ctx) => ctx.currentView === "settings" && !ctx.backupConfigured,
     priority: 75,
   },

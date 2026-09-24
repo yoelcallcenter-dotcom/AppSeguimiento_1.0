@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.6.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.8.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -17,11 +17,36 @@
 
 ## Características principales
 
-### Mi Espacio (personal)
-- Abre siempre en Mi Espacio, con bienvenida destacada y saludos según día y hora.
+### 1.8.4 — Configuración y Personalización
+- **Configuración rediseñada**: 17 secciones con navegación unificada por pills, encabezados con ícono y descripción, sugerencias homogéneas y tarjetas consistentes.
+- **Vistas y Mi Espacio**: reordenables con íconos por bloque desde Apariencia → Vistas; el Dashboard usa un registro único compartido y el editor normaliza órdenes antiguas automáticamente ("Próxima actividad" y "Próximos eventos" ahora son bloques separados).
+- **Español / English**: se eliminó la opción "Português"; una configuración previa en `pt` se migra automáticamente a Español al abrir Configuración.
+
+### 1.8.3 — Estadísticas y Cálculos
+- **Días hábiles efectivos (FH = TM − FS − In − Fe − Va)**: todos los promedios, ritmos, tendencias, comparativas y metas descuentan de forma consistente fines de semana (según `workingDays` del perfil), inasistencias, feriados y vacaciones; los solapes se cuentan una sola vez.
+- **Disponibilidad corregida**: `getAvailabilitySummary` solo cuenta días laborables efectivos; metas semanales respetan el último día hábil real y el ritmo del día promedia sobre 30 días hábiles efectivos.
+- **Analítica efectiva**: promedios diarios, tendencias por día/semana, proyecciones y series del dashboard/exporte omiten días no laborables por disponibilidad.
+
+### 1.8.2 — Exportaciones y Documentación
+- **CSV analítico**: toggle "Detalle por caso / Analítico (resumen)" en el exportador, con KPIs, productividad, conversión, estados, estudios, aseguradoras, localidades, tendencias, comparativas y períodos en un solo archivo para el rango seleccionado.
+- **PDF de Mi Espacio completo**: ahora exporta disponibilidad, progreso de metas, ritmo del día, estadísticas de efectividad por día efectivo y próximos eventos además de perfil, jornada, métricas y resumen del período.
+- **Ejemplos de casos reales**: 4 casos de ejemplo con ART + horario de cita, operador asignado y cita dinámica con fecha de hoy.
+- **Pegado de ficha con HORARIO**: el pegado completo adiciona el campo `HORARIO:` a las observaciones (mantiene el resto de campos).
+
+### 1.8.1 — Consistencia Visual y Experiencia de Uso
+- Filtros unificados con primitivas reutilizables (`FilterBar`, `FilterGroup`, `FilterLabel`, `FilterChip`, `FilterCounter`).
+- `PipelineBar` con multi-selección de estados (quickFilter con arrays, botón Limpiar y contadores).
+- Cuadros de búsqueda estandarizados (`SearchInput` con botón X) en toda la app y búsqueda global (Ctrl+K) agrandada con contador de resultados.
+- Reportes con orden fijo (MonthDayFilter → PipelineBar → Reportes Guardados → Lista → Paginación).
+- Modal de caso: footer en una fila y reportes editables inline con plantillas; Editar/Reporte se apilan sobre VerCaso (`useModalStack`, `inert`, `z-submodal`).
+- Mi Disponibilidad rediseñada con strip mensual y colores por variables CSS.
+
+### Mi Espacio (centro de trabajo)
+- Abre siempre en Mi Espacio, en el centro de trabajo "Hoy": una sola página con los bloques del día (bienvenida, jornada, próximos eventos, pendientes, productividad, metas, acciones rápidas, accesos) en el orden que prefieras.
 - Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual.
-- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/mensuales con ritmo necesario.
+- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/semanales/mensuales con ritmo necesario.
 - Accesos y credenciales personales (solo locales, nunca se exportan).
+- El orden de los bloques del "Hoy" se reordena en Configuración → Apariencia → Vistas.
 
 ### Gestión de Casos
 - **Kanban**: arrastrar casos entre estados (Cita virtual, No responde, Firmo, etc.).
@@ -29,7 +54,8 @@
 - **Reportes**: historial completo de reportes por caso.
 - **Calendario**: eventos vinculados a casos, reprogramación y citas.
 - **Bloc de Notas**: notas enriquecidas (Tiptap) con vínculo a casos.
-- **Búsqueda global** (`GlobalSearch`): búsqueda en tiempo real por nombre, teléfono, localidad, `#etiquetas` y `@comentarios`.
+- **Búsqueda global** (`GlobalSearch`): búsqueda en tiempo real por nombre, teléfono, localidad, `#etiquetas`, `@comentarios`, reportes e historial de casos, con navegación contextual (Ctrl+K).
+- **Pegado inteligente**: al pegar una ficha completa se detecta automáticamente el tipo de ingreso con palabras clave configurables (Configuración → Tipos de Ingreso).
 
 ### Estadísticas y Analítica
 - Dashboard multi-pestaña (Analítica, Resumen, Rendimiento, Geografía, Estudios, Estados).
@@ -146,11 +172,11 @@ src/core/theme/
 src/
 ├── components/
 │   ├── common/           # Btn, Modal, ConfirmDialog, EmptyState, Spinner, Skeleton,
-│   │                     # OverlayPanel, Paginacion,
+│   │                     # EditableForm, OverlayPanel, ShortcutsHelp, Paginacion,
 │   │                     # DayFilter, MonthDayFilterBar, etc.
 │   ├── notifications/    # NotificationBell, NotificationCenter, PersistentAlert, ToastContainer
-│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ calendar/ entities/
-│   ├── configuracion/ utiles/ ayuda/ diagnostico/
+│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ notes/ calendar/
+│   ├── configuracion/ utiles/ ayuda/ diagnostico/ entities/
 ├── core/
 │   ├── theme/            # themeTokens, themeManager, colorUtils
 │   ├── store/            # useAppStore (Zustand global)
@@ -192,7 +218,7 @@ src/
 | `Ctrl + E` | Exportar seleccionados |
 | `Ctrl + H` | Abrir ayuda |
 | `Ctrl + K` | Búsqueda global |
-| `Ctrl + 1-5` | Cambiar vista |
+| `Ctrl + 1-7` | Cambiar vista |
 | `Escape` | Cerrar modal |
 
 ---

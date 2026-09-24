@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { MapPin, Search, ChevronDown, ChevronUp } from "lucide-react";
-import { TextInput } from "../common/TextInput";
+import { MapPin, ChevronDown, ChevronUp } from "lucide-react";
+import { SearchInput } from "../common/SearchInput";
 import { Select } from "../common/Select";
 
 const CARD_LIMIT = 9;
@@ -44,17 +44,11 @@ export function VistaMapa({ casos, onVerCaso }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[120px]">
-          <Search
-            size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-text-muted)" }}
-          />
-          <TextInput
+        <div className="flex-1 min-w-[120px]">
+          <SearchInput
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Filtrar ubicaciones..."
-            className="pl-8"
           />
         </div>
         <Select

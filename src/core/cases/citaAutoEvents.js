@@ -45,6 +45,7 @@ export async function findExistingCitaEvent(caseId, allEvents) {
   return events.find(
     (e) =>
       e.eventType === EVENT_TYPES.CITA &&
+      e.status !== 'cancelled' &&
       Array.isArray(e.relatedCaseIds) &&
       e.relatedCaseIds.includes(caseId)
   );

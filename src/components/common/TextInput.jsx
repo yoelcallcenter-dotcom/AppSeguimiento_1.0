@@ -1,16 +1,20 @@
-import React from "react";
+import React, { forwardRef } from "react";
 
-export function TextInput({
-  value,
-  onChange,
-  placeholder = "",
-  type = "text",
-  className = "",
-  style = {},
-  ...props
-}) {
+export const TextInput = forwardRef(function TextInput(
+  {
+    value,
+    onChange,
+    placeholder = "",
+    type = "text",
+    className = "",
+    style = {},
+    ...props
+  },
+  ref
+) {
   return (
     <input
+      ref={ref}
       type={type}
       value={value}
       onChange={onChange}
@@ -20,6 +24,6 @@ export function TextInput({
       {...props}
     />
   );
-}
+});
 
 export default TextInput;

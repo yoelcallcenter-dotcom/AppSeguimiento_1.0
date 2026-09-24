@@ -7,6 +7,7 @@ import { TextArea } from '../../components/common/TextArea';
 import { CaseLinker } from '../../components/common/CaseLinker';
 import TagsPills from '../../components/common/TagsPills';
 import { Modal } from '../../components/common/Modal';
+import { TemplateSelector } from '../../components/common/TemplateSelector';
 import { sanitizeString } from '../../utils/sanitize';
 
 const PRIORITIES = [
@@ -30,7 +31,9 @@ export default function EventModal({
   event,
   notes,
   casos = [],
+  config = {},
   onVerCaso,
+  initialData,
 }) {
   const [form, setForm] = useState({
     title: '',
@@ -77,7 +80,9 @@ export default function EventModal({
       });
     } else {
       const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10);
+      const dateStr = (initialData?.startDate) || now.toISOString().slice(0, 10);
+      const startTime = initialData?.startTime || '09:00';
+      const endTime = initialData?.endTime || '10:00';
       let caseContext = null;
       if (prelinkedCaseIds.length > 0) {
         const linked = (casos || []).find((c) => c.id === prelinkedCaseIds[0]);
@@ -96,8 +101,8 @@ export default function EventModal({
         description: '',
         startDate: dateStr,
         endDate: dateStr,
-        startTime: '09:00',
-        endTime: '10:00',
+        startTime,
+        endTime,
         status: 'pending',
         priority: 'medium',
         relatedNoteId: null,
@@ -111,7 +116,7 @@ export default function EventModal({
     }
     setErrors({});
     setTagInput('');
-  }, [event, isOpen]);
+  }, [event, isOpen, initialData]);
 
   const validate = () => {
     const errs = {};
@@ -179,6 +184,20 @@ export default function EventModal({
             </span>
           </div>
         )}
+          <TemplateSelector
+            type="evento"
+            caso={form.caseContext}
+            config={config}
+            onSelect={(resolved) => {
+              const updates = {};
+              if (resolved.title) updates.title = resolved.title;
+              if (resolved.description) updates.description = resolved.description;
+              if (resolved.priority) updates.priority = resolved.priority;
+              if (resolved.status) updates.status = resolved.status;
+              if (resolved.tags) updates.tags = resolved.tags;
+              setForm(prev => ({ ...prev, ...updates }));
+            }}
+          />
           <div>
             <label htmlFor="ev-title" className="text-xs font-medium mb-1 block" style={{ color: 'var(--color-text-muted)' }}>
               Titulo <span style={{ color: 'var(--color-danger)' }}>*</span>

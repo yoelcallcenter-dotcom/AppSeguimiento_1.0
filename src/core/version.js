@@ -1,9 +1,9 @@
-/**
+﻿/**
  * version.js
- * Versión de la aplicación. Única fuente de verdad para mostrarla en la UI,
- * incluirla en feedback/exportes y para la validación de migraciones.
+ * VersiÃ³n de la aplicaciÃ³n. Ãšnica fuente de verdad para mostrarla en la UI,
+ * incluirla en feedback/exportes y para la validaciÃ³n de migraciones.
  */
-export const APP_VERSION = "1.6.8";
+export const APP_VERSION = "1.8.8";
 
-/** Nombre comercial de la aplicación. */
+/** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

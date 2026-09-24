@@ -14,11 +14,11 @@ const DESC_DEFAULT =
  * WeeklyTrend
  * Barras (casos y firmas) + línea de conversión (%) por semana.
  */
-export default function WeeklyTrend({ data, desc }) {
+export default function WeeklyTrend({ data, desc, title }) {
   const d = data || [];
 
   return (
-    <ChartCard title="Evolución semanal" icon={CalendarRange} desc={desc || DESC_DEFAULT}>
+    <ChartCard title={title || "Evolución semanal"} icon={CalendarRange} desc={desc || DESC_DEFAULT}>
       {d.length === 0 ? (
         <div className="text-sm py-10 text-center" style={{ color: 'var(--color-text-muted)' }}>Sin datos</div>
       ) : (

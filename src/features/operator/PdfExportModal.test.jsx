@@ -28,6 +28,23 @@ vi.mock("./operatorMetrics", () => ({
   getRequiredDailyPace: vi.fn(() => ({ cases: 2.5, reports: 1.0, remainingDays: 10 })),
   getEffectiveWorkDays: vi.fn(() => ({ effective: 18, scheduled: 22, vacations: 2, holidays: 1, absences: 1, dayOffs: 0 })),
   getPerEffectiveDayMetrics: vi.fn(() => ({ casesPerDay: 2.0, reportsPerDay: 1.5 })),
+  getAvailabilitySummary: vi.fn(() => ({ vacationDays: 2, holidayDays: 1, absenceDays: 1, dayOffDays: 0, totalDays: 4 })),
+  getWeeklyGoalProgress: vi.fn(() => ({
+    start: "2026-09-14",
+    end: "2026-09-18",
+    goals: [
+      { key: "cases", label: "Casos", enabled: true, current: 14, target: 20, percent: 70, remaining: 6, met: false, status: "in-progress" },
+      { key: "reports", label: "Reportes", enabled: true, current: 9, target: 10, percent: 90, remaining: 1, met: false, status: "near-completion" },
+      { key: "signed", label: "Firmas", enabled: true, current: 5, target: 5, percent: 100, remaining: 0, met: true, status: "exceeded" },
+    ],
+  })),
+  getDayPaceMetrics: vi.fn(() => ({
+    casesToday: 4, reportsToday: 3, casesPerHour: 2.5, projectedCases: 12, avgCasesPerDay: 3.5, paceMessage: "En línea con tu promedio",
+  })),
+  getProximosEventos: vi.fn(() => [
+    { event: { title: "Cita Juan Perez" }, timeLabel: "10:00", dayLabel: "Hoy" },
+    { event: { title: "Reprogramación" }, timeLabel: "14:30", dayLabel: "Mañana" },
+  ]),
 }));
 
 vi.mock("./operatorDefaults", () => ({
@@ -73,7 +90,7 @@ describe("PdfExportModal", () => {
     expect(screen.getByText("Exportar Mi Espacio a PDF")).toBeTruthy();
   });
 
-  it("muestra las 5 secciones disponibles", () => {
+  it("muestra las 10 secciones disponibles", () => {
     render(
       <PdfExportModal open={true} onClose={mockOnClose} config={{}} casos={[]} showToast={mockShowToast} />
     );
@@ -82,6 +99,11 @@ describe("PdfExportModal", () => {
     expect(screen.getByText("Métricas y ritmo")).toBeTruthy();
     expect(screen.getByText("Objetivos semanales")).toBeTruthy();
     expect(screen.getByText("Resumen del período")).toBeTruthy();
+    expect(screen.getByText("Disponibilidad del mes")).toBeTruthy();
+    expect(screen.getByText("Metas semanales")).toBeTruthy();
+    expect(screen.getByText("Próximos eventos")).toBeTruthy();
+    expect(screen.getByText("Estadísticas por día efectivo")).toBeTruthy();
+    expect(screen.getByText("Configuración y jornada")).toBeTruthy();
   });
 
   it("deselecciona todo al hacer click en Deseleccionar todo", () => {

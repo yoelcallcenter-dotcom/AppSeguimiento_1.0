@@ -1,9 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Bell,
   CheckCheck,
   Trash2,
-  X,
   Filter,
   CheckCircle,
   XCircle,
@@ -11,7 +10,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import useNotificationStore from "../../core/notifications/notificationStore";
-import { useModal } from "../../hooks/useModal";
+import { SidePanel } from "../common/SidePanel";
 
 const TYPE_ICONS = {
   success: CheckCircle,
@@ -135,25 +134,6 @@ export function NotificationCenter() {
   const clearAll = useNotificationStore((s) => s.clearAll);
 
   const [filter, setFilter] = useState("all");
-  const [isLeaving, setIsLeaving] = useState(false);
-
-  const { dialogRef } = useModal({
-    isOpen: showCenter,
-    onClose: () => setShowCenter(false),
-    closeOnOverlayClick: false,
-    onEscape: () => startClose(),
-  });
-
-  const startClose = () => {
-    if (isLeaving) return;
-    setIsLeaving(true);
-    setTimeout(() => setShowCenter(false), 250);
-  };
-
-  // Restaurar estado de salida al reabrir
-  useEffect(() => {
-    if (showCenter) setIsLeaving(false);
-  }, [showCenter]);
 
   const filtered = useMemo(() => {
     let list = notifications.filter((n) => !n.dismissed);
@@ -165,71 +145,38 @@ export function NotificationCenter() {
     return list.slice(0, 200);
   }, [notifications, filter]);
 
-  if (!showCenter) return null;
-
   return (
-    <div
-      className={`fixed inset-0 z-notification ${isLeaving ? "animate-fade-out" : "animate-fade-in"}`}
-      style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="notification-center-title"
-    >
-      <div
-        ref={dialogRef}
-        className={`absolute right-0 top-0 bottom-0 w-full max-w-lg rounded-l-xl shadow-2xl flex flex-col ${
-          isLeaving ? "animate-slide-out-right" : "animate-slide-up"
-        }`}
-        style={{
-          backgroundColor: "var(--color-surface)",
-          borderLeft: "1px solid var(--color-border)",
-        }}
-      >
+    <SidePanel
+      isOpen={showCenter}
+      onClose={() => setShowCenter(false)}
+      title="Centro de Notificaciones"
+      icon={Bell}
+      closeOnOverlayClick={false}
+      actions={
+        <>
+          <button
+            onClick={markAllAsRead}
+            className="p-1.5 rounded transition-colors hover:bg-white/5"
+            style={{ color: "var(--color-text-muted)" }}
+            aria-label="Marcar todo leído"
+            title="Marcar todo leído"
+          >
+            <CheckCheck size={16} />
+          </button>
+          <button
+            onClick={clearAll}
+            className="p-1.5 rounded transition-colors hover:bg-white/5"
+            style={{ color: "var(--color-text-muted)" }}
+            aria-label="Limpiar todas"
+            title="Limpiar todas"
+          >
+            <Trash2 size={16} />
+          </button>
+        </>
+      }
+      subheader={
         <div
-          className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <div className="flex items-center gap-2">
-            <Bell size={18} color="var(--color-accent)" />
-            <h2
-              id="notification-center-title"
-              className="text-base font-semibold"
-              style={{ color: "var(--color-text)" }}
-            >
-              Centro de Notificaciones
-            </h2>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={markAllAsRead}
-              className="p-1.5 rounded transition-colors hover:bg-white/5"
-              style={{ color: "var(--color-text-muted)" }}
-              aria-label="Marcar todo leído"
-              title="Marcar todo leído"
-            >
-              <CheckCheck size={16} />
-            </button>
-            <button
-              onClick={clearAll}
-              className="p-1.5 rounded transition-colors hover:bg-white/5"
-              style={{ color: "var(--color-text-muted)" }}
-              aria-label="Limpiar todas"
-              title="Limpiar todas"
-            >
-              <Trash2 size={16} />
-            </button>
-            <button
-              onClick={startClose}
-              className="p-1.5 rounded transition-colors hover:bg-white/5"
-              style={{ color: "var(--color-text-muted)" }}
-              aria-label="Cerrar"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0 overflow-x-auto"
+          className="flex items-center gap-2 px-4 py-2 border-b overflow-x-auto"
           style={{ borderColor: "var(--color-border)" }}
         >
           <Filter size={12} color="var(--color-text-muted)" className="flex-shrink-0" />
@@ -248,30 +195,10 @@ export function NotificationCenter() {
             </button>
           ))}
         </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center h-full text-xs px-6"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              <Bell size={32} className="mb-2 opacity-30" />
-              No hay notificaciones{filter !== "all" ? " con este filtro" : ""}
-            </div>
-          ) : (
-            filtered.map((n) => (
-              <NotificationItem
-                key={n.id}
-                n={n}
-                onMarkAsRead={markAsRead}
-                onRemove={removeNotification}
-              />
-            ))
-          )}
-        </div>
-
+      }
+      footer={
         <div
-          className="px-4 py-2 text-[10px] border-t flex-shrink-0 text-center"
+          className="px-4 py-2 text-[10px] border-t text-center"
           style={{
             color: "var(--color-text-muted)",
             borderColor: "var(--color-border)",
@@ -279,7 +206,26 @@ export function NotificationCenter() {
         >
           {notifications.filter((n) => !n.dismissed).length} notificaciones
         </div>
-      </div>
-    </div>
+      }
+    >
+      {filtered.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center h-full text-xs px-6"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          <Bell size={32} className="mb-2 opacity-30" />
+          No hay notificaciones{filter !== "all" ? " con este filtro" : ""}
+        </div>
+      ) : (
+        filtered.map((n) => (
+          <NotificationItem
+            key={n.id}
+            n={n}
+            onMarkAsRead={markAsRead}
+            onRemove={removeNotification}
+          />
+        ))
+      )}
+    </SidePanel>
   );
 }

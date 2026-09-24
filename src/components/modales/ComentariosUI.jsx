@@ -4,6 +4,7 @@ import { Btn } from "../common/Btn";
 import { TextArea } from "../common/TextArea";
 import { Select } from "../common/Select";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { TemplateSelector } from "../common/TemplateSelector";
 
 export function ComentariosUI({
   comentarios = [],
@@ -13,6 +14,8 @@ export function ComentariosUI({
   usuario = "Usuario",
   loading = false,
   tiposInteraccion = null,
+  caso = null,
+  config = {},
 }) {
   const [nuevoComentario, setNuevoComentario] = useState("");
   const [tipoInteraccion, setTipoInteraccion] = useState("");
@@ -176,6 +179,14 @@ export function ComentariosUI({
           aria-label="Tipo de interacción"
         />
       )}
+      <TemplateSelector
+        type="comentario"
+        caso={caso}
+        config={config}
+        onSelect={(resolved) => {
+          if (resolved.texto) setNuevoComentario(resolved.texto);
+        }}
+      />
       <div className="flex gap-2 items-end mt-2">
         <TextArea
           rows={2}

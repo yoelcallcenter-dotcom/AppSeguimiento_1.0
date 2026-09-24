@@ -424,23 +424,16 @@ export function getRequiredDailyPace(
 // ============================================================
 
 /**
- * Cuenta los días individuales de un rango (start..end) que caen dentro del mes dado.
- * Ambos extremos son inclusivos. Maneja rangos que cruzan meses.
+ * Resumen de disponibilidad del mes restringido a días laborables efectivos.
+ * Cada tipo cuenta solo días que caen en workingDays (FS fuera), y totalDays
+ * deduplica solapes (vacación ∩ feriado = 1 día) vía scheduled − effective.
  */
-function countDaysInRangeInMonth(startISO, endISO, year, month) {
-  const s = dateFromISO(normalizeDate(startISO));
-  const e = normalizeDate(endISO) ? dateFromISO(normalizeDate(endISO)) : s;
-  if (isNaN(s.getTime())) return 0;
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
-  const effectiveStart = s < monthStart ? monthStart : s;
-  const effectiveEnd = e > monthEnd ? monthEnd : e;
-  if (effectiveStart > effectiveEnd) return 0;
-  const msPerDay = 86400000;
-  return Math.floor((effectiveEnd - effectiveStart) / msPerDay) + 1;
-}
-
-export function getAvailabilitySummary(availability = {}, year, month) {
+export function getAvailabilitySummary(
+  availability = {},
+  year,
+  month,
+  workingDays = [1, 2, 3, 4, 5]
+) {
   const a = {
     vacations: [],
     holidays: [],
@@ -460,10 +453,13 @@ export function getAvailabilitySummary(availability = {}, year, month) {
   const absences = (a.absences || []).filter((ab) => inMonth(ab.date));
   const dayOffs = (a.customDaysOff || []).filter((d) => inMonth(d.date));
 
-  const vacationDays = vacations.reduce((sum, v) => sum + countDaysInRangeInMonth(v.start, v.end, year, month), 0);
-  const holidayDays = holidays.length;
-  const absenceDays = absences.length;
-  const dayOffDays = dayOffs.length;
+  // Solo días laborables del mes, contados por día (sin duplicar solapes totales).
+  const scheduled = getScheduledWorkDays(year, month, workingDays);
+  const vacationDays = scheduled.filter((iso) => getAvailabilityOn(a, iso).vacation).length;
+  const holidayDays = scheduled.filter((iso) => getAvailabilityOn(a, iso).holiday).length;
+  const absenceDays = scheduled.filter((iso) => getAvailabilityOn(a, iso).absence).length;
+  const dayOffDays = scheduled.filter((iso) => getAvailabilityOn(a, iso).dayOff).length;
+  const effective = scheduled.filter((iso) => !isUnavailableOn(a, iso)).length;
 
   return {
     vacations,
@@ -474,7 +470,7 @@ export function getAvailabilitySummary(availability = {}, year, month) {
     holidayDays,
     absenceDays,
     dayOffDays,
-    totalDays: vacationDays + holidayDays + absenceDays + dayOffDays,
+    totalDays: scheduled.length - effective,
   };
 }
 
@@ -598,7 +594,8 @@ export function getWeeklyGoalProgress(
   goals = {},
   cases = [],
   workingDays = [1, 2, 3, 4, 5],
-  todayISO
+  todayISO,
+  availability = {}
 ) {
   const today = normalizeDate(todayISO) || isoFromDate(new Date());
   const weekly = goals.weekly || {};
@@ -612,21 +609,29 @@ export function getWeeklyGoalProgress(
   monday.setDate(monday.getDate() + mondayOffset);
   const mondayISO = isoFromDate(monday);
 
-  // Encuentra el viernes de esta semana (o último día laborable)
-  const friday = new Date(monday);
-  friday.setDate(friday.getDate() + 4);
-  const fridayISO = isoFromDate(friday);
+  // Último día laborable de la semana según workingDays (no fijo a viernes)
+  const wd = workingDays.length > 0 ? workingDays : [1, 2, 3, 4, 5];
+  let lastWork = new Date(monday);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    if (wd.includes(d.getDay())) lastWork = d;
+  }
+  const endISO = isoFromDate(lastWork);
+
+  const esEfectivo = (iso) => !isUnavailableOn(availability, iso);
 
   const countInRange = (field, fromISO, toISO) => {
     const baseCount = cases.filter((c) => {
       const d = normalizeDate(c.fecha);
       if (!d) return false;
       if (d < fromISO || d > toISO) return false;
+      if (!esEfectivo(d)) return false;
       if (field === "signed") return c.estado === "Firmo";
       if (field === "reports") {
         return (c.reporteHistory || []).some((r) => {
           const rd = normalizeDate(r.fecha);
-          return rd && rd >= fromISO && rd <= toISO;
+          return rd && rd >= fromISO && rd <= toISO && esEfectivo(rd);
         });
       }
       return true;
@@ -636,6 +641,7 @@ export function getWeeklyGoalProgress(
       if (c.estado !== "Baja") return false;
       const d = normalizeDate(c.fecha);
       if (!d) return false;
+      if (!esEfectivo(d)) return false;
       return d >= fromISO && d <= toISO;
     }).length;
     return Math.max(0, baseCount - bajaCount);
@@ -647,7 +653,7 @@ export function getWeeklyGoalProgress(
     { key: "signed", label: "Firmas" },
   ];
 
-  const result = { start: mondayISO, end: fridayISO, goals: [] };
+  const result = { start: mondayISO, end: endISO, goals: [] };
 
   for (const t of types) {
     const goal = weekly[t.key] || {};
@@ -666,7 +672,7 @@ export function getWeeklyGoalProgress(
       continue;
     }
     const target = Number(goal.target) || 0;
-    const current = countInRange(t.key, mondayISO, fridayISO);
+    const current = countInRange(t.key, mondayISO, endISO);
     const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
     const remaining = target > 0 ? Math.max(0, target - current) : 0;
     const met = target > 0 && current >= target;
@@ -748,13 +754,27 @@ export function getDayPaceMetrics(
   // Proyección de cierre
   const projectedCases = Math.round(casesPerHour * (elapsedHours + remainingMinutes / 60));
 
-  // Promedio histórico: casos por día de los últimos 30 días hábiles
-  const histStart = new Date(now);
-  histStart.setDate(histStart.getDate() - 30);
-  const histStartISO = isoFromDate(histStart);
+  // Promedio histórico: casos por día de los últimos 30 días hábiles efectivos
+  const wd = profile.workingDays?.length > 0 ? profile.workingDays : [1, 2, 3, 4, 5];
+  const esEfectivo = (iso) => isWorkingDay(iso, wd) && !isUnavailableOn(availability, iso);
+  const effectiveWindow = [];
+  const probe = new Date(now);
+  probe.setDate(probe.getDate() - 1);
+  let guard = 0;
+  while (effectiveWindow.length < 30 && guard < 400) {
+    const iso = isoFromDate(probe);
+    if (esEfectivo(iso)) effectiveWindow.push(iso);
+    probe.setDate(probe.getDate() - 1);
+    guard += 1;
+  }
+  // effectiveWindow está en orden descendente: el último elemento es el más antiguo.
+  const histStartISO =
+    effectiveWindow.length > 0
+      ? effectiveWindow[effectiveWindow.length - 1]
+      : isoFromDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30));
   const histCases = cases.filter((c) => {
     const d = normalizeDate(c.fecha);
-    return d && d >= histStartISO && d < today;
+    return d && d >= histStartISO && d < today && esEfectivo(d);
   });
   const histDays = new Set(histCases.map((c) => normalizeDate(c.fecha)));
   const avgCasesPerDay = histDays.size > 0
@@ -873,7 +893,7 @@ export function getNextMilestone(
   if (weeklyCases.enabled && weeklyCases.target) {
     const weeklyGoalNum = Number(weeklyCases.target) || 0;
     if (weeklyGoalNum > 0) {
-      const weeklyProgress = getWeeklyGoalProgress(goals, cases, profile.workingDays, today);
+      const weeklyProgress = getWeeklyGoalProgress(goals, cases, profile.workingDays, today, availability);
       const weeklyGoal = weeklyProgress.goals.find((g) => g.key === "cases");
       if (weeklyGoal && !weeklyGoal.met && weeklyGoal.remaining > 0) {
         const pct = weeklyGoal.percent;
@@ -949,4 +969,238 @@ function getUpcomingVacations(availability = {}, todayISO) {
     }
   }
   return closest;
+}
+
+// ============================================================
+// CENTRO "HOY" (1.7.0) — PRÓXIMA ACTIVIDAD Y LÍNEA TEMPORAL
+// ============================================================
+
+/**
+ * Próxima actividad del usuario después de `now`.
+ * Prioriza citas > eventos > reprogramaciones. Excluye los cancelados/completados.
+ * Devuelve null si no hay ninguna actividad futura.
+ * @param {Array} events - Todos los eventos
+ * @param {Date} now - Fecha/hora actual
+ * @returns {{ event: object, timeLabel: string, dayLabel: string } | null}
+ */
+export function getProximaActividad(events = [], now = new Date()) {
+  if (!events || events.length === 0) return null;
+
+  const doneStatus = ["cancelled", "cancelado", "completed", "completado", "completada"];
+  const notDone = events.filter((e) => {
+    const status = (e.status || "").toLowerCase();
+    return !doneStatus.includes(status);
+  });
+
+  const future = notDone
+    .map((e) => ({ event: e, start: new Date(e.startDate || e.fecha) }))
+    .filter(({ start }) => !isNaN(start.getTime()) && start.getTime() > now.getTime())
+    .sort((a, b) => a.start - b.start);
+
+  if (future.length === 0) return null;
+
+  // Prioriza citas sobre el resto (misma hora vence la cita)
+  const citas = future.filter(({ event }) => event.eventType === "cita");
+  const picked = citas.length > 0 ? citas[0] : future[0];
+
+  const start = picked.start;
+  const todayISO = isoFromDate(now);
+  const startISO = isoFromDate(start);
+
+  const diffMs = start.getTime() - new Date(todayISO + "T00:00:00").getTime();
+  const days = Math.floor(diffMs / 86400000);
+
+  let dayLabel;
+  if (days === 0) dayLabel = "Hoy";
+  else if (days === 1) dayLabel = "Mañana";
+  else dayLabel = `En ${days} días`;
+
+  const timeLabel = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+
+  return { event: picked.event, timeLabel, dayLabel, dateISO: startISO };
+}
+
+/**
+ * Días calendario restantes del mes (sin contar el día actual).
+ * @param {Date|string|number} [date]
+ * @returns {number}
+ */
+export function getDiasRestantesDelMes(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return 0;
+  const total = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return Math.max(0, total - d.getDate());
+}
+
+/**
+ * Próximos eventos no finalizados ordenados cronológicamente.
+ * Excluye cancelados/completados y los ya pasados (mismo criterio que
+ * getProximaActividad). Limit superior `limit`.
+ * @param {Array} events - Todos los eventos
+ * @param {Date} now - Fecha/hora actual
+ * @param {number} [limit=5]
+ * @returns {Array<{ event: object, start: Date, timeLabel: string, dayLabel: string, dateISO: string }>}
+ */
+export function getProximosEventos(events = [], now = new Date(), limit = 5) {
+  if (!events || events.length === 0) return [];
+
+  const doneStatus = ["cancelled", "cancelado", "completed", "completado", "completada"];
+  const future = events
+    .map((e) => ({ event: e, start: new Date(e.startDate || e.fecha) }))
+    .filter(({ event, start }) => {
+      const status = (event.status || "").toLowerCase();
+      if (doneStatus.includes(status)) return false;
+      return !isNaN(start.getTime()) && start.getTime() > now.getTime();
+    })
+    .sort((a, b) => a.start - b.start);
+
+  const todayISO = isoFromDate(now);
+  return future.slice(0, limit).map(({ event, start }) => {
+    const startISO = isoFromDate(start);
+    const diffMs = start.getTime() - new Date(todayISO + "T00:00:00").getTime();
+    const days = Math.floor(diffMs / 86400000);
+
+    let dayLabel;
+    if (days === 0) dayLabel = "Hoy";
+    else if (days === 1) dayLabel = "Mañana";
+    else dayLabel = `En ${days} días`;
+
+    const timeLabel = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+    return { event, start, timeLabel, dayLabel, dateISO: startISO };
+  });
+}
+
+/**
+ * Caso visible desde un evento (caseContext si está, sino busca por relatedCaseIds).
+ */
+function eventCase(event, cases = []) {
+  if (event.caseContext) return event.caseContext;
+  const id = (event.relatedCaseIds || [])[0];
+  if (!id) return null;
+  return cases.find((c) => String(c.id) === String(id)) || null;
+}
+
+function reportTieneFecha(caso, todayISO) {
+  return (caso.reporteHistory || []).some((r) => {
+    const f = (r.fecha || "").slice(0, 10);
+    return f === todayISO;
+  });
+}
+
+/**
+ * Construye una línea temporal cronológica de las actividades del día.
+ * Orden ascendente por hora. Combinar citas, eventos, casos modificados,
+ * reportes, reprogramaciones y notas del día.
+ * @param {Array} cases
+ * @param {Array} events
+ * @param {Array} notes
+ * @param {string} todayISO - YYYY-MM-DD
+ * @returns {Array<{ id, type, time, title, detail, color, dateISO, event?, caso? }>}
+ */
+export function buildTodayTimeline(cases = [], events = [], notes = [], todayISO) {
+  if (!todayISO) return [];
+  const items = [];
+  const casesByTime = new Map();
+
+  // 1. Eventos de hoy (citas, eventos y reprogramaciones)
+  for (const e of events) {
+    const start = e.startDate || e.fecha || "";
+    if (start.slice(0, 10) !== todayISO) continue;
+    const caseObj = eventCase(e, cases);
+    const isCita = e.eventType === "cita";
+    const isRe = e.eventType === "reprogramacion";
+    items.push({
+      id: `event-${e.id}`,
+      type: isCita ? "cita" : isRe ? "reprogramacion" : "evento",
+      time: startDateOf(start),
+      title: e.title || "Evento",
+      detail: caseObj ? caseObj.nombre || "Caso" : (isRe ? "Cita reprogramada" : isCita ? "Cita" : "Evento"),
+      color: isCita ? "var(--color-accent)" : isRe ? "var(--chart-color-warning)" : "var(--chart-color-orange)",
+      dateISO: todayISO,
+      event: e,
+      caso: caseObj || null,
+    });
+  }
+
+  // 2. Casos modificados hoy (dentro del rango de hoy)
+  const activeCases = cases
+    .filter((c) => {
+      const created = (c.createdAt || "").slice(0, 10);
+      const lastActivity = (c.lastActivityAt || "").slice(0, 10);
+      return created === todayISO || lastActivity === todayISO;
+    })
+    .slice(0, 5);
+
+  for (const c of activeCases) {
+    const ref = (c.lastActivityAt || c.updatedAt || c.createdAt || "").slice(0, 16);
+    const key = `${c.id}-${ref}`;
+    if (casesByTime.has(key)) continue;
+    casesByTime.set(key, true);
+    items.push({
+      id: `case-${c.id}`,
+      type: "caso",
+      time: startDateOf(ref + ":00"),
+      title: c.nombre || "Sin nombre",
+      detail: `Caso ${c.estado ? "· " + c.estado : ""}`,
+      color: "var(--chart-color-contact)",
+      dateISO: todayISO,
+      caso: c,
+    });
+  }
+
+  // 3. Reportes del día (casos con reportes fechados hoy)
+  for (const c of cases) {
+    if (reportTieneFecha(c, todayISO)) {
+      if (items.some((i) => i.caso && String(i.caso.id) === String(c.id))) continue;
+      items.push({
+        id: `report-${c.id}`,
+        type: "reporte",
+        time: (c.lastActivityAt || todayISO + "T12:00:00").slice(11, 16),
+        title: c.nombre || "Sin nombre",
+        detail: "Reporte cargado",
+        color: "var(--chart-color-conversion)",
+        dateISO: todayISO,
+        caso: c,
+      });
+    }
+  }
+
+  // 4. Notas del día
+  for (const n of notes) {
+    const ref = (n.updatedAt || n.createdAt || "").slice(0, 10);
+    if (ref !== todayISO) continue;
+    items.push({
+      id: `note-${n.id}`,
+      type: "nota",
+      time: (n.updatedAt || n.createdAt || "").slice(11, 16),
+      title: n.title || "Nota",
+      detail: "Nota creada o editada",
+      color: "var(--chart-color-cases)",
+      dateISO: todayISO,
+      caso: null,
+    });
+  }
+
+  // Ordenar: los que no tienen hora válida van al final
+  return items
+    .map((it) => ({ ...it, _timeNum: parseTime(it.time) }))
+    .sort((a, b) => {
+      if (a._timeNum === -1 && b._timeNum === -1) return 0;
+      if (a._timeNum === -1) return 1;
+      if (b._timeNum === -1) return -1;
+      return a._timeNum - b._timeNum;
+    })
+    .map(({ _timeNum, ...rest }) => rest);
+}
+
+function startDateOf(iso) {
+  if (!iso) return "";
+  return String(iso).length >= 16 ? String(iso).slice(11, 16) : "";
+}
+
+function parseTime(t) {
+  if (!t) return -1;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (!m) return -1;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }

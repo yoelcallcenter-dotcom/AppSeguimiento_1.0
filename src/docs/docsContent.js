@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.6.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.8.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -25,11 +25,36 @@ export const DOC_README = `# AppSeguimiento
 
 ## Características principales
 
-### Mi Espacio (personal)
-- Abre siempre en Mi Espacio, con bienvenida destacada y saludos según día y hora.
+### 1.8.4 — Configuración y Personalización
+- **Configuración rediseñada**: 17 secciones con navegación unificada por pills, encabezados con ícono y descripción, sugerencias homogéneas y tarjetas consistentes.
+- **Vistas y Mi Espacio**: reordenables con íconos por bloque desde Apariencia → Vistas; el Dashboard usa un registro único compartido y el editor normaliza órdenes antiguas automáticamente ("Próxima actividad" y "Próximos eventos" ahora son bloques separados).
+- **Español / English**: se eliminó la opción "Português"; una configuración previa en \`pt\` se migra automáticamente a Español al abrir Configuración.
+
+### 1.8.3 — Estadísticas y Cálculos
+- **Días hábiles efectivos (FH = TM − FS − In − Fe − Va)**: todos los promedios, ritmos, tendencias, comparativas y metas descuentan de forma consistente fines de semana (según \`workingDays\` del perfil), inasistencias, feriados y vacaciones; los solapes se cuentan una sola vez.
+- **Disponibilidad corregida**: \`getAvailabilitySummary\` solo cuenta días laborables efectivos; metas semanales respetan el último día hábil real y el ritmo del día promedia sobre 30 días hábiles efectivos.
+- **Analítica efectiva**: promedios diarios, tendencias por día/semana, proyecciones y series del dashboard/exporte omiten días no laborables por disponibilidad.
+
+### 1.8.2 — Exportaciones y Documentación
+- **CSV analítico**: toggle "Detalle por caso / Analítico (resumen)" en el exportador, con KPIs, productividad, conversión, estados, estudios, aseguradoras, localidades, tendencias, comparativas y períodos en un solo archivo para el rango seleccionado.
+- **PDF de Mi Espacio completo**: ahora exporta disponibilidad, progreso de metas, ritmo del día, estadísticas de efectividad por día efectivo y próximos eventos además de perfil, jornada, métricas y resumen del período.
+- **Ejemplos de casos reales**: 4 casos de ejemplo con ART + horario de cita, operador asignado y cita dinámica con fecha de hoy.
+- **Pegado de ficha con HORARIO**: el pegado completo adiciona el campo \`HORARIO:\` a las observaciones (mantiene el resto de campos).
+
+### 1.8.1 — Consistencia Visual y Experiencia de Uso
+- Filtros unificados con primitivas reutilizables (\`FilterBar\`, \`FilterGroup\`, \`FilterLabel\`, \`FilterChip\`, \`FilterCounter\`).
+- \`PipelineBar\` con multi-selección de estados (quickFilter con arrays, botón Limpiar y contadores).
+- Cuadros de búsqueda estandarizados (\`SearchInput\` con botón X) en toda la app y búsqueda global (Ctrl+K) agrandada con contador de resultados.
+- Reportes con orden fijo (MonthDayFilter → PipelineBar → Reportes Guardados → Lista → Paginación).
+- Modal de caso: footer en una fila y reportes editables inline con plantillas; Editar/Reporte se apilan sobre VerCaso (\`useModalStack\`, \`inert\`, \`z-submodal\`).
+- Mi Disponibilidad rediseñada con strip mensual y colores por variables CSS.
+
+### Mi Espacio (centro de trabajo)
+- Abre siempre en Mi Espacio, en el centro de trabajo "Hoy": una sola página con los bloques del día (bienvenida, jornada, próximos eventos, pendientes, productividad, metas, acciones rápidas, accesos) en el orden que prefieras.
 - Perfil del operador: nombre, rol, empresa, localidad, contacto y jornada habitual.
-- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/mensuales con ritmo necesario.
+- Resumen de la jornada, disponibilidad (vacaciones, feriados, inasistencias) y metas personales diarias/semanales/mensuales con ritmo necesario.
 - Accesos y credenciales personales (solo locales, nunca se exportan).
+- El orden de los bloques del "Hoy" se reordena en Configuración → Apariencia → Vistas.
 
 ### Gestión de Casos
 - **Kanban**: arrastrar casos entre estados (Cita virtual, No responde, Firmo, etc.).
@@ -37,7 +62,8 @@ export const DOC_README = `# AppSeguimiento
 - **Reportes**: historial completo de reportes por caso.
 - **Calendario**: eventos vinculados a casos, reprogramación y citas.
 - **Bloc de Notas**: notas enriquecidas (Tiptap) con vínculo a casos.
-- **Búsqueda global** (\`GlobalSearch\`): búsqueda en tiempo real por nombre, teléfono, localidad, \`#etiquetas\` y \`@comentarios\`.
+- **Búsqueda global** (\`GlobalSearch\`): búsqueda en tiempo real por nombre, teléfono, localidad, \`#etiquetas\`, \`@comentarios\`, reportes e historial de casos, con navegación contextual (Ctrl+K).
+- **Pegado inteligente**: al pegar una ficha completa se detecta automáticamente el tipo de ingreso con palabras clave configurables (Configuración → Tipos de Ingreso).
 
 ### Estadísticas y Analítica
 - Dashboard multi-pestaña (Analítica, Resumen, Rendimiento, Geografía, Estudios, Estados).
@@ -154,11 +180,11 @@ src/core/theme/
 src/
 ├── components/
 │   ├── common/           # Btn, Modal, ConfirmDialog, EmptyState, Spinner, Skeleton,
-│   │                     # OverlayPanel, Paginacion,
+│   │                     # EditableForm, OverlayPanel, ShortcutsHelp, Paginacion,
 │   │                     # DayFilter, MonthDayFilterBar, etc.
 │   ├── notifications/    # NotificationBell, NotificationCenter, PersistentAlert, ToastContainer
-│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ calendar/ entities/
-│   ├── configuracion/ utiles/ ayuda/ diagnostico/
+│   ├── kanban/ tabla/ reportes/ estadisticas/ modales/ notes/ calendar/
+│   ├── configuracion/ utiles/ ayuda/ diagnostico/ entities/
 ├── core/
 │   ├── theme/            # themeTokens, themeManager, colorUtils
 │   ├── store/            # useAppStore (Zustand global)
@@ -200,7 +226,7 @@ src/
 | \`Ctrl + E\` | Exportar seleccionados |
 | \`Ctrl + H\` | Abrir ayuda |
 | \`Ctrl + K\` | Búsqueda global |
-| \`Ctrl + 1-5\` | Cambiar vista |
+| \`Ctrl + 1-7\` | Cambiar vista |
 | \`Escape\` | Cerrar modal |
 
 ---
@@ -301,6 +327,533 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.8.8] - Sidebars unificados y header reorganizado
+
+Release que reorganiza el header principal y unifica Filtros, Exportar CSV y Centro de Notificaciones en tres sidebars con la misma lógica visual de pills del resto de la app. Incluye además el filtro global de casos (work de 1.8.7, sin entry previa).
+
+### Header
+
+- Fila 1: \`Caso\`, \`Exportar\`, \`Notas\`, \`Calendario\`, \`Configuración\` y \`Ayuda\` + iconos sueltos (Filtros, Exportar CSV, Centro de Notificaciones, Descargar PWA), todos con padding \`p-2.5\` uniforme.
+- Fila 2: buscador, chips de filtros activos y botones \`Caso\` (sólido) y \`Reporte\` (outline).
+
+### Sidebars unificados (\`SidePanel\`)
+
+- Nuevo componente base \`src/components/common/SidePanel.jsx\`: drawer derecho, overlay con blur, animación de entrada/salida idéntica a la de notificaciones, slots \`actions\`, \`subheader\` y \`footer\`, y ancho ≤25% (\`w-1/4 max-w-[560px] min-w-[320px]\`).
+- **Filtros**, **Exportar CSV** y **Centro de Notificaciones** migran de modal/diálogo propio a \`SidePanel\`, con \`FilterChip\`/\`FilterGroup\` como pills estándar y footers fijos con contadores.
+
+### Indicador de filtro activo
+
+- Badge de punto en el ícono de Filtros (fila 1) con \`title\` dinámico.
+- Chips \`FilterChip\` de cada filtro activo con quita individual (×) y chip "Limpiar" junto al buscador.
+- Iconos diferenciados: \`FileSpreadsheet\` para Exportar CSV y \`Download\` para Descargar PWA.
+
+### Filtros globales unificados y multi-selección
+
+- **Una sola fuente de filtros para toda la app**: la barra "Filtros analíticos" del Dashboard pasa a editar el mismo \`filtroGlobal\` de la sidebar (antes era un state local aislado que no afectaba al resto de las vistas). Los cambios se reflejan en la sidebar, en los chips del header y en todas las vistas (Mi Espacio, Tabla, Kanban, Reportes). Su "Limpiar filtros" limpia solo sus 6 dimensiones; el "Limpiar" del header limpia todo.
+- **Multi-selección por dimensión**: cada dimensión del \`filtroGlobal\` (Estado, Aseguradora, Localidad, Estudio, Tipo, Origen y la nueva **Provincia**) pasa a array, con OR dentro de la dimensión y AND entre dimensiones; migración automática del shape escalar persistido en \`app-filters\`.
+- \`FilterModal\` (sidebar): layout de una columna con \`MultiSelect\` por dimensión — corrige el solapamiento de texto a 320px y permite elegir varias opciones a la vez.
+- \`DashboardFilters\` (Analítica) también sobre \`MultiSelect\`; \`computeMetrics.aplicarFiltros\` acepta arrays, por lo que la pestaña Analítica ahora respeta el filtro global de la sidebar (antes lo ignoraba).
+- Chips del header: un chip por valor seleccionado con quita individual.
+
+### Cabeceras plegables por vista
+
+- \`SectionHeader\` acepta \`storageKey\`: al contraer queda solo el chevron, sin card (se ocultan icono, título, descripción y el contenedor). En Tabla, Kanban y Reportes el chevron se superpone a la barra de mes/día, a la altura de las tarjetas de día, sin generar una fila vacía (\`overlayCollapsed\`); en el resto de vistas queda alineado a la derecha. Estado por vista persistido en localStorage (\`app.sh.<clave>\`), default expandido. Activado en Dashboard, Tabla, Kanban, Reportes, Notas, Calendario, Útiles, Ayuda y Configuración.
+
+### Correcciones y mantenimiento
+
+- **Fix**: loop infinito de render en \`EventModal\` (\`casos\` en las deps de un \`useEffect\` con default \`[]\` creaba una referencia nueva en cada render).
+- **Fix**: \`Building2\` y \`CircleDot\` sin importar en \`Dashboard.jsx\` → \`ReferenceError\` al abrir las pestañas Estudios y Estados.
+- \`.gitignore\`: ignorar directorios literales \`~\` (evita ingerir el perfil de usuario con \`git add -A\`).
+- Tests: \`testTimeout\`/\`hookTimeout\` 15000 en \`vitest.config.mjs\` (suite fiable en máquinas lentas); **721 tests en verde**.
+- Bump a **1.8.8** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README/CHANGELOG.
+
+---
+
+## [1.8.5] - Navegación unificada por pills
+
+Release que aplica la misma lógica visual de **Configuración y Ayuda** a toda la app: navegación por pills/un burlader de grupo, encabezados de sección e íconos de tip en las 8 vistas principales.
+
+### Primitivas de navegación compartidas
+
+- Nuevo \`src/components/common/UINav.jsx\` con \`NavDock\` (dock horizontal con pills de grupo, activo con fondo accent sólido) y \`SubPills\` (pills secundarias rounded-full, activo con borde/fondo accent + badge de contador). Cubiertas por \`UINav.test.jsx\`.
+- **Dashboard**: la barra tipo navegador (subtabs con subrayado) pasa a \`NavDock\` + \`SectionHeader\` dinámico con ícono, título y descripción por tab.
+- **Mi Espacio**: secciones en grid de tarjetas → \`NavDock\`; el bloque "Sugerencias para vos" → tip estandarizado con borde accent e ícono 💡; tarjetas pulidas a \`rounded-xl\`.
+- **Útiles**: pills \`.category-tab\` → \`SubPills\` con badges (conserva el toggle grid/lista) + \`SectionHeader\` por sub-vista.
+- **Calendario**: segmented control del toolbar → \`SubPills\` + \`SectionHeader\`.
+
+### Vistas sin tabs
+
+- **Kanban, Tabla, Reportes y Bloc de Notas**: encabezado unificado con \`SectionHeader\`.
+
+### Mantenimiento
+
+- Bump a **1.8.5** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README/CHANGELOG.
+
+---
+
+## [1.8.5] - Navegación unificada por pills
+
+Release que aplica la misma lógica visual de **Configuración y Ayuda a toda la app**: navegación por pills/dock, encabezados de sección e íconos de tip en las 8 vistas principales.
+
+### Primitivas de navegación compartidas
+
+- Nuevo \`src/components/common/UINav.jsx\` con \`NavDock\` (dock horizontal con pills de grupo, activo con fondo accent sólido) y \`SubPills\` (pills secundarias rounded-full, activo con borde/fondo accent + badge de contador). Cubiertas por \`UINav.test.jsx\` (5 tests).
+- **Dashboard**: la barra de pestañas tipo "browser" (subrayado) pasa a \`NavDock\` + \`SectionHeader\` dinámico con ícono, título y descripción por tab.
+- **Mi Espacio**: secciones en grid de tarjetas → \`NavDock\`; el bloque "Sugerencias para vos" → tip estandarizado con borde accent e ícono 💡; las tarjetas se pulen a \`rounded-xl\`.
+- **Útiles**: pills \`.category-tab\` → \`SubPills\` con badges (conserva el toggle grid/lista) + \`SectionHeader\` por sub-vista.
+- **Calendario**: segmented control de la toolbar → \`SubPills\` + \`SectionHeader\`.
+- **Kanban, Tabla, Reportes y Bloc de Notas**: encabezado unificado con \`SectionHeader\` (título + descripción).
+
+### Mantenimiento
+
+- Bump a **1.8.5** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README.
+- Tests actualizados y **679 tests en verde**; \`npm run build\` compila sin errores.
+
+---
+
+## [1.8.4] - Configuración y Personalización
+
+Release de rediseño visual y simplificación de **Configuración**: interfaz unificada, menor carga visual e iconografía consistente en las 17 secciones.
+
+### Navegación e identidad visual
+
+- **Pills superiores unificadas**: grupos y subsecciones como pestañas integradas con iconos y estados consistentes (activa con acento).
+- **Encabezado de sección unificado** (\`SectionHeader\`): ícono, título y descripción para las 17 secciones.
+- **Primitivas de sección** (\`src/components/configuracion/ui.jsx\`): \`ConfigSection\`, \`ConfigSectionTitle\`, \`ConfigRow\`, \`ConfigField\`, \`ConfigGrid\`, \`ConfigTip\` y \`ConfigDivider\` para construir secciones homogéneas.
+- Bloques de "Sugerencias" estandarizados con el mismo estilo e ícono en todas las secciones; tarjetas \`.config-section\` pulidas (sombra sutil y caja consistente).
+
+### Vistas y Dashboard
+
+- **Registro único del Dashboard** (\`src/features/dashboard/dashboardConfig.js\`): pestañas y widgets compartidos entre el render y el editor de Apariencia → Vistas; el editor normaliza órdenes legacy e inyecta widgets faltantes (\`getOrderedDashWidgets\`).
+- **Iconografía por pestaña y widget**: cada pestaña y widget tiene su propio ícono (la pestaña Rendimiento ya no duplica el ícono de Analítica).
+- **Editor de vistas con iconos** (\`ViewSectionEditor\`): el Drag & drop de Mi Espacio, Tablero, Tabla, Reportes y Útiles ahora muestra el ícono de cada bloque.
+- **Mi Espacio con 9 bloques**: "Próxima actividad" y "Próximos eventos" se configuran por separado; los órdenes existentes se migran de forma transparente.
+
+### Idiomas
+
+- La aplicación pasa a **Español / English**: se eliminó la opción "Português"; una configuración previa en \`pt\` se **migra automáticamente a "es"** al abrir Configuración.
+
+### Mantenimiento
+
+- Bump a **1.8.4** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README.
+- Tests nuevos: \`dashboardConfig.test.js\` (registro y normalización de órdenes), \`ui.test.jsx\` (primitivas) y actualización de \`miEspacioConfig.test.js\` (9 bloques + migración legacy).
+- Manual de usuario, README y PROJECT_CONTEXT actualizados.
+
+---
+
+## [1.8.3] - Estadísticas y Cálculos
+
+Release que corrige todos los motores estadísticos para que trabajen exclusivamente con **días efectivamente laborables**, deduciendo la disponibilidad real del operador.
+
+### Nueva fórmula de referencia: días hábiles efectivos (FH)
+
+- Todos los promedios, ritmos, tendencias, comparativas y metas usan ahora **FH = TM − FS − In − Fe − Va** (total días del mes − fines de semana − inasistencias − feriados − vacaciones), con FS según los \`workingDays\` del perfil (no fijos a sáb/dom).
+- Nueva helper \`diasEfectivosEnRango(rango, workingDays, availability)\` en \`src/features/analytics/periodUtils.js\`: devuelve la lista de ISO de días hábiles efectivos. \`diasHabilesEnRango\` acepta \`availability\` y descuenta esos días (retrocompatible).
+- Regla de vacaciones/feriados/inasistencias: **solo descuentan días laborables**; nunca sábados, domingos ni días ya descontados. Los solapes (vacación ∩ feriado) se cuentan una sola vez.
+
+### Disponibilidad (Mi Espacio)
+
+- \`getAvailabilitySummary\` (ópera sobre \`workingDays\` del perfil) cuenta solo días laborables efectivos: \`vacationDays\`/\`holidayDays\`/\`absenceDays\`/\`dayOffDays\` restringidos a FS, y \`totalDays = scheduled − effective\` (deduplica solapes). Corrige el bug donde \`effective + totalDays\` superaba los días programados y las vacaciones contaban sábados/domingos.
+- \`getWeeklyGoalProgress\` respeta el **último día hábil real de la semana** (según \`workingDays\`, no fijo al viernes) y filtra días no efectivos del conteo.
+- \`getDayPaceMetrics\` promedia sobre los **últimos 30 días hábiles efectivos** (antes 30 días corridos pese al comentario).
+
+### Analítica y tendencias
+
+- \`computeResumenPeriodo\` y \`computeDiaSemana\` reciben \`availability\`: el \`promedioDiario\` y las ocurrencias por día descuentan vacaciones/feriados/inasistencias.
+- \`promedioPersonalReciente\` respeta \`workingDays\` del perfil (antes un Set fijo \`[1,2,3,4,5]\`) y descuenta días no efectivos.
+- \`proyeccionObjetivos\`: \`diasHabilesRestantesSemana\` y el ritmo de los últimos 14 días usan días efectivos.
+- Series de dashboard y exporte: \`buildSeries\`/\`computeMetrics\` (\`seriesByDay\`, \`weeklySeries\`) y \`ActivityChart\` omiten días no efectivos; \`useDashboardData\` provee \`workingDays\` + \`availability\` desde el store del operador.
+- \`csvAnalitico\` recibe \`availability\` en opts; el KPI pasa a llamarse "Días hábiles efectivos en período".
+
+### Mantenimiento
+
+- Bump a **1.8.3** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README.
+- Tests: \`periodUtils.test.js\` (FH y solapes), casos de \`getAvailabilitySummary\` no estándar, FH en \`analyticsEngine\` y series en \`computeMetrics\`.
+- Manual de usuario, README y PROJECT_CONTEXT actualizados.
+
+---
+
+## [1.8.2] - Exportaciones y Documentación
+
+Release enfocado en exportaciones completas y ejemplos reales.
+
+### Exportación CSV analítica
+
+- \`CsvExportModal\` incorpora un toggle **"Detalle por caso" / "Analítico (resumen)"**: el modo analítico genera un único \`AppSeguimiento_Analitico_YYYY-MM-DD.csv\` con las secciones KPIs, Productividad, Conversión, Estados, Estudios, Aseguradoras, Localidades, Tendencias, Comparativas, Períodos y Métricas para el rango seleccionado (desde/hasta o año actual).
+- Nuevo \`buildCsvAnalitico\` en \`src/features/export/csvAnalitico.js\`, que normaliza el rango a \`{ startISO, endISO }\` y consume los arrays reales de \`computeMetrics\` (\`byStatus\`, \`byStudy\`, \`byAseguradora\`, \`byLocalidad\`, \`seriesByDay\`) sin emisiones \`[object Object]\`.
+- Correcciones de integridad en el archivo (se eliminaron caracteres corruptos residuales).
+
+### PDF de Mi Espacio (reporte de supervisor)
+
+- \`PdfExportModal\` pasa de 5 a **10 secciones**: perfil, jornada, métricas, semanales, resumen, **disponibilidad, progreso de metas, próximos eventos, estadísticas de efectividad por día efectivo y configuración**.
+- Nuevas métricas incorporadas vía \`operatorMetrics\`: \`getAvailabilitySummary\`, \`getWeeklyGoalProgress\`, \`getDayPaceMetrics\` y \`getProximosEventos\` (eventos del calendario del operador, máx. 8).
+- \`OperatorView\` enlaza los eventos del operador al modal de exportación.
+
+### Ejemplos de casos reales y pegado de ficha
+
+- \`EjemplosCasos\` reemplaza los 3 casos ficticios por **4 casos reales** con ART + código interno \`(88)\`, horario de cita, operador "Yoel Libay" y cita dinámica con la fecha de hoy: RAMIREZ EVELIN DAIANA (3416699834, ZAVALLA, PREVENCION), BASSANO FRANCO GABRIEL (3518089513, CORDOBA CAPITAL, LA SEGUNDA), CONTRERAS SAAVEDRA CARLOS EDUARDO (1123310439, BANFIELD, SWISS MEDICAL) y LOPEZ CARLA CELESTE (1136044767, SAN MARTIN, LA SEGUNDA).
+- \`parseFicha\` ahora adiciona el campo \`HORARIO:\` a las observaciones (formato "Horario confirmado: HH:MM-HH:MM"), manteniendo el resto de los campos y la limpieza del \`(88)\` del ART.
+
+### Mantenimiento
+
+- Bump a **1.8.2** en \`version.js\`, \`package.json\`, \`package-lock.json\` y los README.
+- Manual de usuario (Guía PDF/TXT) con nueva sección 16 "Exportaciones".
+- Tests: \`csvAnalitico.test.jsx\` (7), \`EjemplosCasos.test.jsx\` (6) y \`helpers.test.js\` ampliado con \`HORARIO\` aditivo.
+
+---
+
+## [1.8.1] - Consistencia Visual y Experiencia de Uso
+
+Release de pulido visual y UX sobre la cadena 1.8.x. Incluye el Pegado Inteligente que estaba en [Unreleased] (no hubo release 1.8.0 independiente).
+
+### Filtros unificados
+
+- Nuevas primitivas reutilizables en \`src/components/common/filters/\`: \`FilterBar\`, \`FilterGroup\`, \`FilterLabel\`, \`FilterChip\` y \`FilterCounter\`, para estandarizar labels, contadores y estados activos de todos los filtros.
+- \`MonthDayFilterBar\` (mes/período), \`DashboardFilters\` (panel del dashboard) y \`ReporteGuardadoBar\` refactorizados sobre estas primitivas sin cambiar comportamiento ni salida visual.
+
+### Pipeline con multi-selección
+
+- \`PipelineBar\` permite seleccionar varios estados a la vez (toggle suma/remueve con \`aria-pressed\`): los segmentos deseleccionados se atenúan y la barra resalta en el color del estado seleccionado superpuesto.
+- Semántica \`quickFilter\`: \`tipo: "estado"\` acepta un array de valores (OR) además del string legacy. \`aplicarQuickFilter\`, \`quickFilterValues\` y \`quickFilterEstados\` viven en \`src/utils/filtrarQuickFilter.js\` (antes inline en \`App.jsx\`) y \`contarCasosPorEstado\` en \`src/utils/casosStats.js\`.
+- Footer de la barra: "Filtrado por: A, B (+N)" con botón "Limpiar"; contadores memorizados con \`useMemo\`.
+- \`DashboardFilters\` sigue escribiendo \`tipo: "grupo"\` (string) sin cambios.
+
+### Cuadros de búsqueda + botón X
+
+- Nuevo \`SearchInput\` (\`src/components/common/SearchInput.jsx\`) con lupa alineada, \`pl-8/pr-8\`, botón X para limpiar visible solo con texto (al pulsarlo refoca el input) y variante \`compact\`. \`TextInput\` ahora reenvía la ref (\`forwardRef\`), retrocompatible.
+- Reemplazados los inputs de búsqueda en: barra global de casos, Útiles, Speechs, Mapa, Objeciones, Condicionales, Mapeo, Notas (compact), Glosario, FAQ y Plantillas. \`ReporteRapidoModal\` conserva \`TextInput\` por restricciones de layout.
+- \`NotesSearch\`, \`CaseLinker\` y \`GlobalSearch\` (búsquedas en inputs flex de header) suman botón X para limpiar.
+
+### Búsqueda global (Ctrl+K)
+
+- Modal agrandado (\`max-w-3xl\`, mayor altura y más alto en pantalla), botón de limpieza y contador "N resultado(s)" cuando hay búsqueda con resultados; hints de tag/comentario restilizados.
+
+### Reportes: orden fijo
+
+- La vista de Reportes fija el orden \`MonthDayFilterBar\` → \`PipelineBar\` → Reportes Guardados → Lista → Paginación, moviendo \`ReporteGuardadoBar\` justo debajo de la barra de distribución.
+
+### Modal de caso (VerCaso)
+
+- Footer de acciones en una sola fila con wrap (Editar, Reporte, Reprogramar, Notas, Calendario, Eliminar), eliminando la separación izquierda/derecha.
+- "Historial de reportes" pasa a un colapsable "Reportes del caso (n)" con agregado inline, plantillas (\`TemplateSelector\`) y edición/eliminación por reporte con confirmación (misma lógica que \`CasoEditModal\`), persistiendo vía \`onActualizarCaso\`.
+
+### Modales apilables
+
+- \`useModalStack\` (\`src/hooks/useModalStack.js\`) centraliza la pila VerCaso → Editar / Reporte Rápido.
+- Editar y Reporte desde VerCaso ya no lo desmontan: se apilan encima con \`z-submodal\` (60) mientras el modal base queda \`z-modal\` (50), con \`inert\` (sin foco ni clic) y su trampa de foco desactivada. Al cerrar el modal superior se vuelve al caso.
+- Eliminar un caso desde el editor cierra también el modal de VerCaso subyacente.
+
+### Mi Disponibilidad rediseñada
+
+- \`AvailabilityCard\` dividido en \`src/features/operator/components/availability/\` (\`AvailabilityCard\`, \`AvailabilityHeader\`, \`AvailabilityMonthStrip\`, \`AvailabilityTabs\`, \`AvailabilityStatus\`, \`AvailabilityList\`, \`AvailabilityEditForm\`), con CRUD y almacenamiento intactos.
+- Nuevo strip mensual: próximos 6 meses con un punto por mes que tiene registros y resaltado del mes actual.
+- Colores hex (\`#F59E0B\`, \`#EF4444\`) reemplazados por variables CSS (\`--color-warning\`, \`--color-danger\`), preservando los 3 temas.
+
+### Mantenimiento
+
+- Bump a **1.8.1** (absorbe el Pegado Inteligente que estaba en [Unreleased]).
+- Tests nuevos: \`src/utils/filtrarQuickFilter.test.js\` (12 casos) para el contrato multi-estado; suite existente en verde.
+
+### Pegado Inteligente (Tipos de Ingreso)
+
+- Detección automática del tipo de ingreso al pegar una ficha completa: el sistema analiza el texto pegado con palabras clave configurables por el operador en Configuración → Tipos de Ingreso. Proceso determinístico (sin IA) con prioridad configurable (1 = alta, 3 = baja).
+- Palabras clave preconfiguradas para los 5 tipos de ingreso por defecto (ej: "cirugia", "tratamiento", "enfermedad", "itinere").
+- Nuevo editor de palabras clave y prioridad en Configuración → Tipos de Ingreso: se agregan palabras clave separadas por coma y se asigna prioridad de detección (1 alta, 2 media, 3 baja).
+- Rehidratación automática: configuraciones existentes heredan los campos \`keywords\` y \`keywordsPriority\` sin perder datos. Los strings legacy de \`tiposIngreso\` se convierten a objetos \`{ v, keywords, keywordsPriority }\` de forma transparente.
+
+### Corrección: portapapeles en entornos restringidos
+
+- Nuevo util compartido \`copyToClipboard\` con fallback seguro (textarea + \`execCommand("copy")\`) para entornos donde \`navigator.clipboard\` no está disponible (HTTP, escritorios remotos, etc.). Todos los 8 llamadores directos del portapapeles refactoreados: nunca más se produce un Runtime Error.
+- Mensajes toast consistentes de éxito/error en todos los componentes que copian al portapapeles.
+
+---
+
+## [1.7.12] - QA, Integración y estabilización 1.7.x
+
+### Control de calidad
+
+- Revisión integral de Mi Espacio 2.0 y del flujo principal del operador (centro "Hoy", pendientes, búsqueda global, backup, dashboard, calendario, tipografía y auditoría visual en los 3 temas).
+- Nueva prueba de render de \`TodayCenter\` (bloques con/sin datos y respeto del orden configurado). Suite completa: 592 tests pasando sin regresiones desde 1.7.11 (589 + 3 nuevos).
+- Verificación de que no quedan rastros del sistema de automatizaciones: solo referencias históricas en documentación; archivos \`CasosRelevantes\`/\`TodaySummary\` eliminados ya no existen.
+- Confirmado que los componentes nuevos usan exclusivamente variables CSS (sin colores fijos), cumpliendo la compatibilidad con los 3 temas.
+
+### Documentación
+
+- Tour interactivo paso 6 actualizado a "Mi Espacio: tu centro de trabajo" (bloques del "Hoy" y edición del orden en Configuración → Apariencia → Vistas).
+- Guía "Mi Espacio" (sección 5) reescrita para el centro de trabajo "Hoy" con sus bloques.
+- FAQ y Glosario actualizados: nueva entrada "Centro 'Hoy'".
+- Ayuda → Mi Espacio actualizada (bloques nuevos: Bienvenida, Productividad, Accesos personales; edición de orden).
+- Configuración: etiqueta "Insight destacado en el 'Hoy'" (antes "… en Mi Jornada").
+- README ×3 y PROJECT_CONTEXT alineados a 1.7.12.
+
+### Mantenimiento
+
+- Corrección en \`package-lock.json\`: \`node_modules/wbuf\` vuelve a su versión real 1.7.3, coherente con el tarball resuelto y su integridad.
+- Sin funcionalidades nuevas y sin IA: release de estabilización y documentación.
+
+## [1.7.11] - Mi Espacio 2.0
+
+### Centro de trabajo "Hoy"
+
+- La sección "Hoy" de Mi Espacio se convierte en un centro de trabajo diario: una sola página con 8 bloques en orden configurable.
+- Bloques (orden por defecto): Hoy/Bienvenida, Mi Jornada, Próxima actividad, Pendientes, Productividad, Metas, Acciones rápidas y Accesos personales.
+- Los bloques sin datos del día (pendientes, productividad, próxima actividad) se omiten automáticamente para no inflar la vista.
+- Perfil, disponibilidad, editor de metas y detalle de accesos permanecen como secciones secundarias de Mi Espacio.
+
+### Nuevas secciones
+
+- **Hoy/Bienvenida**: saludo dinámico, fecha/día/hora, "X días restantes del mes", estado de la meta diaria y chip de próxima actividad.
+- **Productividad**: tiles de casos, reportes, firmas y actividad del día (getDailyGoalProgress + getDayClosureData), ritmo actual vs. promedio/habitual con proyección mensual, y línea de actividad diaria (TimelineActividades).
+- **Metas**: objetivos diarios, progreso semanal y próximo hito; respeta las preferencias de proyección e hitos.
+- **Accesos personales**: resumen compacto (nunca muestra contraseñas) con acceso directo a la gestión completa.
+- **Próximos eventos**: próximos compromisos del calendario (máx. 5, excluye cancelados/completados/pasados; Hoy/Mañana/En N días).
+
+### Orden configurable
+
+- Configuración → Apariencia → Vistas incluye el editor "Mi Espacio" con las 8 secciones en el orden deseado y botón "Restaurar defecto".
+- El orden se persiste en \`operatorSettings.miEspacioOrder\` (mismo almacén de Mi Espacio, sin stores paralelos).
+
+### Mantenimiento
+
+- Se elimina \`MiJornadaView.jsx\` (reemplazado por \`TodayCenter.jsx\`).
+- Helpers puros nuevos \`getDiasRestantesDelMes\` y \`getProximosEventos\` en \`operatorMetrics.js\`; configuración centralizada en \`miEspacioConfig.js\`.
+- La pestaña "Mi Jornada" pasa a llamarse "Hoy" en la navegación de Mi Espacio.
+
+## [1.7.10] - Reportes Guardados y Exportaciones
+
+### Reportes guardados
+
+- Nueva funcionalidad "Reportes guardados" en la vista Reportes: permite almacenar configuraciones de filtros con un nombre descriptivo y reutilizarlas.
+- Almacén en IndexedDB (tabla \`saved_reports\`, schema v10): persiste entre sesiones y viaja en backup/export/import sin configuración adicional.
+- CRUD completo: crear, renombrar, duplicar, eliminar y re-guardar (reemplazar) un reporte, con confirmación en reemplazos y borrados.
+- Filtros capturados: período (mes/año/días), búsqueda, busquedaFiltro (todos/activos/pendientes/hoy), estado, aseguradora, localidad, estudio y tipo de ingreso.
+
+### Panel de filtros en Reportes
+
+- Nuevo panel con 5 selects (estado, aseguradora, localidad, estudio, tipo de ingreso) en la vista Reportes, debajo de la barra de fechas.
+- El filtrado del panel reutiliza la función \`aplicarFiltros\` de \`computeMetrics.js\`, sin duplicar lógica de filtrado.
+
+### Exportación CSV del reporte
+
+- Botón "Exportar CSV" que genera un archivo con el listado filtrado del reporte.
+- Nombre de archivo descriptivo: \`Reporte_{nombre}_{periodo}_{fecha}.csv\`.
+- Reutiliza escapeCSV/sanitizeCSV del sistema CSV existente.
+
+## [1.7.9] - Analítica Operativa
+
+### Analítica operativa (pestaña Analítica del Dashboard)
+
+- Exploración operativa ampliada: filtros por estado, aseguradora, localidad, estudio, provincia y tipo de ingreso.
+- Las opciones de los filtros se derivan del período seleccionado (mes/días) en el filtro global.
+- Los KPIs, gráficos y distribuciones responden a los filtros de exploración sin alterar las demás pestañas.
+- Widgets Reprogramaciones y Citas próximas incorporados a la pestaña Analítica.
+- Exportación CSV de la exploración: KPIs + distribución por estados, categorías, aseguradoras, localidades, estudios, provincias y tipos de ingreso.
+
+### Evolución del período seleccionado
+
+- Las series diaria y semanal (casos y firmas) se anclan al mes seleccionado en lugar de "últimos 30 días".
+- Títulos dinámicos que reflejan el rango visible en cada gráfico.
+
+### Correcciones
+
+- PhoneLink: las acciones de llamada usan siempre el esquema \`tel:\` con el título "Llamar" (se elimina la rama WhatsApp/móvil).
+- Logro de Objetivos: la meta mensual usa la configurada en Mi Espacio (metas del operador) en lugar de un valor fijo.
+- Tooltips de gráficos: se elimina el sufijo redundante "casos" en barras de provincia, tipo, estudio y en los donuts.
+- PipelineBar (Kanban): las barras dejan de ser interactivas (solo visuales); el filtrado se mantiene desde la leyenda.
+- Ayuda: se elimina la vista "Cómo usar" (sin uso activo) y "Ejemplos de casos" se integra dentro de la pestaña Ayuda.
+- La pestaña activa de Configuración y de Útiles ya no se persiste; al reingresar se abre en la sección inicial.
+- Dashboard: nuevo control "Filtro activo" con botón "Limpiar filtro" al aplicar una acción rápida.
+- Motor de métricas: \`aplicarFiltros\` ahora soporta también \`aseguradora\` y \`localidad\`.
+
+### Limpieza
+
+- Se elimina en profundidad el sistema de automatizaciones: código, configuraciones, documentación y changelog actualizados (schema IndexedDB v9).
+
+## [1.7.8] - Dashboard Configurable
+
+### Nuevos widgets del Dashboard
+
+- **CitasWidget**: muestra eventos tipo cita próximos 7 días, enlazados a casos, con badge de estado (OK/Pendiente).
+- **ReprogramacionesWidget**: lista casos con estado "Reprogramado", ordenados por última actividad, click para ver caso.
+- **AseguradorasWidget**: top 6 ART por cantidad de casos, con barra de conversión (firmos/total), click para filtrar por ART.
+
+### WidgetWrapper estandarizado
+
+- Nuevo componente \`WidgetWrapper.jsx\`: wrapper React.memo para todos los widgets del dashboard.
+- Props: \`title\`, \`icon\`, \`period\`, \`loading\`, \`error\`, \`empty\`, \`emptyMessage\`, \`emptyIcon\`, \`children\`.
+- Estados: carga, error, vacío, contenido — todos consistentes con el Design System.
+
+### Restaurar defecto
+
+- Nuevo botón "Restaurar defecto" en Configuración → Dashboard → Orden de pestañas.
+- \`restoreDashboardDefaults()\` en \`useAppStore\`: resetea \`dashTabOrder\`, \`dashWidgetOrder\`, \`dashActiveFilter\`, \`dashTab\`.
+
+### Persistencia del Dashboard
+
+- \`app-view-orders\` (Zustand persist) para \`dashTabOrder\`/\`dashWidgetOrder\`.
+- \`config-art-tracker\` para visibilidad de widgets.
+- \`app_analytics_period\` para período de Insights.
+- Orden de pestañas y widgets se persiste y sobrevive a recargas.
+
+### Optimizaciones
+
+- \`React.memo\` en todos los widgets nuevos.
+- \`useMemo\` para \`filterLabel\` en Dashboard.jsx.
+- \`filterLabel\` calculado según período activo (Hoy, Semana, Mes, etc.).
+
+## [1.7.4] - Sistema de Plantillas
+
+### Plantillas reutilizables
+
+- Nueva tabla \`templates\` en \`appDB\` (schema v6) con campos: \`id\`, \`name\`, \`category\`, \`type\`, \`content\`, \`active\`, \`createdAt\`, \`updatedAt\`.
+- CRUD completo: \`createTemplate\`, \`updateTemplate\`, \`deleteTemplate\`, \`duplicateTemplate\`, \`toggleTemplateActive\`, \`getTemplatesByType\`, \`getAllTemplates\`, \`getTemplateById\`.
+- Cada plantilla tiene un **tipo** (\`nota\`, \`reporte\`, \`evento\`, \`comentario\`) que determina qué campos contiene en \`content\`.
+- Sistema de **variables** resolubles: \`{NOMBRE}\`, \`{TELEFONO}\`, \`{FECHA}\`, \`{HORA}\`, \`{ASEGURADORA}\`, \`{ESTUDIO}\`, \`{ESTADO}\`, \`{OPERADOR}\`, \`{LOCALIDAD}\`, \`{PROFESION}\`. 100% determinista, sin IA.
+
+### Sub-vista Plantillas en Útiles
+
+- Nueva sub-vista "Plantillas" dentro de Útiles (junto a las 10 sub-vistas existentes).
+- Lista de plantillas con filtros por tipo (badges: Todas, Nota, Reporte, Evento, Comentario).
+- Formulario crear/editar (\`PlantillaForm\`) con campos según tipo y panel de variables disponibles.
+- Acciones: activar/desactivar, editar, duplicar, eliminar (con confirmación).
+
+### TemplateSelector en formularios
+
+- Nuevo componente \`TemplateSelector\` reutilizable: dropdown que carga plantillas del tipo indicado y aplica el contenido resuelto al formulario padre.
+- Integrado en:
+  - **NotesView**: aplica \`title\`, \`content\`, \`tags\` a la nota seleccionada.
+  - **ReporteRapidoModal**: aplica \`texto\` y \`origen\` al reporte.
+  - **EventModal**: aplica \`title\`, \`description\`, \`priority\`, \`status\`, \`tags\` al evento.
+  - **ComentariosUI**: aplica \`texto\` al comentario.
+
+### Integración con backup y sync
+
+- Tabla \`templates\` incluida en \`DB_TABLES\` de \`backupService.js\` (se exporta/importa automáticamente con el backup completo).
+- Nuevo evento de sincronización: \`SYNC_EVENTS.TEMPLATES_UPDATED\`.
+- \`APP_DB_SCHEMA_VERSION\` actualizado a 6.
+
+### Configuración
+
+- Nueva sección "Plantillas" en Configuración (dentro de General) con documentación de variables disponibles.
+
+### Tests
+
+- 9 tests unitarios para \`resolveVariables\`: strings, objetos, variables por defecto, context personalizado, variables no reconocidas, input no válido.
+
+### Versión y docs
+
+- Versión 1.7.4, tag "Sistema de Plantillas".
+
+---
+
+## [1.7.3] - Calendario 2.0
+
+### Creación y edición desde el calendario
+
+- Click en un espacio vacío del calendario (mes, semana o día) abre el \`EventModal\` en modo creación con la fecha/hora pre-llenada según la posición clickeada. Botón "Nuevo evento" mantiene su comportamiento (crea con fecha de hoy).
+- El \`EventModal\` acepta la prop \`initialData\` para pre-llenar \`startDate\`, \`startTime\` y \`endTime\` al crear un evento.
+
+### Drag & Drop con reprogramación de Citas
+
+- Al arrastrar un evento de tipo **CITA** a una nueva fecha/hora, se actualiza el campo \`cita\` del caso asociado (formato \`DD/MM - (HH:MM a HH:MM)\`) y \`syncCitaEvent()\` se encarga de sincronizar el evento calendario. Esto evita duplicaciones y mantiene la fuente de verdad en el campo \`cita\`.
+- Los eventos manuales y de reprogramación se actualizan directamente (sin tocar el caso).
+- Feedback: toast descriptivo ("Cita reprogramada: DD/MM - (HH:MM a HH:MM)" o "Evento movido").
+
+### Filtros del calendario
+
+- Nuevo componente \`MultiSelect\` reutilizable (\`src/components/common/MultiSelect.jsx\`): selector múltiple con dropdown, checkboxes, pills de selección y botón de limpieza. Diseño consistente con \`Select.jsx\` existente.
+- Nueva barra \`CalendarFilters\` con 5 filtros multi-selección: **Estado**, **Prioridad**, **Aseguradora**, **Estudio** y **Tipo de evento**. Las opciones de aseguradora y estudio se calculan dinámicamente de los eventos cargados. Indicador de filtros activos con botón "Limpiar todos".
+- \`filtrarEventos(events, filtros)\` aplica filtros AND entre dimensiones y OR dentro de cada dimensión. \`eventosFiltrados\` se memoiza en \`CalendarView\` para evitar recálculos innecesarios.
+
+### Información enriquecida de eventos
+
+- **Mes/Semana**: cada pill de evento ahora muestra badge de prioridad (B/M/A coloreado), hora de inicio, badge de tipo y nombre del caso asociado.
+- **Día**: se agrega badge de prioridad junto al badge de tipo y título.
+- Lista: ya mostraba información completa (prioridad, horario, contexto del caso).
+
+### Bug fix: findExistingCitaEvent
+
+- \`findExistingCitaEvent\` en \`citaAutoEvents.js\` ahora filtra eventos con \`status !== 'cancelled'\`. Previamente, un evento CITA cancelado por una reprogramación seguía siendo encontrado y actualizado por \`syncCitaEvent\`, lo que podía causar duplicados.
+
+### Tests, versión y docs
+
+- Nuevos tests \`MultiSelect.test.jsx\` (8 tests) y \`calendarFilters.test.js\` (9 tests) cubriendo renderizado, selección/deselección, limpieza, filtrado por cada dimensión, combinación de filtros y eventos sin caseContext.
+- Bump a **1.7.3** en \`version.js\`, \`package.json\`, \`package-lock.json\` y \`README\`.
+
+### Eliminación de Estadísticas Globales
+
+- Se elimina la tarjeta \`GlobalStatsHeader\` de todas las pestañas del operador (Dashboard, Kanban, Tabla, Reportes). Esta función quedó obsoleta con la incorporación del Dashboard y la Pipeline Bar.
+
+## [1.7.2] - Búsqueda Global y Navegación Contextual
+
+### Búsqueda ampliada (Ctrl+K)
+
+- La Búsqueda Global ahora indexa y busca también **Reportes** (entradas de \`reporteHistory\` de cada caso) e **Historial** (línea de actividad del caso, tabla \`case_history\`). Cada resultado muestra un **badge de tipo** con su color (CASO, NOTA, EVENTO, REPORTE, HISTORIAL, ASEGURADORA, ESTUDIO, CONDICIONAL).
+- \`searchEngine.js\` incorpora \`flattenReportes(cases)\` y \`flattenHistorial(historialRows, cases)\`, índices Fuse propios (\`fuseReportes\`, \`fuseHistorial\`) y la devolución de \`reportes\`/\`historial\` en \`buscarGlobal\`. Indización 100% local y offline (Fuse.js + IndexedDB), sin IA; los índices se recalculan solo cuando cambian los datos.
+- \`GlobalSearch\` carga el historial (\`case_history\`) al abrir y agrupa los resultados por tipo. La consulta vacía y las búsquedas de etiqueta (\`#\`) no generan resultados de reportes ni historial.
+
+### Navegación contextual
+
+- **Notas**: seleccionar una nota en la búsqueda abre el Bloc de notas con scroll automático hasta la nota elegida.
+- **Eventos**: seleccionar un evento abre el calendario directamente en el **modal de edición del evento**, incluso si pertenece a otro mes (busca por \`getEvent(id)\` y reposiciona la vista).
+- **Reportes/Historial**: navegan al caso correspondiente (modal de ver caso, donde se muestran su línea de tiempo y reportes).
+- **Entidades** (aseguradora/estudio/condicional): navegan a la vista Útiles.
+
+### Tests, versión y docs
+
+- Suite extendida \`searchEngine.test.js\` con cobertura de \`flattenReportes\`, \`flattenHistorial\` y búsqueda de reportes/historial (22 tests totales en el archivo).
+- Bump a **1.7.2** en \`version.js\`, \`package.json\`, \`package-lock.json\` y \`README\`.
+
+## [1.7.1] - Pendientes y Acciones Rápidas
+
+### Pendientes del día
+
+- Nuevo motor determinístico \`getPendientesDelDia\` en \`core/alerts/attentionRules.js\`: genera pendientes del día mediante una tabla de reglas explícitas y verificables, sin IA ni análisis predictivo. Reutiliza el motor existente (vacío, casos sin actividad, eventos vencidos, reportes pendientes, próximos eventos) y deduplica por caso.
+- Cada pendiente tiene prioridad calculada y documentada: **Alta** (caso sin información requerida, caso activo sin reportes, actividad vencida), **Media** (cita hoy, reprogramación pendiente, seguimiento sin actividad) y **Baja** (objetivo diario pendiente, caso activo sin estudio).
+- La card \`CasosRelevantes\` se reemplaza por **\`PendientesCard\`**: lista plana con ícono por tipo, detalle y badge de prioridad (Alta=rojo/Media=amarillo/Baja=azul), máx. 8 items, ordenada por prioridad. Navega al caso (\`onVerCaso\`) o al evento (\`onNavigateToEvent\`); en el pendiente de tipo meta abre la vista de metas (\`onChangeView\`).
+
+### Acciones rápidas
+
+- Nueva card **\`AccionesRapidas\`** en Mi Jornada: grilla de 6 acciones (Nuevo caso, Reporte, Nota, Evento, Buscar, Exportar) reutilizando estados y modales existentes de App.jsx (CasoEditModal, ReporteRapidoModal, Bloc de notas, Calendario, GlobalSearch, CsvExportModal). Diseño responsive (3 columnas en móvil, 6 en ≥sm).
+- En \`MiJornadaView\` se incorporan las dos cards nuevas (Pendientes en posición 4, Acciones Rápidas en posición 5) con props \`onNuevoCaso\`, \`onNuevoReporte\`, \`onNuevaNota\`, \`onNuevoEvento\`, \`onBuscar\`, \`onExportar\` y el objetivo diario (\`goals\`).
+
+### Acción contextual "Reprogramar" en VerCasoModal
+
+- El modal de ver caso incorpora la acción **Reprogramar** que abre \`ReporteRapidoModal\` con el caso preseleccionado y el estado inicial \`Reprogramado\` (\`estadoInicial\`), reutilizando el flujo 1.5.0 de reprogramación de citas.
+
+### Tests, versión y docs
+
+- Nueva suite \`src/core/alerts/pendientesDelDia.test.js\` (9 tests) cubriendo alta/media/baja, deduplicación y límite de 8 items.
+- Bump a **1.7.1** en \`version.js\`, \`package.json\`, \`package-lock.json\` y \`README\`.
+
+## [1.7.0] - Centro "Hoy" y Actividad Diaria
+
+### Centro de actividad diaria en Mi Espacio
+
+- La vista "Mi Jornada" de Mi Espacio pasa a ser el **centro "Hoy"**: un punto único que conecta citas, eventos, casos modificados, reportes, reprogramaciones, notas, seguimientos pendientes y la próxima actividad del día, en una línea temporal cronológica.
+- Nueva card **Próxima actividad** (primer elemento, destacada): muestra el próximo compromiso del usuario a partir de la hora actual, priorizando citas sobre el resto de eventos, con badge de día (Hoy / Mañana / En X días). Toda la lógica es determinística (\`getProximaActividad\` en \`operatorMetrics.js\`), sin IA.
+- Nueva **línea temporal cronológica** (card "Actividad de hoy"): unifica citas, eventos, reprogramaciones, casos modificados, reportes y notas del día en una sola vista vertical ordenada por hora (\`buildTodayTimeline\`). Cada item con ícono y color por tipo, y navegación al caso/evento mediante los modales existentes (\`onVerCaso\` / \`onNavigateToEvent\`).
+- Nueva card **"Requieren tu atención"**: casos con seguimiento pendiente priorizados usando el motor determinístico existente \`getCasesNeedingAttention\` (sin reporte, sin estudio, sin actividad, evento vencido), con severidad danger/warning/info.
+
+### Refactor y limpieza (FASE 1)
+
+- Eliminado el componente legacy sin uso \`operator/components/TodaySummary.jsx\` (no importado en ningún lado, supersedido por \`MiJornadaView\`).
+- \`MiJornadaView\` se reorganiza: se eliminan los sub-componentes inline \`TodayActivityCard\`, \`UpcomingCommitmentsCard\` y \`PendingFollowUpsCard\` (reemplazados por \`TimelineActividades\` y \`CasosRelevantes\`). El Insight Destacado se mantiene pero se reubica tras los objetivos.
+- Nuevos componentes extraídos en \`operator/components/\`: \`ProximaActividad.jsx\`, \`TimelineActividades.jsx\` y \`CasosRelevantes.jsx\`.
+
+### Helpers puros (FASE 2)
+
+- \`getProximaActividad(events, now)\`: próxima actividad destacada, determinística y testeable.
+- \`buildTodayTimeline(cases, events, notes, todayISO)\`: línea temporal cronológica del día, con colores por tipo.
+
+### Tests (FASE 3)
+
+- Nuevo archivo \`src/features/operator/todayCenter.test.js\` con cobertura de \`getProximaActividad\` y \`buildTodayTimeline\` (eventos, prioridad de citas, ordenado cronológico, deduplicación de reportes/casos, exclusión de notas de otros días).
+
+### Versionado (FASE 4)
+
+- Bump a **1.7.0** en \`package.json\`, \`package-lock.json\`, \`src/core/version.js\` y los tres README.
 
 ## [1.6.8] - Auditoría final, QA y estabilización
 

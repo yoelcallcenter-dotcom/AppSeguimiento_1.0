@@ -13,7 +13,7 @@ export function GoalsSection({ goals, updateGoals, daily, monthly, pace, effecti
   const [customForm, setCustomForm] = useState({ name: "", type: "casos", target: "", deadline: "" });
 
   const todayISO = new Date().toISOString().slice(0, 10);
-  const weeklyProgress = getWeeklyGoalProgress(goals, cases, profile.workingDays, todayISO);
+  const weeklyProgress = getWeeklyGoalProgress(goals, cases, profile.workingDays, todayISO, availability);
 
   const setDaily = (kind, patch) => {
     updateGoals({ daily: { ...goals.daily, [kind]: { ...goals.daily[kind], ...patch } } });

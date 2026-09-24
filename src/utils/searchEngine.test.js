@@ -4,6 +4,8 @@ import {
   casoCoincide,
   crearIndicesGlobal,
   buscarGlobal,
+  flattenReportes,
+  flattenHistorial,
 } from './searchEngine';
 import { parseFicha } from './helpers';
 
@@ -102,6 +104,95 @@ describe('buscarGlobal', () => {
   it('consulta vacía no devuelve resultados', () => {
     const r = buscarGlobal(indices, '');
     expect(r.cases).toEqual([]);
+  });
+});
+
+describe('flattenReportes', () => {
+  it('aplane el reporteHistory de cada caso en items buscables', () => {
+    const casos = [
+      {
+        id: 'c1',
+        nombre: 'ANA LOPEZ',
+        reporteHistory: [
+          { fecha: '07/09', texto: 'Llame al paciente', origen: 'Operador' },
+          { fecha: '06/09', texto: 'Sin novedades', origen: 'Estudio Juridico' },
+        ],
+      },
+      { id: 'c2', nombre: 'JUAN PEREZ', reporteHistory: [] },
+    ];
+    const items = flattenReportes(casos);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ id: 'rep-c1-0', type: 'reporte', caseId: 'c1', caseNombre: 'ANA LOPEZ', texto: 'Llame al paciente', fecha: '07/09', origen: 'Operador' });
+    expect(items[1].id).toBe('rep-c1-1');
+  });
+
+  it('devuelve [] sin casos o sin reporteHistory', () => {
+    expect(flattenReportes([])).toEqual([]);
+    expect(flattenReportes([{ id: 'x', reporteHistory: undefined }])).toEqual([]);
+  });
+});
+
+describe('flattenHistorial', () => {
+  it('mapea filas de case_history y agrega el nombre del caso', () => {
+    const casos = [{ id: 'c1', nombre: 'ANA LOPEZ' }];
+    const filas = [
+      { id: 1, caseId: 'c1', type: 'status_changed', title: 'Estado actualizado', description: 'Activo → Pendiente', timestamp: '2026-09-07T10:00:00Z', source: 'automatic' },
+    ];
+    const items = flattenHistorial(filas, casos);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id: 'hist-1', type: 'historial', caseId: 'c1', caseNombre: 'ANA LOPEZ', title: 'Estado actualizado' });
+  });
+
+  it('usa "Sin nombre" si el caso no existe y devuelve [] sin filas', () => {
+    const items = flattenHistorial([{ id: 9, caseId: 'zz', title: 'X', description: '', timestamp: '', source: '' }], []);
+    expect(items[0].caseNombre).toBe('Sin nombre');
+    expect(flattenHistorial([], [])).toEqual([]);
+  });
+});
+
+describe('buscarGlobal con reportes e historial (1.7.2)', () => {
+  const cases = [
+    {
+      id: 'c1',
+      nombre: 'NIZ PATRICIA',
+      reporteHistory: [{ fecha: '07/09', texto: 'Intervención quirúrgica confirmada', origen: 'Operador' }],
+    },
+    { id: 'c2', nombre: 'OTRO CASO', reporteHistory: [] },
+  ];
+  const historial = [
+    { id: 1, caseId: 'c1', type: 'status_changed', title: 'Estado actualizado', description: 'Activo → Pendiente', timestamp: '2026-09-07T10:00:00Z', source: 'manual' },
+  ];
+  const indices = crearIndicesGlobal({ cases, notes: [], events: [], historial });
+
+  it('encuentra reportes por texto', () => {
+    const r = buscarGlobal(indices, 'quirúrgica');
+    expect(r.reportes.length).toBeGreaterThan(0);
+    expect(r.reportes[0]).toMatchObject({ type: 'reporte', caseId: 'c1', caseNombre: 'NIZ PATRICIA' });
+  });
+
+  it('encuentra historial por título o descripción', () => {
+    const r = buscarGlobal(indices, 'Pendiente');
+    expect(r.historial.length).toBeGreaterThan(0);
+    expect(r.historial[0]).toMatchObject({ type: 'historial', caseId: 'c1' });
+  });
+
+  it('la consulta vacía no genera reportes ni historial', () => {
+    const r = buscarGlobal(indices, '');
+    expect(r.reportes).toEqual([]);
+    expect(r.historial).toEqual([]);
+  });
+
+  it('#etiqueta no produce reportes ni historial', () => {
+    const r = buscarGlobal(indices, '#algo');
+    expect(r.reportes).toEqual([]);
+    expect(r.historial).toEqual([]);
+  });
+
+  it('sin historial cargado, fuseHistorial devuelve [] y no rompe', () => {
+    const idx = crearIndicesGlobal({ cases, notes: [], events: [] });
+    const r = buscarGlobal(idx, 'cualquiera');
+    expect(Array.isArray(r.reportes)).toBe(true);
+    expect(Array.isArray(r.historial)).toBe(true);
   });
 });
 

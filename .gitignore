@@ -21,3 +21,6 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# Seguridad: nunca trackear directorios literales '~' (copia del perfil de usuario)
+~

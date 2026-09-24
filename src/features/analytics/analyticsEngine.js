@@ -18,6 +18,7 @@ import {
   getPeriodRange,
   rangoAnteriorEquivalente,
   diasHabilesEnRango,
+  diasEfectivosEnRango,
   enRango,
   casosEnRango,
 } from "./periodUtils";
@@ -27,6 +28,7 @@ import { normalizeDate } from "../../utils/dateFilters";
 import {
   getWeeklyGoalProgress,
   getRequiredDailyPace,
+  isUnavailableOn,
 } from "../operator/operatorMetrics";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -55,7 +57,7 @@ function esFirma(caso, cats) {
  * La conversión usa el criterio del Dashboard sobre la cohorte creada en el
  * rango; el ritmo diario cuenta las firmas por su fecha real.
  */
-export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5], config = {}) {
+export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5], config = {}, availability = {}) {
   const cats = catsDe(config);
   const hoyISO = new Date().toISOString().slice(0, 10);
 
@@ -70,10 +72,10 @@ export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5
       firmasPorFecha.set(fk, (firmasPorFecha.get(fk) || 0) + 1);
     }
     // Los días hábiles no pueden exceder los transcurridos hasta hoy.
-    const habilesTotales = diasHabilesEnRango(rg, workingDays);
+    const habilesTotales = diasHabilesEnRango(rg, workingDays, availability);
     let habilesTranscurridos = habilesTotales;
     if (rg.endISO > hoyISO) {
-      habilesTranscurridos = diasHabilesEnRango({ ...rg, endISO: hoyISO }, workingDays);
+      habilesTranscurridos = diasHabilesEnRango({ ...rg, endISO: hoyISO }, workingDays, availability);
     }
     const totalFirmasFecha = [...firmasPorFecha.values()].reduce((a, b) => a + b, 0);
     return {
@@ -96,7 +98,7 @@ export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5
     return Math.round(((act - ant) / ant) * 100);
   };
 
-  const diaSemana = computeDiaSemana(actual.firmasPorFecha, rango, workingDays);
+  const diaSemana = computeDiaSemana(actual.firmasPorFecha, rango, workingDays, availability);
 
   return {
     rango,
@@ -133,19 +135,20 @@ export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5
  * Productividad por día de la semana dentro del rango (solo días laborales).
  * Un día excepcional aislado nunca se declara patrón: exige muestra mínima.
  */
-export function computeDiaSemana(firmasPorFecha, rango, workingDays = [1, 2, 3, 4, 5]) {
+export function computeDiaSemana(firmasPorFecha, rango, workingDays = [1, 2, 3, 4, 5], availability = {}) {
   const wd = new Set(workingDays.length > 0 ? workingDays : [1, 2, 3, 4, 5]);
   const stats = {};
   for (let d = 0; d < 7; d++) {
     if (!wd.has(d)) continue;
     stats[d] = { dia: d, label: DIAS_SEMANA[d], total: 0, ocurrencias: 0 };
   }
-  // Contar cuántas veces aparece cada día laboral en el rango.
+  // Contar cuántas veces aparece cada día laboral efectivo en el rango.
   const cursor = new Date(rango.startISO + 'T00:00:00');
   const fin = new Date(rango.endISO + 'T00:00:00');
   while (cursor <= fin) {
     const d = cursor.getDay();
-    if (stats[d]) stats[d].ocurrencias += 1;
+    const iso = isoLocal(cursor);
+    if (stats[d] && !isUnavailableOn(availability, iso)) stats[d].ocurrencias += 1;
     cursor.setDate(cursor.getDate() + 1);
   }
   // Sumar firmas reales por día (acepta Map u objeto plano).
@@ -329,25 +332,27 @@ export function rendimientoPorGrupo(casos, rango, campo, config = {}) {
  * Promedio diario de firmas en los últimos N días (ventana deslizante que
  * termina ayer). Se usa como "ritmo habitual" independiente del selector.
  */
-export function promedioPersonalReciente(casos, config = {}, today = new Date(), dias = INSIGHTS_CONFIG.promedioPersonalDias) {
+export function promedioPersonalReciente(casos, config = {}, today = new Date(), dias = INSIGHTS_CONFIG.promedioPersonalDias, workingDays = [1, 2, 3, 4, 5], availability = {}) {
   const cats = catsDe(config);
   const fin = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   fin.setDate(fin.getDate() - 1);
   const inicio = new Date(fin);
   inicio.setDate(inicio.getDate() - (dias - 1));
-  const inicioISO = isoLocal(inicio);
-  const finISO = isoLocal(fin);
 
   let firmas = 0;
   const diasConActividad = new Set();
   for (const c of casos) {
     if (!esFirma(c, cats)) continue;
     const fk = fechaFirmaDe(c);
-    if (!fk || fk < inicioISO || fk > finISO) continue;
+    if (!fk || fk < isoLocal(inicio) || fk > isoLocal(fin)) continue;
     firmas += 1;
     diasConActividad.add(fk);
   }
-  const habiles = contarHabiles(inicio, fin, new Set([1, 2, 3, 4, 5]));
+  const habiles = diasEfectivosEnRango(
+    { startISO: isoLocal(inicio), endISO: isoLocal(fin) },
+    workingDays,
+    availability
+  ).length;
   return {
     firmas,
     dias,
@@ -357,16 +362,6 @@ export function promedioPersonalReciente(casos, config = {}, today = new Date(),
 
 function isoLocal(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function contarHabiles(inicio, fin, wd) {
-  let count = 0;
-  const cursor = new Date(inicio);
-  while (cursor <= fin) {
-    if (wd.has(cursor.getDay())) count += 1;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return count;
 }
 
 /** Casos activos sin seguimiento reciente (actividad = updatedAt/lastActivityAt). */
@@ -413,7 +408,7 @@ export function proyeccionObjetivos({
   // Progreso semanal (función existente de Mi Espacio).
   let weekly;
   try {
-    weekly = getWeeklyGoalProgress(goals, casos, wd, todayISO);
+    weekly = getWeeklyGoalProgress(goals, casos, wd, todayISO, availability);
   } catch {
     return resultado;
   }
@@ -421,21 +416,23 @@ export function proyeccionObjetivos({
 
   // Días hábiles restantes de la semana laboral (hasta el fin de semana definido).
   const hoy = normalizeDate(todayISO) || isoLocal(new Date());
-  const cursor = new Date(hoy + 'T00:00:00');
   const finSemana = new Date(weekly.end + 'T00:00:00');
-  const wdSet = new Set(wd);
-  let restantes = 0;
-  while (cursor <= finSemana) {
-    if (wdSet.has(cursor.getDay())) restantes += 1;
-    cursor.setDate(cursor.getDate() + 1);
-  }
+  const restantes = diasEfectivosEnRango(
+    { startISO: hoy, endISO: isoLocal(finSemana) },
+    wd,
+    availability
+  ).length;
   resultado.diasHabilesRestantesSemana = restantes;
 
-  // Ritmos recientes (últimos 14 días corridos sobre días hábiles).
+  // Ritmos recientes (últimos 14 días corridos sobre días hábiles efectivos).
   const hoyDate = new Date(hoy + 'T00:00:00');
   const inicio14 = new Date(hoyDate);
   inicio14.setDate(inicio14.getDate() - 13);
-  const habiles14 = contarHabiles(inicio14, hoyDate, wdSet);
+  const habiles14 = diasEfectivosEnRango(
+    { startISO: isoLocal(inicio14), endISO: hoy },
+    wd,
+    availability
+  ).length;
 
   const cats = catsDe({});
   let firmasRecientes = 0;

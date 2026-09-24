@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Plus,
   Trash2,
-  Search,
   Grid,
   List,
   ChevronUp,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { TextInput } from "../common/TextInput";
+import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString } from "../../utils/sanitize";
@@ -120,17 +120,11 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search
-            size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-text-muted)" }}
-          />
-          <TextInput
+        <div className="flex-1 min-w-[200px]">
+          <SearchInput
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar objeción..."
-            className="pl-8"
           />
         </div>
 

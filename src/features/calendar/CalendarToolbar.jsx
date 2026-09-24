@@ -10,6 +10,7 @@ import {
   UserCircle2,
 } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
+import { SubPills } from '../../components/common/UINav';
 
 const VIEWS = [
   { id: 'day', label: 'Dia', icon: Calendar },
@@ -84,29 +85,12 @@ export default function CalendarToolbar({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <div
-          className="flex items-center gap-0.5 p-0.5 rounded-md"
-          style={{ backgroundColor: 'var(--color-surface)' }}
-        >
-          {VIEWS.map(v => {
-            const Icon = v.icon;
-            const isActive = currentView === v.id;
-            return (
-              <button
-                key={v.id}
-                onClick={() => onViewChange(v.id)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors"
-                style={{
-                  backgroundColor: isActive ? 'var(--color-accent)' : 'transparent',
-                  color: isActive ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
-                }}
-              >
-                <Icon size={13} />
-                <span className="hidden sm:inline">{v.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <SubPills
+          items={VIEWS}
+          active={currentView}
+          onSelect={onViewChange}
+          ariaLabel="Vistas del calendario"
+        />
         <button
           onClick={onToggleAvailability}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors"

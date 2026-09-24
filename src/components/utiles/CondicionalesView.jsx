@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import {
-  Search, Plus, Trash2, ShieldAlert, ShieldCheck, Scale,
+  Plus, Trash2, ShieldAlert, ShieldCheck, Scale,
   ChevronDown, ChevronUp, X,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { TextInput } from "../common/TextInput";
+import { SearchInput } from "../common/SearchInput";
 import { Select } from "../common/Select";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString, sanitizeObject } from "../../utils/sanitize";
@@ -292,13 +293,11 @@ export function CondicionalesView({
 
       {/* Barra de acciones */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="relative flex-1 min-w-[160px]">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
-          <TextInput
+        <div className="flex-1 min-w-[160px]">
+          <SearchInput
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por estudio, aseguradora, lesión..."
-            className="pl-8"
           />
         </div>
         <Select

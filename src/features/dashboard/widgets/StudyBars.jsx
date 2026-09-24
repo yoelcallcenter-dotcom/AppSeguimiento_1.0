@@ -39,7 +39,7 @@ export default React.memo(function StudyBars({ data, onDrill, desc }) {
               <XAxis type="number" tick={CHART_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
               <YAxis type="category" dataKey="key" tick={CHART_TICK} tickLine={false} axisLine={false} width={120} />
               <Tooltip
-                content={<ChartTooltip formatter={(value) => [`${value} casos`, 'Casos']} />}
+                content={<ChartTooltip formatter={(value) => [value, '']} />}
                 cursor={{ fill: CURSOR_FILL }}
               />
               <Bar

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, FileText, Plus, CalendarPlus } from 'lucide-react';
+import { Search, FileText, Plus, CalendarPlus, X } from 'lucide-react';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
 
 export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCreateNote }) {
@@ -71,6 +71,16 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
             className="flex-1 bg-transparent border-none outline-none text-sm"
             style={{ color: 'var(--color-text)' }}
           />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); setSelectedIndex(0); inputRef.current?.focus?.(); }}
+              aria-label="Limpiar búsqueda"
+              className="p-1 rounded hover:opacity-80 transition-opacity"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <X size={14} />
+            </button>
+          )}
           <button
             onClick={() => {
               onCreateNote(query);

@@ -4,7 +4,8 @@ import { getTranslations } from '../core/i18n/translations';
 const I18nContext = createContext({ t: (k) => k, lang: 'es' });
 
 export function I18nProvider({ children, config }) {
-  const lang = config?.idioma || 'es';
+  const SUPPORTED = ['es', 'en'];
+  const lang = SUPPORTED.includes(config?.idioma) ? config.idioma : 'es';
 
   const value = useMemo(() => {
     const dict = getTranslations(lang);

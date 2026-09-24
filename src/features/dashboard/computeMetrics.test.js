@@ -114,6 +114,20 @@ describe('computeMetrics', () => {
     expect(aplicarFiltros(casos, { estudio: 'gl caba' })).toHaveLength(1);
     expect(aplicarFiltros(casos, { provincia: 'CABA' })).toHaveLength(2);
     expect(aplicarFiltros(casos, { estado: 'Firmo', estudio: 'gl mar del plata' })).toHaveLength(2);
+    expect(aplicarFiltros(casos, { estado: 'todos' })).toHaveLength(3);
+  });
+
+  it('aplica filtros multi-selección (arrays con OR)', () => {
+    const casos = [
+      caso({ id: 'a', estado: 'Firmo', provincia: 'MENDOZA' }),
+      caso({ id: 'b', estado: 'Pendiente', provincia: 'CABA' }),
+      caso({ id: 'c', estado: 'Cita virtual', provincia: 'CABA' }),
+    ];
+    expect(aplicarFiltros(casos, { estado: ['Firmo', 'Pendiente'] })).toHaveLength(2);
+    expect(aplicarFiltros(casos, { estado: [' Pendiente ', 'cita VIRTUAL'] })).toHaveLength(2);
+    expect(aplicarFiltros(casos, { estado: [] })).toHaveLength(3);
+    expect(aplicarFiltros(casos, { estado: ['Firmo'], provincia: ['CABA'] })).toHaveLength(0);
+    expect(aplicarFiltros(casos, { estado: ['Firmo', 'Cita virtual'], provincia: ['CABA'] })).toHaveLength(1);
   });
 
   it('aplica filtro por mes y día (dia)', () => {
@@ -158,6 +172,30 @@ describe('computeMetrics', () => {
     for (const s of m.seriesByDay) {
       const dow = new Date(s.fecha + 'T00:00:00').getDay();
       expect([0, 6]).not.toContain(dow);
+    }
+  });
+
+  it('opts.availability omite días vacacionales/feriados de la serie', () => {
+    const hoy = new Date(ultimoDiaHabilISO() + 'T00:00:00');
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    const ayerISO = ayer.toISOString().slice(0, 10);
+    const availability = {
+      absences: [{ id: 'a1', date: ayerISO, type: 'personal' }],
+    };
+    const m = computeMetrics(
+      [
+        caso({ id: 'a', fecha: ayerISO, estado: 'Pendiente' }),
+      ],
+      {},
+      {},
+      { workingDays: [1, 2, 3, 4, 5], availability }
+    );
+    // El día inasistido no aparece en la serie: su caso no suma en ningún punto.
+    const totalSerie = m.seriesByDay.reduce((acc, s) => acc + s.total, 0);
+    expect(totalSerie).toBe(0);
+    for (const s of m.seriesByDay) {
+      expect(s.fecha).not.toBe(ayerISO);
     }
   });
 

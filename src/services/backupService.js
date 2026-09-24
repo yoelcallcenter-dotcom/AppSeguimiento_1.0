@@ -30,6 +30,8 @@ const DB_TABLES = [
   { db: "appDB", name: "events" },
   { db: "appDB", name: "note_versions" },
   { db: "appDB", name: "auto_backups" },
+  { db: "appDB", name: "templates" },
+  { db: "appDB", name: "saved_reports" },
 ];
 
 const DB_INSTANCES = { casesDB, appDB };

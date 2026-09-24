@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Search, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import { SearchInput } from "../components/common/SearchInput";
 import { GLOSSARY_TERMS } from "./glossaryData";
 
 export function GlossaryView() {
@@ -32,14 +33,11 @@ export function GlossaryView() {
         </span>
       </div>
 
-      <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--color-text-muted)" }} />
-        <input
-          type="text"
+      <div>
+        <SearchInput
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar termino..."
-          className="w-full input-optimized pl-8"
         />
       </div>
 

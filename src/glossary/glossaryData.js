@@ -240,9 +240,15 @@ export const GLOSSARY_TERMS = [
     related: ["Nota", "Caso", "Bloc de Notas"],
   },
   {
-    term: "Mi Jornada",
-    definition: "Seccion de Mi Espacio que muestra el estado de la jornada laboral, tiempo transcurrido, tiempo restante, proximos compromisos y objetivos diarios.",
+    term: "Centro 'Hoy'",
+    definition: "Seccion principal de Mi Espacio que reune los bloques del dia en una sola pagina: Bienvenida, Mi Jornada, proxima actividad, proximos eventos, pendientes, productividad, metas, acciones rapidas y accesos personales. El orden se personaliza en Configuracion → Apariencia → Vistas.",
     example: "Ej: Jornada activa desde las 9:00, 3 horas restantes, 2 casos pendientes",
     related: ["Mi Espacio", "Objetivos", "Disponibilidad"],
+  },
+  {
+    term: "Detección automática de tipo de ingreso",
+    definition: "Al pegar una ficha completa en un caso nuevo, el sistema analiza el texto con las palabras clave configuradas por cada tipo de ingreso (en Configuracion → Tipos de Ingreso) y asigna automaticamente el tipo mas adecuado. Si multiples tipos coinciden, gana el de prioridad mas alta (1).",
+    example: "Ej: Una ficha que menciona 'requiere cirugia' asigna automaticamente 'Accidente + Cirugía'",
+    related: ["Tipo de ingreso", "Ficha completa", "Configuracion"],
   },
 ];

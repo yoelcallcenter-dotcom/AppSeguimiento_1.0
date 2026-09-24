@@ -6,7 +6,8 @@
  * los haya personalizado todavía.
  */
 
-import { ESTADOS, TIPOS_INGRESO_SUGERIDOS } from "./constants";
+import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS } from "./constants";
+import { normalizarTexto } from "./helpers";
 
 /**
  * Devuelve la lista de estados configurada. Cada entrada: { v, accent, peso }.
@@ -27,14 +28,56 @@ export function getEstados(config) {
 }
 
 /**
- * Devuelve la lista de tipos de ingreso configurada (array de strings).
+ * Garantiza que un tipo de ingreso tenga siempre los campos nuevos (keywords,
+ * keywordsPriority) aunque venga de una configuración de una versión anterior
+ * (donde los tipos eran strings). Para tipos con el mismo nombre que los
+ * defaults se heredan las palabras clave por defecto (puramente aditivo:
+ * nunca se pierde configuración).
+ */
+function rehidratarTipoIngreso(t) {
+  if (typeof t === "string") {
+    const def = TIPOS_INGRESO_SUGERIDOS.find((d) => d.v === t);
+    return {
+      v: t,
+      keywords: def?.keywords || [],
+      keywordsPriority: def?.keywordsPriority ?? 3,
+    };
+  }
+  const def = TIPOS_INGRESO_SUGERIDOS.find((d) => d.v === t?.v);
+  const priority = Number(t?.keywordsPriority);
+  return {
+    ...t,
+    v: t?.v || "",
+    keywords: Array.isArray(t?.keywords)
+      ? t.keywords
+      : (def?.keywords || []),
+    keywordsPriority:
+      t?.keywordsPriority !== undefined &&
+      t?.keywordsPriority !== null &&
+      Number.isFinite(priority)
+        ? priority
+        : (def?.keywordsPriority ?? 3),
+  };
+}
+
+/**
+ * Devuelve la lista de tipos de ingreso configurada. Cada entrada:
+ * { v, keywords, keywordsPriority }.
+ * Si `config.tiposIngreso` está vacío o no es un array con elementos válidos,
+ * se usa la lista por defecto.
+ * Si faltan tipos del default (por actualizaciones), se agregan al final
+ * manteniendo los que el usuario ya tiene.
  */
 export function getTiposIngreso(config) {
   const list = config?.tiposIngreso;
-  if (Array.isArray(list) && list.length > 0) {
-    return list;
+  if (!Array.isArray(list) || list.length === 0) {
+    return TIPOS_INGRESO_SUGERIDOS.map(rehidratarTipoIngreso);
   }
-  return TIPOS_INGRESO_SUGERIDOS;
+  const result = list.map(rehidratarTipoIngreso);
+  const existing = new Set(result.map((t) => t.v).filter(Boolean));
+  const missing = TIPOS_INGRESO_SUGERIDOS.filter((d) => !existing.has(d.v));
+  if (missing.length === 0) return result;
+  return [...result, ...missing];
 }
 
 /**
@@ -69,4 +112,63 @@ export function sumarPeso(config, casos) {
     total += getEstadoPeso(config, c?.estado);
   }
   return total;
+}
+
+/**
+ * Devuelve la lista de categorías de plantillas configurada (array de strings).
+ */
+export function getTemplateCategories(config) {
+  const list = config?.templateCategories;
+  if (Array.isArray(list) && list.length > 0) {
+    return list;
+  }
+  return TEMPLATE_CATEGORIES_SUGERIDOS;
+}
+
+/**
+ * Detecta automáticamente el tipo de ingreso de un caso a partir de las
+ * palabras clave configuradas por cada tipo. Proceso determinístico (sin IA):
+ *  1. Se normaliza el texto pegado (minúsculas y sin acentos).
+ *  2. Por cada tipo con palabras clave se buscan coincidencias por subcadena.
+ *  3. Si múltiples tipos coinciden, gana el de menor keywordsPriority (1 es
+ *     el de mayor prioridad); en empate, el primer tipo en la lista.
+ * Devuelve { tipoIngreso, coincidencias } o { tipoIngreso: null,
+ * coincidencias: [] } si no hay ninguna coincidencia.
+ */
+export function detectarTipoIngresoPorKeywords(texto, config) {
+  const nt = normalizarTexto(texto || "");
+  if (!nt) return { tipoIngreso: null, coincidencias: [] };
+
+  const conKeywords = getTiposIngreso(config).filter(
+    (t) => Array.isArray(t.keywords) && t.keywords.length > 0
+  );
+  if (conKeywords.length === 0) return { tipoIngreso: null, coincidencias: [] };
+
+  const matches = [];
+  for (const t of conKeywords) {
+    for (const kw of t.keywords) {
+      const nk = normalizarTexto(kw);
+      if (nk && nt.includes(nk)) {
+        matches.push({
+          tipoIngreso: t.v,
+          keyword: kw,
+          prioridad:
+            t.keywordsPriority !== undefined &&
+            t.keywordsPriority !== null &&
+            Number.isFinite(Number(t.keywordsPriority))
+              ? Number(t.keywordsPriority)
+              : 3,
+        });
+      }
+    }
+  }
+  if (matches.length === 0) return { tipoIngreso: null, coincidencias: [] };
+
+  matches.sort(
+    (a, b) => a.prioridad - b.prioridad || a.tipoIngreso.localeCompare(b.tipoIngreso)
+  );
+  return {
+    tipoIngreso: matches[0].tipoIngreso,
+    coincidencias: matches.map((m) => m.keyword),
+  };
 }

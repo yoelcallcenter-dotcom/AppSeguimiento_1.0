@@ -68,6 +68,17 @@ export function CaseLinker({ casos = [], selectedIds = [], onChange }) {
             className="flex-1 bg-transparent border-none outline-none text-xs"
             style={{ color: 'var(--color-text)' }}
           />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); setShowDropdown(false); }}
+              aria-label="Limpiar búsqueda"
+              onBlur={e => e.stopPropagation()}
+              className="p-1 rounded hover:opacity-80 transition-opacity cursor-pointer"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
         {showDropdown && query && (
           <div className="absolute z-dropdown mt-1 w-full rounded-md shadow-lg max-h-48 overflow-y-auto"

@@ -8,6 +8,8 @@ import { onKeyActivate } from "../../utils/a11y";
 import { useUX } from "../../context/UXContext";
 import { COLUMNAS_DISPONIBLES } from "../../utils/constants";
 import { getOrigenConfig } from "../common/OrigenBadge";
+import { Table2 } from "lucide-react";
+import { SectionHeader } from "../configuracion/ui";
 import { formatDateWithConfig } from "../../utils/configFormatters";
 import { PhoneLink } from "../common/PhoneLink";
 import { getEstados } from "../../utils/catalogos";
@@ -90,6 +92,7 @@ const TablaRow = React.memo(function TablaRow({
 
 export function TablaView({
   casos,
+  casosBase = [],
   casosMes,
   onOpen,
   onSeleccionar,
@@ -203,7 +206,7 @@ export function TablaView({
 
   const tablaSections = useAppStore((s) => s.tablaSections);
   const TABLA_SECTIONS = {
-    pipelineBar: () => sorted.length > 0 && <PipelineBar casos={sorted} config={config} />,
+    pipelineBar: () => casosBase.length > 0 && <PipelineBar casos={casosBase} config={config} />,
     tabla: () => (
       <div
         className="rounded-lg overflow-x-auto"
@@ -321,6 +324,13 @@ export function TablaView({
 
   return (
     <div>
+      <SectionHeader
+        icon={Table2}
+        titulo="Tabla"
+        descripcion="Vista detallada de todos tus casos con orden y filtros."
+        storageKey="tabla"
+        overlayCollapsed
+      />
       <MonthDayFilterBar
         mesesDisponibles={mesesDisponibles}
         total={sorted.length}

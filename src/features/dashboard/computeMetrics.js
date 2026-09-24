@@ -11,6 +11,7 @@ import { isSameMonth, normalizeDate } from "../../utils/dateFilters";
 import { getEstados, getEstadoAccent, sumarPeso } from "../../utils/catalogos";
 import { normalizarUbicacion } from "../../utils/ubicacionUtils";
 import { buildUnifiedActivityFeed } from "../../core/cases/activityFeed";
+import { isWorkingDay, isUnavailableOn } from "../operator/operatorMetrics";
 
 const CHART_COLORS = [
   "var(--chart-color-cases)",
@@ -76,17 +77,24 @@ export function aplicarFiltros(cases, filters = {}) {
     });
   }
 
-  const match = (campo) => (valor) => (c) =>
-    !valor || valor === "todos" ||
-    (c[campo] || '').toString().trim().toUpperCase() === String(valor).trim().toUpperCase();
+  const norm = (v) => (v ?? '').toString().trim().toUpperCase();
+  const match = (campo) => (valor) => {
+    const vals = (Array.isArray(valor) ? valor : valor && valor !== 'todos' ? [valor] : [])
+      .map(norm)
+      .filter(Boolean);
+    if (vals.length === 0) return () => true;
+    return (c) => vals.includes(norm(c[campo]));
+  };
 
   const fEstado = match("estado")(filters.estado);
   const fEstudio = match("estudioJuridico")(filters.estudio);
   const fProvincia = match("provincia")(filters.provincia);
   const fTipo = match("tipoIngreso")(filters.tipo);
+  const fAseguradora = match("aseguradora")(filters.aseguradora);
+  const fLocalidad = match("localidad")(filters.localidad);
 
   result = result.filter(
-    (c) => fEstado(c) && fEstudio(c) && fProvincia(c) && fTipo(c)
+    (c) => fEstado(c) && fEstudio(c) && fProvincia(c) && fTipo(c) && fAseguradora(c) && fLocalidad(c)
   );
 
   return result;
@@ -154,26 +162,45 @@ export function isoWeekKey(d) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
-function buildSeries(cases, days = 30, cats) {
+function daysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function buildSeries(cases, days = 30, cats, monthFilter, opts = {}) {
   const series = [];
   const index = new Map();
   const today = new Date();
   let semana = 0;
   let lastWeek = null;
-  // La serie ignora sábados y domingos (días no laborales).
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dow = d.getDay();
-    if (dow === 0 || dow === 6) continue;
-    const iso = d.toISOString().slice(0, 10);
-    const wk = isoWeekKey(d);
-    if (wk !== lastWeek) {
-      semana += 1;
-      lastWeek = wk;
+  const workingDays = opts.workingDays || [1, 2, 3, 4, 5];
+  const availability = opts.availability || {};
+  const esEfectivo = (iso) =>
+    isWorkingDay(iso, workingDays) && !isUnavailableOn(availability, iso);
+
+  const useMonth = monthFilter && monthFilter !== 'todos';
+  if (useMonth) {
+    const [year, month] = monthFilter.split('-').map(Number);
+    const total = daysInMonth(year, month - 1);
+    for (let dd = 1; dd <= total; dd++) {
+      const d = new Date(year, month - 1, dd);
+      const iso = `${year}-${String(month).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+      if (!esEfectivo(iso)) continue;
+      const wk = isoWeekKey(d);
+      if (wk !== lastWeek) { semana += 1; lastWeek = wk; }
+      index.set(iso, series.length);
+      series.push({ fecha: iso, label: `${dd}/${month}`, semana, total: 0, firmas: 0 });
     }
-    index.set(iso, series.length);
-    series.push({ fecha: iso, label: `${d.getDate()}/${d.getMonth() + 1}`, semana, total: 0, firmas: 0 });
+  } else {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!esEfectivo(iso)) continue;
+      const wk = isoWeekKey(d);
+      if (wk !== lastWeek) { semana += 1; lastWeek = wk; }
+      index.set(iso, series.length);
+      series.push({ fecha: iso, label: `${d.getDate()}/${d.getMonth() + 1}`, semana, total: 0, firmas: 0 });
+    }
   }
 
   const success = cats?.success || ["Firmo"];
@@ -233,7 +260,7 @@ export function buildActivityFeed(cases, notes, events, limit = 15) {
 // ============================================================
 // MÉTRICAS PRINCIPALES
 // ============================================================
-export function computeMetrics(cases, filters = {}, config = {}) {
+export function computeMetrics(cases, filters = {}, config = {}, opts = {}) {
   const cats = {
     ...CATEGORIAS_DEFAULT,
     ...(config?.metrics?.categorias || {}),
@@ -335,7 +362,10 @@ export function computeMetrics(cases, filters = {}, config = {}) {
 
   const oldestCase = [...base].sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0))[0] || null;
 
-  const seriesByDay = buildSeries(base, 30, cats);
+  const seriesByDay = buildSeries(base, 30, cats, filters.mes, {
+    workingDays: config?.jornada?.workingDays || opts?.workingDays,
+    availability: opts?.availability,
+  });
 
   // Serie semanal agregada (total y firmas por semana + conversión).
   const weeklySeries = (() => {

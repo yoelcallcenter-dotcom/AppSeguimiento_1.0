@@ -6,7 +6,7 @@ Léelo primero en cada sesión. Evita re-explorar la arquitectura en cada tarea.
 ## 1. Identidad del proyecto
 
 - Nombre: **AppSeguimiento** (antes "Seguimiento de Derivaciones" / "Seg. ART"; entradas históricas del CHANGELOG conservan el nombre viejo).
-- Versión actual: **1.6.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión actual: **1.8.8** (verificada en `package.json` y `src/core/version.js`).
 - Framework: React 18 (Create React App, react-scripts 5).
 - Build: `react-scripts build` (webpack). Pre-build genera docs (`scripts/build-docs.js` → `src/docs/docsContent.js`, se regenera solo).
 - Gestor de paquetes: npm.
@@ -65,8 +65,14 @@ src/
 │   ├── i18n/ error/ monitoring/ storage/ validation/ user/ notes/
 ├── features/           # Módulos de alto nivel:
 │   ├── dashboard/      # Dashboard analítico multi-pestaña + widgets + metricsEngine
-│   ├── operator/       # "Mi Espacio": perfil, disponibilidad, metas, credenciales,
-│   │                   # PdfExportModal (operatorStore.js, operatorMetrics.js, operatorDefaults.js)
+│   ├── operator/       # "Mi Espacio": centro de trabajo "Hoy" (TodayCenter) + perfil,
+│   │                   # disponibilidad, metas, credenciales, configuración de secciones
+│   │                   # (operatorStore.js, operatorMetrics.js, operatorDefaults.js,
+│   │                   # miEspacioConfig.js, TodayCenter.jsx)
+│   │   └── components/ # ProximaActividad, TimelineActividades, PendientesCard,
+│   │                   # AccionesRapidas, ProfileCard, AvailabilityCard, GoalsSection,
+│   │                   # CredentialsSection, BienvenidaCard, ProximosEventos,
+│   │                   # ProductividadSection, MetasCard, AccesosCard
 │   ├── productivity/   # ProductivityWidget, productivityStore.js (memoria/metas/analytics)
 │   ├── analytics/      # Motor de insights y analítica personal:
 │   │   │               # analyticsEngine.js, insightsConfig.js, periodUtils.js,
@@ -100,6 +106,7 @@ public/                 # index.html, manifest.json, sw.js, docs/ (copias genera
 
 - Persistencia local: IndexedDB vía Dexie (`src/core/db/appDB.js`, `casesDB.js`). Nada viaja a servidores.
 - Esquema CasesDB v3 (aditiva, no destructiva): incluye tabla `case_history` para timeline de eventos por caso (v1.3.1). Casos antiguos funcionan sin historial previo.
+- Esquema AppDB v10: incluye tablas `events`, `notes`, `note_versions`, `auto_backups`, `migration_snapshots`, `templates`, `saved_reports`.
 - Estado global: `src/core/store/useAppStore.js` (Zustand). Incluye middleware `persist`
   (clave `app-view-orders`) para órdenes de pestañas/widgets del Dashboard, Tablero,
   Tabla, Reportes y Útiles.
@@ -107,7 +114,8 @@ public/                 # index.html, manifest.json, sw.js, docs/ (copias genera
   definidas en `src/utils/backup/constants.js` (p.ej. `config-art-tracker`). Leer/escribir con
   los helpers existentes, no inventar claves nuevas si ya existe una equivalente.
 - Mi Espacio (operador): `src/features/operator/operatorStore.js` (perfil, disponibilidad,
-  metas, credenciales — estas últimas nunca se exportan).
+  metas, credenciales — estas últimas nunca se exportan; orden de secciones del "Hoy" en
+  `operatorSettings.miEspacioOrder`).
 - Productividad: `src/features/productivity/productivityStore.js` (`userProductivitySettings`,
   `userContextMemory`, `userGoals`).
 - Entidades principales: **casos** (nombre, teléfono, estado, ART, fechas, reportes,
@@ -174,10 +182,12 @@ public/                 # index.html, manifest.json, sw.js, docs/ (copias genera
 
 Módulos verificados presentes:
 
-- **Mi Espacio** (features/operator): vista por defecto al abrir. Perfil, jornada,
-  disponibilidad (vacaciones/feriados/inasistencias), metas diarias/mensuales/firmas,
-  accesos personales, sugerencias personales, recordatorios de jornada/metas,
-  microinteracciones de objetivos. Exportación PDF con selección de secciones.
+- **Mi Espacio** (features/operator): vista por defecto al abrir. Centro de trabajo "Hoy"
+  (TodayCenter) con 8 bloques ordenables (Bienvenida, Jornada, Próxima actividad, Pendientes,
+  Productividad, Metas, Acciones rápidas, Accesos; orden editable en Configuración → Apariencia
+  → Vistas). Secciones secundarias: perfil, disponibilidad (vacaciones/feriados/inasistencias),
+  metas diarias/mensuales/firmas, accesos personales, sugerencias personales, recordatorios
+  de jornada/metas, microinteracciones de objetivos. Exportación PDF con selección de secciones.
 - **Dashboard** (features/dashboard): 6 pestañas ordenables (Analítica, Resumen,
   Rendimiento, Geografía, Estudios, Estados), widgets configurables, KPIs, funnel, alertas,
   mapa por localidad, ProductivityWidget (metas/memoria/micro-analítica/sugerencias).
@@ -341,7 +351,7 @@ real de la tarea lo justifique.
 | App | `src/App.jsx` | Composición de vistas, modales, atajos, CRUD de casos |
 | Estado global | `src/core/store/useAppStore.js` | Zustand; entidades + UI + persistencia de órdenes |
 | Temas | `src/core/theme/` + `src/context/ThemeContext.jsx` | Tokens, manager, provider |
-| DB | `src/core/db/appDB.js`, `casesDB.js` | Dexie/IndexedDB y versionado (v3: +case_history) |
+| DB | `src/core/db/appDB.js`, `casesDB.js` | Dexie/IndexedDB y versionado (appDB v8, casesDB v3) |
 | Historial casos | `src/core/cases/caseHistory.js` | Timeline de eventos por caso |
 | Repositorio | `src/core/cases/caseRepository.js` | Acceso a datos de casos |
 | Integridad | `src/core/integrity/integrityService.js` | Validación, huérfanos, duplicados, reparación |
@@ -352,7 +362,7 @@ real de la tarea lo justifique.
 | Auto-backup | `src/services/autoBackup.js` | Frecuencias, recordatorios, historial, backup de jornada |
 | Configuración | `src/components/configuracion/ConfiguracionView.jsx` | Panel completo (~3000 líneas) |
 | Diagnóstico | `src/components/diagnostico/IntegridadPanel.jsx` | Verificación de integridad de datos |
-| Mi Espacio | `src/features/operator/` | Perfil, disponibilidad, metas, settings operador |
+| Mi Espacio | `src/features/operator/` | Centro "Hoy" (TodayCenter), perfil, disponibilidad, metas, settings operador |
 | Export PDF | `src/features/operator/PdfExportModal.jsx` | Exportación PDF de Mi Espacio |
 | Productividad | `src/features/productivity/` | Widget dashboard + settings (interacciones, sugerencias) |
 | Dashboard | `src/features/dashboard/` | Pestañas, widgets, metricsEngine |
@@ -360,6 +370,7 @@ real de la tarea lo justifique.
 | Export CSV | `src/features/export/CsvExportModal.jsx` | Exportación CSV con filtros |
 | Alertas | `src/features/alerts/alertsSystem.js` | Sistema de alertas por eventos próximos |
 | Reglas | `src/features/rules/rulesEngine.js` | Motor de reglas determinísticas |
+| Plantillas | `src/features/templates/` | Sistema de plantillas reutilizables |
 | Import CSV | `src/features/import/CSVImporter.jsx` | Parseo, mapeo, plantilla, validaciones |
 | Parser CSV | `src/utils/csvParse.js` | Parser compartido (comillas, saltos, BOM) |
 | Búsqueda | `src/utils/searchEngine.js` | Motor de búsqueda con #etiqueta y @comentario |
@@ -373,6 +384,8 @@ real de la tarea lo justifique.
 | Sonidos | `src/core/notifications/soundSystem.js` | Tonos Web Audio; gate de micro-interacciones |
 | Celebraciones | `src/core/celebrations/celebrationStore.js` | Confeti/mensajes; gate interactionsEnabled |
 | Búsqueda global | `src/features/search/GlobalSearch.jsx` | Ctrl+K; releer config al abrir |
+| Catálogos | `src/utils/catalogos.js` | Estados de Caso y Tipos de Ingreso; `detectarTipoIngresoPorKeywords` (pegado inteligente con palabras clave + prioridad) |
+| Portapapeles | `src/utils/copyToClipboard.js` | Copiar texto con fallback seguro (`execCommand`) cuando `navigator.clipboard` no existe; nunca lanza errores |
 | Hooks | `src/hooks/useClipboard.js` | Copiar al portapapeles con timeout y feedback |
 | Validación | `src/validators/casoValidator.js` | Validación de campos de caso |
 | Docs UI | `src/docs/docsContent.js` | Generado por `scripts/build-docs.js`; no editar a mano |
@@ -407,13 +420,121 @@ real de la tarea lo justifique.
 
 ## 11. Contexto de versión estable
 
-- Versión baseline: **1.6.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión baseline: **1.8.8** (verificada en `package.json` y `src/core/version.js`).
 - Esta versión es la línea base estable de trabajo. No incrementarla ni renombrar la app
   salvo solicitud explícita del usuario.
 - Cambios de versión requieren actualizar como mínimo `package.json`,
   `package-lock.json` y `src/core/version.js`, además de una entrada en
   `src/docs/CHANGELOG.md` (y su copia `public/docs/CHANGELOG.md`), y mantener en sync los
   README (`README.md`, `src/docs/README.md`, `public/docs/README.md`).
+- 1.8.5 = "Navegación unificada por pills": misma lógica visual de Configuración → toda la app.
+  Primitivas compartidas en `src/components/common/UINav.jsx` (`NavDock` para dock horizontal con
+  pills de grupo activo con fondo accent sólido; `SubPills` para pills secundarias rounded-full
+  activas con borde/fondo accent + badge de contador), cubiertas por `UINav.test.jsx` (5 tests).
+  Dashboard: barra de pestañas tipo browser → `NavDock` + `SectionHeader` dinámico por tab;
+  Mi Espacio: grid de tarjetas → `NavDock` + tip 💡 estandarizado + tarjetas `rounded-xl`;
+  Útiles: pills `.category-tab` → `SubPills` con badges (mantiene toggle grid/lista) +
+  `SectionHeader` por sub-vista; Calendario: segmented toolbar → `SubPills` + `SectionHeader`;
+  Kanban/Tabla/Reportes/Notas: encabezado unificado con `SectionHeader`. Bump a 1.8.5 en
+  `version.js`, `package.json`, `package-lock.json` y los README; **679 tests en verde**, build OK.
+- 1.8.4 = "Configuración y Personalización": rediseño de las 17 secciones de Configuración con
+  navegación unificada por pills y `SectionHeader` (ícono + título + descripción,
+  `SECTION_META` en `src/components/configuracion/ConfiguracionView.jsx`); primitivas en
+  `src/components/configuracion/ui.jsx` (`ConfigSection`, `ConfigSectionTitle`, `ConfigRow`,
+  `ConfigField`, `ConfigGrid`, `ConfigTip`, `ConfigDivider`); registro único del Dashboard en
+  `src/features/dashboard/dashboardConfig.js` (`DASH_TAB_MAP`, `DASH_WIDGET_REGISTRY`,
+  `getOrderedDashWidgets`/`getOrderedDashTabOrder`, consumido por `Dashboard.jsx` y el editor
+  de Vistas); editor de vistas con iconos (`ViewSectionEditor` + `iconMap`); Mi Espacio con 9
+  bloques ("Próxima actividad" y "Próximos eventos" separados, `miEspacioConfig.js`); idiomas
+  **es/en** con migración automática `pt → es` al abrir Configuración.
+- 1.8.3 = "Estadísticas y Cálculos": todos los motores estadísticos usan días efectivamente
+  laborables **FH = TM − FS − In − Fe − Va** (FS según `workingDays` del perfil; vacaciones/
+  feriados/inasistencias solo descuentan días laborables; solapes cuentan una vez). Núcleo:
+  `diasEfectivosEnRango(rango, workingDays, availability)` y `diasHabilesEnRango` +availability en
+  `src/features/analytics/periodUtils.js`; `getAvailabilitySummary` con `workingDays` y
+  `totalDays = scheduled − effective` en `src/features/operator/operatorMetrics.js`; `getWeeklyGoalProgress`
+  con último día hábil real y `getDayPaceMetrics` con 30 días hábiles efectivos; `computeResumenPeriodo`/
+  `computeDiaSemana`/`promedioPersonalReciente`/`proyeccionObjetivos` con availability vía
+  `src/features/analytics/analyticsEngine.js` y `useAnalytics.js`; `buildSeries`/`computeMetrics`/`ActivityChart`
+  con `opts {workingDays, availability}`; `csvAnalitico` con KPI "Días hábiles efectivos en período".
+- 1.8.2 = "Exportaciones y Documentación": toggle CSV analítico en `CsvExportModal` (`buildCsvAnalitico` en `src/features/export/csvAnalitico.js`), PDF de Mi Espacio ampliado a 10 secciones (disponibilidad, metas, ritmo, próximos eventos) en `PdfExportModal`, 4 ejemplos de caso reales en `EjemplosCasos` y pegado de ficha con `HORARIO:` aditivo en `parseFicha`.
+- 1.8.1 = "Consistencia Visual y Experiencia de Uso" (absorbe el Pegado Inteligente que estaba
+  en [Unreleased]; no hubo release 1.8.0 independiente): primitivas de filtros unificados en
+  `src/components/common/filters/` (`FilterBar`, `FilterGroup`, `FilterLabel`, `FilterChip`,
+  `FilterCounter`; refactor de `MonthDayFilterBar`, `DashboardFilters`, `ReporteGuardadoBar`);
+  `PipelineBar` multi-selección (quickFilter `tipo:"estado"` con arrays OR,
+  `src/utils/filtrarQuickFilter.js`, `casosStats.js`, footer "Filtrado por" + Limpiar);
+  `SearchInput` con botón X y `TextInput` con `forwardRef`, reemplazos en toda la app y X en
+  `NotesSearch`/`CaseLinker`/`GlobalSearch` (modal Ctrl+K agrandado con contador de resultados);
+  orden fijo de Reportes (MonthDayFilter → PipelineBar → Guardados → Lista → Paginación);
+  `VerCasoModal` con footer en fila única y reportes colapsables editables inline con
+  `TemplateSelector` (`onActualizarCaso`); modales apilables vía `useModalStack`
+  (`src/hooks/useModalStack.js`): Editar/Reporte se apilan sobre VerCaso con `z-submodal` +
+  `inert` en el modal base; `AvailabilityCard` dividido en
+  `src/features/operator/components/availability/` (7 archivos) con strip mensual
+  (`AvailabilityMonthStrip`) y hex → variables CSS.
+- 1.7.12 = "QA, Integración y estabilización 1.7.x": revisión integral de Mi Espacio 2.0 y del
+  flujo principal; nueva prueba de render de `TodayCenter` (592 tests); verificación de
+  ausencia de rastros del sistema de automatizaciones y de componentes eliminados
+  (CasosRelevantes/TodaySummary); documentación alineada (tour paso 6, guía sección 5, FAQ,
+  glosario "Centro 'Hoy'", Ayuda Mi Espacio, etiqueta "Insight destacado en el 'Hoy'",
+  README ×3, PROJECT_CONTEXT); fix de `package-lock.json` (wbuf → 1.7.3 real).
+- 1.7.11 = "Mi Espacio 2.0": la sección "Hoy" de Mi Espacio pasa a ser un centro de trabajo
+  diario (`TodayCenter.jsx`, reemplaza a `MiJornadaView.jsx`) con 8 bloques en orden
+  configurable (Hoy/Bienvenida, Mi Jornada, Próxima actividad, Pendientes, Productividad,
+  Metas, Acciones rápidas, Accesos personales); bloques sin datos del día se omiten;
+  perfil/disponibilidad/metas/accesos siguen como secciones secundarias. Nuevas secciones:
+  BienvenidaCard (saludo + "X días restantes del mes" con `getDiasRestantesDelMes`), Productividad
+  (getDailyGoalProgress + getDayClosureData + ritmo/proyección), MetasCard (diario/semanal/
+  próximo hito), AccesosCard (resumen sin contraseñas), ProximosEventos (`getProximosEventos`,
+  máx. 5). Orden editable en Configuración → Apariencia → Vistas
+  (`miEspacioConfig.js` → `getOrderedMiEspacioKeys`, persiste en `operatorSettings.miEspacioOrder`,
+  sin stores paralelos). Pestaña "Mi Jornada" renombrada "Hoy".
+- 1.7.10 = "Reportes Guardados y Exportaciones": reportes de filtros persistidos (tabla Dexie `saved_reports`, schema v10, incluida en backup/export/import), CRUD con confirmación (crear/renombrar/duplicar/eliminar/reemplazar), snapshot de período/mes/días + búsqueda + busquedaFiltro + estado/aseguradora/localidad/estudio/tipo; panel de filtros en Reportes con `aplicarFiltros` (sin duplicar lógica); exportación CSV con nombre descriptivo `Reporte_{nombre}_{periodo}_{fecha}.csv`
+- 1.7.9 = "Analítica Operativa": pestaña Analítica con filtros de exploración (estado, aseguradora, localidad, estudio, provincia, tipo), KPIs distribuidos que responden a los filtros, widgets Reprogramaciones y Citas, exportación CSV; series diaria/semanal ancladas al mes seleccionado; correcciones varias (PhoneLink tel:, meta Logro de Objetivos dinámica, tooltips de gráficos, PipelineBar visual, cleanup de Ayuda, sin persistencia de tabs de Config/Útiles, botón Limpiar filtro, `aplicarFiltros` con aseguradora/localidad); eliminación en profundidad del sistema de automatizaciones (schema v9)
+- 1.7.8 = "Dashboard Configurable": 3 widgets nuevos (Citas, Reprogramaciones, Aseguradoras), WidgetWrapper estandarizado, restaurar defecto, persistencia de orden de dashboard
+- 1.7.3 = "Calendario 2.0": creación de eventos desde espacio vacío (click en celda de día/
+  slot abre `EventModal` con `initialData`), D&D mejorado para eventos CITA (actualiza campo
+  `cita` del caso + `syncCitaEvent()` en vez de solo `updateEvent()`), eventos manuales/
+  reprogramación se actualizan directamente. Componente `MultiSelect` reutilizable (`src/components/
+  common/MultiSelect.jsx`). Barra `CalendarFilters` con 5 filtros multi-selección (estado,
+  prioridad, aseguradora, estudio, tipo); `filtrarEventos()` + `useMemo` evita recálculos.
+  Info enriquecida: badge de prioridad (B/M/A), nombre del caso en pills de mes/semana/día.
+  Bug fix: `findExistingCitaEvent` filtra `status !== 'cancelled'`. Tests: `MultiSelect.test.jsx`,
+  `calendarFilters.test.js`.
+- 1.7.2 = "Búsqueda Global y Navegación Contextual": la Búsqueda Global (Ctrl+K) indexa y
+  busca también Reportes (`reporteHistory`) e Historial (`case_history`) además de casos,
+  notas, eventos y entidades; cada resultado lleva badge de tipo con su color. En
+  `src/utils/searchEngine.js` se agregan `flattenReportes(cases)`, `flattenHistorial(filas, casos)`,
+  índices Fuse propios (`fuseReportes`/`fuseHistorial`) y `reportes`/`historial` en
+  `buscarGlobal` (indización local/offline, sin IA). `GlobalSearch` carga `case_history`
+  (casesDB) al abrir, agrupa por tipo (`TYPE_META` → badge coloreado) y navega: nota → Bloc de
+  notas con scroll (`handleNavigateToNote` + `data-note-id`), evento → calendario abriendo
+  el EventModal directo vía `initialEventId`/`getEvent(id)` (App.jsx state `pendingEventId`),
+  reporte/historial → VerCasoModal del caso, entidades → vista Útiles (`handleGlobalSearchSelectEntity`).
+  Tests extendidos en `searchEngine.test.js` (reportes/historial).
+- 1.7.1 = "Pendientes y Acciones Rápidas": nuevo mecanismo determinístico de pendientes del
+  día `getPendientesDelDia` en `core/alerts/attentionRules.js` (tabla de 8 reglas: sin
+  información, reporte pendiente, actividad vencida, cita hoy, reprogramación pendiente,
+  seguimiento sin actividad, meta diaria, sin estudio asignado; prioridad Alta/Media/Baja;
+  deduplicación por caso; máx. 8 — sin IA). `PendientesCard.jsx` (reemplaza `CasosRelevantes`)
+  lista plana con ícono por tipo y badge de prioridad; `AccionesRapidas.jsx` grilla de 6
+  acciones reutilizando estados/modales existentes de App.jsx (CasoEditModal,
+  ReporteRapidoModal, BlocNotas, Calendario, GlobalSearch, CsvExportModal). En
+  `MiJornadaView` ambas cards nuevas (posiciones 4 y 5) con props `onNuevoCaso`,
+  `onNuevoReporte`, `onNuevaNota`, `onNuevoEvento`, `onBuscar`, `onExportar`.
+  `VerCasoModal` + "Reprogramar" (abre ReporteRapidoModal con el caso preseleccionado y
+  `estadoInicial='Reprogramado'`). Tests nuevos `src/core/alerts/pendientesDelDia.test.js`.
+- 1.7.0 = "Centro 'Hoy' y Actividad Diaria": la vista "Mi Jornada" de Mi Espacio pasa a ser
+  el centro de actividad diaria. Card nueva "Próxima actividad" (destacada, prioriza citas),
+  línea temporal cronológica unificada de citas/eventos/reprogramaciones/casos/reportes/
+  notas del día (card "Actividad de hoy"), y card "Requieren tu atención" con casos
+  pendientes priorizados (motor determinístico `getCasesNeedingAttention`). Se elimina el
+  legacy sin uso `TodaySummary.jsx` y los sub-componentes inline `TodayActivityCard`,
+  `UpcomingCommitmentsCard`, `PendingFollowUpsCard` de `MiJornadaView` (reemplazados por
+  `ProximaActividad.jsx`, `TimelineActividades.jsx` y `CasosRelevantes.jsx` en
+  `operator/components/`). Helpers puros nuevos `getProximaActividad` y `buildTodayTimeline`
+  en `operatorMetrics.js`. Sin IA, todo determinístico. Suite nueva `todayCenter.test.js`.
 - 1.6.8 = "Auditoría final, QA y estabilización": eliminados 11 archivos muertos
   (Input, EditableForm, ShortcutsHelp, SelectorTema, ModoNoMolestar, BlocNotas, Card,
   NoteList, NoteCard en common/, hook `useBlocNotas`, carpeta `components/notes/`);

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Activity, X } from 'lucide-react';
 import { sanitizeString } from '../../utils/sanitize';
 import ChartCard from './widgets/ChartCard';
+import { isWorkingDay, isUnavailableOn } from '../operator/operatorMetrics';
 
 const DIAS_LAB = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie'];
 const DESC_DEFAULT =
@@ -36,44 +37,43 @@ const Bar = React.memo(({ count, max, diaSemana, date, isFirstOfWeek, isSelected
   );
 });
 
-export const ActivityChart = React.memo(({ cases, selectedDay, onSelectDay, desc }) => {
+export const ActivityChart = React.memo(({ cases, selectedDay, onSelectDay, desc, workingDays, availability }) => {
   const { days, max, prevAvg, trend } = useMemo(() => {
     const today = new Date();
-    const days = [];
+    const wd = workingDays || [1, 2, 3, 4, 5];
+    const avail = availability || {};
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const esEfectivo = (d) => isWorkingDay(iso(d), wd) && !isUnavailableOn(avail, iso(d));
+    const cara = (c, key) => (c.fecha || '').startsWith(key);
+    const countOf = (key) => cases.filter((c) => cara(c, key)).length;
+
+    const efectivos = [];
     let i = 0;
-    while (days.length < 7 && i < 20) {
+    while (efectivos.length < 14 && i < 47) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const diaSem = d.getDay();
-      if (diaSem !== 0 && diaSem !== 6) {
-        const key = d.toISOString().slice(0, 10);
-        const count = cases.filter((c) => (c.fecha || '').startsWith(key)).length;
-        days.unshift({ date: key, count, diaSemana: DIAS_LAB[diaSem - 1] || '' });
-      }
+      if (esEfectivo(d)) efectivos.push(iso(d));
       i++;
     }
+    const curKeys = efectivos.slice(-7);
+    const prevKeys = efectivos.slice(0, -7);
+
+    const days = curKeys.map((key) => {
+      const d = new Date(key + 'T00:00:00');
+      const diaSem = d.getDay();
+      return { date: key, count: countOf(key), diaSemana: DIAS_LAB[diaSem - 1] || '' };
+    });
     days.forEach((d) => { d.isFirstOfWeek = d.diaSemana === 'Lun'; });
     const max = Math.max(...days.map((d) => d.count), 1);
 
     const currentAvg = days.reduce((s, d) => s + d.count, 0) / days.length;
-    const prevDays = [];
-    let j = 7;
-    while (prevDays.length < 7 && j < 27) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - j);
-      const diaSem = d.getDay();
-      if (diaSem !== 0 && diaSem !== 6) {
-        const key = d.toISOString().slice(0, 10);
-        const count = cases.filter((c) => (c.fecha || '').startsWith(key)).length;
-        prevDays.unshift({ date: key, count });
-      }
-      j++;
-    }
-    const prevAvg = prevDays.length > 0 ? prevDays.reduce((s, d) => s + d.count, 0) / prevDays.length : 0;
+    const prevAvg = prevKeys.length > 0
+      ? prevKeys.reduce((s, k) => s + countOf(k), 0) / prevKeys.length
+      : 0;
     const trend = prevAvg > 0 ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100) : 0;
 
     return { days, max, prevAvg, trend };
-  }, [cases]);
+  }, [cases, workingDays, availability]);
 
   const dayCases = useMemo(() => {
     if (!selectedDay) return [];

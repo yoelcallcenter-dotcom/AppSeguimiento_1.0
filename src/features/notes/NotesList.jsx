@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Trash2, Clock, Tag, FileText } from 'lucide-react';
+import { Trash2, Clock, Tag, FileText } from 'lucide-react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
-import { TextInput } from '../../components/common/TextInput';
+import { SearchInput } from '../../components/common/SearchInput';
 import { EmptyState } from '../../components/common/EmptyState';
 import { onKeyActivate } from '../../utils/a11y';
 
@@ -47,17 +47,12 @@ export default function NotesList({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="relative mb-3">
-        <Search
-          size={14}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2"
-          style={{ color: 'var(--color-text-muted)' }}
-        />
-        <TextInput
+      <div className="mb-3">
+        <SearchInput
           value={query}
-          onChange={e => handleSearch(e.target.value)}
+          onChange={(e) => handleSearch(e.target.value)}
           placeholder="Buscar notas..."
-          className="pl-8 text-sm"
+          compact
         />
       </div>
 
@@ -75,6 +70,7 @@ export default function NotesList({
           return (
             <div
               key={note.id}
+              data-note-id={note.id}
               role="button"
               tabIndex={0}
               aria-label={`Abrir nota ${note.title || 'Sin titulo'}`}

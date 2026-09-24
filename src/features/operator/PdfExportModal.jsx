@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import { FileText, X, Check, User, ClipboardList, BarChart3, Target, TrendingUp } from "lucide-react";
+import { FileText, X, Check, User, ClipboardList, BarChart3, Target, TrendingUp, Calendar, CalendarClock, PieChart, Settings, Clock } from "lucide-react";
 import { useOperatorState } from "./useOperatorState";
 import {
   getDayState,
@@ -8,6 +8,10 @@ import {
   getRequiredDailyPace,
   getEffectiveWorkDays,
   getPerEffectiveDayMetrics,
+  getAvailabilitySummary,
+  getWeeklyGoalProgress,
+  getDayPaceMetrics,
+  getProximosEventos,
 } from "./operatorMetrics";
 import { getDailyGreeting } from "./operatorMessages";
 import { Btn, OutlineButton } from "../../components/common/Btn";
@@ -19,6 +23,11 @@ const SECCIONES = [
   { key: "metricas", label: "Métricas y ritmo", Icon: BarChart3 },
   { key: "semanales", label: "Objetivos semanales", Icon: Target },
   { key: "resumen", label: "Resumen del período", Icon: TrendingUp },
+  { key: "disponibilidad", label: "Disponibilidad del mes", Icon: Calendar },
+  { key: "metas", label: "Metas semanales", Icon: Target },
+  { key: "proximos", label: "Próximos eventos", Icon: CalendarClock },
+  { key: "estadisticas", label: "Estadísticas por día efectivo", Icon: PieChart },
+  { key: "configuracion", label: "Configuración y jornada", Icon: Settings },
 ];
 
 function el(doc, tag, className) {
@@ -31,7 +40,7 @@ function text(doc, parent, value) {
   parent.appendChild(doc.createTextNode(value == null ? "" : String(value)));
 }
 
-export function PdfExportModal({ open, onClose, config, casos, showToast }) {
+export function PdfExportModal({ open, onClose, config, casos, showToast, eventos = [] }) {
   const [selected, setSelected] = useState(() => SECCIONES.map((s) => s.key));
   const [exportando, setExportando] = useState(false);
   const { profile, availability, goals } = useOperatorState();
@@ -53,6 +62,10 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
   const pace = getRequiredDailyPace(goals, allCases, year, month, availability, profile.workingDays, todayISO);
   const effective = getEffectiveWorkDays(availability, year, month, profile.workingDays);
   const perDay = getPerEffectiveDayMetrics(allCases, availability, year, month, profile.workingDays);
+  const availSummary = getAvailabilitySummary(availability, year, month, profile.workingDays);
+  const weekly = getWeeklyGoalProgress(goals, allCases, profile.workingDays, todayISO, availability);
+  const paceToday = getDayPaceMetrics(goals, allCases, profile, availability, year, month, todayISO);
+  const proximos = getProximosEventos(eventos, now, 8);
 
   const toggle = useCallback((key) => {
     setSelected((prev) =>
@@ -226,6 +239,127 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
         doc.body.appendChild(card);
       }
 
+      if (selected.includes("disponibilidad")) {
+        const h2 = el(doc, "h2");
+        text(doc, h2, "Disponibilidad del mes");
+        doc.body.appendChild(h2);
+        const card = el(doc, "div", "card");
+        const rows = [
+          ["Días efectivos", `${effective.effective}/${effective.scheduled}`],
+          ["Vacaciones", String(availSummary.vacationDays || 0)],
+          ["Feriados", String(availSummary.holidayDays || 0)],
+          ["Ausencias", String(availSummary.absenceDays || 0)],
+          ["Días no laborables", String(availSummary.dayOffDays || 0)],
+          ["Total días no trabajados", String(availSummary.totalDays || 0)],
+        ];
+        rows.forEach(([label, value]) => {
+          const p = el(doc, "p");
+          const strong = el(doc, "strong");
+          text(doc, strong, label + ": ");
+          p.appendChild(strong);
+          text(doc, p, value);
+          card.appendChild(p);
+        });
+        doc.body.appendChild(card);
+      }
+
+      if (selected.includes("metas")) {
+        const h2 = el(doc, "h2");
+        text(doc, h2, `Metas semanales (${weekly.start} a ${weekly.end})`);
+        doc.body.appendChild(h2);
+        const card = el(doc, "div", "card");
+        weekly.goals.forEach((g) => {
+          if (!g.enabled) return;
+          const p = el(doc, "p");
+          const strong = el(doc, "strong");
+          const metLabel = g.met ? " — CUMPLIDA" : "";
+          text(doc, strong, `${g.label}: `);
+          p.appendChild(strong);
+          text(doc, p, `${g.current}/${g.target} (${g.percent}%)${metLabel}`);
+          card.appendChild(p);
+          const bar = el(doc, "div", "progress-bar");
+          const fill = el(doc, "div", "progress-fill");
+          fill.style.width = Math.min(100, g.percent || 0) + "%";
+          bar.appendChild(fill);
+          card.appendChild(bar);
+        });
+        doc.body.appendChild(card);
+      }
+
+      if (selected.includes("proximos")) {
+        const h2 = el(doc, "h2");
+        text(doc, h2, "Próximos eventos");
+        doc.body.appendChild(h2);
+        const card = el(doc, "div", "card");
+        if (proximos.length === 0) {
+          const p = el(doc, "p");
+          text(doc, p, "Sin eventos próximos.");
+          card.appendChild(p);
+        } else {
+          proximos.forEach(({ event, timeLabel, dayLabel }) => {
+            const p = el(doc, "p");
+            const strong = el(doc, "strong");
+            text(doc, strong, `${dayLabel} - `);
+            p.appendChild(strong);
+            text(doc, p, `${timeLabel}: ${event.title || event.titulo || "Evento"}${event.location ? " (" + event.location + ")" : ""}`);
+            card.appendChild(p);
+          });
+        }
+        doc.body.appendChild(card);
+      }
+
+      if (selected.includes("estadisticas")) {
+        const h2 = el(doc, "h2");
+        text(doc, h2, "Estadísticas por día efectivo");
+        doc.body.appendChild(h2);
+        const card = el(doc, "div", "card");
+        const rows = [
+          ["Casos por día efectivo", String(perDay.casesPerDay || "—")],
+          ["Reportes por día efectivo", String(perDay.reportsPerDay || "—")],
+          ["Casos hoy", String(paceToday.casesToday || 0)],
+          ["Reportes hoy", String(paceToday.reportsToday || 0)],
+          ["Ritmo actual (casos/hora)", String(paceToday.casesPerHour || "—")],
+          ["Proyección de cierre", String(paceToday.projectedCases || "—")],
+          ["Promedio histórico 30 días", String(paceToday.avgCasesPerDay || "—")],
+          [paceToday.paceMessage || "", ""],
+        ];
+        rows.forEach(([label, value]) => {
+          if (!label) return;
+          const p = el(doc, "p");
+          const strong = el(doc, "strong");
+          text(doc, strong, label + ": ");
+          p.appendChild(strong);
+          text(doc, p, value);
+          card.appendChild(p);
+        });
+        doc.body.appendChild(card);
+      }
+
+      if (selected.includes("configuracion")) {
+        const h2 = el(doc, "h2");
+        text(doc, h2, "Configuración y jornada");
+        doc.body.appendChild(h2);
+        const card = el(doc, "div", "card");
+        const horario = profile.workSchedule || config?.horario || { start: "09:00", end: "17:00" };
+        const rows = [
+          ["Horario laboral", `${horario.start || "—"} - ${horario.end || "—"}`],
+          ["Días laborables", (profile.workingDays || [1, 2, 3, 4, 5]).map((d) => ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][d]).join(", ")],
+          ["Meta diaria de casos", goals.daily?.cases?.enabled ? `${goals.daily.cases.target}` : "No configurada"],
+          ["Meta diaria de reportes", goals.daily?.reports?.enabled ? `${goals.daily.reports.target}` : "No configurada"],
+          ["Meta diaria de firmas", goals.daily?.firmas?.enabled ? `${goals.daily.firmas.target}` : "No configurada"],
+          ["Meta semanal de casos", goals.weekly?.cases?.enabled ? `${goals.weekly.cases.target}` : "No configurada"],
+        ];
+        rows.forEach(([label, value]) => {
+          const p = el(doc, "p");
+          const strong = el(doc, "strong");
+          text(doc, strong, label + ": ");
+          p.appendChild(strong);
+          text(doc, p, value);
+          card.appendChild(p);
+        });
+        doc.body.appendChild(card);
+      }
+
       const footer = el(doc, "div", "footer");
       text(doc, footer, `Generado el ${now.toLocaleString("es-AR")} — AppSeguimiento ART`);
       doc.body.appendChild(footer);
@@ -246,7 +380,7 @@ export function PdfExportModal({ open, onClose, config, casos, showToast }) {
     } finally {
       setExportando(false);
     }
-  }, [selected, daily, monthly, pace, effective, perDay, profile, now, showToast, onClose]);
+  }, [selected, daily, monthly, pace, effective, perDay, availSummary, weekly, paceToday, proximos, profile, now, showToast, onClose, eventos]);
 
   if (!open) return null;
 

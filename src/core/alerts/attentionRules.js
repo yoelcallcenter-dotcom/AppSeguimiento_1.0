@@ -399,3 +399,202 @@ export function getSeguimientosPendientes(cases, events, todayISO, overrides) {
     .sort((a, b) => b.daysSinceActivity - a.daysSinceActivity)
     .slice(0, 10);
 }
+
+// ============================================================
+// PENDIENTES DEL DÍA (1.7.1)
+// ============================================================
+
+/**
+ * Genera pendientes del día basados exclusivamente en reglas determinísticas.
+ * No usa IA ni análisis predictivo: cada pendiente surge de una condición
+ * explícita y verificable sobre las fuentes de datos existentes.
+ *
+ * @param {object} params
+ * @param {Array}  params.cases       - todos los casos
+ * @param {Array}  params.events      - todos los eventos de calendario
+ * @param {Array}  [params.notes]     - notas (para futuras reglas; hoy no consume)
+ * @param {string} params.todayISO    - fecha hoy YYYY-MM-DD
+ * @param {object} [params.goals]     - metas del operador { daily: { cases, reports, firmas } }
+ * @param {object} [params.goals.daily]
+ * @returns {Array<{ id, type, title, detail, priority, caso?, event? }>}
+ *   priority: 'alta' | 'media' | 'baja'
+ */
+export function getPendientesDelDia({ cases = [], events = [], notes = [], todayISO, goals = {} } = {}) {
+  if (!todayISO) return [];
+  const pendientes = [];
+  const usedCaseIds = new Set();
+
+  const add = (item) => {
+    if (pendientes.length >= 8) return;
+    pendientes.push(item);
+  };
+
+  // ============ PRIORIDAD ALTA ============
+
+  // 1. Caso sin información requerida (nombre, telefono, fecha, estudioJuridico)
+  const sinInformacion = cases.filter((c) => {
+    const nombre = (c.nombre || "").trim();
+    const telefono = (c.telefono || "").trim();
+    const fecha = (c.fecha || "").trim();
+    const estudio = (c.estudioJuridico || "").trim();
+    return !nombre || !telefono || !fecha || !estudio;
+  });
+  for (const caso of sinInformacion) {
+    if (usedCaseIds.has(String(caso.id))) continue;
+    usedCaseIds.add(String(caso.id));
+    const faltantes = [];
+    if (!(caso.nombre || "").trim()) faltantes.push("nombre");
+    if (!(caso.telefono || "").trim()) faltantes.push("teléfono");
+    if (!(caso.fecha || "").trim()) faltantes.push("fecha");
+    if (!(caso.estudioJuridico || "").trim()) faltantes.push("estudio");
+    add({
+      id: `sin-info-${caso.id}`,
+      type: "sin_info",
+      title: caso.nombre || "Caso sin nombre",
+      detail: `Falta: ${faltantes.join(", ")}`,
+      priority: "alta",
+      caso,
+    });
+  }
+
+  // 2. Reporte pendiente (caso activo sin reportes cargados)
+  const sinReporte = getCasesWithoutReport(cases);
+  for (const caso of sinReporte) {
+    if (usedCaseIds.has(String(caso.id))) continue;
+    const isActive = resolveConfig().activeStates.includes(caso.estado);
+    if (isActive) usedCaseIds.add(String(caso.id));
+    if (!isActive) continue;
+    add({
+      id: `reporte-pendiente-${caso.id}`,
+      type: "reporte_pendiente",
+      title: caso.nombre || "Sin nombre",
+      detail: "Caso activo sin reportes cargados",
+      priority: "alta",
+      caso,
+    });
+  }
+
+  // 3. Actividad vencida (evento atrasado sin completar)
+  const vencidos = getOverdueEvents(events, todayISO);
+  for (const { event, daysOverdue } of vencidos) {
+    const linkedCaseId = (event.relatedCaseIds || [])[0];
+    const caso = linkedCaseId ? cases.find((c) => String(c.id) === String(linkedCaseId)) : null;
+    add({
+      id: `actividad-vencida-${event.id}`,
+      type: "actividad_vencida",
+      title: event.title || "Evento sin título",
+      detail: `Vencido hace ${formatDaysText(daysOverdue)}`,
+      priority: "alta",
+      caso,
+      event,
+    });
+  }
+
+  // ============ PRIORIDAD MEDIA ============
+
+  // 4. Cita hoy (evento tipo cita de hoy sin completar)
+  const citasHoy = events.filter((e) => {
+    if (e.eventType !== "cita") return false;
+    const start = e.startDate || e.fecha || "";
+    if (start.slice(0, 10) !== todayISO) return false;
+    const status = (e.status || "").toLowerCase();
+    return !["completed", "completado", "completada", "cancelled", "cancelado"].includes(status);
+  });
+  for (const event of citasHoy) {
+    const linkedCaseId = (event.relatedCaseIds || [])[0];
+    const caso = linkedCaseId ? cases.find((c) => String(c.id) === String(linkedCaseId)) : null;
+    add({
+      id: `cita-hoy-${event.id}`,
+      type: "cita_hoy",
+      title: event.title || "Cita",
+      detail: "Cita programada para hoy",
+      priority: "media",
+      caso,
+      event,
+    });
+  }
+
+  // 5. Reprogramación pendiente (evento tipo reprogramacion sin completar)
+  const reprogramaciones = events.filter((e) => {
+    if (e.eventType !== "reprogramacion") return false;
+    const start = new Date(e.startDate || e.fecha);
+    if (isNaN(start.getTime())) return false;
+    if (start.getTime() < todayMidnight(todayISO).getTime()) return false;
+    const status = (e.status || "").toLowerCase();
+    return !["completed", "completado", "completada", "cancelled", "cancelado"].includes(status);
+  });
+  for (const event of reprogramaciones) {
+    const linkedCaseId = (event.relatedCaseIds || [])[0];
+    const caso = linkedCaseId ? cases.find((c) => String(c.id) === String(linkedCaseId)) : null;
+    add({
+      id: `reprogramacion-pendiente-${event.id}`,
+      type: "reprogramacion_pendiente",
+      title: event.title || "Reprogramación",
+      detail: "Reprogramación agendada",
+      priority: "media",
+      caso,
+      event,
+    });
+  }
+
+  // 6. Seguimiento sin actividad (casos en estado pendiente sin actividad reciente)
+  const seguimientos = getSeguimientosPendientes(cases, events, todayISO);
+  for (const { caso, daysSinceActivity } of seguimientos) {
+    if (usedCaseIds.has(String(caso.id))) continue;
+    usedCaseIds.add(String(caso.id));
+    add({
+      id: `seguimiento-pendiente-${caso.id}`,
+      type: "seguimiento_pendiente",
+      title: caso.nombre || "Sin nombre",
+      detail: `Sin actividad hace ${formatDaysText(daysSinceActivity)}`,
+      priority: "media",
+      caso,
+    });
+  }
+
+  // ============ PRIORIDAD BAJA ============
+
+  // 7. Objetivo diario pendiente (metas de casos/reportes/firmas no alcanzadas)
+  const daily = goals.daily || {};
+  const casosMeta = daily.cases || {};
+  const reportsMeta = daily.reports || {};
+  const firmasMeta = daily.firmas || {};
+  const metasPendientes = [];
+  if (casosMeta.enabled && Number(casosMeta.target) > 0 && Number(casosMeta.current || 0) < Number(casosMeta.target)) {
+    metasPendientes.push(`casos ${casosMeta.current}/${casosMeta.target}`);
+  }
+  if (reportsMeta.enabled && Number(reportsMeta.target) > 0 && Number(reportsMeta.current || 0) < Number(reportsMeta.target)) {
+    metasPendientes.push(`reportes ${reportsMeta.current}/${reportsMeta.target}`);
+  }
+  if (firmasMeta.enabled && Number(firmasMeta.target) > 0 && Number(firmasMeta.current || 0) < Number(firmasMeta.target)) {
+    metasPendientes.push(`firmas ${firmasMeta.current}/${firmasMeta.target}`);
+  }
+  if (metasPendientes.length > 0) {
+    add({
+      id: "meta-diaria",
+      type: "meta_diaria",
+      title: "Objetivo diario pendiente",
+      detail: `Faltan: ${metasPendientes.join(" · ")}`,
+      priority: "baja",
+    });
+  }
+
+  // 8. Caso sin estudio asignado (activo, estudio vacío)
+  for (const caso of cases) {
+    if (usedCaseIds.has(String(caso.id))) continue;
+    const estudio = (caso.estudioJuridico || "").trim();
+    if (!estudio && resolveConfig().activeStates.includes(caso.estado)) {
+      usedCaseIds.add(String(caso.id));
+      add({
+        id: `sin-estudio-${caso.id}`,
+        type: "sin_estudio",
+        title: caso.nombre || "Sin nombre",
+        detail: "Caso activo sin estudio jurídico",
+        priority: "baja",
+        caso,
+      });
+    }
+  }
+
+  return pendientes;
+}

@@ -20,6 +20,7 @@ export const SYNC_EVENTS = {
   CASES_UPDATED: "cases-updated",
   NOTES_UPDATED: "notes-updated",
   EVENTS_UPDATED: "events-updated",
+  TEMPLATES_UPDATED: "templates-updated",
   CONFIG_UPDATED: "config-updated",
   DATA_IMPORTED: "data-imported",
   DATA_CLEARED: "data-cleared",

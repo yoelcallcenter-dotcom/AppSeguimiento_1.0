@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CsvExportModal } from "./CsvExportModal";
 import useAppStore from "../../core/store/useAppStore";
@@ -85,10 +85,10 @@ describe("CsvExportModal", () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it("cierra el modal al hacer click en el backdrop", () => {
+  it("cierra el modal al hacer click en el backdrop", async () => {
     render(<CsvExportModal open={true} onClose={mockOnClose} showToast={mockShowToast} />);
     fireEvent.click(screen.getByRole("dialog"));
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => expect(mockOnClose).toHaveBeenCalled());
   });
 
   it("renderiza select de aseguradora con opciones", () => {
@@ -107,5 +107,17 @@ describe("CsvExportModal", () => {
     render(<CsvExportModal open={true} onClose={mockOnClose} showToast={mockShowToast} />);
     const btn = screen.getByText("Exportar CSV").closest("button");
     expect(btn.disabled).toBe(true);
+  });
+
+  it("muestra el toggle Casos | Analítico", () => {
+    render(<CsvExportModal open={true} onClose={mockOnClose} showToast={mockShowToast} />);
+    expect(screen.getByText("Detalle por caso")).toBeTruthy();
+    expect(screen.getByText("Analítico (resumen)")).toBeTruthy();
+  });
+
+  it("cambia la descripción al seleccionar Analítico", () => {
+    const { container } = render(<CsvExportModal open={true} onClose={mockOnClose} showToast={mockShowToast} />);
+    fireEvent.click(screen.getByText("Analítico (resumen)"));
+    expect(container.textContent).toContain("Resume 3 caso(s) en el resumen analítico");
   });
 });

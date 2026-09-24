@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ClipboardList,
   MessageSquare,
@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   List,
   ShieldAlert,
+  FileText,
 } from "lucide-react";
 import { PasosView } from "./PasosView";
 import { SpeechsView } from "./SpeechsView";
@@ -24,8 +25,11 @@ import { ProlegalView } from "./ProlegalView";
 import { TransitoView } from "./TransitoView";
 import { MapeoView } from "./MapeoView";
 import { CondicionalesView } from "./CondicionalesView";
-import { TextInput } from "../common/TextInput";
+import { PlantillasView } from "./PlantillasView";
+import { SearchInput } from "../common/SearchInput";
 import useAppStore from '../../core/store/useAppStore';
+import { SubPills } from "../common/UINav";
+import { SectionHeader } from "../configuracion/ui";
 
 export function UtilesView({
   config,
@@ -55,20 +59,9 @@ export function UtilesView({
   casos,
   showToast,
 }) {
-  const [subvista, setSubvista] = useState(() => {
-    const saved = localStorage.getItem("utiles-tab-activa");
-    const validos = [
-      "condicionales", "pasos", "speechs", "objeciones", "conversacion",
-      "aseguradoras", "lesiones", "prolegal", "transito", "mapeo",
-    ];
-    return validos.includes(saved) ? saved : "condicionales";
-  });
+  const [subvista, setSubvista] = useState("condicionales");
   const [busqueda, setBusqueda] = useState("");
   const [vistaTabs, setVistaTabs] = useState("grid");
-
-  useEffect(() => {
-    localStorage.setItem("utiles-tab-activa", subvista);
-  }, [subvista]);
 
   const aseguradorasSugeridas = useMemo(() => {
     const set = new Set();
@@ -89,6 +82,20 @@ export function UtilesView({
     prolegal: { label: "Prolegal", icon: Briefcase },
     transito: { label: "Tránsito", icon: Car },
     mapeo: { label: "Estudios Jurídicos", icon: Building2 },
+    plantillas: { label: "Plantillas", icon: FileText },
+  };
+  const TAB_DESC = {
+    condicionales: "Planillas y reglas para el control de condiciones de tus casos.",
+    pasos: "Secuencia operativa paso a paso con tips y enlaces de utilidad.",
+    speechs: "Libretos de comunicación listos para usar en cada situación.",
+    objeciones: "Argumentos y respuestas ante objeciones frecuentes.",
+    conversacion: "Guiones de conversación sugerida para cada contexto.",
+    aseguradoras: "Directorio de aseguradoras y sus datos de contacto.",
+    lesiones: "Catálogo de lesiones y tipos de cobertura.",
+    prolegal: "Documentos y herramientas legales de apoyo.",
+    transito: "Registro de tránsito y datos de cobertura.",
+    mapeo: "Estudios jurídicos y ámbitos de actuación.",
+    plantillas: "Plantillas de documentos para reutilizar.",
   };
   const tabs = utilesTabOrder
     .filter((k) => TAB_DEFS[k])
@@ -116,6 +123,8 @@ export function UtilesView({
         return observacionesTransito.length;
       case "prolegal":
         return mapeo.length;
+      case "plantillas":
+        return 0;
       default:
         return 0;
     }
@@ -211,6 +220,8 @@ export function UtilesView({
         return (
           <MapeoView mapeo={mapeo} setMapeo={setMapeo} showToast={showToast} />
         );
+      case "plantillas":
+        return <PlantillasView showToast={showToast} config={config} />;
       default:
         return (
           <div
@@ -226,17 +237,11 @@ export function UtilesView({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search
-            size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-text-muted)" }}
-          />
-          <TextInput
+        <div className="flex-1 min-w-[180px]">
+          <SearchInput
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar en Utiles..."
-            className="pl-8"
           />
         </div>
 
@@ -271,55 +276,35 @@ export function UtilesView({
         </div>
       </div>
 
-      <div
-        className={`flex gap-1 flex-wrap ${
-          vistaTabs === "list" ? "flex-col" : ""
-        }`}
-      >
-        {tabsFiltrados.map(([k, label, Icon]) => {
+      <SubPills
+        items={tabsFiltrados.map(([k, label, Icon]) => {
           const badge = getBadge(k);
-          const isActive = subvista === k;
-          const badgeColor =
-            badge > 0 ? "var(--color-accent)" : "var(--color-text-muted)";
-
-          return (
-            <button
-              key={k}
-              onClick={() => setSubvista(k)}
-              className={`category-tab ${isActive ? "active" : ""} ${
-                vistaTabs === "list" ? "w-full justify-between" : ""
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Icon size={13} />
-                {label}
-              </span>
-              {badge > 0 && (
-                <span
-                  className="text-[10px] px-1.5 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : `${badgeColor}22`,
-                    color: isActive ? 'var(--color-text-on-accent)' : badgeColor,
-                  }}
-                >
-                  {badge}
-                </span>
-              )}
-            </button>
-          );
+          return { id: k, label, icon: Icon, badge: badge > 0 ? badge : undefined };
         })}
-        {tabsFiltrados.length === 0 && (
-          <div
-            className="text-sm py-4"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            No hay secciones que coincidan con la búsqueda.
-          </div>
-        )}
-      </div>
+        active={subvista}
+        onSelect={setSubvista}
+        ariaLabel="Secciones de Útiles"
+        className={vistaTabs === "list" ? "flex-col items-stretch" : ""}
+        itemClassName={vistaTabs === "list" ? "w-full justify-between" : ""}
+      />
+      {tabsFiltrados.length === 0 && (
+        <div
+          className="text-sm py-4"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          No hay secciones que coincidan con la búsqueda.
+        </div>
+      )}
+
+      <SectionHeader
+        icon={TAB_DEFS[subvista]?.icon}
+        titulo={TAB_DEFS[subvista]?.label || "Útiles"}
+        descripcion={TAB_DESC[subvista] || ""}
+        storageKey="utiles"
+      />
 
       <div
-        className="rounded-lg p-4"
+        className="rounded-xl p-4"
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",

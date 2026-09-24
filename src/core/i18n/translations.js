@@ -21,17 +21,6 @@ const translations = {
     search: { title: 'Global Search', noResults: 'No results' },
     common: { loading: 'Loading...', noData: 'No data', confirm: 'Are you sure?', success: 'Operation successful', error: 'An error occurred' },
   },
-  pt: {
-    appTitle: 'AppSeguimiento',
-    tabs: { dashboard: 'Dashboard', kanban: 'Quadro', tabla: 'Tabela', reportes: 'Relatórios', estadisticas: 'Estatísticas', utiles: 'Ferramentas', 'mi-espacio': 'Meu Espaço' },
-    actions: { nuevo: 'Novo caso', reporte: 'Relatório', buscar: 'Buscar por nome, telefone ou local...', guardar: 'Salvar', cancelar: 'Cancelar', eliminar: 'Excluir', cerrar: 'Fechar', editar: 'Editar' },
-    config: { titulo: 'Configurações', general: 'Geral', columnas: 'Colunas', apariencia: 'Aparência', datos: 'Dados' },
-    notif: { title: 'Notificações', empty: 'Sem notificações', markAllRead: 'Marcar todas lidas' },
-    calendar: { title: 'Calendário' },
-    notes: { title: 'Bloco de Notas' },
-    search: { title: 'Pesquisa Global', noResults: 'Sem resultados' },
-    common: { loading: 'Carregando...', noData: 'Sem dados', confirm: 'Tem certeza?', success: 'Operação bem-sucedida', error: 'Ocorreu um erro' },
-  },
 };
 
 export function getTranslations(lang) {

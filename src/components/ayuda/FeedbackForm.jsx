@@ -18,6 +18,7 @@ import { BtnOutline } from "../common/BtnOutline";
 import { TextArea } from "../common/TextArea";
 import { TextInput } from "../common/TextInput";
 import { sanitizeString } from "../../utils/sanitize";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 import { APP_VERSION } from "../../core/version";
 
 export function FeedbackForm({ showToast }) {
@@ -64,12 +65,7 @@ export function FeedbackForm({ showToast }) {
   };
 
   const copiarAlPortapapeles = async (texto) => {
-    try {
-      await navigator.clipboard.writeText(texto);
-      return true;
-    } catch {
-      return false;
-    }
+    return copyToClipboard(texto);
   };
 
   const handleSubmit = async (e) => {

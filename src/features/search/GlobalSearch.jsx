@@ -1,16 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign, Building2, Scale, Shield, History } from 'lucide-react';
+import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign, Building2, Scale, Shield, History, ClipboardList, Activity } from 'lucide-react';
 import useAppStore from '../../core/store/useAppStore';
+import casesDB from '../../core/db/casesDB';
 import { readConfig, formatDateWithConfig, formatPhoneWithConfig } from '../../utils/configFormatters';
 import { crearIndicesGlobal, buscarGlobal, buscarEntidades } from '../../utils/searchEngine';
-import TagsPills from '../../components/common/TagsPills';
+import { reportError } from '../../core/error/reportError';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
 
 const HISTORIAL_KEY = 'global-search-history';
 const RECENT_KEY = 'recent-entities-art-tracker';
 
-const EMPTY_RESULTS = { cases: [], notes: [], events: [], insurers: [], lawFirms: [], condicionales: [] };
+const EMPTY_RESULTS = { cases: [], notes: [], events: [], reportes: [], historial: [], insurers: [], lawFirms: [], condicionales: [] };
 const EMPTY_FLAT = [];
+
+const TYPE_META = {
+  case: { label: 'CASO', icon: User, color: 'var(--color-accent)' },
+  note: { label: 'NOTA', icon: FileText, color: 'var(--color-success)' },
+  event: { label: 'EVENTO', icon: Calendar, color: 'var(--chart-color-orange)' },
+  reporte: { label: 'REPORTE', icon: ClipboardList, color: 'var(--chart-color-contact)' },
+  historial: { label: 'HISTORIAL', icon: Activity, color: 'var(--chart-color-cases)' },
+  insurer: { label: 'ASEGURADORA', icon: Building2, color: 'var(--chart-color-warning)' },
+  lawFirm: { label: 'ESTUDIO', icon: Scale, color: 'var(--chart-color-cases)' },
+  condicional: { label: 'CONDICIONAL', icon: Shield, color: 'var(--color-danger)' },
+};
 
 const cargarHistorial = () => {
   try { return JSON.parse(localStorage.getItem(HISTORIAL_KEY) || '[]'); } catch { return []; }
@@ -22,17 +34,24 @@ const GroupHeader = React.memo(({ label }) => (
   </div>
 ));
 
-const ResultItem = React.memo(({ icon: Icon, title, subtitle, onSelect }) => (
+const ResultItem = React.memo(({ icon: Icon, title, subtitle, badge, color, onSelect }) => (
   <button
     onMouseDown={(e) => { e.preventDefault(); onSelect(); }}
     className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-white/5 transition-colors"
     style={{ borderBottom: '1px solid var(--color-border)' }}
   >
-    <Icon size={14} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />
+    <Icon size={14} style={{ color, flexShrink: 0 }} />
     <div className="min-w-0 flex-1">
       <div className="text-xs font-medium truncate" style={{ color: 'var(--color-text)' }}>{title}</div>
       <div className="text-ds-xs truncate" style={{ color: 'var(--color-text-muted)' }}>{subtitle}</div>
     </div>
+    <span
+      className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5"
+      style={{ backgroundColor: color + '22', color }}
+      aria-hidden="true"
+    >
+      {badge}
+    </span>
   </button>
 ));
 
@@ -46,8 +65,22 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [historial, setHistorial] = useState(cargarHistorial);
+  const [historialCasos, setHistorialCasos] = useState([]);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  // Indización del historial de casos (case_history) cuando se abre la búsqueda.
+  // Se carga una sola vez por apertura: los índices solo se recalculan cuando
+  // cambian los datos relevantes (casos, notas, eventos, configuración o historial).
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let activo = true;
+    setHistorialCasos([]);
+    casesDB.case_history.toArray()
+      .then((rows) => { if (activo) setHistorialCasos(rows); })
+      .catch((err) => reportError(err, { context: 'GlobalSearch:loadCaseHistory' }));
+    return () => { activo = false; };
+  }, [isOpen]);
 
   const [recientes, setRecientes] = useState([]);
   useEffect(() => {
@@ -76,7 +109,10 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     setQuery('');
   }, [setUIState]);
 
-  const indices = useMemo(() => crearIndicesGlobal({ cases, notes, events, cfg }), [cases, notes, events, cfg]);
+  const indices = useMemo(
+    () => crearIndicesGlobal({ cases, notes, events, cfg, historial: historialCasos }),
+    [cases, notes, events, cfg, historialCasos]
+  );
   const entityIndices = useMemo(() => ({ aseguradoras, mapeo, condicionales }), [aseguradoras, mapeo, condicionales]);
 
   const results = useMemo(() => {
@@ -100,6 +136,14 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     if (results.events.length > 0) {
       flat.push({ type: 'header', label: 'Eventos' });
       results.events.forEach((e) => flat.push({ type: 'event', data: e }));
+    }
+    if (results.reportes?.length > 0) {
+      flat.push({ type: 'header', label: 'Reportes' });
+      results.reportes.forEach((r) => flat.push({ type: 'reporte', data: r }));
+    }
+    if (results.historial?.length > 0) {
+      flat.push({ type: 'header', label: 'Historial' });
+      results.historial.forEach((h) => flat.push({ type: 'historial', data: h }));
     }
     if (results.insurers?.length > 0) {
       flat.push({ type: 'header', label: 'Aseguradoras' });
@@ -164,6 +208,9 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     if (item.type === 'case' && onSelectCase) onSelectCase(item.data.id);
     if (item.type === 'note' && onSelectNote) onSelectNote(item.data.id);
     if (item.type === 'event' && onSelectEvent) onSelectEvent(item.data.id);
+    if ((item.type === 'reporte' || item.type === 'historial') && item.data.caseId !== undefined && onSelectCase) {
+      onSelectCase(item.data.caseId);
+    }
     if ((item.type === 'insurer' || item.type === 'lawFirm') && onSelectEntity) onSelectEntity(item.type === 'insurer' ? 'insurer' : 'lawFirm', item.data.nombre || item.data);
     if (item.type === 'condicional' && onSelectEntity) onSelectEntity('condicional', item.data.aseguradora);
     close();
@@ -184,36 +231,54 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
       role="dialog"
       aria-modal="true"
       aria-label="Búsqueda global"
-      className="fixed inset-0 z-search flex items-start justify-center pt-[12vh]"
+      className="fixed inset-0 z-search flex items-start justify-center pt-[10vh]"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       onClick={close}
     >
       <div
-        className="rounded-xl w-full max-w-xl overflow-hidden shadow-2xl"
+        className="rounded-xl w-full max-w-3xl overflow-hidden shadow-2xl"
         style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center gap-2 px-4 py-3.5 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <Search size={16} style={{ color: 'var(--color-text-muted)' }} />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar casos, notas, eventos... (#etiqueta / @comentario)"
+            placeholder="Buscar casos, notas, eventos, reportes, historial... (#etiqueta / @comentario)"
             className="flex-1 bg-transparent border-none outline-none text-sm"
             style={{ color: 'var(--color-text)' }}
           />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              aria-label="Limpiar búsqueda"
+              className="p-1 rounded hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <X size={14} />
+            </button>
+          )}
+          {query.trim() && totalItems > 0 && (
+            <span
+              className="hidden sm:inline-flex items-center text-[10px] font-semibold rounded-full px-2 py-0.5 whitespace-nowrap"
+              style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
+            >
+              {totalItems} resultado{totalItems !== 1 ? 's' : ''}
+            </span>
+          )}
           <span className="hidden sm:flex items-center gap-1 text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
-            <span style={{ color: 'var(--color-accent)' }}><Hash size={10} />tag</span>
-            <span style={{ color: 'var(--color-accent)' }}><AtSign size={10} />comentario</span>
+            <span className="flex items-center" style={{ color: 'var(--color-accent)' }}><Hash size={10} />tag</span>
+            <span className="flex items-center" style={{ color: 'var(--color-accent)' }}><AtSign size={10} />comentario</span>
           </span>
           <button onClick={close} className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}>
             <X size={16} />
           </button>
         </div>
 
-        <div ref={listRef} className="max-h-[350px] overflow-y-auto">
+        <div ref={listRef} className="max-h-[420px] overflow-y-auto">
           {!query.trim() ? (
             recientes.length > 0 ? (
               <div>
@@ -268,11 +333,12 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
               if (r.type === 'header') return <GroupHeader key={`h-${idx}`} label={r.label} />;
               const itemIdx = getItemIndex(idx);
               const isSelected = itemIdx === selectedIndex;
+              const meta = TYPE_META[r.type] || { label: 'BUSCAR', icon: Search, color: 'var(--color-accent)' };
               const content = (() => {
                 if (r.type === 'case') {
                   const c = r.data;
                   const tags = (c.tags || []).slice(0, 3).map((t) => '#' + t).join(' ');
-                  return { icon: User, title: c.nombre || 'Sin nombre', subtitle: `${c.estado || '—'} | ${formatPhoneWithConfig(c.telefono) || '—'} | ${c.localidad || ''}${tags ? ' | ' + tags : ''}` };
+                  return { title: c.nombre || 'Sin nombre', subtitle: `${c.estado || '—'} | ${formatPhoneWithConfig(c.telefono) || '—'} | ${c.localidad || ''}${tags ? ' | ' + tags : ''}` };
                 }
                 if (r.type === 'note') {
                   const n = r.data;
@@ -285,7 +351,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                       }).filter(Boolean).join(', ')
                     : '';
                   const relationText = linkedCases ? ` | Caso: ${linkedCases}` : '';
-                  return { icon: FileText, title: n.title || 'Sin titulo', subtitle: `${tags || 'sin tags'} | ${formatDateWithConfig(n.updatedAt || n.createdAt || '')}${relationText}` };
+                  return { title: n.title || 'Sin titulo', subtitle: `${tags || 'sin tags'} | ${formatDateWithConfig(n.updatedAt || n.createdAt || '')}${relationText}` };
                 }
                 if (r.type === 'event') {
                   const e = r.data;
@@ -298,18 +364,32 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                       }).filter(Boolean).join(', ')
                     : '';
                   const relationText = linkedCases ? ` | Caso: ${linkedCases}` : '';
-                  return { icon: Calendar, title: e.title || 'Sin titulo', subtitle: `${formatDateWithConfig(e.startDate) || ''}${tags ? ' | ' + tags : ''} | ${e.status || ''}${relationText}` };
+                  return { title: e.title || 'Sin titulo', subtitle: `${formatDateWithConfig(e.startDate) || ''}${tags ? ' | ' + tags : ''} | ${e.status || ''}${relationText}` };
+                }
+                if (r.type === 'reporte') {
+                  const rep = r.data;
+                  return {
+                    title: rep.texto || 'Reporte',
+                    subtitle: `${rep.fecha ? '[' + rep.fecha + '] ' : ''}${rep.origen || ''} | Caso: ${rep.caseNombre}`,
+                  };
+                }
+                if (r.type === 'historial') {
+                  const h = r.data;
+                  return {
+                    title: h.title || 'Registro de historial',
+                    subtitle: `${formatDateWithConfig(h.timestamp) || ''} | Caso: ${h.caseNombre}`,
+                  };
                 }
                 if (r.type === 'insurer') {
-                  return { icon: Building2, title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                  return { title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
                 }
                 if (r.type === 'lawFirm') {
-                  return { icon: Scale, title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                  return { title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
                 }
                 if (r.type === 'condicional') {
-                  return { icon: Shield, title: r.data.aseguradora, subtitle: `${r.data.condicion} — ${r.data.estudioJuridico || ''}` };
+                  return { title: r.data.aseguradora, subtitle: `${r.data.condicion} — ${r.data.estudioJuridico || ''}` };
                 }
-                return { icon: Search, title: '', subtitle: '' };
+                return { title: '', subtitle: '' };
               })();
               return (
                 <div
@@ -317,7 +397,14 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                   style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
                   onMouseEnter={() => setSelectedIndex(itemIdx)}
                 >
-                  <ResultItem icon={content.icon} title={content.title} subtitle={content.subtitle} onSelect={() => handleSelect(r)} />
+                  <ResultItem
+                    icon={meta.icon}
+                    title={content.title}
+                    subtitle={content.subtitle}
+                    badge={meta.label}
+                    color={meta.color}
+                    onSelect={() => handleSelect(r)}
+                  />
                 </div>
               );
             })
