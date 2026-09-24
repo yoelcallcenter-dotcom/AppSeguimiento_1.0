@@ -328,6 +328,21 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.8.9] - Fix de saltos de pantalla al abrir modales
+
+Release de bug fix: al abrir modales, sidebars, el buscador global o el tour, la barra de scroll desaparecía y todo el layout saltaba (y volvía a saltar al cerrar).
+
+### Correcciones
+
+- **Fix**: \`bodyScrollLock\` compensa el ancho de la barra de scroll con \`padding-right\` en \`body\` al bloquear el scroll y lo restaura exactamente al desbloquear (respetando el padding previo y el contador de overlays anidados). Abrir/cerrar cualquier overlay ya no elimina la barra de scroll ni desplaza el contenido.
+
+### Mantenimiento
+
+- Nuevos tests \`src/utils/bodyScrollLock.test.js\` (5 tests): compensación con y sin barra, padding previo, locks anidados y unlock huérfano. Suite: **726 tests en verde**.
+- Bump a **1.8.9** en \`version.js\`, \`package.json\` y \`package-lock.json\`.
+
+---
+
 ## [1.8.8] - Sidebars unificados y header reorganizado
 
 Release que reorganiza el header principal y unifica Filtros, Exportar CSV y Centro de Notificaciones en tres sidebars con la misma lógica visual de pills del resto de la app. Incluye además el filtro global de casos (work de 1.8.7, sin entry previa).
