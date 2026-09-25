@@ -39,6 +39,15 @@ describe("UINav", () => {
     expect(screen.getByText("5")).toBeTruthy();
   });
 
+  it("SubPills singleLine usa tab-strip sin envolver a segunda línea", () => {
+    const onSelect = vi.fn();
+    render(<SubPills items={items} active="metas" onSelect={onSelect} singleLine />);
+    const grupo = screen.getByRole("group");
+    expect(grupo.className).toContain("tab-strip");
+    expect(grupo.className).toContain("scrollbar-hide");
+    expect(grupo.className).not.toContain("flex-wrap");
+  });
+
   it("NavDock es accesible por aria-label", () => {
     const onSelect = vi.fn();
     render(<NavDock items={items} active="hoy" onSelect={onSelect} ariaLabel="Secciones" />);

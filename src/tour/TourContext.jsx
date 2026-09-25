@@ -165,7 +165,7 @@ export function TourProvider({ children }) {
   }, [state.isActive, finished, measureAndScroll]);
 
   useEffect(() => {
-    return () => { clearHighlight(); document.body.style.overflow = ""; };
+    return () => { clearHighlight(); };
   }, [clearHighlight]);
 
   const startTour = useCallback((tourId) => {

@@ -320,56 +320,45 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div
-          className="text-sm font-semibold"
-          style={{ color: "var(--color-text)" }}
-        >
-          Estudios Jurídicos
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <div className="flex gap-2 items-center flex-wrap">
-          <div>
-            <SearchInput
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar..."
-              style={{ width: 220 }}
-            />
-          </div>
-          <Select
-            value={ordenarPor}
-            onChange={(e) => setOrdenarPor(e.target.value)}
-            options={[
-              { value: "estudio", label: "Por Estudio" },
-              { value: "provincia", label: "Por Provincia" },
-              { value: "localidades", label: "Por Localidades" },
-              { value: "direcciones", label: "Por Dirección" },
-            ]}
-            style={{ width: 150 }}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div>
+          <SearchInput
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar..."
+            style={{ width: 220 }}
           />
-          <BtnOutline
-            onClick={exportar}
-            icon={FileText}
-            size="sm"
-            color="var(--color-accent)"
-          >
-            Exportar
-          </BtnOutline>
-          <BtnOutline
-            onClick={() => setShowImport((s) => !s)}
-            icon={Upload}
-            size="sm"
-            color="var(--color-accent)"
-          >
-            Importar
-          </BtnOutline>
-          <Btn onClick={addRow} icon={Plus} size="sm">
-            Fila
-          </Btn>
         </div>
+        <Select
+          value={ordenarPor}
+          onChange={(e) => setOrdenarPor(e.target.value)}
+          options={[
+            { value: "estudio", label: "Por Estudio" },
+            { value: "provincia", label: "Por Provincia" },
+            { value: "localidades", label: "Por Localidades" },
+            { value: "direcciones", label: "Por Dirección" },
+          ]}
+          style={{ width: 150 }}
+        />
+        <Btn onClick={addRow} icon={Plus} size="sm">
+          Fila
+        </Btn>
+        <BtnOutline
+          onClick={exportar}
+          icon={FileText}
+          size="sm"
+          color="var(--color-accent)"
+        >
+          Exportar
+        </BtnOutline>
+        <BtnOutline
+          onClick={() => setShowImport((s) => !s)}
+          icon={Upload}
+          size="sm"
+          color="var(--color-accent)"
+        >
+          Importar
+        </BtnOutline>
       </div>
 
       {showImport && (

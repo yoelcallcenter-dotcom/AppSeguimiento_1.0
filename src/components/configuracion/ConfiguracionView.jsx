@@ -9,7 +9,7 @@ import {
   LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sun,
   CalendarDays, ListTodo, Zap, Lock, Columns, MoreHorizontal, GitBranch,
   ListOrdered, MessageSquare, MessagesSquare, ShieldAlert, HeartPulse, Scale, Car, FileSearch,
-  BarChart3, Building2, Filter,
+  BarChart3, Building2, Filter, ClipboardPaste,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -27,8 +27,9 @@ import {
   DASH_WIDGET_REGISTRY,
   getOrderedDashWidgets,
 } from "../../features/dashboard/dashboardConfig";
-import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS } from '../../utils/constants';
-import { getEstados, getTiposIngreso, getTemplateCategories } from '../../utils/catalogos';
+import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS, DEFAULT_FICHA_FIELDS, FICHA_TARGET_OPCIONES } from '../../utils/constants';
+import { getEstados, getTiposIngreso, getTemplateCategories, getFichaFields } from '../../utils/catalogos';
+import { normalizarTexto } from '../../utils/helpers';
 import { getAllTemplates } from '../../features/templates/templatesStore';
 import {
   FORMATOS_FECHA, FORMATOS_TELEFONO, OPCIONES_CASOS_POR_PAGINA, COLUMNAS_DISPONIBLES,
@@ -106,6 +107,7 @@ const SECTION_META = {
   "dashboard-config": "Métricas visibles, widgets, categorías de estado y reglas de alerta del Dashboard.",
   "estados-caso": "Estados del pipeline de casos y su configuración.",
   "tipos-ingreso": "Tipos de ingreso detectados al pegar una ficha.",
+  "ficha-fields": "Etiquetas, palabras clave y destino de cada campo al pegar una ficha.",
   importacion: "Importación de casos desde CSV y mapeo de columnas.",
   diagnostico: "Autodiagnóstico, logs y estado general del sistema.",
 };
@@ -199,6 +201,7 @@ export function ConfiguracionView({
   const [ncPreviewData, setNcPreviewData] = useState(null);
   const backupFileInputRef = useRef(null);
   const [pendingRestore, setPendingRestore] = useState(null);
+  const [checksumMismatch, setChecksumMismatch] = useState(false);
   const [restoreConfirmText, setRestoreConfirmText] = useState("");
   const [bloqueoVaciado, setBloqueoVaciado] = useState(null);
   const [backupStats, setBackupStats] = useState(null);
@@ -354,6 +357,7 @@ export function ConfiguracionView({
         { id: "dashboard-config", label: "Dashboard", icon: LayoutDashboard },
         { id: "estados-caso", label: "Estados de Caso", icon: CircleDot },
         { id: "tipos-ingreso", label: "Tipos de Ingreso", icon: Tag },
+        { id: "ficha-fields", label: "Pegado de Ficha", icon: ClipboardPaste },
         { id: "importacion", label: "Importación", icon: FileUp },
         { id: "diagnostico", label: "Diagnóstico", icon: Bug },
       ],
@@ -825,7 +829,19 @@ export function ConfiguracionView({
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const { backup, error } = await backupService.parseBackupJSON(e.target.result);
+        setChecksumMismatch(false);
+        const { backup, error, checksumMismatch: mismatch } =
+          await backupService.parseBackupJSON(e.target.result);
+        if (mismatch) {
+          setPendingRestore(backup);
+          setChecksumMismatch(true);
+          showToast(
+            "El checksum no coincide: el archivo pudo haber sido alterado. Podés importarlo igualmente desde la confirmación.",
+            "warning",
+            6000
+          );
+          return;
+        }
         if (error || !backup) {
           showToast(error || "Backup inválido", "error");
           return;
@@ -863,6 +879,7 @@ export function ConfiguracionView({
         eventos: config.importRestoreEventos !== false,
         config: config.importRestoreConfig !== false,
         permitirVaciar: forzarVaciado === true,
+        omitirChecksum: checksumMismatch === true,
       });
       const partes = [];
       if (result.counts?.cases != null) partes.push(`${result.counts.cases} casos`);
@@ -897,6 +914,7 @@ export function ConfiguracionView({
       if (!retenerPendiente) {
         setPendingRestore(null);
         setRestoreConfirmText("");
+        setChecksumMismatch(false);
       }
     }
   };
@@ -905,6 +923,7 @@ export function ConfiguracionView({
     setPendingRestore(null);
     setRestoreConfirmText("");
     setBloqueoVaciado(null);
+    setChecksumMismatch(false);
   };
 
   // ============ ELIMINAR ÚTILES ============
@@ -1686,10 +1705,11 @@ export function ConfiguracionView({
                 Arrastrá para reordenar las pestañas internas de la vista Útiles
               </div>
               <ViewSectionEditor items={utilesTabOrder} setItems={setUtilesTabOrder} labels={{
-                condicionales: 'Condicionales', pasos: 'Pasos a Seguir', speechs: 'Speechs',
-                objeciones: 'Objeciones', conversacion: 'Conversaciones',
-                aseguradoras: 'Aseguradoras', lesiones: 'Lesiones', prolegal: 'Prolegal',
-                transito: 'Tránsito', mapeo: 'Estudios Jurídicos',
+                speechs: 'Speechs', objeciones: 'Objeciones',
+                conversacion: 'Conversación Sugerida', pasos: 'Pasos a Seguir',
+                aseguradoras: 'Aseguradoras', mapeo: 'Estudios Jurídicos',
+                lesiones: 'Lesiones', transito: 'Tránsito', prolegal: 'Prolegal',
+                condicionales: 'Condicionales', plantillas: 'Plantillas',
               }} iconMap={UTILES_ICONS} />
             </div>
           </div>
@@ -2125,6 +2145,21 @@ export function ConfiguracionView({
                     Exportado: {pendingRestore.timestamp ? new Date(pendingRestore.timestamp).toLocaleString() : "—"}.
                     Esta acción es irreversible.
                   </div>
+                  {checksumMismatch && (
+                    <div
+                      className="mb-2 rounded-lg p-2"
+                      style={{ backgroundColor: "#F59E0B22", border: "1px solid #F59E0B66" }}
+                      role="alert"
+                    >
+                      <div className="text-[11px] font-bold mb-0.5" style={{ color: "#F59E0B" }}>
+                        Checksum no coincide
+                      </div>
+                      <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                        El archivo pudo haber sido alterado o corrompido. Si confiás en su
+                        origen, podés importarlo igualmente.
+                      </div>
+                    </div>
+                  )}
                   <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--color-text)" }}>
                     Qué restaurar (por defecto en Avanzado &gt; Importación):
                   </div>
@@ -2154,7 +2189,7 @@ export function ConfiguracionView({
                       icon={AlertTriangle}
                       disabled={loading || restoreConfirmText.trim().toUpperCase() !== "RESTAURAR"}
                     >
-                      Restaurar
+                      {checksumMismatch ? "Importar igualmente" : "Restaurar"}
                     </Btn>
                     <BtnOutline onClick={handleCancelRestore} size="sm" color="var(--color-text-muted)">
                       Cancelar
@@ -2973,6 +3008,154 @@ export function ConfiguracionView({
           </div>
         );
 
+      case "ficha-fields": {
+        const fichaList = getFichaFields(config);
+
+        const actualizarCampoFicha = (idx, campo, valor) => {
+          const next = [...fichaList];
+          next[idx] = { ...next[idx], [campo]: valor };
+          actualizarConfig("fichaFields", next);
+        };
+
+        const moverCampoFicha = (idx, delta) => {
+          const j = idx + delta;
+          if (j < 0 || j >= fichaList.length) return;
+          const next = [...fichaList];
+          [next[idx], next[j]] = [next[j], next[idx]];
+          actualizarConfig("fichaFields", next);
+        };
+
+        const agregarCampoFicha = () => {
+          actualizarConfig("fichaFields", [
+            ...fichaList,
+            { id: `campo-${Date.now()}`, label: "NUEVO CAMPO", keywords: [], target: "" },
+          ]);
+        };
+
+        const eliminarCampoFicha = (idx) => {
+          actualizarConfig("fichaFields", fichaList.filter((_, i) => i !== idx));
+        };
+
+        const restaurarFicha = () => {
+          actualizarConfig("fichaFields", DEFAULT_FICHA_FIELDS);
+          showToast("Campos de ficha restaurados", "info");
+        };
+
+        const keywordsDuplicadas = [];
+        const keywordsVistas = new Set();
+        for (const campo of fichaList) {
+          for (const kw of campo.keywords || []) {
+            const k = normalizarTexto(kw);
+            if (!k) continue;
+            if (keywordsVistas.has(k)) {
+              if (!keywordsDuplicadas.includes(k)) keywordsDuplicadas.push(k);
+            } else {
+              keywordsVistas.add(k);
+            }
+          }
+        }
+
+        return (
+          <div className="space-y-4">
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <ClipboardPaste size={14} color="var(--color-accent)" />
+                Campos de la ficha
+              </div>
+              <div className="text-[10px] mb-3" style={{ color: "var(--color-text-muted)" }}>
+                Define cómo se interpreta el texto que pegás en "Pegar ficha
+                completa" (Nuevo Caso). La etiqueta se reconoce al inicio de
+                una línea seguida de ":" o "-", sin distinguir mayúsculas ni
+                acentos; el orden de la lista es el orden de evaluación.
+              </div>
+              {keywordsDuplicadas.length > 0 && (
+                <div
+                  className="rounded p-2 text-[10px] flex items-start gap-1.5 mb-3"
+                  style={{ backgroundColor: "#F59E0B22", border: "1px solid #F59E0B", color: "#F59E0B" }}
+                  role="alert"
+                >
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    Palabras clave repetidas (gana la primera de la lista):{" "}
+                    {keywordsDuplicadas.join(", ")}
+                  </span>
+                </div>
+              )}
+              <div className="space-y-2">
+                {fichaList.map((f, idx) => (
+                  <div key={`${f.id}-${idx}`} className="flex items-center gap-2 flex-wrap" style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "8px" }}>
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        onClick={() => moverCampoFicha(idx, -1)}
+                        className="p-1 rounded transition-colors hover:bg-[var(--color-surface)]"
+                        style={{ color: "var(--color-text-muted)" }}
+                        aria-label={`Subir ${f.label || "campo"}`}
+                        disabled={idx === 0}
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        onClick={() => moverCampoFicha(idx, 1)}
+                        className="p-1 rounded transition-colors hover:bg-[var(--color-surface)]"
+                        style={{ color: "var(--color-text-muted)" }}
+                        aria-label={`Bajar ${f.label || "campo"}`}
+                        disabled={idx === fichaList.length - 1}
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+                    <TextInput
+                      value={f.label}
+                      onChange={(ev) => actualizarCampoFicha(idx, "label", ev.target.value)}
+                      className="w-32"
+                      placeholder="Etiqueta"
+                    />
+                    <TextInput
+                      value={(f.keywords || []).join(", ")}
+                      onChange={(ev) => actualizarCampoFicha(idx, "keywords", ev.target.value.split(",").map((k) => k.trim()).filter(Boolean))}
+                      className="min-w-[180px] flex-1"
+                      placeholder="Palabras clave (separadas por coma)"
+                    />
+                    <select
+                      value={f.target || ""}
+                      onChange={(ev) => actualizarCampoFicha(idx, "target", ev.target.value)}
+                      className="text-[10px] px-1.5 py-1 rounded"
+                      style={{ backgroundColor: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
+                      aria-label={`Destino de ${f.label || "campo"}`}
+                    >
+                      {FICHA_TARGET_OPCIONES.map((o) => (
+                        <option key={o.v || "ignorar"} value={o.v}>{o.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => eliminarCampoFicha(idx)}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--color-surface)]"
+                      style={{ color: "var(--color-danger)" }}
+                      aria-label={`Eliminar ${f.label || "campo"}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <Btn onClick={agregarCampoFicha} size="sm" icon={Plus}>Agregar campo</Btn>
+                <BtnOutline onClick={restaurarFicha} size="sm" color="var(--color-text-muted)">Restaurar por defecto</BtnOutline>
+              </div>
+            </div>
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
+              <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
+                <p>• El orden de la lista es el orden en que se evalúan las etiquetas al pegar.</p>
+                <p>• La primera ocurrencia de una etiqueta es la que se usa; las siguientes se ignoran.</p>
+                <p>• Un campo sin palabras clave no se detecta; con destino "Ignorar" el valor se descarta.</p>
+                <p>• Los cambios se guardan junto con la configuración y los backups.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       case "diagnostico":
         return <SystemLogs />;
 
@@ -3293,6 +3476,8 @@ export function ConfiguracionView({
                 </div>
                 <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
                   {utilesPreviewData.keys.length} configuraciones &mdash; Revisa antes de importar
+                  {utilesPreviewData.version ? ` · v${utilesPreviewData.version}` : ""}
+                  {utilesPreviewData.fecha ? ` · ${utilesPreviewData.fecha}` : ""}
                 </div>
               </div>
               <button
@@ -3323,9 +3508,14 @@ export function ConfiguracionView({
                       >
                         <td className="px-3 py-1.5 text-[11px] whitespace-nowrap" style={{ color: "var(--color-text)" }}>{key}</td>
                         <td className="px-3 py-1.5 text-[11px]" style={{ color: "var(--color-text-muted)" }}>
-                          {formatUtilesValue(utilesPreviewData.config[key]) || (
-                            <span style={{ color: "var(--color-text-muted)" }}>&mdash;</span>
-                          )}
+                          <pre
+                            className="m-0 whitespace-pre-wrap break-all"
+                            style={{ fontFamily: "inherit", fontSize: "inherit", color: "inherit" }}
+                          >
+                            {formatUtilesValue(utilesPreviewData.config[key]) || (
+                              <span style={{ color: "var(--color-text-muted)" }}>&mdash;</span>
+                            )}
+                          </pre>
                         </td>
                       </tr>
                     ))}
@@ -3685,6 +3875,7 @@ const UTILES_ICONS = {
   prolegal: Scale,
   transito: Car,
   mapeo: FileSearch,
+  plantillas: FileText,
 };
 
 function MiEspacioOrderEditor() {

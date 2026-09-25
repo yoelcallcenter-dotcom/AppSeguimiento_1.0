@@ -25,7 +25,7 @@ export const ORDENES_DEFAULT = {
   kanbanSections: ['pipelineBar', 'columnas'],
   tablaSections: ['pipelineBar', 'tabla', 'paginacion'],
   reportesSections: ['pipelineBar', 'lista', 'paginacion'],
-  utilesTabOrder: ['condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion', 'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo', 'plantillas'],
+  utilesTabOrder: ['speechs', 'objeciones', 'conversacion', 'pasos', 'aseguradoras', 'mapeo', 'lesiones', 'transito', 'prolegal', 'condicionales', 'plantillas'],
 };
 
 const useAppStore = create(

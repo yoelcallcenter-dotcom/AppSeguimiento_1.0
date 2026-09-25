@@ -45,31 +45,73 @@ function safeJSONParse(value, fallback = null) {
 }
 
 /**
- * Computa un checksum (SHA-256 cuando está disponible) del payload.
- * Fallback a un hash FNV-1a para entornos sin WebCrypto (tests/SSR).
+ * Serialización canónica del payload para checksum: normaliza valores
+ * (Date, undefined) como JSON.stringify y ordena TODAS las claves de forma
+ * recursiva, de modo que dos payloads con el mismo contenido pero distinto
+ * orden de claves producen el mismo checksum.
  */
-export async function computeChecksum(payload) {
-  const json = JSON.stringify(payload);
-  try {
-    if (globalThis.crypto && globalThis.crypto.subtle) {
-      const buf = await globalThis.crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(json)
-      );
-      return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    }
-  } catch {
-    /* fallthrough to FNV-1a */
-  }
-  // FNV-1a 32-bit
+function canonicalJSON(value) {
+  const plain = JSON.parse(JSON.stringify(value));
+  const build = (v) => {
+    if (v === null || typeof v !== "object") return JSON.stringify(v);
+    if (Array.isArray(v)) return `[${v.map(build).join(",")}]`;
+    const keys = Object.keys(v).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${build(v[k])}`).join(",")}}`;
+  };
+  return build(plain);
+}
+
+async function sha256Hex(json) {
+  const buf = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(json)
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function fnv1aHex(json) {
   let hash = 0x811c9dc5;
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
-  return `fnv-${(hash >>> 0).toString(16)}`;
+  return (hash >>> 0).toString(16);
+}
+
+/**
+ * Computa el checksum canónico del payload: {alg, sum}.
+ * - sha256 cuando WebCrypto está disponible (navegadores y Node moderno).
+ * - fnv1a como fallback para entornos sin WebCrypto (tests/SSR).
+ */
+export async function computeChecksum(payload) {
+  const json = canonicalJSON(payload);
+  try {
+    if (globalThis.crypto && globalThis.crypto.subtle) {
+      return { alg: "sha256", sum: await sha256Hex(json) };
+    }
+  } catch {
+    /* fallthrough to FNV-1a */
+  }
+  return { alg: "fnv1a", sum: fnv1aHex(json) };
+}
+
+/**
+ * Checksum legacy (string plano): reproduce exactamente el algoritmo
+ * anterior (JSON.stringify con el orden de claves original) para poder
+ * verificar backups creados antes del formato {alg, sum}.
+ */
+async function computeLegacyChecksum(payload) {
+  const json = JSON.stringify(payload);
+  try {
+    if (globalThis.crypto && globalThis.crypto.subtle) {
+      return await sha256Hex(json);
+    }
+  } catch {
+    /* fallthrough to FNV-1a */
+  }
+  return `fnv-${fnv1aHex(json)}`;
 }
 
 async function readTable(dbName, tableName) {
@@ -138,12 +180,35 @@ export function validateBackup(backup) {
 
 /**
  * Verifica el checksum del backup (si está presente).
+ * Acepta el formato canónico {alg, sum} y el legacy string (sha256/fnv-).
  * @returns {Promise<boolean>} true si coincide o no hay checksum.
  */
 export async function verifyChecksum(backup) {
   if (!backup.checksum || !backup.data) return true;
-  const expected = await computeChecksum(backup.data);
-  return expected === backup.checksum;
+
+  if (typeof backup.checksum === "string") {
+    try {
+      const legacy = await computeLegacyChecksum(backup.data);
+      return legacy === backup.checksum;
+    } catch {
+      return false;
+    }
+  }
+
+  const { alg, sum } = backup.checksum || {};
+  if (!alg || !sum) return false;
+  if (alg === "fnv1a") {
+    return fnv1aHex(canonicalJSON(backup.data)) === sum;
+  }
+  if (alg === "sha256") {
+    try {
+      if (!(globalThis.crypto && globalThis.crypto.subtle)) return false;
+      return (await sha256Hex(canonicalJSON(backup.data))) === sum;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 /**
@@ -170,15 +235,19 @@ export function backupSizeKB(backup) {
  * @param {boolean} [options.permitirVaciar=false] Integridad 1.3.3: permite
  *        explícitamente que una restauración con 0 casos vacíe la colección
  *        existente (requiere confirmación del usuario en la UI).
+ * @param {boolean} [options.omitirChecksum=false] Importa igualmente un backup
+ *        cuyo checksum no coincide, a pedido explícito del usuario (queda
+ *        registrado como advertencia en el resultado).
  * @returns {Promise<{counts: object, migration?: object, warnings: string[], safeguardId: number|null}>}
  */
 export async function importBackup(backup, options = {}) {
   // Aplicar migración si el backup es de un formato anterior.
   let effectiveBackup = backup;
   let migrationInfo = null;
+  const warnings = [];
 
   if (needsMigration(backup)) {
-    const { migrated, applied, warnings } = migrateBackup(backup);
+    const { migrated, applied, warnings: migWarnings } = migrateBackup(backup);
     const errors = validateMigratedBackup(migrated);
     if (errors.length > 0) {
       throw new Error(
@@ -186,7 +255,7 @@ export async function importBackup(backup, options = {}) {
       );
     }
     effectiveBackup = migrated;
-    migrationInfo = { applied, warnings };
+    migrationInfo = { applied, warnings: migWarnings };
   }
 
   const errors = validateBackup(effectiveBackup);
@@ -195,15 +264,14 @@ export async function importBackup(backup, options = {}) {
   const checksumOk = await verifyChecksum(effectiveBackup);
   if (!checksumOk) {
     if (migrationInfo) {
-      // Recalcular checksum del payload migrado para detectar corrupción
-      const recalculated = await computeChecksum(effectiveBackup.data);
-      if (recalculated === effectiveBackup.checksum) {
-        warnings.push('Checksum verificado post-migración.');
-      } else {
-        warnings.push(
-          'Advertencia: el checksum no coincide después de la migración. Los datos pudieran estar corruptos.'
-        );
-      }
+      // El payload migrado cambió respecto del original: se recalcula el
+      // checksum sobre el contenido realmente importado.
+      effectiveBackup.checksum = await computeChecksum(effectiveBackup.data);
+      warnings.push('Checksum recalculado tras la migración del backup.');
+    } else if (options.omitirChecksum === true) {
+      warnings.push(
+        'El checksum no coincide pero el backup se importó igualmente a pedido del usuario.'
+      );
     } else {
       throw new Error("El backup está corrupto (checksum no coincide)");
     }
@@ -220,7 +288,6 @@ export async function importBackup(backup, options = {}) {
 
   const db = effectiveBackup.data.db || {};
   const storage = effectiveBackup.data.storage || {};
-  const warnings = [];
 
   // ============================================================
   // INTEGRIDAD (1.3.3): protección contra reemplazos que vacían datos.
@@ -473,17 +540,27 @@ export async function importBackup(backup, options = {}) {
 
 /**
  * Parsea y valida el contenido de un archivo de backup.
+ * El BOM inicial se elimina antes de parsear. Cuando el checksum no coincide
+ * se devuelve el backup junto con `checksumMismatch: true` para que la UI
+ * ofrezca importarlo igualmente.
  * @param {string} json contenido del archivo.
- * @returns {Promise<{backup: object|null, error: string|null}>}
+ * @returns {Promise<{backup: object|null, error: string|null, checksumMismatch?: boolean}>}
  */
 export async function parseBackupJSON(json) {
-  const backup = safeJSONParse(json, null);
+  const texto =
+    typeof json === "string" ? json.replace(/^\uFEFF/, "") : json;
+  const backup = safeJSONParse(texto, null);
   if (!backup) return { backup: null, error: "El archivo no es un JSON válido" };
   const errors = validateBackup(backup);
   if (errors.length > 0) return { backup: null, error: errors.join(". ") };
   const checksumOk = await verifyChecksum(backup);
   if (!checksumOk && !needsMigration(backup)) {
-    return { backup: null, error: "El backup está corrupto (checksum no coincide)" };
+    return {
+      backup,
+      error:
+        "El checksum no coincide: el archivo pudo haber sido alterado o corrompido.",
+      checksumMismatch: true,
+    };
   }
   return { backup, error: null };
 }

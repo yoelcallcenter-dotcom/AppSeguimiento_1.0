@@ -1,12 +1,12 @@
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
 import { MultiSelect } from '../../../components/common/MultiSelect';
-import { FilterBar, FilterGroup } from '../../../components/common/filters';
+import { FilterBar, FilterGroup, FilterCounter } from '../../../components/common/filters';
 import { normalizarValorFiltro } from '../../../context/FiltersContext';
 
 const DIMENSIONES = ['estado', 'aseguradora', 'localidad', 'estudio', 'provincia', 'tipo'];
 
-export default function DashboardFilters({ filters, onChange, options, onReset }) {
+export default function DashboardFilters({ filters, onChange, options, onReset, total }) {
   const set = (key) => (vals) => onChange({ ...filters, [key]: vals });
 
   const fields = [
@@ -44,9 +44,10 @@ export default function DashboardFilters({ filters, onChange, options, onReset }
           style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface2)' }}
         >
           <RotateCcw size={12} />
-          Limpiar filtros
+          Limpiar sección
         </button>
       )}
+      <FilterCounter total={total} label="caso" />
       <span className="flex items-center gap-1 text-xs pb-2.5" style={{ color: 'var(--color-text-muted)' }}>
         <Filter size={12} />
         Filtros analíticos

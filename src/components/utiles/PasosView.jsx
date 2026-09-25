@@ -50,13 +50,7 @@ export function PasosView({
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <div
-            className="text-sm font-semibold"
-            style={{ color: "var(--color-text)" }}
-          >
-            Pasos a Seguir
-          </div>
+        <div className="flex items-center justify-end mb-2 flex-wrap gap-2">
           <Btn
             onClick={() =>
               agregar(pasos, setPasos, {

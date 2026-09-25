@@ -35,9 +35,9 @@ export default function WeeklyTrend({ data, desc, title }) {
               />
               <Legend wrapperStyle={{ fontSize: 11, color: 'var(--color-text-muted)' }} />
               <ReferenceLine yAxisId="der" y={50} stroke="var(--color-accent)" strokeDasharray="4 4" strokeOpacity={0.35} />
-              <Bar yAxisId="izq" dataKey="total" name="Casos" fill="var(--chart-color-cases)" radius={[4, 4, 0, 0]} barSize={18} />
-              <Bar yAxisId="izq" dataKey="firmas" name="Firmas" fill="var(--chart-color-signed)" radius={[4, 4, 0, 0]} barSize={18} />
-              <Line yAxisId="der" type="monotone" dataKey="conversion" name="Conversión" stroke="var(--chart-color-conversion)" strokeWidth={2} dot={{ r: 3 }} />
+              <Bar yAxisId="izq" dataKey="total" name="Casos" fill="var(--chart-color-cases)" radius={[4, 4, 0, 0]} barSize={18} isAnimationActive={false} />
+              <Bar yAxisId="izq" dataKey="firmas" name="Firmas" fill="var(--chart-color-signed)" radius={[4, 4, 0, 0]} barSize={18} isAnimationActive={false} />
+              <Line yAxisId="der" type="monotone" dataKey="conversion" name="Conversión" stroke="var(--chart-color-conversion)" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

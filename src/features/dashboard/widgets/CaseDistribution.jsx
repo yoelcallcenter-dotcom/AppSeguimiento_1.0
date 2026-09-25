@@ -38,6 +38,7 @@ export default function CaseDistribution({ data, onDrill, desc }) {
                   innerRadius={45}
                   outerRadius={80}
                   paddingAngle={2}
+                  isAnimationActive={false}
                   onClick={(entry) => onDrill && entry?.name !== 'Otros' && onDrill({ tipo: 'estado', valor: entry.name })}
                   style={{ cursor: 'pointer', outline: 'none' }}
                 >

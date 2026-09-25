@@ -76,17 +76,19 @@ const NotificationItem = React.memo(function NotificationItem({ n, onMarkAsRead,
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          {!n.read && (
+          <span className="flex items-center gap-1.5 min-w-0">
+            {!n.read && (
+              <span
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: "var(--color-accent)" }}
+              />
+            )}
             <span
-              className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "var(--color-accent)" }}
-            />
-          )}
-          <span
-            className="text-xs font-semibold truncate"
-            style={{ color: "var(--color-text)" }}
-          >
-            {n.title}
+              className="text-xs font-semibold truncate"
+              style={{ color: "var(--color-text)" }}
+            >
+              {n.title}
+            </span>
           </span>
           <span
             className="text-[10px] flex-shrink-0"

@@ -47,6 +47,7 @@ export default React.memo(function StudyBars({ data, onDrill, desc }) {
                 name="Casos"
                 radius={[0, 4, 4, 0]}
                 barSize={20}
+                isAnimationActive={false}
                 onClick={(entry) => onDrill && onDrill({ tipo: 'estudioJuridico', valor: entry.key })}
                 style={{ cursor: 'pointer', outline: 'none' }}
               >

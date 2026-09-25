@@ -40,9 +40,9 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
   );
 }
 
-export function SubPills({ items, active, onSelect, className = "", style, ariaLabel, itemClassName = "" }) {
+export function SubPills({ items, active, onSelect, className = "", style, ariaLabel, itemClassName = "", singleLine = false }) {
   return (
-    <div className={`flex flex-wrap gap-1 ${className}`.trim()} style={style} role="group" aria-label={ariaLabel}>
+    <div className={`flex ${singleLine ? "tab-strip scrollbar-hide" : "flex-wrap"} gap-1 ${className}`.trim()} style={style} role="group" aria-label={ariaLabel}>
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.id === active;

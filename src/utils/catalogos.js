@@ -6,7 +6,13 @@
  * los haya personalizado todavía.
  */
 
-import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS } from "./constants";
+import {
+  ESTADOS,
+  TIPOS_INGRESO_SUGERIDOS,
+  TEMPLATE_CATEGORIES_SUGERIDOS,
+  DEFAULT_FICHA_FIELDS,
+  FICHA_TARGET_OPCIONES,
+} from "./constants";
 import { normalizarTexto } from "./helpers";
 
 /**
@@ -123,6 +129,51 @@ export function getTemplateCategories(config) {
     return list;
   }
   return TEMPLATE_CATEGORIES_SUGERIDOS;
+}
+
+const FICHA_TARGETS_VALIDOS = new Set(FICHA_TARGET_OPCIONES.map((o) => o.v));
+
+/**
+ * Garantiza que un campo de ficha tenga siempre id, label, keywords y un
+ * target válido aunque venga de una configuración de una versión anterior.
+ * Campos sin palabras clave o con destino "Ignorar" quedan inactivos.
+ */
+function rehidratarCampoFicha(campo, orden) {
+  const keywords = Array.isArray(campo?.keywords)
+    ? campo.keywords.filter((k) => typeof k === "string" && k.trim())
+    : [];
+  const id =
+    typeof campo?.id === "string" && campo.id.trim()
+      ? campo.id.trim()
+      : `campo-${orden}`;
+  return {
+    id,
+    label: typeof campo?.label === "string" ? campo.label : "",
+    keywords,
+    target:
+      typeof campo?.target === "string" && FICHA_TARGETS_VALIDOS.has(campo.target)
+        ? campo.target
+        : "",
+  };
+}
+
+/**
+ * Devuelve la lista de campos de ficha configurada. Cada entrada:
+ * { id, label, keywords, target }.
+ * Si `config.fichaFields` está vacío o no es un array, se usa la lista por
+ * defecto. Si faltan campos del default (por actualizaciones o borrados), se
+ * agregan al final manteniendo los que el usuario ya tiene (aditivo).
+ */
+export function getFichaFields(config) {
+  const list = config?.fichaFields;
+  if (!Array.isArray(list) || list.length === 0) {
+    return DEFAULT_FICHA_FIELDS;
+  }
+  const result = list.map(rehidratarCampoFicha);
+  const existing = new Set(result.map((f) => f.id));
+  const missing = DEFAULT_FICHA_FIELDS.filter((d) => !existing.has(d.id));
+  if (missing.length === 0) return result;
+  return [...result, ...missing];
 }
 
 /**

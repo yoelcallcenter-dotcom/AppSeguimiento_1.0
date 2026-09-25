@@ -32,10 +32,10 @@ export function useDialogA11y(ref, enabled = true, options = {}) {
     // Foco inicial: primer elemento enfocable o el contenedor como último recurso.
     const first = getFocusable()[0];
     if (first) {
-      first.focus();
+      first.focus({ preventScroll: true });
     } else {
       ref.current.setAttribute("tabindex", "-1");
-      ref.current.focus();
+      ref.current.focus({ preventScroll: true });
     }
 
     const onKeyDown = (e) => {
@@ -64,7 +64,7 @@ export function useDialogA11y(ref, enabled = true, options = {}) {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       if (previousFocus.current && document.contains(previousFocus.current)) {
-        previousFocus.current.focus();
+        previousFocus.current.focus({ preventScroll: true });
       }
     };
   }, [ref, enabled]);

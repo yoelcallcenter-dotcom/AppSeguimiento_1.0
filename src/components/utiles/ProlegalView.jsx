@@ -28,19 +28,10 @@ export function ProlegalView({ mapeo, setMapeo }) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1 flex-wrap">
-        <div
-          className="text-sm font-semibold"
-          style={{ color: "var(--color-text)" }}
-        >
-          Prolegal
-        </div>
-      </div>
-      <div
-        className="text-xs mb-3"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        Estudio Jurídico, carga Prolegal y entrevistador de cada estudio.
+      <div className="flex items-center justify-end mb-3">
+        <Btn onClick={agregar} icon={Plus} size="sm">
+          Agregar estudio
+        </Btn>
       </div>
 
       <div
@@ -135,12 +126,6 @@ export function ProlegalView({ mapeo, setMapeo }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      <div className="mt-3">
-        <Btn onClick={agregar} icon={Plus} size="sm">
-          Agregar estudio
-        </Btn>
       </div>
 
       <ConfirmDialog

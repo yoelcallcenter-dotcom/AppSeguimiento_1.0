@@ -106,6 +106,29 @@ export function aplicarFiltroGlobal(casos, fg) {
   });
 }
 
+export function opcionesFiltroGlobal(casos) {
+  const lista = Array.isArray(casos) ? casos : [];
+  const unico = (get) =>
+    Array.from(
+      new Set(
+        lista.map((c) => (get(c) ?? "").toString().trim()).filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b, "es"));
+  const ultimoOrigen = (c) => {
+    const hist = c.reporteHistory || [];
+    return hist.length ? hist[hist.length - 1].origen : null;
+  };
+  return {
+    estados: unico((c) => c.estado),
+    aseguradoras: unico((c) => c.aseguradora),
+    localidades: unico((c) => c.localidad),
+    estudios: unico((c) => c.estudioJuridico),
+    provincias: unico((c) => c.provincia),
+    tipos: unico((c) => c.tipoIngreso),
+    origenes: unico(ultimoOrigen),
+  };
+}
+
 export function FiltersProvider({ children }) {
   const today = new Date();
 

@@ -1,38 +1,46 @@
 /**
  * FilterModal.jsx
- * Modal de filtro global (1.8.7, #3-7): un punto de entrada unico para filtrar
- * todas las dimensiones del filtroGlobal. Escribe en FiltersContext, que App
- * aplica UNA vez sobre casosFiltrados y todas las vistas lo heredan.
+ * Panel de filtro global (1.8.7, #3-7): un punto de entrada unico para filtrar
+ * todas las dimensiones del filtroGlobal. Trabaja sobre un borrador local:
+ * los cambios solo se escriben al tocar "Aplicar Filtro" y X/Escape los
+ * descartan. Escribe en FiltersContext, que App aplica UNA vez sobre
+ * casosFiltrados y todas las vistas lo heredan.
  */
 
 import React from "react";
-import { Filter, RotateCcw } from "lucide-react";
+import { Filter, RotateCcw, Check } from "lucide-react";
 import { SidePanel } from "../../components/common/SidePanel";
 import { FilterGroup, FilterCounter } from "../../components/common/filters";
 import { MultiSelect } from "../../components/common/MultiSelect";
-import { normalizarValorFiltro } from "../../context/FiltersContext";
+import {
+  normalizarValorFiltro,
+  normalizarFiltroGlobal,
+  aplicarFiltroGlobal,
+  opcionesFiltroGlobal,
+} from "../../context/FiltersContext";
 
-function unicos(lista) {
-  return Array.from(new Set((lista || []).map((v) => (v || "").toString().trim()).filter(Boolean))).sort();
-}
+export function FilterModal({
+  isOpen,
+  onClose,
+  opcionesCasos = [],
+  baseCasos = [],
+  filtroGlobal,
+  onChange,
+  showToast,
+}) {
+  const panelRef = React.useRef(null);
+  const [draft, setDraft] = React.useState(() =>
+    normalizarFiltroGlobal(filtroGlobal)
+  );
 
-function ultimoOrigen(caso) {
-  const hist = caso.reporteHistory || [];
-  return hist.length ? hist[hist.length - 1].origen : null;
-}
+  React.useEffect(() => {
+    if (isOpen) setDraft(normalizarFiltroGlobal(filtroGlobal));
+  }, [isOpen, filtroGlobal]);
 
-export function FilterModal({ isOpen, onClose, casos = [], total, filtroGlobal, onChange, onReset, showToast }) {
-  const options = React.useMemo(() => {
-    return {
-      estados: unicos(casos.map((c) => c.estado)),
-      aseguradoras: unicos(casos.map((c) => c.aseguradora)),
-      localidades: unicos(casos.map((c) => c.localidad)),
-      estudios: unicos(casos.map((c) => c.estudioJuridico)),
-      provincias: unicos(casos.map((c) => c.provincia)),
-      tipos: unicos(casos.map((c) => c.tipoIngreso)),
-      origenes: unicos(casos.map(ultimoOrigen)),
-    };
-  }, [casos]);
+  const options = React.useMemo(
+    () => opcionesFiltroGlobal(opcionesCasos),
+    [opcionesCasos]
+  );
 
   const fields = [
     { label: "Estado", key: "estado", items: options.estados, all: "Todos los estados" },
@@ -44,21 +52,41 @@ export function FilterModal({ isOpen, onClose, casos = [], total, filtroGlobal, 
     { label: "Origen (ultimo reporte)", key: "origen", items: options.origenes, all: "Todos los origenes" },
   ];
 
-  const toggle = (key) => (vals) => {
-    const prev = normalizarValorFiltro(filtroGlobal?.[key]);
-    onChange({ ...filtroGlobal, [key]: vals });
-    if (showToast && vals.length > prev.length) {
-      showToast(`Filtro aplicado: ${fields.find((f) => f.key === key)?.label || key}`, "info");
-    }
-  };
+  const aplicado = React.useMemo(
+    () => normalizarFiltroGlobal(filtroGlobal),
+    [filtroGlobal]
+  );
+  const hayCambios = JSON.stringify(draft) !== JSON.stringify(aplicado);
 
-  const hasActive =
-    (filtroGlobal &&
-      fields.some((f) => normalizarValorFiltro(filtroGlobal[f.key]).length > 0)) ||
-    !!((filtroGlobal?.telefono || "").trim());
+  const draftActivo =
+    fields.some((f) => normalizarValorFiltro(draft[f.key]).length > 0) ||
+    !!((draft.telefono || "").trim());
+
+  const totalPreview = React.useMemo(
+    () => aplicarFiltroGlobal(baseCasos, draft).length,
+    [baseCasos, draft]
+  );
+
+  const setDim = (key) => (vals) => setDraft((d) => ({ ...d, [key]: vals }));
+
+  const handleLimpiarSeccion = () => setDraft(normalizarFiltroGlobal(null));
+
+  const handleAplicar = () => {
+    if (hayCambios) {
+      onChange(draft);
+      if (showToast) {
+        showToast(
+          `Filtro aplicado: ${totalPreview} caso${totalPreview === 1 ? "" : "s"}`,
+          "info"
+        );
+      }
+    }
+    panelRef.current?.startClose();
+  };
 
   return (
     <SidePanel
+      ref={panelRef}
       isOpen={isOpen}
       onClose={onClose}
       title="Filtros globales"
@@ -68,22 +96,39 @@ export function FilterModal({ isOpen, onClose, casos = [], total, filtroGlobal, 
           className="flex items-center justify-between gap-2 px-4 py-3 border-t"
           style={{ borderColor: "var(--color-border)" }}
         >
-          <FilterCounter total={total} label="caso" />
-          {hasActive && (
+          <FilterCounter total={totalPreview} label="caso" />
+          <div className="flex items-center gap-2">
+            {draftActivo && (
+              <button
+                type="button"
+                onClick={handleLimpiarSeccion}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors"
+                style={{
+                  color: "var(--color-text-muted)",
+                  border: "1px solid var(--color-border)",
+                  backgroundColor: "var(--color-surface2)",
+                }}
+              >
+                <RotateCcw size={12} />
+                Limpiar sección
+              </button>
+            )}
             <button
               type="button"
-              onClick={onReset}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors"
+              onClick={handleAplicar}
+              disabled={!hayCambios}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-opacity"
               style={{
-                color: "var(--color-text-muted)",
-                border: "1px solid var(--color-border)",
-                backgroundColor: "var(--color-surface2)",
+                backgroundColor: "var(--color-accent)",
+                color: "var(--color-text-on-accent)",
+                opacity: hayCambios ? 1 : 0.5,
+                cursor: hayCambios ? "pointer" : "not-allowed",
               }}
             >
-              <RotateCcw size={12} />
-              Limpiar filtros
+              <Check size={12} />
+              Aplicar Filtro
             </button>
-          )}
+          </div>
         </div>
       }
     >
@@ -92,8 +137,8 @@ export function FilterModal({ isOpen, onClose, casos = [], total, filtroGlobal, 
           <FilterGroup key={field.key} label={field.label}>
             <MultiSelect
               id={`fm-${field.key}`}
-              value={normalizarValorFiltro(filtroGlobal?.[field.key])}
-              onChange={toggle(field.key)}
+              value={normalizarValorFiltro(draft[field.key])}
+              onChange={setDim(field.key)}
               options={field.items.map((v) => ({ value: v, label: v }))}
               placeholder={field.all}
             />
@@ -102,8 +147,13 @@ export function FilterModal({ isOpen, onClose, casos = [], total, filtroGlobal, 
         <FilterGroup label="Telefono (prefijo)">
           <input
             type="text"
-            value={filtroGlobal?.telefono || ""}
-            onChange={(e) => onChange({ ...filtroGlobal, telefono: e.target.value.replace(/\D/g, "") })}
+            value={draft.telefono || ""}
+            onChange={(e) =>
+              setDraft((d) => ({
+                ...d,
+                telefono: e.target.value.replace(/\D/g, ""),
+              }))
+            }
             placeholder="Ej: 11"
             inputMode="tel"
             className="px-2.5 py-1.5 text-xs rounded-md w-full"

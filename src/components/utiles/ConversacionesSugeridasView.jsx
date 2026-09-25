@@ -9,17 +9,19 @@ import { sanitizeString } from "../../utils/sanitize";
 import { DEFAULT_PLANTILLAS } from "../../utils/constants";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 
+export const CATEGORIAS_CONVERSACION = [
+  "Accidente Laboral",
+  "Enfermedad Profesional",
+  "Accidente de Transito",
+  "Referencia",
+];
+
 export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
   const [categoria, setCategoria] = useState("Accidente Laboral");
   const [nuevoMensaje, setNuevoMensaje] = useState("");
   const [confirmEliminar, setConfirmEliminar] = useState(null);
   const operador = config.operador || "Operador";
-  const categorias = [
-    "Accidente Laboral",
-    "Enfermedad Profesional",
-    "Accidente de Transito",
-    "Referencia",
-  ];
+  const categorias = CATEGORIAS_CONVERSACION;
 
   const getMensajes = () => {
     const key = `conversaciones_${categoria.replace(/\s/g, "_")}`;

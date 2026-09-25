@@ -7,17 +7,55 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
-## [1.8.9] - Fix de saltos de pantalla al abrir modales
+## [1.8.9] - Pulido general: scroll, Útiles, filtros y backups
 
-Release de bug fix: al abrir modales, sidebars, el buscador global o el tour, la barra de scroll desaparecía y todo el layout saltaba (y volvía a saltar al cerrar).
+Release de mantenimiento y pulido: fixes de scroll al abrir overlays, notificaciones y toolbars corregidas, reescritura de la vista Útiles, filtros con staging ("Aplicar Filtro"), export/import de backups con checksum canónico y el nuevo editor de campos para el pegado de ficha.
 
 ### Correcciones
 
 - **Fix**: `bodyScrollLock` compensa el ancho de la barra de scroll con `padding-right` en `body` al bloquear el scroll y lo restaura exactamente al desbloquear (respetando el padding previo y el contador de overlays anidados). Abrir/cerrar cualquier overlay ya no elimina la barra de scroll ni desplaza el contenido.
+- **Fix**: los overlays ya no mueven el scroll del fondo: `useDialogA11y`, `useModal`, `ConfirmDialog`, `CasoEditModal`, `ReporteRapidoModal`, `NotesSearch`, `GlobalSearch` y `OverlayPanel` pasan a `useLayoutEffect` con `preventScroll`; `VerCasoModal` bloquea el scroll por `casoId` y el Tour ya no desplaza la página.
+- **Fix**: en `NotificationCenter` el texto de los avisos largos se corta con `min-w-0`/ellipsis en vez de desbordar la card; el ícono de `NotificationBell` se alinea con `align-middle`.
+
+### Filtros con staging (Aplicar Filtro)
+
+- `FilterModal` trabaja sobre un borrador local: los cambios solo se escriben al tocar **Aplicar Filtro** y X/Escape los descartan; nuevo botón **Limpiar sección**, contador de previsualización contra `baseCasos` y aviso "Filtro aplicado: N caso(s)".
+- `SidePanel` expone `startClose` (forwardRef) para cerrar con la animación; App estabiliza los handlers del filtro y agrega el chip **Limpiar todo**; Dashboard y `DashboardFilters` memoizan cálculos y los 9 gráficos se renderizan sin animación (`isAnimationActive={false}`) para que el filtrado sea instantáneo.
+
+### Cambio de vista sin pantalla en blanco
+
+- `App.jsx` envuelve cada vista lazy en `Suspense` con skeleton de contenido y precarga en idle de 9 imports; la vista anterior durante el crossfade sale del flujo (`.view-transition-exit` con `position: absolute`) y el scroll solo se restaura de forma condicional (`useViewTransition`).
+
+### Speechs y componentes
+
+- `Modal` acepta `subheader`; el editor de Speechs pasa de `OverlayPanel` a `Modal` ("2xl") con subheader y footer.
+- `PlantillasView`: confirmación de borrado con `open`/`onCancel` explícitos.
+- `globals.css`: `.input-optimized` se declara antes de `@tailwind utilities` (las utilidades `pl-*`/`text-*` de Tailwind lo pueden sobreescribir) y se elimina el hack `.pl-8`.
+
+### Vista Útiles reescrita
+
+- Orden de pestañas agrupado (Textos: Speechs, Objeciones, Conversación, Pasos; Directorios: Aseguradoras, Mapeo, Lesiones, Tránsito; Otros: Pro Legal, Condicionales, Plantillas) persistido en `utilesTabOrder` con migración automática para configuraciones que guardaban el orden anterior.
+- Pills de las pestañas en una sola línea con scroll horizontal (`.tab-strip`) fuera de la vista de lista; badges reales en Conversación Sugerida (mensajes configurados), Pro Legal (mapeos con carga pro legal) y Plantillas (cantidad de plantillas).
+- Títulos de página redundantes eliminados en Objeciones, Pasos, Mapeo, Plantillas, Pro Legal y Condicionales, con toolbars reordenados bajo una misma lógica: búsqueda/orden/crear-importar primero, exportar siempre al final.
+- `CondicionalesView`: una sola tabla con thead sticky, encabezado de estudio colapsable (chevron + cantidad de condiciones) y filas expandidas con `rowSpan`; scroll único de 560px sin doble barra. El contador "no toman" vive en la toolbar.
+
+### Export / Import de backups
+
+- Checksum canónico: JSON con claves ordenadas recursivas + SHA-256 (FNV-1a como fallback sin WebCrypto), de modo que la verificación no dependa del orden de claves; compatibilidad con el formato legacy (string hex) y con el objeto `{alg, sum}`.
+- `importBackup` recalcula el checksum tras migrar backups v1/v2 (fix: crasheaba con ReferenceError por uso antes de declarar `warnings`), acepta `omitirChecksum` para importar igualmente con aviso, y `parseBackupJSON` tolera BOM inicial y devuelve `checksumMismatch` con el backup parseable.
+- Configuración → Datos: si el checksum no coincide aparece el aviso "Checksum no coincide" con botón **Importar igualmente**; el preview del respaldo muestra versión y fecha, y el JSON se muestra con ajuste de línea (`pre`).
+- `validateConfigExport` e `importConfigFromJSON` aceptan claves con sufijo `-art-tracker` y archivos con BOM.
+
+### Pegado de ficha configurable
+
+- Nuevo catálogo `fichaFields` (`DEFAULT_FICHA_FIELDS` + `getFichaFields`): por campo se definen etiqueta, palabras clave y destino; el orden de la lista es el orden de evaluación y las palabras clave se anclan al inicio de una línea seguida de ":" o "-", sin distinguir mayúsculas ni acentos (gana la más larga y se usa la primera ocurrencia).
+- `parseFicha(texto, config)` aplica las transformaciones por destino (mayúsculas para nombre/localidad, limpieza de paréntesis en ART, split de tags/comentarios) y `CasoEditModal` pasa la config al pegar.
+- Nueva sección **Configuración - Avanzado - Pegado de Ficha**: editor de campos (etiqueta, palabras clave, destino, reordenar, agregar/eliminar, restaurar por defecto) con aviso de palabras clave duplicadas.
 
 ### Mantenimiento
 
-- Nuevos tests `src/utils/bodyScrollLock.test.js` (5 tests): compensación con y sin barra, padding previo, locks anidados y unlock huérfano. Suite: **726 tests en verde**.
+- Nuevos tests: `referentialChecks` (+2 de migración del orden de Útiles), `CondicionalesView.test.jsx` (4), `UINav` (+`singleLine`), `helpers` (+7 de parseFicha configurable), `FilterModal.test.jsx` (7 de staging), `backupService` (+6: checksum canónico, legacy, BOM, mismatch, omitirChecksum, TDZ) y `backupRegression` (+3 de config con claves con sufijo).
+- Suite: **756 tests en verde** en 67 archivos; build de producción OK.
 - Bump a **1.8.9** en `version.js`, `package.json` y `package-lock.json`.
 
 ---

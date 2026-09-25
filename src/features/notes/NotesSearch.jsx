@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Search, FileText, Plus, CalendarPlus, X } from 'lucide-react';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
 
@@ -7,15 +7,12 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
   const inputRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-      lockBodyScroll();
-    } else {
-      unlockBodyScroll();
-    }
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    setQuery('');
+    setSelectedIndex(0);
+    setTimeout(() => inputRef.current?.focus(), 50);
+    lockBodyScroll();
     return () => unlockBodyScroll();
   }, [isOpen]);
 

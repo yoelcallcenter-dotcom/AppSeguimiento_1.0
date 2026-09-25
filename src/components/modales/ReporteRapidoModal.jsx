@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   X,
   Save,
@@ -38,7 +38,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   const [confirmClose, setConfirmClose] = useState(false);
   useDialogA11y(dialogRef, true, { onEscape: () => requestClose() });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     lockBodyScroll();
     return () => unlockBodyScroll();
   }, []);

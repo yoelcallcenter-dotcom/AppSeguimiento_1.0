@@ -31,6 +31,7 @@ export function Modal({
   showCloseButton = true,
   zIndex = "z-modal",
   footer,
+  subheader,
   initialFocusRef,
 }) {
   const [isLeaving, setIsLeaving] = useState(false);
@@ -127,6 +128,18 @@ export function Modal({
                 <X size={20} />
               </button>
             )}
+          </div>
+        )}
+
+        {subheader && (
+          <div
+            className="flex-shrink-0 px-6 py-3 border-b"
+            style={{
+              backgroundColor: "var(--color-bg)",
+              borderColor: "var(--color-border)",
+            }}
+          >
+            {subheader}
           </div>
         )}
 

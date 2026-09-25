@@ -4,6 +4,7 @@ import casesDB from '../../core/db/casesDB';
 import appDB from '../../core/db/appDB';
 import { exportBackup, importBackup } from '../../services/backupService';
 import { exportConfigToJSON, importConfigFromJSON } from './backupManager';
+import { validateConfigExport } from './validators';
 import { CONFIG_KEYS, BACKUP_VERSION } from './constants';
 import { CONFIG_DEFAULT } from '../constants';
 
@@ -345,5 +346,34 @@ describe('1.3.3: round-trip sin pérdida (campos desconocidos y tránsito-selecc
     expect(await appDB.events.count()).toBe(1);
     const nota = await appDB.notes.get('rn1');
     expect(nota.relatedCaseIds).toEqual(['rc1']); // referencia intacta
+  });
+});
+
+describe('Importación de configuración (1.8.9)', () => {
+  it('validateConfigExport acepta claves con sufijo -art-tracker', () => {
+    const r = validateConfigExport({
+      configuracion: { 'pasos-art-tracker': [], 'config-art-tracker': {} },
+    });
+    expect(r.valid).toBe(true);
+  });
+
+  it('validateConfigExport sigue aceptando claves limpias', () => {
+    const r = validateConfigExport({ configuracion: { pasos: [], speechs: [] } });
+    expect(r.valid).toBe(true);
+  });
+
+  it('importConfigFromJSON acepta BOM y claves con sufijo -art-tracker', async () => {
+    const archivo =
+      '\uFEFF' +
+      JSON.stringify({
+        version: BACKUP_VERSION,
+        fechaExportacion: '2026-09-24',
+        configuracion: {
+          'pasos-art-tracker': [{ id: 'p1', titulo: 'X', contenido: '' }],
+        },
+      });
+    const result = await importConfigFromJSON(archivo);
+    expect(result.success).toBe(true);
+    expect(localStorageAdapter.get('pasos-art-tracker')).toHaveLength(1);
   });
 });

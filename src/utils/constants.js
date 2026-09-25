@@ -30,6 +30,43 @@ export const TEMPLATE_CATEGORIES_SUGERIDOS = [
 ];
 
 /**
+ * Campos de la ficha que se detectan al pegar texto en Nuevo Caso.
+ * El orden del array es el orden en que se evalúan las etiquetas; cada
+ * entrada define sus palabras clave (ancladas al inicio de una línea,
+ * seguidas de ":" o "-") y el destino del valor dentro del caso.
+ */
+export const DEFAULT_FICHA_FIELDS = [
+  { id: "nombre", label: "NOMBRE", keywords: ["nombre", "apellido y nombre"], target: "nombre" },
+  { id: "telefono", label: "TELEFONO", keywords: ["telefono", "celular", "contacto"], target: "telefono" },
+  { id: "localidad", label: "LOCALIDAD", keywords: ["localidad", "ciudad"], target: "localidad" },
+  { id: "art", label: "ART", keywords: ["art", "aseguradora"], target: "aseguradora" },
+  { id: "ingreso", label: "INGRESO", keywords: ["ingreso", "fecha ingreso"], target: "ingreso" },
+  { id: "lesion", label: "LESION", keywords: ["lesion", "diagnostico"], target: "lesion" },
+  { id: "profesion", label: "PROFESION", keywords: ["profesion", "ocupacion"], target: "profesion" },
+  { id: "cita", label: "CITA", keywords: ["cita", "turno"], target: "cita" },
+  { id: "horario", label: "HORARIO", keywords: ["horario"], target: "horario" },
+  { id: "observaciones", label: "OBSERVACIONES", keywords: ["observaciones", "observacion", "obs"], target: "observaciones" },
+  { id: "tags", label: "TAGS", keywords: ["tags", "etiquetas"], target: "tags" },
+  { id: "comentarios", label: "COMENTARIOS", keywords: ["comentarios", "comentario"], target: "comentarios" },
+];
+
+export const FICHA_TARGET_OPCIONES = [
+  { v: "nombre", label: "Nombre" },
+  { v: "telefono", label: "Teléfono" },
+  { v: "localidad", label: "Localidad" },
+  { v: "aseguradora", label: "Aseguradora" },
+  { v: "ingreso", label: "Ingreso" },
+  { v: "lesion", label: "Lesión" },
+  { v: "profesion", label: "Profesión" },
+  { v: "cita", label: "Cita" },
+  { v: "horario", label: "Horario (a observaciones)" },
+  { v: "observaciones", label: "Observaciones" },
+  { v: "tags", label: "Tags" },
+  { v: "comentarios", label: "Comentarios" },
+  { v: "", label: "Ignorar" },
+];
+
+/**
  * Observaciones de condicionales por Estudio Jurídico: registra estudios que
  * no toman todas las aseguradoras o que las toman con condiciones específicas
  * de ingreso/lesión. Cada entrada relaciona un estudio con una aseguradora.
@@ -84,6 +121,7 @@ export const CONFIG_DEFAULT = {
   // Catálogos configurables (Estados de Caso y Tipos de Ingreso)
   estados: ESTADOS,
   tiposIngreso: TIPOS_INGRESO_SUGERIDOS,
+  fichaFields: DEFAULT_FICHA_FIELDS,
   columnasVisibles: {
     fecha: true,
     nombre: true,

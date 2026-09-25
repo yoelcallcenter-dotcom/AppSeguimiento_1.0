@@ -3,6 +3,43 @@
 /* ================================================================ */
 @tailwind base;
 @tailwind components;
+
+/* Inputs y selects optimizados (declarado ANTES de utilities para que
+   las utilidades de padding y texto de Tailwind puedan sobreescribirlo) */
+.input-optimized {
+  height: var(--input-height);
+  padding: 0 0.75rem;
+  border-radius: var(--border-radius);
+  background-color: var(--color-surface2);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  width: 100%;
+  transition: border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    background-color var(--duration-normal) var(--ease-standard);
+}
+
+.input-optimized:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--ring);
+  outline: none;
+}
+
+.input-optimized:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-optimized.input-error {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.input-optimized.input-success {
+  border-color: var(--color-success);
+}
+
 @tailwind utilities;
 
 /* ================================================================ */
@@ -863,45 +900,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 0.125rem 0.375rem;
 }
 
-/* Inputs y selects optimizados */
-.input-optimized {
-  height: var(--input-height);
-  padding: 0 0.75rem;
-  border-radius: var(--border-radius);
-  background-color: var(--color-surface2);
-  border: 1.5px solid var(--color-border);
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  width: 100%;
-  transition: border-color var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard),
-    background-color var(--duration-normal) var(--ease-standard);
-}
-
-.input-optimized:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--ring);
-  outline: none;
-}
-
-.input-optimized:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.input-optimized.input-error {
-  border-color: var(--color-danger);
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
-}
-
-.input-optimized.input-success {
-  border-color: var(--color-success);
-}
-
-.pl-8 {
-  padding-left: 2rem;
-}
-
 /* ================================================================ */
 /* ======================== ANIMACIONES =========================== */
 /* ================================================================ */
@@ -1042,9 +1040,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: fade-in var(--duration-medium) var(--ease-out) both;
 }
 
-/* Vista anterior durante la transición crossfade: se desvanece y no
-   intercepta clics mientras la nueva vista entra. */
+/* Vista anterior durante la transición crossfade: queda fuera del flujo (no
+   empuja a la nueva vista), se desvanece y no intercepta clics. */
 .view-transition-exit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
   animation: fade-out var(--duration-medium) var(--ease-standard) both;
   pointer-events: none;
 }

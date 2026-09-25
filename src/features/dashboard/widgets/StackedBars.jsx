@@ -55,6 +55,7 @@ export default function StackedBars({ data, title, icon: Icon, onDrill, drillFie
                   fill={s.color}
                   barSize={20}
                   radius={[0, 0, 0, 0]}
+                  isAnimationActive={false}
                   onClick={handleClick}
                   style={{ cursor: 'pointer', outline: 'none' }}
                 />

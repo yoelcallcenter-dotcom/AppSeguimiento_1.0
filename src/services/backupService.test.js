@@ -37,7 +37,7 @@ describe('backupService — export', () => {
     expect(backup.kind).toBe(BACKUP_KIND);
     expect(backup.version).toBe(3);
     expect(backup.timestamp).toBeTruthy();
-    expect(typeof backup.checksum).toBe('string');
+    expect(backup.checksum).toEqual({ alg: expect.any(String), sum: expect.any(String) });
     expect(backup.data.db.cases).toHaveLength(1);
     expect(backup.data.db.notes).toHaveLength(1);
     expect(backup.data.db.cases[0].nombre).toBe('Ana');
@@ -120,6 +120,72 @@ describe('backupService — validación', () => {
     const payload = { a: [1, 2], b: 'hola' };
     const h1 = await computeChecksum(payload);
     const h2 = await computeChecksum(payload);
-    expect(h1).toBe(h2);
+    expect(h1).toEqual(h2);
+  });
+
+  it('el checksum canónico ignora el orden de claves', async () => {
+    const a = { db: { cases: [{ id: '1', nombre: 'Ana' }] }, storage: { k: 'v' } };
+    const b = { storage: { k: 'v' }, db: { cases: [{ nombre: 'Ana', id: '1' }] } };
+    const ca = await computeChecksum(a);
+    const cb = await computeChecksum(b);
+    expect(ca).toEqual(cb);
+    expect(ca).toEqual({ alg: expect.any(String), sum: expect.any(String) });
+  });
+
+  it('verifica el checksum legacy string (formato anterior)', async () => {
+    const backup = await exportBackup();
+    if (!(globalThis.crypto && globalThis.crypto.subtle)) return;
+    const json = JSON.stringify(backup.data);
+    const buf = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+    backup.checksum = Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    expect(await verifyChecksum(backup)).toBe(true);
+    backup.data.db.cases = [{ id: 'z', nombre: 'Alterado' }];
+    expect(await verifyChecksum(backup)).toBe(false);
+  });
+
+  it('parseBackupJSON tolera un BOM inicial', async () => {
+    const real = await exportBackup();
+    const { backup, error } = await parseBackupJSON('\uFEFF' + JSON.stringify(real));
+    expect(error).toBeNull();
+    expect(backup.kind).toBe(BACKUP_KIND);
+  });
+
+  it('parseBackupJSON informa checksumMismatch con el backup parseable', async () => {
+    const real = await exportBackup();
+    real.data.db.cases = [{ id: 'hack' }];
+    const { backup, error, checksumMismatch } = await parseBackupJSON(
+      JSON.stringify(real)
+    );
+    expect(backup).toBeTruthy();
+    expect(checksumMismatch).toBe(true);
+    expect(error).toBeTruthy();
+  });
+
+  it('importBackup permite importar igualmente con checksum que no coincide', async () => {
+    const backup = await exportBackup();
+    backup.data.db.cases = [{ id: 'x', nombre: 'Alterado' }];
+    const result = await importBackup(backup, { omitirChecksum: true });
+    expect(result.warnings.some((w) => /importó igualmente/i.test(w))).toBe(true);
+    const casos = await casesDB.cases.toArray();
+    expect(casos[0].nombre).toBe('Alterado');
+  });
+
+  it('importBackup migra un backup legacy sin fallar (regresión TDZ warnings)', async () => {
+    const legacy = {
+      kind: BACKUP_KIND,
+      version: 2,
+      data: { db: { cases: [] }, storage: {} },
+      checksum: 'deadbeef',
+    };
+    const result = await importBackup(legacy, {
+      casos: false,
+      notas: false,
+      eventos: false,
+      config: false,
+    });
+    expect(result.migration).toBeTruthy();
+    expect(result.warnings.some((w) => /recalculado/i.test(w))).toBe(true);
   });
 });

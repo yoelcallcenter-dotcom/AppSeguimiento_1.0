@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign, Building2, Scale, Shield, History, ClipboardList, Activity } from 'lucide-react';
 import useAppStore from '../../core/store/useAppStore';
 import casesDB from '../../core/db/casesDB';
@@ -162,15 +162,12 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
 
   const totalItems = useMemo(() => flatResults.filter((r) => r.type !== 'header').length, [flatResults]);
 
-  useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-      lockBodyScroll();
-    } else {
-      unlockBodyScroll();
-    }
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    setQuery('');
+    setSelectedIndex(0);
+    setTimeout(() => inputRef.current?.focus(), 50);
+    lockBodyScroll();
     return () => unlockBodyScroll();
   }, [isOpen]);
 

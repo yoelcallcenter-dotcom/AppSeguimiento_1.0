@@ -981,6 +981,16 @@ function AppContent() {
     setModalReporte(true);
   }, []);
 
+  const handleNuevoCaso = useCallback(() => {
+    setModalCaso({ ...casoVacio(), estado: config.estadoDefault || "Cita virtual" });
+  }, [config]);
+
+  const handleImportarCSV = useCallback(() => setOverlayOpen("csv-import"), []);
+
+  const handleTour = useCallback(() => startTour("onboarding"), [startTour]);
+
+  const closeFilterModal = useCallback(() => setShowFilterModal(false), []);
+
   const eliminarTodosLosDatos = useCallback(async () => {
     sessionStorage.setItem("app-data-cleared", "true");
 
@@ -1127,6 +1137,28 @@ function AppContent() {
     enabled: config.atajosTeclado !== false,
   });
 
+  useEffect(() => {
+    const preload = () => {
+      Promise.all([
+        import("./features/dashboard/Dashboard"),
+        import("./components/kanban/KanbanView"),
+        import("./components/tabla/TablaView"),
+        import("./components/reportes/ReportesView"),
+        import("./components/utiles/UtilesView"),
+        import("./features/operator/OperatorView"),
+        import("./features/notes"),
+        import("./features/calendar"),
+        import("./components/configuracion/ConfiguracionView"),
+      ]).catch(() => {});
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(preload, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(preload, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
   // ============ TABS ============
   const tabs = [
     ["mi-espacio", "Mi Espacio", UserCircle2],
@@ -1182,7 +1214,6 @@ function AppContent() {
   return (
     <I18nProvider config={config}>
     <UXProvider config={config}>
-    <Suspense fallback={<div className="w-full h-96 flex items-center justify-center" style={{ color: "var(--color-text-muted)" }}><Spinner size={40} /><span className="ml-3">Cargando...</span></div>}>
     <div
       className={`w-full min-h-screen ${config.animaciones === false || config.bajoConsumo === true ? 'no-animations' : ''} ${config.microinteracciones === false || config.bajoConsumo === true ? 'no-micro' : ''}`}
       style={{ backgroundColor: "var(--color-bg)" }}
@@ -1361,7 +1392,7 @@ function AppContent() {
                   }}
                 >
                   <RotateCcw size={10} />
-                  Limpiar
+                  Limpiar todo
                 </FilterChip>
               </div>
             )}
@@ -1392,8 +1423,21 @@ function AppContent() {
       </header>
 
       {/* CONTENIDO */}
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
+      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto relative">
         <SystemStatusBanner />
+        <Suspense
+          fallback={
+            <div className="space-y-4" aria-busy="true">
+              <div className="h-9 w-72 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-surface2)" }} />
+              <div className="h-48 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-surface2)" }} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="h-64 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-surface2)" }} />
+                <div className="h-64 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-surface2)" }} />
+              </div>
+              <div className="h-64 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-surface2)" }} />
+            </div>
+          }
+        >
         {showView("dashboard") && (
           <div key="view-dashboard" className={classNameFor("dashboard")}>
             <Dashboard
@@ -1402,9 +1446,9 @@ function AppContent() {
               casosMes={casosDelMes}
               mesesDisponibles={mesesDisponibles}
               onVerCaso={handleVerCaso}
-              onNuevoCaso={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
-              onImportarCSV={() => setOverlayOpen("csv-import")}
-              onTour={() => startTour("onboarding")}
+              onNuevoCaso={handleNuevoCaso}
+              onImportarCSV={handleImportarCSV}
+              onTour={handleTour}
             />
           </div>
         )}
@@ -1458,7 +1502,7 @@ function AppContent() {
               onChangeView={setSelectedView}
               onVerCaso={(c) => setVerCaso(c)}
               onNavigateToEvent={(e) => setShowCalendar(true)}
-              onNuevoCaso={() => setModalCaso({ ...casoVacio(), estado: config.estadoDefault || 'Cita virtual' })}
+              onNuevoCaso={handleNuevoCaso}
               onNuevoReporte={() => { setCasoReporteRapido(null); setEstadoReporteRapido(null); setModalReporte(true); }}
               onNuevaNota={() => setShowBlocNotas(true)}
               onNuevoEvento={() => setShowCalendar(true)}
@@ -1499,6 +1543,7 @@ function AppContent() {
             />
           </div>
         )}
+        </Suspense>
       </div>
 
       {/* CALENDARIO - Overlay */}
@@ -1510,15 +1555,17 @@ function AppContent() {
           icon={CalendarIcon}
           fullscreen
         >
-          <CalendarView
-            showToast={showToast}
-            onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
-            casos={casos}
-            config={config}
-            onVerCaso={(c) => { setVerCaso(c); }}
-            initialEventId={pendingEventId}
-            onInitialEventConsumed={() => setPendingEventId(null)}
-          />
+          <Suspense fallback={null}>
+            <CalendarView
+              showToast={showToast}
+              onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
+              casos={casos}
+              config={config}
+              onVerCaso={(c) => { setVerCaso(c); }}
+              initialEventId={pendingEventId}
+              onInitialEventConsumed={() => setPendingEventId(null)}
+            />
+          </Suspense>
         </OverlayPanel>
       )}
 
@@ -1531,15 +1578,17 @@ function AppContent() {
           icon={FileText}
           fullscreen
         >
-          <NotesView
-            showToast={showToast}
-            casos={casos}
-            config={config}
-            selectedNoteId={pendingNoteId}
-            onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
-            onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
-            onVerCaso={(c) => { setVerCaso(c); }}
-          />
+          <Suspense fallback={null}>
+            <NotesView
+              showToast={showToast}
+              casos={casos}
+              config={config}
+              selectedNoteId={pendingNoteId}
+              onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
+              onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
+              onVerCaso={(c) => { setVerCaso(c); }}
+            />
+          </Suspense>
         </OverlayPanel>
       )}
 
@@ -1551,36 +1600,38 @@ function AppContent() {
         icon={Settings}
         fullscreen
       >
-        <ConfiguracionView
-          config={config}
-          setConfig={setConfig}
-          pasos={pasos}
-          setPasos={setPasos}
-          tips={tips}
-          setTips={setTips}
-          links={links}
-          setLinks={setLinks}
-          speechs={speechs}
-          setSpeechs={setSpeechs}
-          objeciones={objeciones}
-          setObjeciones={setObjeciones}
-          art={art}
-          setArt={setArt}
-          transito={transito}
-          setTransito={setTransito}
-          lesiones={lesiones}
-          setLesiones={setLesiones}
-          mapeo={mapeo}
-          setMapeo={setMapeo}
-          observacionesTransito={observacionesTransito}
-          setObservacionesTransito={setObservacionesTransito}
-          condicionales={condicionales}
-          setCondicionales={setCondicionales}
-          showToast={showToast}
-          casos={casos}
-          onEliminarTodos={eliminarTodosLosDatos}
-          setCasos={setCasos}
-        />
+        <Suspense fallback={null}>
+          <ConfiguracionView
+            config={config}
+            setConfig={setConfig}
+            pasos={pasos}
+            setPasos={setPasos}
+            tips={tips}
+            setTips={setTips}
+            links={links}
+            setLinks={setLinks}
+            speechs={speechs}
+            setSpeechs={setSpeechs}
+            objeciones={objeciones}
+            setObjeciones={setObjeciones}
+            art={art}
+            setArt={setArt}
+            transito={transito}
+            setTransito={setTransito}
+            lesiones={lesiones}
+            setLesiones={setLesiones}
+            mapeo={mapeo}
+            setMapeo={setMapeo}
+            observacionesTransito={observacionesTransito}
+            setObservacionesTransito={setObservacionesTransito}
+            condicionales={condicionales}
+            setCondicionales={setCondicionales}
+            showToast={showToast}
+            casos={casos}
+            onEliminarTodos={eliminarTodosLosDatos}
+            setCasos={setCasos}
+          />
+        </Suspense>
       </OverlayPanel>
 
       <OverlayPanel
@@ -1590,7 +1641,9 @@ function AppContent() {
         icon={HelpCircle}
         fullscreen
       >
-        <HelpPanel showToast={showToast} onClose={() => setOverlayOpen(null)} />
+        <Suspense fallback={null}>
+          <HelpPanel showToast={showToast} onClose={() => setOverlayOpen(null)} />
+        </Suspense>
       </OverlayPanel>
 
       <OverlayPanel
@@ -1600,14 +1653,17 @@ function AppContent() {
         icon={FileText}
         fullscreen
       >
-        <CSVImporter onComplete={() => {
-          setOverlayOpen(null);
-          window.dispatchEvent(new Event("storage-update"));
-        }} />
+        <Suspense fallback={null}>
+          <CSVImporter onComplete={() => {
+            setOverlayOpen(null);
+            window.dispatchEvent(new Event("storage-update"));
+          }} />
+        </Suspense>
       </OverlayPanel>
 
       {/* MODALES */}
       {verCaso && (
+        <Suspense fallback={null}>
         <VerCasoModal
           caso={casos.find((c) => c.id === verCaso.id) || verCaso}
           config={config}
@@ -1634,6 +1690,7 @@ function AppContent() {
            speechs={speechs}
            objeciones={objeciones}
           />
+        </Suspense>
       )}
 
       <ConfirmDialog
@@ -1651,61 +1708,66 @@ function AppContent() {
       />
 
       {modalCaso && (
-        <CasoEditModal
-          caso={modalCaso}
-          casos={casos}
-          mapeo={mapeo}
-          config={config}
-          onConfigChange={setConfig}
-          onSave={guardarCaso}
-          onDelete={(id) => {
-            eliminarCaso(id);
-            if (verCaso && String(verCaso.id) === String(id)) {
-              setVerCaso(null);
-              clearNavigation();
-            }
-          }}
-          stacked={modalStack.stacked}
-          onClose={() => setModalCaso(null)}
-          onNuevaNota={handleNuevaNota}
-          onNuevoEvento={handleNuevoEvento}
-          showToast={showToast}
-        />
+        <Suspense fallback={null}>
+          <CasoEditModal
+            caso={modalCaso}
+            casos={casos}
+            mapeo={mapeo}
+            config={config}
+            onConfigChange={setConfig}
+            onSave={guardarCaso}
+            onDelete={(id) => {
+              eliminarCaso(id);
+              if (verCaso && String(verCaso.id) === String(id)) {
+                setVerCaso(null);
+                clearNavigation();
+              }
+            }}
+            stacked={modalStack.stacked}
+            onClose={() => setModalCaso(null)}
+            onNuevaNota={handleNuevaNota}
+            onNuevoEvento={handleNuevoEvento}
+            showToast={showToast}
+          />
+        </Suspense>
       )}
 
       {modalReporte && (
-        <ReporteRapidoModal
-          casos={casos}
-          casoInicial={casoReporteRapido}
-          estadoInicial={estadoReporteRapido}
-          config={config}
-          onGuardar={guardarReporteRapido}
-          onClose={() => { setModalReporte(false); setCasoReporteRapido(null); setEstadoReporteRapido(null); }}
-          stacked={modalStack.stacked}
-          showToast={showToast}
-        />
+        <Suspense fallback={null}>
+          <ReporteRapidoModal
+            casos={casos}
+            casoInicial={casoReporteRapido}
+            estadoInicial={estadoReporteRapido}
+            config={config}
+            onGuardar={guardarReporteRapido}
+            onClose={() => { setModalReporte(false); setCasoReporteRapido(null); setEstadoReporteRapido(null); }}
+            stacked={modalStack.stacked}
+            showToast={showToast}
+          />
+        </Suspense>
       )}
 
       {/* Global Search (Ctrl+K) */}
-      <GlobalSearch
-        onSelectCase={handleGlobalSearchSelectCase}
-        onSelectNote={handleGlobalSearchSelectNote}
-        onSelectEvent={handleGlobalSearchSelectEvent}
-        onSelectEntity={handleGlobalSearchSelectEntity}
-        condicionales={condicionales}
-        aseguradoras={aseguradorasFromCases}
-        mapeo={mapeo}
-      />
+      <Suspense fallback={null}>
+        <GlobalSearch
+          onSelectCase={handleGlobalSearchSelectCase}
+          onSelectNote={handleGlobalSearchSelectNote}
+          onSelectEvent={handleGlobalSearchSelectEvent}
+          onSelectEntity={handleGlobalSearchSelectEntity}
+          condicionales={condicionales}
+          aseguradoras={aseguradorasFromCases}
+          mapeo={mapeo}
+        />
+      </Suspense>
 
       <Suspense fallback={null}>
         <FilterModal
           isOpen={showFilterModal}
-          onClose={() => setShowFilterModal(false)}
-          casos={casos}
-          total={casosGlobales.length}
+          onClose={closeFilterModal}
+          opcionesCasos={casosDelMes}
+          baseCasos={casosFiltrados}
           filtroGlobal={filtroGlobal}
           onChange={setFiltroGlobal}
-          onReset={resetFiltroGlobal}
           showToast={showToast}
         />
       </Suspense>
@@ -1731,7 +1793,6 @@ function AppContent() {
       )}
 
     </div>
-    </Suspense>
     </UXProvider>
     </I18nProvider>
   );

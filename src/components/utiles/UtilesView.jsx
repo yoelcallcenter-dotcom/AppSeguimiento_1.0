@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ClipboardList,
   MessageSquare,
@@ -18,7 +18,7 @@ import {
 import { PasosView } from "./PasosView";
 import { SpeechsView } from "./SpeechsView";
 import { ObjecionesView } from "./ObjecionesView";
-import { ConversacionesSugeridasView } from "./ConversacionesSugeridasView";
+import { ConversacionesSugeridasView, CATEGORIAS_CONVERSACION } from "./ConversacionesSugeridasView";
 import { AseguradorasView } from "./AseguradorasView";
 import { LesionesView } from "./LesionesView";
 import { ProlegalView } from "./ProlegalView";
@@ -30,6 +30,8 @@ import { SearchInput } from "../common/SearchInput";
 import useAppStore from '../../core/store/useAppStore';
 import { SubPills } from "../common/UINav";
 import { SectionHeader } from "../configuracion/ui";
+import { getAllTemplates } from "../../features/templates/templatesStore";
+import { DEFAULT_PLANTILLAS } from "../../utils/constants";
 
 export function UtilesView({
   config,
@@ -62,6 +64,35 @@ export function UtilesView({
   const [subvista, setSubvista] = useState("condicionales");
   const [busqueda, setBusqueda] = useState("");
   const [vistaTabs, setVistaTabs] = useState("grid");
+  const [plantillasCount, setPlantillasCount] = useState(0);
+
+  useEffect(() => {
+    let vivo = true;
+    getAllTemplates()
+      .then((lista) => {
+        if (vivo) setPlantillasCount(Array.isArray(lista) ? lista.length : 0);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [subvista]);
+
+  const contarMensajesConversacion = () => {
+    let total = 0;
+    for (const cat of CATEGORIAS_CONVERSACION) {
+      try {
+        const stored = localStorage.getItem(
+          `conversaciones_${cat.replace(/\s/g, "_")}`
+        );
+        const lista = stored ? JSON.parse(stored) : null;
+        total += Array.isArray(lista) ? lista.length : DEFAULT_PLANTILLAS.length;
+      } catch {
+        total += DEFAULT_PLANTILLAS.length;
+      }
+    }
+    return total;
+  };
 
   const aseguradorasSugeridas = useMemo(() => {
     const set = new Set();
@@ -110,6 +141,8 @@ export function UtilesView({
         return speechs.length;
       case "objeciones":
         return objeciones.length;
+      case "conversacion":
+        return contarMensajesConversacion();
       case "aseguradoras":
         return art.length + transito.length;
       case "lesiones":
@@ -122,9 +155,11 @@ export function UtilesView({
       case "transito":
         return observacionesTransito.length;
       case "prolegal":
-        return mapeo.length;
+        return (mapeo || []).filter(
+          (m) => (m.cargaProlegal || "").trim() || (m.entrevistador || "").trim()
+        ).length;
       case "plantillas":
-        return 0;
+        return plantillasCount;
       default:
         return 0;
     }
@@ -286,6 +321,7 @@ export function UtilesView({
         ariaLabel="Secciones de Útiles"
         className={vistaTabs === "list" ? "flex-col items-stretch" : ""}
         itemClassName={vistaTabs === "list" ? "w-full justify-between" : ""}
+        singleLine={vistaTabs !== "list"}
       />
       {tabsFiltrados.length === 0 && (
         <div

@@ -15,7 +15,7 @@ export function ConfirmDialog({
   const dialogRef = useRef(null);
   useDialogA11y(dialogRef, open, { onEscape: () => onCancel && onCancel() });
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!open) return undefined;
     lockBodyScroll();
     return () => unlockBodyScroll();

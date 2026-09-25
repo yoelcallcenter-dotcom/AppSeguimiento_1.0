@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, CalendarClock, Plus } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -90,11 +90,12 @@ export function VerCasoModal({
   const a11yEnabled = !!caso && !covered;
   useDialogA11y(dialogRef, a11yEnabled, { onEscape: onClose });
 
-  useEffect(() => {
-    if (!caso) return undefined;
+  const casoId = caso?.id;
+  useLayoutEffect(() => {
+    if (!casoId) return undefined;
     lockBodyScroll();
     return () => unlockBodyScroll();
-  }, [caso]);
+  }, [casoId]);
   const notas = useAppStore((s) => s.notes);
   const eventos = useAppStore((s) => s.events);
   const estadoColor = getEstadoAccent(config, caso?.estado) || "#6B7280";

@@ -6,22 +6,25 @@
  * botón X) con bloqueo de scroll de fondo vía useModal.
  */
 
-import React, { useEffect, useId, useState } from "react";
+import React, { useEffect, useId, useState, useImperativeHandle } from "react";
 import { X } from "lucide-react";
 import { useModal } from "../../hooks/useModal";
 
-export function SidePanel({
-  isOpen,
-  onClose,
-  title,
-  icon: Icon,
-  actions,
-  subheader,
-  footer,
-  children,
-  width = "w-1/4 max-w-[560px] min-w-[320px]",
-  closeOnOverlayClick = true,
-}) {
+export const SidePanel = React.forwardRef(function SidePanel(
+  {
+    isOpen,
+    onClose,
+    title,
+    icon: Icon,
+    actions,
+    subheader,
+    footer,
+    children,
+    width = "w-1/4 max-w-[560px] min-w-[320px]",
+    closeOnOverlayClick = true,
+  },
+  ref
+) {
   const [isLeaving, setIsLeaving] = useState(false);
   const titleId = useId();
 
@@ -33,6 +36,8 @@ export function SidePanel({
       onClose?.();
     }, 250);
   };
+
+  useImperativeHandle(ref, () => ({ startClose }), [isLeaving, onClose]);
 
   const { dialogRef, handleBackdropClick } = useModal({
     isOpen,
@@ -103,6 +108,6 @@ export function SidePanel({
       </div>
     </div>
   );
-}
+});
 
 export default SidePanel;

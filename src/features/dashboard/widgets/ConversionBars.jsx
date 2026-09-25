@@ -45,6 +45,7 @@ export default function ConversionBars({ data, title, icon: Icon, onDrill, drill
                 name="Conversión"
                 radius={[0, 4, 4, 0]}
                 barSize={20}
+                isAnimationActive={false}
                 onClick={handleClick}
                 style={{ cursor: 'pointer', outline: 'none' }}
               >

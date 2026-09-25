@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
@@ -16,21 +16,21 @@ export function OverlayPanel({
   const panelRef = useRef(null);
   useDialogA11y(panelRef, isOpen);
 
-  useEffect(() => {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
     const handleEscape = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      lockBodyScroll();
-    }
-
+    document.addEventListener("keydown", handleEscape);
+    lockBodyScroll();
     return () => {
       document.removeEventListener("keydown", handleEscape);
       unlockBodyScroll();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

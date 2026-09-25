@@ -52,8 +52,8 @@ export default function TimeMetrics({ data, desc, title }) {
                   label={{ value: `S${d.semana}`, position: 'insideTopLeft', fill: 'var(--color-text-muted)', fontSize: 9 }}
                 />
               ))}
-              <Line type="monotone" dataKey="total" name="Casos" stroke="var(--chart-color-cases)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="firmas" name="Firmas" stroke="var(--chart-color-signed)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="total" name="Casos" stroke="var(--chart-color-cases)" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="firmas" name="Firmas" stroke="var(--chart-color-signed)" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

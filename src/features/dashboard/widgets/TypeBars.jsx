@@ -47,6 +47,7 @@ export default function TypeBars({ data, onDrill, desc }) {
                 name="Casos"
                 radius={[0, 4, 4, 0]}
                 barSize={20}
+                isAnimationActive={false}
                 onClick={(entry) => onDrill && onDrill({ tipo: 'tipoIngreso', valor: entry.key })}
                 style={{ cursor: 'pointer', outline: 'none' }}
               >

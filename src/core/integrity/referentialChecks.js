@@ -9,6 +9,14 @@
 
 const LIMITE_DETALLES = 200;
 
+// Orden histórico de pestañas de Útiles (pre-agrupación). Si la preferencia
+// persistida coincide exactamente con esta lista, se migra al orden agrupado
+// vigente; cualquier otro orden personalizado se conserva.
+const UTILES_TAB_ORDER_PREVIO = [
+  'condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion',
+  'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo', 'plantillas',
+];
+
 /**
  * Valor comparativo del teléfono: solo dígitos (formato visible intacto en
  * el caso original). Permite detectar duplicados entre "261-555-0000" y
@@ -172,6 +180,14 @@ export function repararPreferenciasPersistidas(persisted, ordenesDefault = {}) {
     const valido = ordenesDefault[clave];
     if (!Array.isArray(valido) || valido.length === 0) continue;
     if (!(clave in (persisted || {}))) continue;
+    if (
+      clave === 'utilesTabOrder' &&
+      JSON.stringify(persisted[clave]) === JSON.stringify(UTILES_TAB_ORDER_PREVIO)
+    ) {
+      cambios.push({ clave, antes: persisted[clave], despues: valido });
+      patch[clave] = [...valido];
+      continue;
+    }
     const reparado = repararOrdenSecciones(persisted[clave], valido);
     if (JSON.stringify(reparado) !== JSON.stringify(persisted[clave])) {
       cambios.push({ clave, antes: persisted[clave], despues: reparado });

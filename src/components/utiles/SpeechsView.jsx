@@ -23,7 +23,7 @@ import { BtnOutline } from "../common/BtnOutline";
 import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
-import { OverlayPanel } from "../common/OverlayPanel";
+import { Modal } from "../common/Modal";
 import { sanitizeString } from "../../utils/sanitize";
 import { hoyISO } from "../../utils/dateUtils";
 import { copyToClipboard } from "../../utils/copyToClipboard";
@@ -242,7 +242,19 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
             </button>
           ))}
         </div>
+      </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <TextArea
+          rows={2}
+          className="flex-1 min-w-[200px]"
+          placeholder="Escribe un nuevo speech..."
+          value={nuevo}
+          onChange={(e) => setNuevo(e.target.value)}
+        />
+        <Btn onClick={agregar} icon={Plus} size="sm">
+          Agregar
+        </Btn>
         <BtnOutline
           onClick={exportar}
           icon={FileText}
@@ -267,19 +279,6 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
             className="hidden"
           />
         </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <TextArea
-          rows={2}
-          className="flex-1 min-w-[200px]"
-          placeholder="Escribe un nuevo speech..."
-          value={nuevo}
-          onChange={(e) => setNuevo(e.target.value)}
-        />
-        <Btn onClick={agregar} icon={Plus} size="sm">
-          Agregar
-        </Btn>
       </div>
 
       <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
@@ -524,100 +523,78 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
         onConfirm={() => eliminar(confirmEliminar)}
       />
 
-      <OverlayPanel
+      <Modal
         isOpen={!!speechSeleccionado}
         onClose={() => setSpeechSeleccionado(null)}
         title="Speech Completo"
         icon={FileText}
-        fullscreen={false}
+        size="2xl"
         closeOnOverlayClick={false}
-      >
-        {speechSeleccionado && (
-          <>
-            <div className="flex items-center gap-3 mb-3">
-              <span
-                className="pill-sm font-bold"
-                style={{
-                  backgroundColor: "var(--color-accent)22",
-                  color: "var(--color-accent)",
-                }}
-              >
-                {extraerSpeechInfo(speechSeleccionado.speech).numero
-                  ? `V.${extraerSpeechInfo(speechSeleccionado.speech).numero}`
-                  : `#${speechSeleccionado.index + 1}`}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 mb-2">
-              <Type size={14} style={{ color: "var(--color-text-muted)" }} />
-              <span
-                className="text-xs"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Tamano:
-              </span>
-              {tamaños.map((t) => (
-                <button
-                  key={t.value}
-                  onClick={() => setTamanoLetra(t.value)}
-                  className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
-                    tamanoLetra === t.value
-                      ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
-                      : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                  }`}
+        subheader={
+          speechSeleccionado && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span
+                  className="pill-sm font-bold"
+                  style={{
+                    backgroundColor: "var(--color-accent)22",
+                    color: "var(--color-accent)",
+                  }}
                 >
-                  {t.label}
-                </button>
-              ))}
-              <button
-                onClick={() =>
-                  setModalBorrador(modalBorrador === null ? speechSeleccionado.speech : null)
-                }
-                className={`ml-auto p-1.5 rounded-md transition-colors ${
-                  modalBorrador !== null
-                    ? "bg-[var(--color-accent)22]"
-                    : "hover:bg-white/5"
-                }`}
-                style={{
-                  color:
-                    modalBorrador !== null
-                      ? "var(--color-accent)"
-                      : "var(--color-text-muted)",
-                }}
-                title="Editar speech"
-                aria-label="Editar speech"
-              >
-                <Pencil size={16} />
-              </button>
-            </div>
-
-            {modalBorrador !== null ? (
-              <TextArea
-                rows={8}
-                value={modalBorrador}
-                onChange={(e) => setModalBorrador(e.target.value)}
-                className="w-full"
-              />
-            ) : (
-              <div
-                className={`flex-1 min-h-0 p-4 rounded-lg whitespace-pre-wrap ${
-                  tamaños.find((t) => t.value === tamanoLetra)?.class
-                }`}
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  color: "var(--color-text)",
-                  lineHeight: "1.8",
-                }}
-              >
-                {speechSeleccionado.speech}
+                  {extraerSpeechInfo(speechSeleccionado.speech).numero
+                    ? `V.${extraerSpeechInfo(speechSeleccionado.speech).numero}`
+                    : `#${speechSeleccionado.index + 1}`}
+                </span>
               </div>
-            )}
 
-            <div
-              className="flex items-center justify-end gap-2 mt-3 pt-2"
-              style={{ borderTop: "1px solid var(--color-border)" }}
-            >
+              <div className="flex items-center gap-2">
+                <Type size={14} style={{ color: "var(--color-text-muted)" }} />
+                <span
+                  className="text-xs"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  Tamano:
+                </span>
+                {tamaños.map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setTamanoLetra(t.value)}
+                    className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                      tamanoLetra === t.value
+                        ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
+                        : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() =>
+                    setModalBorrador(modalBorrador === null ? speechSeleccionado.speech : null)
+                  }
+                  className={`ml-auto p-1.5 rounded-md transition-colors ${
+                    modalBorrador !== null
+                      ? "bg-[var(--color-accent)22]"
+                      : "hover:bg-white/5"
+                  }`}
+                  style={{
+                    color:
+                      modalBorrador !== null
+                        ? "var(--color-accent)"
+                        : "var(--color-text-muted)",
+                  }}
+                  title="Editar speech"
+                  aria-label="Editar speech"
+                >
+                  <Pencil size={16} />
+                </button>
+              </div>
+            </div>
+          )
+        }
+        footer={
+          speechSeleccionado && (
+            <>
               {modalBorrador !== null ? (
                 <>
                   <button
@@ -666,10 +643,34 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
                   </BtnOutline>
                 </>
               )}
+            </>
+          )
+        }
+      >
+        {speechSeleccionado &&
+          (modalBorrador !== null ? (
+            <TextArea
+              rows={8}
+              value={modalBorrador}
+              onChange={(e) => setModalBorrador(e.target.value)}
+              className="w-full"
+            />
+          ) : (
+            <div
+              className={`p-4 rounded-lg whitespace-pre-wrap ${
+                tamaños.find((t) => t.value === tamanoLetra)?.class
+              }`}
+              style={{
+                backgroundColor: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-text)",
+                lineHeight: "1.8",
+              }}
+            >
+              {speechSeleccionado.speech}
             </div>
-          </>
-        )}
-      </OverlayPanel>
+          ))}
+      </Modal>
     </div>
   );
 }

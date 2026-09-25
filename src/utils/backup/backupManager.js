@@ -142,7 +142,9 @@ export async function exportConfigToJSON() {
 
 export async function importConfigFromJSON(jsonData, options = {}) {
   try {
-    const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+    const texto =
+      typeof jsonData === 'string' ? jsonData.replace(/^\uFEFF/, '') : jsonData;
+    const data = typeof texto === 'string' ? JSON.parse(texto) : texto;
 
     const validation = validateConfigExport(data);
     if (!validation.valid) {
@@ -172,9 +174,10 @@ export async function importConfigFromJSON(jsonData, options = {}) {
       keyMap[cleanKey] = key;
     });
 
-    for (const [cleanKey, value] of Object.entries(config)) {
+    for (const [rawKey, value] of Object.entries(config)) {
+      const cleanKey = rawKey.replace('-art-tracker', '');
       if (categoriasPermitidas && !categoriasPermitidas.has(cleanKey)) continue;
-      const storageKey = keyMap[cleanKey];
+      const storageKey = CONFIG_KEYS.includes(rawKey) ? rawKey : keyMap[cleanKey];
       if (storageKey && value !== undefined && value !== null) {
         if (cleanKey === "config") {
           await storageManager.set(storageKey, mergeConfigWithDefaults(value));

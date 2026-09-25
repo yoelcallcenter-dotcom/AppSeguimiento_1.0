@@ -66,7 +66,7 @@ describe('Edge cases: Checksum', () => {
     const payload = { db: { cases: [] }, storage: {} };
     const c1 = await computeChecksum(payload);
     const c2 = await computeChecksum(payload);
-    expect(c1).toBe(c2);
+    expect(c1).toEqual(c2);
   });
 
   it('checksum detecta cambio mínimo', async () => {
@@ -74,7 +74,7 @@ describe('Edge cases: Checksum', () => {
     const p2 = { db: { cases: [{ id: '2' }] }, storage: {} };
     const c1 = await computeChecksum(p1);
     const c2 = await computeChecksum(p2);
-    expect(c1).not.toBe(c2);
+    expect(c1).not.toEqual(c2);
   });
 });
 

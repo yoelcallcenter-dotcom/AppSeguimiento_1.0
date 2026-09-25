@@ -42,6 +42,7 @@ export default React.memo(function ProvinceBars({ data, onDrill, desc }) {
                 dataKey="total"
                 name="Casos"
                 radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
                 onClick={(entry) => onDrill && onDrill({ tipo: 'provincia', valor: entry.key })}
                 style={{ cursor: 'pointer', outline: 'none' }}
               >

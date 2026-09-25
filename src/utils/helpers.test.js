@@ -76,6 +76,70 @@ describe("parseFicha", () => {
   });
 });
 
+describe("parseFicha configurable (Fase 9)", () => {
+  it("usa palabras clave y destino personalizados de config.fichaFields", () => {
+    const config = {
+      fichaFields: [
+        { id: "zona", label: "ZONA", keywords: ["zona"], target: "localidad" },
+      ],
+    };
+    const c = parseFicha("NOMBRE: GARCIA PEDRO\nZONA: TANDIL", config);
+    expect(c.nombre).toBe("GARCIA PEDRO");
+    expect(c.localidad).toBe("TANDIL");
+  });
+
+  it("con dos campos que comparten palabra clave gana el primero de la lista", () => {
+    const config = {
+      fichaFields: [
+        { id: "a", label: "A", keywords: ["dato"], target: "profesion" },
+        { id: "b", label: "B", keywords: ["dato"], target: "cita" },
+      ],
+    };
+    const c = parseFicha("DATO: Ingeniero", config);
+    expect(c.profesion).toBe("Ingeniero");
+    expect(c.cita).toBe("");
+  });
+
+  it("una etiqueta más larga gana sobre una más corta que la contiene", () => {
+    const config = {
+      fichaFields: [
+        { id: "fc", label: "FECHA CITA", keywords: ["fecha cita"], target: "cita" },
+      ],
+    };
+    const c = parseFicha("FECHA CITA: 10/08 10:00", config);
+    expect(c.cita).toBe("10/08 10:00");
+  });
+
+  it("con destino Ignorar el valor de la etiqueta se descarta", () => {
+    const config = {
+      fichaFields: [
+        { id: "sec", label: "SECRETO", keywords: ["secreto"], target: "" },
+        { id: "n", label: "NOMBRE", keywords: ["nombre"], target: "nombre" },
+      ],
+    };
+    const c = parseFicha("NOMBRE: JUAN\nSECRETO: interno", config);
+    expect(c.nombre).toBe("JUAN");
+    expect(c.observaciones).toBe("");
+  });
+
+  it("la primera ocurrencia de una etiqueta gana sobre las siguientes", () => {
+    const c = parseFicha("NOMBRE: ANA\nNOMBRE: OTRA COSA");
+    expect(c.nombre).toBe("ANA");
+  });
+
+  it("reconoce etiquetas sin distinguir mayúsculas ni acentos", () => {
+    const c = parseFicha("Nombre: ana\nlesión: esguince leve");
+    expect(c.nombre).toBe("ANA");
+    expect(c.lesion).toBe("esguince leve");
+  });
+
+  it("una etiqueta desconocida en mayúsculas cierra el valor en curso", () => {
+    const c = parseFicha("OBSERVACIONES: Llamar\nEDAD: 30\nNOMBRE: PEPITO");
+    expect(c.observaciones).toBe("Llamar");
+    expect(c.nombre).toBe("PEPITO");
+  });
+});
+
 describe("extraerCampo", () => {
   it("extrae el valor de una etiqueta", () => {
     expect(extraerCampo("NOMBRE: Juan\nTELEFONO: 123", "NOMBRE")).toBe("Juan");

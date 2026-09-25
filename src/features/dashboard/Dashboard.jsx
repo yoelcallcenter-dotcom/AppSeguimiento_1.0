@@ -15,7 +15,7 @@ import { UltimosCasos } from '../../components/estadisticas/UltimosCasos';
 import { MiDiaView } from '../../components/estadisticas/MiDiaView';
 import { VistaMapa } from '../../components/estadisticas/VistaMapa';
 import useAppStore from '../../core/store/useAppStore';
-import { useFilters } from '../../context/FiltersContext';
+import { useFilters, opcionesFiltroGlobal } from '../../context/FiltersContext';
 import { trackEvent } from '../../utils/behaviorEngine';
 import { escapeCSV, sanitizeCSV } from '../../utils/backup/csvUtils';
 import { MonthDayFilterBar } from '../../components/common/MonthDayFilterBar';
@@ -226,11 +226,20 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   }, [handleDrill, setQuickFilter, setSelectedView]);
 
   const metricsCfg = config?.metrics || {};
-  const cats = { ...getDefaultCategories(), ...(metricsCfg.categorias || {}) };
-  const visibleMetrics = metricsCfg.visible || Object.keys(getMetricDefs());
-  const alertas = metricsCfg.alertas || getDefaultAlerts();
+  const cats = useMemo(
+    () => ({ ...getDefaultCategories(), ...(metricsCfg.categorias || {}) }),
+    [metricsCfg.categorias]
+  );
+  const visibleMetrics = useMemo(
+    () => metricsCfg.visible || Object.keys(getMetricDefs()),
+    [metricsCfg.visible]
+  );
+  const alertas = useMemo(
+    () => metricsCfg.alertas || getDefaultAlerts(),
+    [metricsCfg.alertas]
+  );
 
-  const showWidget = (key) => config?.[key] !== false;
+  const showWidget = useCallback((key) => config?.[key] !== false, [config]);
 
   const handleGlobalMonthChange = useCallback(() => {
     setActiveFilter(null);
@@ -276,28 +285,8 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     });
   }, [filtroGlobal, setFiltroGlobal]);
 
-  // Opciones de los filtros de exploración (derivadas del período seleccionado).
-  const filtrosOptions = useMemo(() => {
-    let base = allCases;
-    if (mesAnalitica && mesAnalitica !== 'todos') {
-      const [yy, mm] = mesAnalitica.split('-').map(Number);
-      base = allCases.filter((c) => {
-        if (!c.fecha) return false;
-        const d = new Date(c.fecha);
-        return !isNaN(d.getTime()) && d.getFullYear() === yy && d.getMonth() === mm - 1;
-      });
-    }
-    const unicos = (campo) =>
-      [...new Set(base.map((c) => (c[campo] || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
-    return {
-      estados: unicos('estado'),
-      aseguradoras: unicos('aseguradora'),
-      localidades: unicos('localidad'),
-      estudios: unicos('estudioJuridico'),
-      provincias: unicos('provincia'),
-      tipos: unicos('tipoIngreso'),
-    };
-  }, [allCases, mesAnalitica]);
+  // Opciones de los filtros de exploración (misma fuente que el panel global).
+  const filtrosOptions = useMemo(() => opcionesFiltroGlobal(casosMes), [casosMes]);
 
   // Exportación CSV de la exploración analítica actual (B4).
   const exportarAnaliticaCSV = useCallback(() => {
@@ -765,6 +754,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
             onChange={setFiltroGlobal}
             options={filtrosOptions}
             onReset={resetAnaliticaFiltros}
+            total={analyticsMetrics?.total ?? casos.length}
           />
           <KPICards metrics={analyticsMetrics} onDrill={handleDrill} prevMetrics={prevMetrics} />
           <InsightsPanel insights={analyticsInsights} onDrill={handleDrill} />

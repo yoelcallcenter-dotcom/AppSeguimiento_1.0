@@ -157,4 +157,43 @@ describe('repararPreferenciasPersistidas', () => {
     expect(patch).toEqual({});
     expect(cambios).toHaveLength(0);
   });
+
+  it('migra el orden histórico de pestañas de Útiles al agrupado vigente', () => {
+    const previo = [
+      'condicionales', 'pasos', 'speechs', 'objeciones', 'conversacion',
+      'aseguradoras', 'lesiones', 'prolegal', 'transito', 'mapeo', 'plantillas',
+    ];
+    const agrupado = [
+      'speechs', 'objeciones', 'conversacion', 'pasos', 'aseguradoras',
+      'mapeo', 'lesiones', 'transito', 'prolegal', 'condicionales', 'plantillas',
+    ];
+    const defaults = { ...DEFAULTS, utilesTabOrder: agrupado };
+
+    const primera = repararPreferenciasPersistidas({ utilesTabOrder: previo }, defaults);
+    expect(primera.patch.utilesTabOrder).toEqual(agrupado);
+    expect(primera.cambios).toHaveLength(1);
+
+    const segunda = repararPreferenciasPersistidas({ utilesTabOrder: agrupado }, defaults);
+    expect(segunda.patch).toEqual({});
+    expect(segunda.cambios).toHaveLength(0);
+  });
+
+  it('conserva un orden personalizado de Útiles (solo se migra el histórico exacto)', () => {
+    const agrupado = [
+      'speechs', 'objeciones', 'conversacion', 'pasos', 'aseguradoras',
+      'mapeo', 'lesiones', 'transito', 'prolegal', 'condicionales', 'plantillas',
+    ];
+    const propio = [
+      'plantillas', 'condicionales', 'prolegal', 'transito', 'lesiones',
+      'mapeo', 'aseguradoras', 'pasos', 'conversacion', 'objeciones', 'speechs',
+    ];
+    const defaults = { ...DEFAULTS, utilesTabOrder: agrupado };
+
+    const { patch, cambios } = repararPreferenciasPersistidas(
+      { utilesTabOrder: propio },
+      defaults
+    );
+    expect(patch).toEqual({});
+    expect(cambios).toHaveLength(0);
+  });
 });

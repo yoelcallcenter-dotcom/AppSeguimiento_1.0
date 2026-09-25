@@ -5,7 +5,7 @@
  * Centraliza useDialogA11y + bodyScrollLock para todos los modales.
  */
 
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useDialogA11y } from "./useDialogA11y";
 import { lockBodyScroll, unlockBodyScroll } from "../utils/bodyScrollLock";
 
@@ -29,7 +29,7 @@ export function useModal({
 
   useDialogA11y(dialogRef, isOpen, { onEscape: handleEscape });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return undefined;
     lockBodyScroll();
     return () => unlockBodyScroll();

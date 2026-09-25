@@ -113,22 +113,12 @@ export function PlantillasView({ showToast, config = {} }) {
 
   return (
     <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            Plantillas
-          </h3>
-          <div className="flex items-center gap-2 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-            <span>{templates.length} total</span>
-            {Object.values(TEMPLATE_TYPES).map((type) => (
-              stats[type] ? <span key={type}>· {stats[type]} {TEMPLATE_TYPE_LABELS[type]}</span> : null
-            ))}
-          </div>
-        </div>
-        <Btn icon={Plus} size="sm" onClick={handleCreate}>
-          Nueva plantilla
-        </Btn>
+      {/* Conteos por tipo */}
+      <div className="flex items-center gap-2 text-[10px] flex-wrap" style={{ color: 'var(--color-text-muted)' }}>
+        <span>{templates.length} total</span>
+        {Object.values(TEMPLATE_TYPES).map((type) => (
+          stats[type] ? <span key={type}>· {stats[type]} {TEMPLATE_TYPE_LABELS[type]}</span> : null
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -140,36 +130,6 @@ export function PlantillasView({ showToast, config = {} }) {
             placeholder="Buscar plantillas..."
             compact
           />
-        </div>
-
-        <div className="flex gap-1 flex-wrap">
-          <button
-            onClick={() => setFilterType('all')}
-            className="text-[10px] font-medium rounded px-2 py-1"
-            style={{
-              backgroundColor: filterType === 'all' ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: filterType === 'all' ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
-            }}
-          >
-            Todas
-          </button>
-          {Object.values(TEMPLATE_TYPES).map((type) => {
-            const Icon = TEMPLATE_TYPE_ICONS[type];
-            return (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className="text-[10px] font-medium rounded px-2 py-1 flex items-center gap-1"
-                style={{
-                  backgroundColor: filterType === type ? 'var(--color-accent)' : 'var(--color-surface)',
-                  color: filterType === type ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)',
-                }}
-              >
-                <Icon size={10} />
-                {TEMPLATE_TYPE_LABELS[type]}
-              </button>
-            );
-          })}
         </div>
 
         <div className="flex items-center gap-1" style={{ backgroundColor: 'var(--color-surface)', borderRadius: '6px', padding: '2px' }}>
@@ -199,6 +159,32 @@ export function PlantillasView({ showToast, config = {} }) {
         >
           <ArrowUpDown size={12} />
         </button>
+
+        <div className="flex gap-1 flex-wrap">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`category-tab ${filterType === 'all' ? 'active' : ''}`}
+          >
+            Todas
+          </button>
+          {Object.values(TEMPLATE_TYPES).map((type) => {
+            const Icon = TEMPLATE_TYPE_ICONS[type];
+            return (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`category-tab gap-1 ${filterType === type ? 'active' : ''}`}
+              >
+                <Icon size={10} />
+                {TEMPLATE_TYPE_LABELS[type]}
+              </button>
+            );
+          })}
+        </div>
+
+        <Btn icon={Plus} size="sm" onClick={handleCreate}>
+          Nueva plantilla
+        </Btn>
       </div>
 
       {/* Content */}
@@ -301,10 +287,10 @@ export function PlantillasView({ showToast, config = {} }) {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={handleDelete}
+    <ConfirmDialog
+      open={!!confirmDelete}
+      onCancel={() => setConfirmDelete(null)}
+      onConfirm={handleDelete}
         title="Eliminar plantilla"
         message={`¿Eliminar la plantilla "${confirmDelete?.name}"?`}
       />

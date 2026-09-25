@@ -201,11 +201,12 @@ export function validateConfigExport(data) {
   }
 
   // Verificar que tenga al menos algunas claves válidas
+  // (acepta claves limpias "config" y claves de storage "config-art-tracker").
   const validKeys = Object.keys(configData).filter((key) => {
     if (key === "conversaciones") return true;
     return CONFIG_KEYS.some((storageKey) => {
       const cleanKey = storageKey.replace("-art-tracker", "");
-      return key === cleanKey;
+      return key === cleanKey || key === storageKey;
     });
   });
 

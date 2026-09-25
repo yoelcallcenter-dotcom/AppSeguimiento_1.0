@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import {
   X,
   Save,
@@ -53,7 +53,7 @@ export function CasoEditModal({
   const dialogRef = useRef(null);
   useDialogA11y(dialogRef, true, { onEscape: onClose });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     lockBodyScroll();
     return () => unlockBodyScroll();
   }, []);
@@ -96,7 +96,7 @@ export function CasoEditModal({
 
   const procesarPegado = () => {
     if (!pegado.trim()) return;
-    const parsed = parseFicha(pegado);
+    const parsed = parseFicha(pegado, config);
     const deteccion = detectarTipoIngresoPorKeywords(pegado, config);
     const result = {
       ...parsed,

@@ -114,7 +114,7 @@ export function NotificationBell() {
                   >
                     {!n.read && (
                       <span
-                        className="inline-block w-1.5 h-1.5 rounded-full mr-1.5"
+                        className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
                         style={{ backgroundColor: "var(--color-accent)" }}
                       />
                     )}

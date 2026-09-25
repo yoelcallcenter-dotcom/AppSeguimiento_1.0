@@ -247,9 +247,7 @@ export function CondicionalesView({
   const toggleTodos = () =>
     setExpandidos(todosExpandidos ? new Set() : new Set(grupos.map((g) => g.estudio)));
 
-  const total = (condicionales || []).length;
   const noToma = (condicionales || []).filter((c) => c.condicion === "no-toma").length;
-
   const renderChips = (lista, setLista) => (
     <div className="flex flex-wrap gap-1 mt-1.5">
       {lista.map((v) => (
@@ -274,23 +272,6 @@ export function CondicionalesView({
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-1 flex-wrap">
-        <div className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
-          Condicionales de Estudios Jurídicos
-        </div>
-        <span className="pill-sm" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
-          {total} registradas
-        </span>
-        {noToma > 0 && (
-          <span className="pill-sm" style={{ backgroundColor: "#EF4444" + "22", color: "#EF4444" }}>
-            {noToma} no toman
-          </span>
-        )}
-      </div>
-      <div className="text-[10px] mb-4" style={{ color: "var(--color-text-muted)" }}>
-        Estudios que no toman todas las aseguradoras o que las aceptan con condiciones de ingreso y lesión.
-      </div>
-
       {/* Barra de acciones */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="flex-1 min-w-[160px]">
@@ -310,6 +291,14 @@ export function CondicionalesView({
             { value: "condicion", label: "Con condiciones" },
           ]}
         />
+        {noToma > 0 && (
+          <span
+            className="pill-sm"
+            style={{ backgroundColor: "#EF444422", color: "#EF4444" }}
+          >
+            {noToma} no toman
+          </span>
+        )}
         <Btn onClick={abrirNuevo} icon={Plus} size="sm">
           Nueva condición
         </Btn>
@@ -481,9 +470,9 @@ export function CondicionalesView({
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div>
           {grupos.length > 1 && (
-            <div className="flex justify-end">
+            <div className="flex justify-end mb-2">
               <button
                 onClick={toggleTodos}
                 className="text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70"
@@ -493,81 +482,173 @@ export function CondicionalesView({
               </button>
             </div>
           )}
-          {grupos.map((g) => {
-            const expandido = expandidos.has(g.estudio);
-            return (
-              <div
-                key={g.estudio}
-                className="rounded-xl overflow-hidden"
-                style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleGrupo(g.estudio)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:opacity-90"
-                  style={{ backgroundColor: "var(--color-surface2)", borderBottom: expandido ? "1px solid var(--color-border)" : "none" }}
-                  aria-expanded={expandido}
-                >
-                  {expandido ? (
-                    <ChevronUp size={14} style={{ color: "var(--color-accent)", flexShrink: 0 }} />
-                  ) : (
-                    <ChevronDown size={14} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-                  )}
-                  <Scale size={14} style={{ color: "var(--color-accent)" }} />
-                  <span className="text-xs font-bold" style={{ color: "var(--color-text)" }}>{sanitizeString(g.estudio)}</span>
-                  <span className="pill-sm ml-auto" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
-                    {g.items.length} condición{g.items.length !== 1 ? "es" : ""}
-                  </span>
-                </button>
-                {expandido && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ color: "var(--color-text-muted)" }}>
-                          <th className="text-left px-4 py-2 font-semibold">Condición</th>
-                          <th className="text-left px-4 py-2 font-semibold">Aseguradora</th>
-                          <th className="text-left px-4 py-2 font-semibold">Observaciones</th>
-                          <th className="text-right px-4 py-2 font-semibold whitespace-nowrap" style={{ minWidth: 150 }}>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {g.items.map((c) => {
-                          const meta = condMeta(c.condicion);
-                          const Icon = meta.icon;
-                          return (
-                            <tr key={c.id} style={{ borderTop: "1px solid var(--color-border)" }}>
-                              <td className="px-4 py-2 align-middle">
-                                <span
-                                  className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md whitespace-nowrap"
-                                  style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
-                                >
-                                  <Icon size={10} /> {meta.value === "no-toma" ? "No toma" : "Con condiciones"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 align-middle" style={{ color: "var(--color-text)" }}>{sanitizeString(c.aseguradora || "—")}</td>
-                              <td className="px-4 py-2 align-middle" style={{ color: "var(--color-text-muted)" }}>{sanitizeString(c.observacion || "—")}</td>
-                              <td className="px-4 py-2 text-right align-middle whitespace-nowrap">
-                                <button onClick={() => abrirEdicion(c)} className="text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70" style={{ color: "var(--color-accent)" }}>
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => setFilaAEliminar(c)}
-                                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70 ml-1"
-                                  style={{ color: "var(--color-danger)" }}
-                                >
-                                  <Trash2 size={12} /> Eliminar
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <div
+            className="rounded-xl overflow-auto"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              maxHeight: 560,
+              scrollbarGutter: "stable",
+            }}
+          >
+            <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Estudio", "Condición", "Aseguradora", "Observaciones"].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left px-4 py-2 font-semibold"
+                      style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 1,
+                        backgroundColor: "var(--color-surface)",
+                        color: "var(--color-text-muted)",
+                        borderBottom: "1px solid var(--color-border)",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  <th
+                    className="text-right px-4 py-2 font-semibold whitespace-nowrap"
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 1,
+                      minWidth: 150,
+                      backgroundColor: "var(--color-surface)",
+                      color: "var(--color-text-muted)",
+                      borderBottom: "1px solid var(--color-border)",
+                    }}
+                  >
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {grupos.map((g) => {
+                  const expandido = expandidos.has(g.estudio);
+                  if (!expandido) {
+                    return (
+                      <tr
+                        key={`colapsada-${g.estudio}`}
+                        style={{ borderTop: "1px solid var(--color-border)" }}
+                      >
+                        <td
+                          colSpan={5}
+                          className="px-2"
+                          style={{ backgroundColor: "var(--color-surface2)" }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleGrupo(g.estudio)}
+                            className="w-full flex items-center gap-2 px-2 py-2.5 text-left transition-colors hover:opacity-90"
+                            aria-expanded={false}
+                          >
+                            <ChevronDown
+                              size={14}
+                              style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
+                            />
+                            <Scale size={14} style={{ color: "var(--color-accent)" }} />
+                            <span
+                              className="text-xs font-bold"
+                              style={{ color: "var(--color-text)" }}
+                            >
+                              {sanitizeString(g.estudio)}
+                            </span>
+                            <span
+                              className="pill-sm ml-auto"
+                              style={{
+                                backgroundColor: "var(--color-surface)",
+                                border: "1px solid var(--color-border)",
+                                color: "var(--color-text-muted)",
+                              }}
+                            >
+                              {g.items.length} condición{g.items.length !== 1 ? "es" : ""}
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return g.items.map((c, idx) => {
+                    const meta = condMeta(c.condicion);
+                    const Icon = meta.icon;
+                    return (
+                      <tr key={c.id} style={{ borderTop: "1px solid var(--color-border)" }}>
+                        {idx === 0 && (
+                          <td
+                            rowSpan={g.items.length}
+                            className="px-4 py-2 align-top"
+                            style={{
+                              backgroundColor: "var(--color-surface2)",
+                              borderRight: "1px solid var(--color-border)",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggleGrupo(g.estudio)}
+                              className="w-full flex items-center gap-2 text-left transition-colors hover:opacity-90"
+                              aria-expanded
+                            >
+                              <ChevronUp
+                                size={14}
+                                style={{ color: "var(--color-accent)", flexShrink: 0 }}
+                              />
+                              <Scale size={14} style={{ color: "var(--color-accent)" }} />
+                              <span
+                                className="text-xs font-bold"
+                                style={{ color: "var(--color-text)" }}
+                              >
+                                {sanitizeString(g.estudio)}
+                              </span>
+                              <span
+                                className="pill-sm ml-auto"
+                                style={{
+                                  backgroundColor: "var(--color-surface)",
+                                  border: "1px solid var(--color-border)",
+                                  color: "var(--color-text-muted)",
+                                }}
+                              >
+                                {g.items.length} condición{g.items.length !== 1 ? "es" : ""}
+                              </span>
+                            </button>
+                          </td>
+                        )}
+                        <td className="px-4 py-2 align-middle">
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md whitespace-nowrap"
+                            style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+                          >
+                            <Icon size={10} /> {meta.value === "no-toma" ? "No toma" : "Con condiciones"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 align-middle" style={{ color: "var(--color-text)" }}>
+                          {sanitizeString(c.aseguradora || "—")}
+                        </td>
+                        <td className="px-4 py-2 align-middle" style={{ color: "var(--color-text-muted)" }}>
+                          {sanitizeString(c.observacion || "—")}
+                        </td>
+                        <td className="px-4 py-2 text-right align-middle whitespace-nowrap">
+                          <button onClick={() => abrirEdicion(c)} className="text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70" style={{ color: "var(--color-accent)" }}>
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => setFilaAEliminar(c)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70 ml-1"
+                            style={{ color: "var(--color-danger)" }}
+                          >
+                            <Trash2 size={12} /> Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

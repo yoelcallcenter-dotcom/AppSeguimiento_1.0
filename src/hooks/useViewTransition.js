@@ -28,11 +28,13 @@ export function useViewTransition(selectedView) {
     setPrevious(active);
     setActive(selectedView);
 
-    // Restaurar scroll de la vista entrante (si alguna vez la visitamos)
-    const target = scrollPositions.current[selectedView] || 0;
-    requestAnimationFrame(() => {
-      window.scrollTo(0, target);
-    });
+    // Restaurar scroll de la vista entrante (solo si ya la visitamos)
+    const target = scrollPositions.current[selectedView];
+    if (target !== undefined) {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, target);
+      });
+    }
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {

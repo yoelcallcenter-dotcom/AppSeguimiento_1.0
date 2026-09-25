@@ -41,6 +41,7 @@ export default function CategoryDonut({ data, onDrill, desc }) {
                   innerRadius={45}
                   outerRadius={80}
                   paddingAngle={2}
+                  isAnimationActive={false}
                   onClick={handleClick}
                   style={{ cursor: 'pointer', outline: 'none' }}
                 >
