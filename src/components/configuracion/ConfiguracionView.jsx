@@ -146,6 +146,8 @@ export function ConfiguracionView({
   setLinks,
   speechs,
   setSpeechs,
+  speechsInteractivos,
+  setSpeechsInteractivos,
   objeciones,
   setObjeciones,
   art,
@@ -213,6 +215,14 @@ export function ConfiguracionView({
 
   const previewAbierto =
     showImportPreview || showUtilesPreview || showNcPreview;
+
+  const utilesClavesImportables = utilesPreviewData
+    ? utilesPreviewData.keys.filter(
+        (k) =>
+          (config.importUtilesCategorias || {})[k.replace('-art-tracker', '')] !==
+          false
+      )
+    : [];
 
   const {
     isClosing: importClosing,
@@ -953,6 +963,7 @@ export function ConfiguracionView({
     localStorageAdapter.set("tips-art-tracker", []);
     localStorageAdapter.set("links-art-tracker", []);
     localStorageAdapter.set("speechs-art-tracker", []);
+    localStorageAdapter.set("speechs-interactivos-art-tracker", []);
     localStorageAdapter.set("objeciones-art-tracker", []);
     localStorageAdapter.set("art-art-tracker", []);
     localStorageAdapter.set("transito-art-tracker", []);
@@ -970,6 +981,7 @@ export function ConfiguracionView({
     setTips([]);
     setLinks([]);
     setSpeechs([]);
+    setSpeechsInteractivos([]);
     setObjeciones([]);
     setArt([]);
     setTransito([]);
@@ -1802,6 +1814,7 @@ export function ConfiguracionView({
           { key: "tips", label: "Tips" },
           { key: "links", label: "Links útiles" },
           { key: "speechs", label: "Speechs" },
+          { key: "speechs-interactivos", label: "Speechs interactivos" },
           { key: "objeciones", label: "Objeciones" },
           { key: "art", label: "Aseguradoras (ART)" },
           { key: "transito", label: "Tránsito" },
@@ -2400,6 +2413,14 @@ export function ConfiguracionView({
                   </span>{" "}
                   <b style={{ color: "var(--color-text)" }}>
                     {speechs?.length || 0}
+                  </b>
+                </div>
+                <div>
+                  <span style={{ color: "var(--color-text-muted)" }}>
+                    Speechs interactivos:
+                  </span>{" "}
+                  <b style={{ color: "var(--color-text)" }}>
+                    {speechsInteractivos?.length || 0}
                   </b>
                 </div>
                 <div>
@@ -3598,14 +3619,21 @@ export function ConfiguracionView({
               style={{ borderTop: "1px solid var(--color-border)" }}
             >
               <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                {utilesPreviewData.keys.length} configuraciones a importar
+                {utilesClavesImportables.length} de {utilesPreviewData.keys.length} configuraciones a importar
               </span>
               <div className="flex gap-2">
                 <BtnOutline onClick={utilesClose} size="sm" color="var(--color-text-muted)">
                   Cancelar
                 </BtnOutline>
-                <Btn onClick={handleUtilesPreviewImport} size="sm" icon={Upload} disabled={loading}>
-                  {loading ? "Importando..." : `Importar ${utilesPreviewData.keys.length} configuraciones`}
+                <Btn
+                  onClick={handleUtilesPreviewImport}
+                  size="sm"
+                  icon={Upload}
+                  disabled={loading || utilesClavesImportables.length === 0}
+                >
+                  {loading
+                    ? "Importando..."
+                    : `Importar ${utilesClavesImportables.length} configuraciones`}
                 </Btn>
               </div>
             </div>

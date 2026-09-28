@@ -75,7 +75,13 @@ export const GLOSSARY_TERMS = [
     term: "Speech",
     definition: "Guion o frase predefinida utilizada durante las llamadas telefonicas para mantener consistencia en la comunicacion con los prospectos.",
     example: "Ej: 'Hola, soy {OPERADOR} de la linea informativa...'",
-    related: ["Utiles", "Objecion"],
+    related: ["Utiles", "Objecion", "Speech interactivo"],
+  },
+  {
+    term: "Speech interactivo",
+    definition: "Recorrido de conversacion con pasos y opciones: cada paso tiene contenido y opciones que llevan al siguiente paso. Se crea y edita en el editor visual con arbol de flujo, y se ejecuta paso a paso.",
+    example: "Ej: Paso 'Apertura' con opciones 'Interesado' y 'Dudoso' que derivan a pasos distintos",
+    related: ["Speech", "Utiles"],
   },
   {
     term: "Objecion",

@@ -155,13 +155,13 @@ export async function importConfigFromJSON(jsonData, options = {}) {
     let importedCount = 0;
 
     // Filtro opcional de categorías (cleanKeys sin "-art-tracker").
-    // Si se especifica, solo se importan esas claves.
+    // ausente o true = ON (igual que la UI); solo false explícito excluye.
     let categoriasPermitidas = null;
     if (options.categorias && typeof options.categorias === 'object') {
+      const universo = CONFIG_KEYS.map((k) => k.replace('-art-tracker', ''));
+      universo.push('conversaciones');
       categoriasPermitidas = new Set(
-        Object.entries(options.categorias)
-          .filter(([, enabled]) => enabled !== false)
-          .map(([k]) => k)
+        universo.filter((k) => options.categorias[k] !== false)
       );
       if (categoriasPermitidas.size === 0) {
         return { success: false, error: 'No hay categorías seleccionadas para importar' };

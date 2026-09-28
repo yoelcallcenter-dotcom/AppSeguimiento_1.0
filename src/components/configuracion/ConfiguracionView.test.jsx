@@ -47,6 +47,8 @@ function VistaConfig({ onCfg }) {
           setLinks={noop}
           speechs={[]}
           setSpeechs={noop}
+          speechsInteractivos={[]}
+          setSpeechsInteractivos={noop}
           objeciones={[]}
           setObjeciones={noop}
           art={[]}

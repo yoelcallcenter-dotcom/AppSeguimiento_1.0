@@ -382,7 +382,7 @@ export default function HelpPanel({ showToast, onClose }) {
                 </div>
                 <div className="rounded-lg p-2.5" style={{ backgroundColor: SURF2 }}>
                   <span className="font-semibold text-[11px]" style={{ color: TEXT }}>Speech</span>
-                  <div className="leading-relaxed mt-0.5">Guiones predefinidos para llamadas telefónicas. Cada speech tiene un icono, título y el texto completo. Con un clic lo copiás al portapapeles y lo usás en la llamada. Creá los que más uses y tenelos siempre listos.</div>
+                  <div className="leading-relaxed mt-0.5">Guiones predefinidos para llamadas telefónicas. Cada speech tiene un icono, título y el texto completo. Con un clic lo copiás al portapapeles y lo usás en la llamada. En la pestaña Interactivos podés crear recorridos interactivos con pasos y opciones: se editan con el editor visual (árbol de flujo, reordenar con flechas, duplicar speechs o pasos) y se ejecutan paso a paso. Se exportan e importan en archivo JSON versionado, resolviendo conflictos por ID con Copia, Reemplazar u Omitir.</div>
                 </div>
                 <div className="rounded-lg p-2.5" style={{ backgroundColor: SURF2 }}>
                   <span className="font-semibold text-[11px]" style={{ color: TEXT }}>Objeciones</span>

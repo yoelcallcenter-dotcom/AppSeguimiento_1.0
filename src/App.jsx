@@ -337,6 +337,10 @@ function AppContent() {
     "speechs-art-tracker",
     DEFAULT_SPEECHS
   );
+  const [speechsInteractivos, setSpeechsInteractivos] = useStorage(
+    "speechs-interactivos-art-tracker",
+    []
+  );
   const [objeciones, setObjeciones] = useStorage(
     "objeciones-art-tracker",
     DEFAULT_OBJECIONES
@@ -743,6 +747,7 @@ function AppContent() {
       saveKey("tips-art-tracker", tips);
       saveKey("links-art-tracker", links);
       saveKey("speechs-art-tracker", speechs);
+      saveKey("speechs-interactivos-art-tracker", speechsInteractivos);
       saveKey("objeciones-art-tracker", objeciones);
       saveKey("art-art-tracker", art);
       saveKey("transito-art-tracker", transito);
@@ -759,6 +764,7 @@ function AppContent() {
     tips,
     links,
     speechs,
+    speechsInteractivos,
     objeciones,
     art,
     transito,
@@ -1542,6 +1548,8 @@ function AppContent() {
               setLinks={setLinks}
               speechs={speechs}
               setSpeechs={setSpeechs}
+              speechsInteractivos={speechsInteractivos}
+              setSpeechsInteractivos={setSpeechsInteractivos}
               objeciones={objeciones}
               setObjeciones={setObjeciones}
               art={art}
@@ -1627,6 +1635,8 @@ function AppContent() {
             setLinks={setLinks}
             speechs={speechs}
             setSpeechs={setSpeechs}
+            speechsInteractivos={speechsInteractivos}
+            setSpeechsInteractivos={setSpeechsInteractivos}
             objeciones={objeciones}
             setObjeciones={setObjeciones}
             art={art}

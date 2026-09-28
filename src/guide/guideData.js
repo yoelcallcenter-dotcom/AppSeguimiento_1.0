@@ -292,6 +292,14 @@ Frases o guiones predefinidos para llamadas.
 - Copia al portapapeles con un clic
 - Organizados para acceso rapido durante llamadas
 
+SPEECHS INTERACTIVOS (pestana Interactivos)
+Recorridos con pasos y opciones para guiar la conversacion.
+- Editor visual con arbol de flujo: jerarquia de pasos y opciones
+- Reordenar con flechas, duplicar speechs y pasos
+- Ejecucion paso a paso con opciones de destino
+- Advertencias de pasos sin alcanzar desde el inicio
+- Exportar e importar en archivo JSON versionado (Copia, Reemplazar u Omitir)
+
 OBJECIONES
 Registro de objeciones comunes y sus respuestas.
 - Agrega objeciones que escuchas frecuentemente

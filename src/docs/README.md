@@ -64,7 +64,7 @@
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa.
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más **Speechs Interactivos** — recorridos con pasos y opciones, editor con árbol de flujo y reordenar con flechas, duplicación de speechs/pasos, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables `{OPERADOR}`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 

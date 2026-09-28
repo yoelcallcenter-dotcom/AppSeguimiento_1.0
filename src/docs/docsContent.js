@@ -72,7 +72,7 @@ export const DOC_README = `# AppSeguimiento
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa.
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más **Speechs Interactivos** — recorridos con pasos y opciones, editor con árbol de flujo y reordenar con flechas, duplicación de speechs/pasos, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables \`{OPERADOR}\`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 
@@ -327,6 +327,66 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.9.1] - Editor completo, duplicación e importación/exportación de Speechs Interactivos
+
+Release de madurez del módulo de Speechs Interactivos (1.9.0): editor con árbol de flujo, reordenar y duplicar, borrado con resolución de referencias, advertencias no bloqueantes y exportación/importación en JSON versionado con estrategias por speech. Además se corrige la importación de configuración con categorías por defecto.
+
+### Editor y flujo
+
+- **Árbol de flujo** (\`FlowTree\`): pasa la lista plana a una jerarquía visual pasos → opciones → destino (conector en L), con badge **INICIO**, iconos de error/advertencia, sección "Sin conexión" para pasos no alcanzables, clic en una opción que navega al destino y flechas **↑↓** (Subir/Bajar paso) para reordenar. Sin INICIO válido, todos los pasos quedan en la lista principal.
+- **Nombre y descripción editables** en el encabezado del editor.
+- **Advertencias no bloqueantes**: los pasos huérfanos (no alcanzables desde el INICIO) se listan en un bloque amarillo sin impedir Iniciar ni Ejecutar.
+- **Eliminar paso con resolución de referencias**: diálogo que lista qué opciones de otros pasos apuntan al paso y exige elegir el nuevo destino (o deshabilita Eliminar cuando hay referencias y no se elige).
+- **Reordenar y duplicar**: flechas ↑↓ en pasos y en opciones, duplicar paso y duplicar opción, y "+ Crear nuevo paso…" desde una fila de opción para crear y conectar en un paso.
+
+### Duplicación de speechs
+
+- Botón **Duplicar speech interactivo** en la tarjeta: copia con IDs nuevos, remapea \`startStepId\` y destinos preservando referencias, nombre con sufijo " (copia)" y versión 1.
+
+### Exportar / Importar
+
+- **Exportar** con modal y checklist de speechs (Seleccionar todos / Quitar todos y conteo) a \`speechs_interactivos_<fecha>.json\` con envelope \`{tipo, version, speechs}\`.
+- **Importar** con parser de errores claros (JSON inválido, tipo desconocido, versión no soportada, vacío), previsualización por fila con chips **Nuevo / ID duplicado / Inválido**, migración v0 → v1 y validación de estructura (los huérfanos solo advierten).
+- **Conflictos por speech** resueltos con estrategia **Copia / Reemplazar / Omitir** (default Omitir), con \`ConfirmDialog\` si alguna fila queda en Reemplazar; toast con agregados/reemplazados/omitidos.
+
+### Correcciones
+
+- **Importación de configuración (categorías)**: \`importConfigFromJSON\` trata ausente o true como ON, igual que la UI. Antes, un mapa \`{}\` o parcial devolvía "No hay categorías seleccionadas para importar" u omitía categorías en silencio; ahora solo el \`false\` explícito excluye.
+- El preview de importación de Útiles muestra las categorías realmente importables ("N de M") e Importar queda deshabilitado si quedan 0.
+
+### Mantenimiento
+
+- Tests nuevos/ampliados: \`interactiveSpeechModel\` (21), \`speechsInteractivosIO\` (6), \`InteractivosView\` (24) y \`backupRegression\` (+4).
+- Docs actualizados: Acerca de Vistas (HelpPanel), tour de Útiles, glosario ("Speech interactivo"), FAQ, Guía de Usuario, descripción de la pestaña Speechs y README (×3).
+- Bump a **1.9.1** en \`version.js\`, \`package.json\` y \`package-lock.json\`.
+
+---
+
+## [1.9.0] - Speechs Interactivos: recorridos por pasos con edición y ejecución
+
+Nuevo módulo dentro de Útiles → Speechs: pestañas internas **Clásicos | Interactivos** con speechs "interactivos" — recorridos de pasos con opciones que conectan entre sí, determinísticos y 100% locales (sin IA). Persisten con el sistema de storage existente y quedan incluidos en el backup/import de Útiles.
+
+### Speechs interactivos
+
+- Nueva pestaña **Interactivos** dentro de Speechs (\`SubPills\` con aria-label "Secciones de Speechs"); la rama clásica queda intacta. App pasa \`speechsInteractivos\` (nueva clave \`speechs-interactivos-art-tracker\`) por UtilesView → SpeechsView.
+- Lista con búsqueda por nombre/descripción, contador, tarjetas con badge de errores (\`N errores\`), metadatos (cantidad de pasos y última modificación) y acciones **Ejecutar / Editar / Eliminar** (con \`ConfirmDialog\`). "Nuevo Speech Interactivo" abre un modal con nombre* y descripción y lleva directo al editor.
+- **Editor** en dos columnas: a la izquierda la lista de pasos (badge **INICIO** y aviso de pasos con opciones rotas); a la derecha título, contenido, **Marcar como INICIO**, duplicar/eliminar paso y filas de opción \`[texto][destino][✕]\` con "Agregar opción". Se edita en vivo (persistencia con debounce de 500 ms del \`useStorage\`), sin pasos intermedios de Guardar.
+- **Validación visible**: errores puntuales (paso inicial ausente, IDs duplicados, opciones sin texto o sin destino, destinos inexistentes, nombre vacío) listados siempre en el editor; **Iniciar Speech** y **Ejecutar** quedan deshabilitados hasta corregirlos.
+- **Modo ejecución** en modal solo lectura (\`SpeechRunner\`): \`PASO n / total\` con badge INICIO, título y contenido, opciones como botones grandes apilados, y botones **Atrás** / **Reiniciar** / **Cerrar**; el historial vive en estado local y un paso sin opciones se muestra como **Fin del recorro**.
+- Las variables de contenido (\`(NOMBRE)\`, \`(LOCALIDAD)\`, \`(ESTUDIO)\`, \`(DÍA/HORARIO)\`, \`(NOMBRE DEL TRABAJADOR)\`) siguen siendo placeholders: el runner las muestra tal cual.
+
+### Persistencia y backups
+
+- Clave \`speechs-interactivos-art-tracker\` en \`STORAGE_KEYS\`/\`CONFIG_KEYS\`: se exporta/importa con Útiles JSON (nueva categoría "Speechs interactivos"), entra al \`beforeunload\`, a "Eliminar útiles" y al borrado total de datos (sufijo \`-art-tracker\`).
+- Configuración muestra el conteo de "Speechs interactivos" junto al de Speechs clásicos.
+
+### Mantenimiento
+
+- Tests nuevos: \`interactiveSpeechModel\` (11), \`InteractivosView\` (8: creación, búsqueda, eliminación, validación en vivo, badge INICIO, ejecución) y \`SpeechsView\` (2: pestañas); \`ConfiguracionView.test\` actualizado con las props nuevas.
+- Bump a **1.9.0** en \`version.js\`, \`package.json\` y \`package-lock.json\`.
+
+---
 
 ## [1.8.10] - Animaciones: vistas con movimiento, modales que suben y drawers der↔izq
 

@@ -138,7 +138,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         question: "¿Que son los Speechs?",
-        answer: "Los Speechs son frases o guiones predefinidos que usas durante las llamadas telefonicas. Ayudan a mantener consistencia en la comunicacion. Puedes crear, editar y organizar speechs en Utiles → Speechs. Cada speech tiene icono, titulo, texto y se puede copiar al portapapeles con un clic.",
+        answer: "Los Speechs son frases o guiones predefinidos que usas durante las llamadas telefonicas. Ayudan a mantener consistencia en la comunicacion. Puedes crear, editar y organizar speechs en Utiles → Speechs. Cada speech tiene icono, titulo, texto y se puede copiar al portapapeles con un clic. En la pestana Interactivos ademas podes crear recorridos interactivos con pasos y opciones: se editan con un editor visual (arbol de flujo, reordenar con flechas, duplicar speechs o pasos), se ejecutan paso a paso y se exportan/importan en archivo JSON versionado.",
         tags: ["uso", "speechs"],
       },
       {

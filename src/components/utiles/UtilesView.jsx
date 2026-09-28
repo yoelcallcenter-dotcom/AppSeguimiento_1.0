@@ -67,6 +67,8 @@ export function UtilesView({
   setLinks,
   speechs,
   setSpeechs,
+  speechsInteractivos,
+  setSpeechsInteractivos,
   objeciones,
   setObjeciones,
   art,
@@ -139,7 +141,7 @@ export function UtilesView({
   const TAB_DESC = {
     condicionales: "Planillas y reglas para el control de condiciones de tus casos.",
     pasos: "Secuencia operativa paso a paso con tips y enlaces de utilidad.",
-    speechs: "Libretos de comunicación listos para usar en cada situación.",
+    speechs: "Libretos de comunicación y recorridos interactivos paso a paso.",
     objeciones: "Argumentos y respuestas ante objeciones frecuentes.",
     conversacion: "Guiones de conversación sugerida para cada contexto.",
     aseguradoras: "Directorio de aseguradoras y sus datos de contacto.",
@@ -223,6 +225,8 @@ export function UtilesView({
           <SpeechsView
             speechs={speechs}
             setSpeechs={setSpeechs}
+            speechsInteractivos={speechsInteractivos}
+            setSpeechsInteractivos={setSpeechsInteractivos}
             showToast={showToast}
           />
         );

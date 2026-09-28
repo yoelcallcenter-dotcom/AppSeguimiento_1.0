@@ -17,6 +17,7 @@ import {
   X,
   Type,
   Pencil,
+  GitBranch,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -24,11 +25,20 @@ import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { Modal } from "../common/Modal";
+import { SubPills } from "../common/UINav";
+import { InteractivosView } from "./interactivos/InteractivosView";
 import { sanitizeString } from "../../utils/sanitize";
 import { hoyISO } from "../../utils/dateUtils";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 
-export function SpeechsView({ speechs, setSpeechs, showToast }) {
+export function SpeechsView({
+  speechs,
+  setSpeechs,
+  speechsInteractivos,
+  setSpeechsInteractivos,
+  showToast,
+}) {
+  const [modo, setModo] = useState("clasicos");
   const [nuevo, setNuevo] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [vista, setVista] = useState("grid");
@@ -153,8 +163,39 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
     }
   };
 
+  const interactivos = speechsInteractivos || [];
+
   return (
     <div className="space-y-4">
+      <SubPills
+        items={[
+          {
+            id: "clasicos",
+            label: "Clásicos",
+            icon: FileText,
+            badge: speechs.length > 0 ? speechs.length : undefined,
+          },
+          {
+            id: "interactivos",
+            label: "Interactivos",
+            icon: GitBranch,
+            badge: interactivos.length > 0 ? interactivos.length : undefined,
+          },
+        ]}
+        active={modo}
+        onSelect={setModo}
+        ariaLabel="Secciones de Speechs"
+        className="mb-1"
+      />
+
+      {modo === "interactivos" ? (
+        <InteractivosView
+          speechs={interactivos}
+          setSpeechs={setSpeechsInteractivos}
+          showToast={showToast}
+        />
+      ) : (
+        <>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px]">
           <SearchInput
@@ -669,8 +710,10 @@ export function SpeechsView({ speechs, setSpeechs, showToast }) {
             >
               {speechSeleccionado.speech}
             </div>
-          ))}
+          )        )}
       </Modal>
+        </>
+      )}
     </div>
   );
 }

@@ -34,6 +34,18 @@ const UTILES = {
   'tips-art-tracker': [{ id: 't1', contenido: 'No somos parte de su ART' }],
   'links-art-tracker': [{ id: 'l1', titulo: 'SRT', url: 'https://www.srt.gob.ar' }],
   'speechs-art-tracker': ['SPEECH V.1: Hola'],
+  'speechs-interactivos-art-tracker': [
+    {
+      id: 'si1',
+      nombre: 'Accidente Laboral',
+      descripcion: 'General',
+      fechaCreacion: '2026-01-01T00:00:00.000Z',
+      fechaModificacion: '2026-01-01T00:00:00.000Z',
+      version: 1,
+      startStepId: 'p1',
+      steps: [{ id: 'p1', titulo: 'Apertura', contenido: 'Hola', orden: 0, opciones: [] }],
+    },
+  ],
   'objeciones-art-tracker': [{ id: 'o1', titulo: 'SI YA TIENE ABOGADO', contenido: '...' }],
   'art-art-tracker': [{ id: 'a1', nombre: 'ANDINA', observaciones: '' }],
   'transito-art-tracker': [{ id: 'tr1', nombre: 'AGROSALTA', observaciones: '' }],
@@ -66,6 +78,9 @@ describe('Bug 1: backup completo con Útiles', () => {
     expect(localStorageAdapter.get('pasos-art-tracker')).toMatchObject(UTILES['pasos-art-tracker']);
     expect(localStorageAdapter.get('mapeo-art-tracker')).toMatchObject(UTILES['mapeo-art-tracker']);
     expect(localStorageAdapter.get('speechs-art-tracker')).toEqual(UTILES['speechs-art-tracker']);
+    expect(localStorageAdapter.get('speechs-interactivos-art-tracker')).toEqual(
+      UTILES['speechs-interactivos-art-tracker']
+    );
     expect(localStorageAdapter.get('lesiones-art-tracker')).toEqual(UTILES['lesiones-art-tracker']);
   });
 
@@ -104,6 +119,7 @@ describe('Bug 2: importar solo útiles con archivo de configuración', () => {
       tips: UTILES['tips-art-tracker'],
       links: UTILES['links-art-tracker'],
       speechs: UTILES['speechs-art-tracker'],
+      'speechs-interactivos': UTILES['speechs-interactivos-art-tracker'],
       objeciones: UTILES['objeciones-art-tracker'],
       art: UTILES['art-art-tracker'],
       transito: UTILES['transito-art-tracker'],
@@ -118,6 +134,9 @@ describe('Bug 2: importar solo útiles con archivo de configuración', () => {
     expect(result.success).toBe(true);
     expect(localStorageAdapter.get('pasos-art-tracker')).toMatchObject(UTILES['pasos-art-tracker']);
     expect(localStorageAdapter.get('lesiones-art-tracker')).toEqual(UTILES['lesiones-art-tracker']);
+    expect(localStorageAdapter.get('speechs-interactivos-art-tracker')).toEqual(
+      UTILES['speechs-interactivos-art-tracker']
+    );
   });
 
   it('al importar una config parcial, completa los campos faltantes con los defaults', async () => {
@@ -375,5 +394,48 @@ describe('Importación de configuración (1.8.9)', () => {
     const result = await importConfigFromJSON(archivo);
     expect(result.success).toBe(true);
     expect(localStorageAdapter.get('pasos-art-tracker')).toHaveLength(1);
+  });
+});
+
+describe('1.9.1: categorías de importación de configuración', () => {
+  const ARCHIVO = JSON.stringify({
+    version: BACKUP_VERSION,
+    fechaExportacion: '2026-09-28',
+    configuracion: {
+      config: { operador: 'Yoel' },
+      pasos: [{ id: 'p1', titulo: 'Paso', contenido: '' }],
+      speechs: ['SPEECH V.1: Hola'],
+      'speechs-interactivos': UTILES['speechs-interactivos-art-tracker'],
+    },
+  });
+
+  it('con categorías vacías (sin tocar la UI) importa todo', async () => {
+    const result = await importConfigFromJSON(ARCHIVO, { categorias: {} });
+    expect(result.success).toBe(true);
+    expect(localStorageAdapter.get('pasos-art-tracker')).toHaveLength(1);
+    expect(localStorageAdapter.get('speechs-art-tracker')).toEqual(['SPEECH V.1: Hola']);
+    expect(localStorageAdapter.get('speechs-interactivos-art-tracker')).toHaveLength(1);
+    expect(localStorageAdapter.get('config-art-tracker').operador).toBe('Yoel');
+  });
+
+  it('solo la categoría con false explícito queda excluida', async () => {
+    const result = await importConfigFromJSON(ARCHIVO, {
+      categorias: { speechs: false },
+    });
+    expect(result.success).toBe(true);
+    expect(localStorageAdapter.get('speechs-art-tracker')).toBeNull();
+    expect(localStorageAdapter.get('pasos-art-tracker')).toHaveLength(1);
+    expect(localStorageAdapter.get('speechs-interactivos-art-tracker')).toHaveLength(1);
+  });
+
+  it('con todas las categorías en false devuelve el error', async () => {
+    const todasFalse = {};
+    CONFIG_KEYS.forEach((k) => {
+      todasFalse[k.replace('-art-tracker', '')] = false;
+    });
+    todasFalse['conversaciones'] = false;
+    const result = await importConfigFromJSON(ARCHIVO, { categorias: todasFalse });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No hay categorías seleccionadas');
   });
 });
