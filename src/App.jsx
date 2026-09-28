@@ -231,6 +231,15 @@ function AppTitle() {
   );
 }
 
+const VIEW_IMPORTS = {
+  "mi-espacio": () => import("./features/operator/OperatorView"),
+  dashboard: () => import("./features/dashboard/Dashboard"),
+  kanban: () => import("./components/kanban/KanbanView"),
+  tabla: () => import("./components/tabla/TablaView"),
+  reportes: () => import("./components/reportes/ReportesView"),
+  utiles: () => import("./components/utiles/UtilesView"),
+};
+
 function ViewTabs({ tabs, selectedView, onSelect }) {
   const { t } = useI18n();
   const grupoPrincipal = tabs.filter(([k]) => k === "mi-espacio" || k === "dashboard");
@@ -244,6 +253,10 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
         key={k}
         onClick={() => onSelect(k)}
         onMouseDown={(e) => e.preventDefault()}
+        onMouseEnter={() => {
+          const load = VIEW_IMPORTS[k];
+          if (load) load().catch(() => {});
+        }}
         data-tour={k}
         className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow ${
           isActive
@@ -279,6 +292,15 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
   );
 }
 
+const VIEW_ORDER = [
+  "mi-espacio",
+  "dashboard",
+  "kanban",
+  "tabla",
+  "reportes",
+  "utiles",
+];
+
 function AppContent() {
   const { startTour } = useTour();
   const {
@@ -299,7 +321,7 @@ function AppContent() {
     resetFiltroGlobal,
   } = useFilters();
 
-  const { showView, classNameFor } = useViewTransition(selectedView);
+  const { showView, classNameFor } = useViewTransition(selectedView, VIEW_ORDER);
 
   // ============ STORAGE STATE ============
   const [casos, setCasos, casosLoaded, clearCasos, reloadCasos, casosError] = useCases();
@@ -1140,12 +1162,7 @@ function AppContent() {
   useEffect(() => {
     const preload = () => {
       Promise.all([
-        import("./features/dashboard/Dashboard"),
-        import("./components/kanban/KanbanView"),
-        import("./components/tabla/TablaView"),
-        import("./components/reportes/ReportesView"),
-        import("./components/utiles/UtilesView"),
-        import("./features/operator/OperatorView"),
+        ...Object.values(VIEW_IMPORTS).map((load) => load()),
         import("./features/notes"),
         import("./features/calendar"),
         import("./components/configuracion/ConfiguracionView"),
@@ -1423,7 +1440,7 @@ function AppContent() {
       </header>
 
       {/* CONTENIDO */}
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto relative">
+      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto relative overflow-x-clip">
         <SystemStatusBanner />
         <Suspense
           fallback={
@@ -1438,6 +1455,7 @@ function AppContent() {
             </div>
           }
         >
+        <div className="relative">
         {showView("dashboard") && (
           <div key="view-dashboard" className={classNameFor("dashboard")}>
             <Dashboard
@@ -1543,54 +1561,51 @@ function AppContent() {
             />
           </div>
         )}
+        </div>
         </Suspense>
       </div>
 
       {/* CALENDARIO - Overlay */}
-      {showCalendar && (
-        <OverlayPanel
-          isOpen={showCalendar}
-          onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
-          title="Calendario de Citas"
-          icon={CalendarIcon}
-          fullscreen
-        >
-          <Suspense fallback={null}>
-            <CalendarView
-              showToast={showToast}
-              onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
-              casos={casos}
-              config={config}
-              onVerCaso={(c) => { setVerCaso(c); }}
-              initialEventId={pendingEventId}
-              onInitialEventConsumed={() => setPendingEventId(null)}
-            />
-          </Suspense>
-        </OverlayPanel>
-      )}
+      <OverlayPanel
+        isOpen={showCalendar}
+        onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
+        title="Calendario de Citas"
+        icon={CalendarIcon}
+        fullscreen
+      >
+        <Suspense fallback={null}>
+          <CalendarView
+            showToast={showToast}
+            onClose={() => { setShowCalendar(false); setPendingEventId(null); }}
+            casos={casos}
+            config={config}
+            onVerCaso={(c) => { setVerCaso(c); }}
+            initialEventId={pendingEventId}
+            onInitialEventConsumed={() => setPendingEventId(null)}
+          />
+        </Suspense>
+      </OverlayPanel>
 
       {/* BLOC DE NOTAS - Overlay */}
-      {showBlocNotas && (
-        <OverlayPanel
-          isOpen={showBlocNotas}
-          onClose={() => setShowBlocNotas(false)}
-          title="Bloc de Notas"
-          icon={FileText}
-          fullscreen
-        >
-          <Suspense fallback={null}>
-            <NotesView
-              showToast={showToast}
-              casos={casos}
-              config={config}
-              selectedNoteId={pendingNoteId}
-              onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
-              onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
-              onVerCaso={(c) => { setVerCaso(c); }}
-            />
-          </Suspense>
-        </OverlayPanel>
-      )}
+      <OverlayPanel
+        isOpen={showBlocNotas}
+        onClose={() => setShowBlocNotas(false)}
+        title="Bloc de Notas"
+        icon={FileText}
+        fullscreen
+      >
+        <Suspense fallback={null}>
+          <NotesView
+            showToast={showToast}
+            casos={casos}
+            config={config}
+            selectedNoteId={pendingNoteId}
+            onSelectedNoteIdConsumed={() => setPendingNoteId(null)}
+            onCreateEvent={(evt) => { showToast('Evento creado desde nota', 'success'); }}
+            onVerCaso={(c) => { setVerCaso(c); }}
+          />
+        </Suspense>
+      </OverlayPanel>
 
       {/* OVERLAYS */}
       <OverlayPanel

@@ -23,6 +23,7 @@ import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { useClipboard } from "../../hooks/useClipboard";
 import { soundSystem } from "../../core/notifications/soundSystem";
 import { onKeyActivate } from "../../utils/a11y";
+import { useDelayedClose } from "../../hooks/useAnimatedPresence";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import {
   getCaseHistory,
@@ -87,8 +88,9 @@ export function VerCasoModal({
   objeciones = [],
 }) {
   const dialogRef = useRef(null);
+  const { isClosing, startClose } = useDelayedClose(onClose);
   const a11yEnabled = !!caso && !covered;
-  useDialogA11y(dialogRef, a11yEnabled, { onEscape: onClose });
+  useDialogA11y(dialogRef, a11yEnabled, { onEscape: startClose });
 
   const casoId = caso?.id;
   useLayoutEffect(() => {
@@ -231,7 +233,7 @@ export function VerCasoModal({
   const confirmDeleteCaso = () => {
     setConfirmDeleteOpen(false);
     onDelete(caso.id);
-    onClose();
+    startClose();
     if (showToast) showToast("Caso eliminado", "info");
   };
 
@@ -319,7 +321,9 @@ export function VerCasoModal({
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 animate-fade-in"
+      className={`fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 ${
+        isClosing ? "animate-fade-out" : "animate-fade-in"
+      }`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       role="dialog"
       aria-modal="true"
@@ -328,7 +332,9 @@ export function VerCasoModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl rounded-xl my-6 animate-scale-in"
+        className={`w-full max-w-2xl rounded-xl my-6 ${
+          isClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
+        }`}
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
@@ -406,7 +412,7 @@ export function VerCasoModal({
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={onClose}
+              onClick={startClose}
               className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
               aria-label="Cerrar"
             >

@@ -16,6 +16,7 @@ import {
 import { getDailyGreeting } from "./operatorMessages";
 import { Btn, OutlineButton } from "../../components/common/Btn";
 import { useModal } from "../../hooks/useModal";
+import { useAnimatedPresence } from "../../hooks/useAnimatedPresence";
 
 const SECCIONES = [
   { key: "perfil", label: "Perfil del operador", Icon: User },
@@ -50,6 +51,7 @@ export function PdfExportModal({ open, onClose, config, casos, showToast, evento
     onClose,
     closeOnOverlayClick: true,
   });
+  const { isRendered, isLeaving } = useAnimatedPresence(open);
 
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
@@ -382,11 +384,13 @@ export function PdfExportModal({ open, onClose, config, casos, showToast, evento
     }
   }, [selected, daily, monthly, pace, effective, perDay, availSummary, weekly, paceToday, proximos, profile, now, showToast, onClose, eventos]);
 
-  if (!open) return null;
+  if (!isRendered) return null;
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
+      className={`fixed inset-0 z-modal flex items-center justify-center p-4 ${
+        isLeaving ? "animate-fade-out" : "animate-fade-in"
+      }`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       onClick={handleBackdropClick}
       role="dialog"
@@ -396,7 +400,9 @@ export function PdfExportModal({ open, onClose, config, casos, showToast, evento
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-xl my-6 animate-scale-in"
+        className={`w-full max-w-lg rounded-xl my-6 ${
+          isLeaving ? "animate-modal-rise-out" : "animate-modal-rise-in"
+        }`}
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",

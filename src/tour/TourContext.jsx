@@ -84,6 +84,7 @@ export function TourProvider({ children }) {
   const [animating, setAnimating] = useState(false);
   const [finished, setFinished] = useState(false);
   const highlightEl = useRef(null);
+  const lockedRef = useRef(false);
   const timerRef = useRef(null);
   const maskIdRef = useRef("tour-mask-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8));
   const stateRef = useRef(state);
@@ -117,7 +118,10 @@ export function TourProvider({ children }) {
 
   const endTour = useCallback(() => {
     clearHighlight();
-    unlockBodyScroll();
+    if (lockedRef.current) {
+      lockedRef.current = false;
+      unlockBodyScroll();
+    }
     setState({ isActive: false, currentStep: 0, steps: [], tourId: null });
     setTargetRect(null);
     setFinished(false);
@@ -168,6 +172,15 @@ export function TourProvider({ children }) {
     return () => { clearHighlight(); };
   }, [clearHighlight]);
 
+  useEffect(() => {
+    return () => {
+      if (lockedRef.current) {
+        lockedRef.current = false;
+        unlockBodyScroll();
+      }
+    };
+  }, []);
+
   const startTour = useCallback((tourId) => {
     const tour = TOURS[tourId];
     if (!tour) return;
@@ -175,7 +188,10 @@ export function TourProvider({ children }) {
     setState({ isActive: true, currentStep: 0, steps: tour.steps, tourId });
     setFinished(false);
     setTargetRect(null);
-    lockBodyScroll();
+    if (!lockedRef.current) {
+      lockBodyScroll();
+      lockedRef.current = true;
+    }
   }, []);
 
   const nextStep = useCallback(() => {

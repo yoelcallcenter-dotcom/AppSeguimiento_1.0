@@ -122,6 +122,38 @@ describe('Deduplicación: una acción lógica → una notificación', () => {
   });
 });
 
+describe('Deduplicación de alertas persistentes por id', () => {
+  it('repetir el mismo id no duplica la alerta (clave React única)', () => {
+    const store = useNotificationStore.getState();
+    store.addPersistentAlert({ id: 'backup-reminder', title: 'Backup', message: 'm1' });
+    store.addPersistentAlert({ id: 'backup-reminder', title: 'Backup', message: 'm2' });
+    const alerts = useNotificationStore.getState().persistentAlerts;
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].message).toBe('m2');
+  });
+
+  it('mantiene la posición de la alerta al refrescarla', () => {
+    const store = useNotificationStore.getState();
+    store.addPersistentAlert({ id: 'a', title: 'A', message: 'x' });
+    store.addPersistentAlert({ id: 'b', title: 'B', message: 'y' });
+    store.addPersistentAlert({ id: 'a', title: 'A', message: 'x2' });
+    const alerts = useNotificationStore.getState().persistentAlerts;
+    expect(alerts.map((x) => x.id)).toEqual(['a', 'b']);
+    expect(alerts[0].message).toBe('x2');
+  });
+
+  it('ids distintos conviven y sin id genera ids únicos', () => {
+    const store = useNotificationStore.getState();
+    const id1 = store.addPersistentAlert({ title: 'A', message: 'x' });
+    const id2 = store.addPersistentAlert({ title: 'B', message: 'y' });
+    const alerts = useNotificationStore.getState().persistentAlerts;
+    expect(alerts.length).toBe(2);
+    expect(id1).toBeTruthy();
+    expect(id2).toBeTruthy();
+    expect(id1).not.toBe(id2);
+  });
+});
+
 describe('notificationManager.notify vía pipeline (inicializado)', () => {
   it('enruta una notificación al centro y genera id', () => {
     notificationManager.init({});

@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 
 /**
- * MultiSelect — selector múltiple con dropdown, checkboxes y pills de selección.
- * Diseño consistente con Select.jsx existente.
+ * MultiSelect — selector múltiple con dropdown y checkboxes. La selección
+ * se resume en una sola línea dentro del botón (labels unidos, con truncate)
+ * sin pills debajo, para que el control mantenga siempre la misma altura.
  *
  * @param {{ label?:string, id?:string, options:{value:string,label:string}[], value:string[], onChange:(selected:string[])=>void, placeholder?:string, className?:string }} props
  */
@@ -76,7 +77,9 @@ export function MultiSelect({
         >
           {selectedCount === 0
             ? placeholder
-            : `${selectedCount} seleccionado${selectedCount > 1 ? 's' : ''}`}
+            : value
+                .map((v) => options.find((o) => o.value === v)?.label || v)
+                .join(', ')}
         </span>
         <span className="flex items-center gap-1 flex-shrink-0">
           {selectedCount > 0 && (
@@ -86,7 +89,7 @@ export function MultiSelect({
               tabIndex={0}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); clear(e); } }}
               className="flex items-center justify-center w-4 h-4 rounded-full"
-              style={{ backgroundColor: 'var(--color-accent11)', color: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-on-accent)' }}
               aria-label="Limpiar selección"
             >
               <X size={10} />
@@ -128,10 +131,10 @@ export function MultiSelect({
                 className="flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs"
                 style={{
                   color: 'var(--color-text)',
-                  backgroundColor: isSelected ? 'var(--color-accent11)' : 'transparent',
+                  backgroundColor: isSelected ? 'var(--ring)' : 'transparent',
                 }}
                 onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
+                  if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--color-surface2)';
                 }}
                 onMouseLeave={(e) => {
                   if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
@@ -146,32 +149,6 @@ export function MultiSelect({
                 />
                 <span className="truncate">{opt.label}</span>
               </label>
-            );
-          })}
-        </div>
-      )}
-
-      {selectedCount > 0 && (
-        <div className="flex flex-wrap gap-1 mt-0.5">
-          {value.map((val) => {
-            const opt = options.find((o) => o.value === val);
-            return (
-              <span
-                key={val}
-                className="inline-flex items-center gap-1 text-[10px] font-medium rounded px-1.5 py-0.5 cursor-pointer"
-                style={{
-                  backgroundColor: 'var(--color-accent11)',
-                  color: 'var(--color-accent)',
-                }}
-                onClick={() => toggle(val)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(val); } }}
-                role="button"
-                tabIndex={0}
-                aria-label={`Quitar ${opt?.label || val}`}
-              >
-                {opt?.label || val}
-                <X size={8} />
-              </span>
             );
           })}
         </div>

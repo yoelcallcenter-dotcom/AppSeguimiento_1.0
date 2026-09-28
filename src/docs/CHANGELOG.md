@@ -7,6 +7,45 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.8.10] - Animaciones: vistas con movimiento, modales que suben y drawers der↔izq
+
+Release de pulido visual: se reemplaza el fundido cruzado entre vistas por un deslizamiento horizontal direccional, los modales suben desde abajo al abrir (y bajan al cerrar) y los paneles laterales entran/salen por la derecha.
+
+### Transición entre vistas
+
+- `useViewTransition` calcula la dirección del cambio según el orden de pestañas (`VIEW_ORDER`): la vista entrante se desliza **opaca y por encima** de la saliente (`view-enter-right/left`), que deriva en parallax hacia el lado contrario (`view-drift-left/right`, ∓20%) y queda recortada (`top/bottom` + `overflow: hidden`) a la altura de la entrante; el fundido queda solo como fallback cuando la vista no está en el orden.
+- Fix de superposición: las vistas llevan fondo opaco (`var(--color-bg)`) durante la transición para que la nueva no se transparente sobre la vieja; la saliente se alinea al pixel mediante un wrapper sin padding dentro de `Suspense` (antes quedaba desfasada por el padding `p-4 sm:p-6`); y la activa queda **sin clases al terminar** la transición (sin `transform`/`will-change` residual que afectaría a hijos `position: fixed`).
+- El contenedor de vistas usa `overflow-x-clip` para que el deslizamiento no genere scroll horizontal momentáneo.
+- **El scroll ya no se manipula al cambiar de vista**: se eliminaron el guardado/restauración de posiciones y el salto a tope; el navegador conserva la posición actual.
+
+### Sin recarga entre vistas
+
+- Las vistas se montan **una sola vez** y luego quedan ocultas (`.view-transition-hidden`, `display: none`): cambiar de pestaña ya no desmonta ni remonta componentes — no hay skeleton, y el estado de cada vista se conserva (página/orden de Tabla, columnas del Kanban, periodo del Dashboard, sub-tab de Útiles).
+- Nuevo `isHiddenView` en `useViewTransition`; la vista saliente sigue animando su salida y al volver a mostrar una vista el navegador reinicia sus animaciones (el slide funciona en cada ida y vuelta).
+- Precarga unificada en `VIEW_IMPORTS` (mapa clave→import) reutilizado por la precarga en idle y por **`onMouseEnter` en las pestañas**, que descarga el chunk antes del primer click.
+
+### Modales con subida suave
+
+- Nuevo hook `useAnimatedPresence` (`useAnimatedPresence(isOpen)` para padres que mantienen montado y `useDelayedClose(onClose)` para padres con render condicional) y keyframes `modal-rise-in/out`: el contenido sube 40 px con fade al abrir (0.25 s) y baja al cerrar (0.18 s), con backdrop en fade.
+- Aplicado en `Modal` (Speechs y EventModal), `OverlayPanel` (Calendario, Bloc de Notas, Configuración, Ayuda, Importador CSV), `ConfirmDialog`, `VerCasoModal`, `CasoEditModal`, `ReporteRapidoModal`, `PdfExportModal` y los tres previews de importación de Configuración; los que desaparecían instantáneamente ahora animan la salida (con el contenido congelado durante el cierre). Calendario y Bloc de Notas pasan a montarse siempre con `isOpen` para poder animar el cierre.
+
+### Sidebars der↔izq
+
+- `SidePanel` (Filtros, Exportar CSV, Centro de Notificaciones) corrige la entrada: el panel se desliza **desde la derecha** (`drawer-in`, 100%→0) en lugar de subir 8 px, y vuelve hacia la derecha al cerrar (`drawer-out`); entrada y salida ahora son simétricas y coinciden con su documentación.
+
+### Calendario: barra de filtros estandarizada
+
+- `CalendarFilters` se reescribe sobre las primitivas estándar (`FilterBar`, `FilterGroup`, `FilterCounter`) como el Dashboard: labels en mayúsculas del sistema (se elimina el label interno duplicado de cada `MultiSelect`), ancho uniforme de los 5 grupos (`flex: 1 1 150px`, sin huecos vacíos al envolver), botón **Limpiar filtros** estilo "Limpiar sección" y contador `Total: N eventos` con la cantidad de eventos tras filtrar.
+- `MultiSelect` (Calendario, Dashboard y Filtros globales) deja de pintar **pills bajo el control** —era la segunda línea por opción que hacía saltar la tarjeta al seleccionar—: la selección se resume **en una sola línea dentro del botón** (`Opción A, Opción B`, con truncate) y el chip X limpia toda la selección; el chip ahora usa `--color-primary`/`--color-text-on-accent` y la opción seleccionada del dropdown `--ring` (antes usaban `--color-accent11`, token inexistente que quedaba invisible).
+- La tarjeta conserva **altura fija** al filtrar: **Limpiar filtros** queda siempre visible (deshabilitado con opacidad cuando no hay filtros activos) para que no haya reflow al activar el primer filtro.
+
+### Mantenimiento
+
+- Tests: `useViewTransition` reescrito (dirección, fallback fade, scroll intacto, vista activa sin clases en reposo), nuevo `useAnimatedPresence.test.js` (+5) y `modal.test` (+1 de rise); el smoke endurecido espera los grupos de Útiles.
+- Bump a **1.8.10** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
 ## [1.8.9] - Pulido general: scroll, Útiles, filtros y backups
 
 Release de mantenimiento y pulido: fixes de scroll al abrir overlays, notificaciones y toolbars corregidas, reescritura de la vista Útiles, filtros con staging ("Aplicar Filtro"), export/import de backups con checksum canónico y el nuevo editor de campos para el pegado de ficha.

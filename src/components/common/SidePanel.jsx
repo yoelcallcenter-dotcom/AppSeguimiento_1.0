@@ -66,7 +66,7 @@ export const SidePanel = React.forwardRef(function SidePanel(
       <div
         ref={dialogRef}
         className={`absolute right-0 top-0 bottom-0 ${width} rounded-l-xl shadow-2xl flex flex-col ${
-          isLeaving ? "animate-slide-out-right" : "animate-slide-up"
+          isLeaving ? "animate-drawer-out" : "animate-drawer-in"
         }`}
         style={{
           backgroundColor: "var(--color-surface)",

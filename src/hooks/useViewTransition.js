@@ -1,40 +1,46 @@
 /**
  * useViewTransition.js
- * Transición crossfade entre vistas: mantiene la vista anterior montada
- * durante la transición (opacity/pointer-events) para evitar la "pantalla
- * negra" y el salto visual, y luego la desmonta. También preserva la
- * posición de scroll de cada vista.
+ * Transición con movimiento horizontal entre vistas: cada vista visitada
+ * permanece montada (oculta con display:none) para conservar su estado y
+ * evitar remontajes/cargas al cambiar de pestaña. La entrante se desliza
+ * opaca POR ENCIMA de la saliente, que deriva en parallax (der↔izq según
+ * el orden de pestañas) y queda recortada a la altura de la entrante. Al
+ * terminar la transición, la activa queda sin clases de animación (sin
+ * transform ni will-change residual, para no afectar a hijos fixed). El
+ * scroll nunca se manipula: el navegador conserva la posición actual.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const TRANSITION_MS = 250;
 
-export function useViewTransition(selectedView) {
+export function useViewTransition(selectedView, order = []) {
   const [active, setActive] = useState(selectedView);
   const [previous, setPrevious] = useState(null);
-
-  const scrollPositions = useRef({});
+  const directionRef = useRef("fade");
   const timerRef = useRef(null);
+  const visitedRef = useRef(null);
+  if (visitedRef.current === null) {
+    visitedRef.current = new Set([selectedView]);
+  }
 
-  // Sincronizar con selectedView; mantener la anterior montada mientras dura
-  // la animación.
-  useEffect(() => {
+  // Sincronizar con selectedView; mantener la anterior visible mientras dura
+  // la animación y calcular la dirección según el orden de pestañas.
+  useLayoutEffect(() => {
+    visitedRef.current.add(selectedView);
     if (selectedView === active) return undefined;
 
-    // Guardar scroll de la vista saliente
-    scrollPositions.current[active] = window.scrollY || 0;
+    const from = order.indexOf(active);
+    const to = order.indexOf(selectedView);
+    directionRef.current =
+      from === -1 || to === -1 || from === to
+        ? "fade"
+        : to > from
+        ? "right"
+        : "left";
 
     setPrevious(active);
     setActive(selectedView);
-
-    // Restaurar scroll de la vista entrante (solo si ya la visitamos)
-    const target = scrollPositions.current[selectedView];
-    if (target !== undefined) {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, target);
-      });
-    }
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
@@ -59,12 +65,18 @@ export function useViewTransition(selectedView) {
   return {
     active,
     previous,
-    showView: (view) => isVisible(view) || isLeavingView(view),
+    showView: (view) => visitedRef.current.has(view),
+    isHiddenView: (view) => !isVisible(view) && !isLeavingView(view),
     classNameFor: (view) => {
-      if (view === previous) {
-        return "view-transition-exit";
+      const dir = directionRef.current;
+      if (previous !== null && view === previous) {
+        if (dir === "fade") return "view-transition-exit view-exit-fade";
+        return `view-transition-exit view-exit-${dir === "right" ? "left" : "right"}`;
       }
-      return "view-transition-enter";
+      if (!isVisible(view)) return "view-transition-hidden";
+      if (previous === null) return "";
+      if (dir === "fade") return "view-transition-enter view-enter-fade";
+      return `view-transition-enter view-enter-${dir}`;
     },
   };
 }

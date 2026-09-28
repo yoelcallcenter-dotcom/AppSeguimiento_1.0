@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { useAnimatedPresence } from "../../hooks/useAnimatedPresence";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 
 export function ConfirmDialog({
@@ -12,6 +13,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
+  const { isRendered, isLeaving } = useAnimatedPresence(open);
   const dialogRef = useRef(null);
   useDialogA11y(dialogRef, open, { onEscape: () => onCancel && onCancel() });
 
@@ -21,12 +23,22 @@ export function ConfirmDialog({
     return () => unlockBodyScroll();
   }, [open]);
 
-  if (!open) return null;
+  const frozenRef = useRef({ title, message, confirmLabel, confirmColor });
+  if (open) {
+    frozenRef.current = { title, message, confirmLabel, confirmColor };
+  }
+  const visible = open
+    ? { title, message, confirmLabel, confirmColor }
+    : frozenRef.current;
+
+  if (!isRendered) return null;
 
   return (
     <div
       ref={dialogRef}
-      className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
+      className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
+        isLeaving ? "animate-fade-out" : "animate-fade-in"
+      }`}
       style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
       onClick={(e) => {
         e.stopPropagation();
@@ -37,7 +49,9 @@ export function ConfirmDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-xl p-5 animate-scale-in"
+        className={`w-full max-w-sm rounded-xl p-5 ${
+          isLeaving ? "animate-modal-rise-out" : "animate-modal-rise-in"
+        }`}
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
@@ -50,12 +64,12 @@ export function ConfirmDialog({
             className="text-sm font-semibold"
             style={{ color: "var(--color-text)" }}
           >
-            {title || "Confirmar accion"}
+            {visible.title || "Confirmar accion"}
           </div>
         </div>
-        {message && (
+        {visible.message && (
           <div className="text-xs mb-4" style={{ color: "var(--color-text)" }}>
-            {message}
+            {visible.message}
           </div>
         )}
         <div className="flex justify-end gap-2">
@@ -71,10 +85,10 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             className="btn-base btn-sm"
-            style={{ backgroundColor: confirmColor, color: "var(--color-text-on-accent)" }}
-            aria-label={confirmLabel}
+            style={{ backgroundColor: visible.confirmColor, color: "var(--color-text-on-accent)" }}
+            aria-label={visible.confirmLabel}
           >
-            {confirmLabel}
+            {visible.confirmLabel}
           </button>
         </div>
       </div>

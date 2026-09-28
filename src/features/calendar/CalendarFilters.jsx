@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Filter, X } from 'lucide-react';
+import { Filter, RotateCcw } from 'lucide-react';
 import { MultiSelect } from '../../components/common/MultiSelect';
+import { FilterBar, FilterGroup, FilterCounter } from '../../components/common/filters';
 import { getEstados } from '../../utils/catalogos';
 import { EVENT_TYPES } from './calendarStore';
 
@@ -59,89 +60,74 @@ export function CalendarFilters({ events = [], config, filtros, onFiltrosChange 
       .map((a) => ({ value: a, label: a }));
   }, [events]);
 
+  const total = useMemo(
+    () => filtrarEventos(events, filtros).length,
+    [events, filtros]
+  );
+
   const limpiar = () => onFiltrosChange(INITIAL_FILTERS);
 
   const update = (key, values) =>
     onFiltrosChange({ ...filtros, [key]: values });
 
+  const fields = [
+    { label: 'Estado', key: 'estados', options: estadoOptions, all: 'Todos' },
+    { label: 'Prioridad', key: 'prioridades', options: PRIORITY_OPTIONS, all: 'Todas' },
+    { label: 'Aseguradora', key: 'aseguradoras', options: aseguradoraOptions, all: 'Todas' },
+    { label: 'Estudio', key: 'estudios', options: estudioOptions, all: 'Todos' },
+    { label: 'Tipo', key: 'tipos', options: EVENT_TYPE_OPTIONS, all: 'Todos' },
+  ];
+
   return (
-    <div
-      className="flex flex-wrap items-end gap-3 px-3 py-2 rounded-md"
+    <FilterBar
+      className="px-3 py-2 rounded-md"
       style={{
         backgroundColor: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
+        marginBottom: 0,
       }}
     >
-      <div className="flex items-center gap-1.5 mr-1">
-        <Filter size={13} style={{ color: 'var(--color-text-muted)' }} />
-        <span
-          className="text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: 'var(--color-text-muted)' }}
+      <span
+        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider pb-2.5"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        <Filter size={12} />
+        Filtros
+      </span>
+
+      {fields.map((field) => (
+        <FilterGroup
+          key={field.key}
+          label={field.label}
+          style={{ flex: '1 1 150px' }}
         >
-          Filtros
-        </span>
-      </div>
+          <MultiSelect
+            id={`cal-${field.key}`}
+            options={field.options}
+            value={filtros[field.key]}
+            onChange={(v) => update(field.key, v)}
+            placeholder={field.all}
+          />
+        </FilterGroup>
+      ))}
 
-      <MultiSelect
-        id="cal-estado"
-        label="Estado"
-        options={estadoOptions}
-        value={filtros.estados}
-        onChange={(v) => update('estados', v)}
-        placeholder="Todos"
-      />
+      <button
+        type="button"
+        onClick={limpiar}
+        disabled={activeCount === 0}
+        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          color: 'var(--color-text-muted)',
+          border: '1px solid var(--color-border)',
+          backgroundColor: 'var(--color-surface2)',
+        }}
+      >
+        <RotateCcw size={12} />
+        Limpiar filtros
+      </button>
 
-      <MultiSelect
-        id="cal-prioridad"
-        label="Prioridad"
-        options={PRIORITY_OPTIONS}
-        value={filtros.prioridades}
-        onChange={(v) => update('prioridades', v)}
-        placeholder="Todas"
-      />
-
-      <MultiSelect
-        id="cal-aseguradora"
-        label="Aseguradora"
-        options={aseguradoraOptions}
-        value={filtros.aseguradoras}
-        onChange={(v) => update('aseguradoras', v)}
-        placeholder="Todas"
-      />
-
-      <MultiSelect
-        id="cal-estudio"
-        label="Estudio"
-        options={estudioOptions}
-        value={filtros.estudios}
-        onChange={(v) => update('estudios', v)}
-        placeholder="Todos"
-      />
-
-      <MultiSelect
-        id="cal-tipo"
-        label="Tipo"
-        options={EVENT_TYPE_OPTIONS}
-        value={filtros.tipos}
-        onChange={(v) => update('tipos', v)}
-        placeholder="Todos"
-      />
-
-      {activeCount > 0 && (
-        <button
-          type="button"
-          onClick={limpiar}
-          className="flex items-center gap-1 text-[10px] font-medium rounded px-2 py-1 cursor-pointer"
-          style={{
-            backgroundColor: 'var(--color-danger11, rgba(239,68,68,0.1))',
-            color: 'var(--color-danger, #EF4444)',
-          }}
-        >
-          <X size={10} />
-          {activeCount} activo{activeCount > 1 ? 's' : ''}
-        </button>
-      )}
-    </div>
+      <FilterCounter total={total} label="evento" />
+    </FilterBar>
   );
 }
 

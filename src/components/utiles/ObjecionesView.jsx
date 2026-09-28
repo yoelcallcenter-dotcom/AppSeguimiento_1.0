@@ -106,6 +106,20 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div
+          className="text-sm font-semibold"
+          style={{ color: "var(--color-text)" }}
+        >
+          Objeciones Comunes
+        </div>
+        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          {objecionesOrdenadas.length} objeción
+          {objecionesOrdenadas.length !== 1 ? "es" : ""}
+          {busqueda && ` (filtradas de ${objeciones.length})`}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-3">
         <div className="flex-1 min-w-[200px]">
           <SearchInput
             value={busqueda}
@@ -194,12 +208,6 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
         <Btn onClick={agregar} icon={Plus} size="sm">
           Agregar objeción
         </Btn>
-      </div>
-
-      <div className="text-xs mb-3" style={{ color: "var(--color-text-muted)" }}>
-        {objecionesOrdenadas.length} objeción
-        {objecionesOrdenadas.length !== 1 ? "es" : ""}
-        {busqueda && ` (filtradas de ${objeciones.length})`}
       </div>
 
       {vista === "grid" ? (

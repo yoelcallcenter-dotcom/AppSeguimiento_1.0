@@ -247,6 +247,7 @@ export function CondicionalesView({
   const toggleTodos = () =>
     setExpandidos(todosExpandidos ? new Set() : new Set(grupos.map((g) => g.estudio)));
 
+  const total = (condicionales || []).length;
   const noToma = (condicionales || []).filter((c) => c.condicion === "no-toma").length;
   const renderChips = (lista, setLista) => (
     <div className="flex flex-wrap gap-1 mt-1.5">
@@ -272,6 +273,31 @@ export function CondicionalesView({
 
   return (
     <div>
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
+        <div className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
+          Condicionales de Estudios Jurídicos
+        </div>
+        <span
+          className="pill-sm"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {total} registradas
+        </span>
+        {noToma > 0 && (
+          <span className="pill-sm" style={{ backgroundColor: "#EF4444" + "22", color: "#EF4444" }}>
+            {noToma} no toman
+          </span>
+        )}
+      </div>
+      <div className="text-[10px] mb-4" style={{ color: "var(--color-text-muted)" }}>
+        Estudios que no toman todas las aseguradoras o que las aceptan con
+        condiciones de ingreso y lesión.
+      </div>
+
       {/* Barra de acciones */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="flex-1 min-w-[160px]">
@@ -291,14 +317,6 @@ export function CondicionalesView({
             { value: "condicion", label: "Con condiciones" },
           ]}
         />
-        {noToma > 0 && (
-          <span
-            className="pill-sm"
-            style={{ backgroundColor: "#EF444422", color: "#EF4444" }}
-          >
-            {noToma} no toman
-          </span>
-        )}
         <Btn onClick={abrirNuevo} icon={Plus} size="sm">
           Nueva condición
         </Btn>

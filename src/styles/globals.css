@@ -947,6 +947,46 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   to { opacity: 0; transform: scale(0.95); }
 }
 
+@keyframes view-slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes view-slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes view-drift-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-20%); }
+}
+
+@keyframes view-drift-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(20%); }
+}
+
+@keyframes modal-rise-in {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modal-rise-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(40px); }
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(100%); }
   to { opacity: 1; transform: translateX(0); }
@@ -982,6 +1022,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .animate-slide-in-right { animation: slide-in-right var(--duration-medium) var(--ease-out) both; }
 .animate-scale-in { animation: scale-in var(--duration-medium) var(--ease-out) both; }
 .animate-scale-out { animation: scale-out var(--duration-normal) var(--ease-standard) both; }
+.animate-modal-rise-in { animation: modal-rise-in var(--duration-medium) var(--ease-out) both; }
+.animate-modal-rise-out { animation: modal-rise-out var(--duration-normal) var(--ease-in) both; }
+.animate-drawer-in { animation: drawer-in var(--duration-medium) var(--ease-out) both; }
+.animate-drawer-out { animation: drawer-out var(--duration-medium) var(--ease-in) both; }
 .animate-toast-in { animation: toast-in var(--duration-slow) var(--ease-out) both; }
 .animate-toast-out { animation: toast-out var(--duration-medium) var(--ease-standard) both; }
 .animate-slide-out-right { animation: slide-out-right var(--duration-medium) var(--ease-standard) both; }
@@ -1036,21 +1080,40 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ---- Page transition container ---- */
+/* La vista entrante lleva fondo opaco y se desliza POR ENCIMA de la
+   saliente; esta deriva en parallax y queda recortada a la altura de
+   la entrante (top+bottom al wrapper sin padding). */
 .view-transition-enter {
-  animation: fade-in var(--duration-medium) var(--ease-out) both;
+  background: var(--color-bg);
+  will-change: transform;
 }
 
-/* Vista anterior durante la transición crossfade: queda fuera del flujo (no
-   empuja a la nueva vista), se desvanece y no intercepta clics. */
+.view-enter-right { animation: view-slide-in-right var(--duration-medium) var(--ease-out) both; }
+.view-enter-left { animation: view-slide-in-left var(--duration-medium) var(--ease-out) both; }
+.view-enter-fade { animation: fade-in var(--duration-medium) var(--ease-out) both; }
+
+/* Vista anterior durante la transición: fuera del flujo, opaca y por
+   debajo (z-index -1) de la entrante; no intercepta clics. */
 .view-transition-exit {
   position: absolute;
   top: 0;
-  left: 0;
   right: 0;
-  z-index: 10;
-  animation: fade-out var(--duration-medium) var(--ease-standard) both;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  background: var(--color-bg);
+  z-index: -1;
+  will-change: transform;
   pointer-events: none;
 }
+
+.view-exit-left { animation: view-drift-left var(--duration-medium) var(--ease-out) both; }
+.view-exit-right { animation: view-drift-right var(--duration-medium) var(--ease-out) both; }
+.view-exit-fade { animation: fade-out var(--duration-medium) var(--ease-standard) both; }
+
+/* Vistas ya visitadas: permanecen montadas (con su estado) pero ocultas.
+   Al volver a mostrarlas, el navegador reinicia sus animaciones. */
+.view-transition-hidden { display: none; }
 
 /* ---- Low-power modes ---- */
 .no-animations * {

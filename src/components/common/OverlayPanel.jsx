@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { useAnimatedPresence } from "../../hooks/useAnimatedPresence";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 
 export function OverlayPanel({
@@ -14,6 +15,7 @@ export function OverlayPanel({
   closeOnOverlayClick = true,
 }) {
   const panelRef = useRef(null);
+  const { isRendered, isLeaving } = useAnimatedPresence(isOpen);
   useDialogA11y(panelRef, isOpen);
 
   const onCloseRef = useRef(onClose);
@@ -32,11 +34,13 @@ export function OverlayPanel({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isRendered) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 animate-fade-in"
+      className={`fixed inset-0 z-modal flex items-center justify-center p-4 ${
+        isLeaving ? "animate-fade-out" : "animate-fade-in"
+      }`}
       style={{
         backgroundColor: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(4px)",
@@ -45,12 +49,14 @@ export function OverlayPanel({
       aria-modal="true"
       aria-labelledby="overlay-title"
       onClick={(e) => {
-        if (closeOnOverlayClick && e.target === e.currentTarget) onClose();
+        if (!isLeaving && closeOnOverlayClick && e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={panelRef}
-        className="rounded-xl shadow-2xl animate-scale-in flex flex-col"
+        className={`rounded-xl shadow-2xl flex flex-col ${
+          isLeaving ? "animate-modal-rise-out" : "animate-modal-rise-in"
+        }`}
         style={{
           width: fullscreen ? "90vw" : "720px",
           maxWidth: "95vw",

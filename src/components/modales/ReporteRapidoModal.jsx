@@ -26,6 +26,7 @@ import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
 import { hoyDDMM } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
+import { useDelayedClose } from "../../hooks/useAnimatedPresence";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
 import { getEstados } from "../../utils/catalogos";
 import { TemplateSelector } from "../common/TemplateSelector";
@@ -36,6 +37,7 @@ import { parseCita, resolveCitaDate } from "../../utils/citaParser";
 export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoInicial, estadoInicial, config, stacked = false }) {
   const dialogRef = useRef(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const { isClosing, startClose } = useDelayedClose(onClose);
   useDialogA11y(dialogRef, true, { onEscape: () => requestClose() });
 
   useLayoutEffect(() => {
@@ -228,7 +230,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     } else {
       showToast("Cambios guardados correctamente", "success");
     }
-    onClose();
+    startClose();
   };
 
   // Datos sin guardar: hay texto/fecha de reporte o reprogramación tipeada
@@ -239,14 +241,17 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     (estado === "Reprogramado" && nuevaFecha);
 
   const requestClose = () => {
+    if (isClosing) return;
     if (hasUnsavedData) setConfirmClose(true);
-    else onClose();
+    else startClose();
   };
 
   return (
     <div
       ref={dialogRef}
-      className={`fixed inset-0 ${stacked ? "z-submodal" : "z-modal"} flex items-center justify-center p-4 animate-fade-in`}
+      className={`fixed inset-0 ${stacked ? "z-submodal" : "z-modal"} flex items-center justify-center p-4 ${
+        isClosing ? "animate-fade-out" : "animate-fade-in"
+      }`}
       style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       onClick={requestClose}
       role="dialog"
@@ -255,7 +260,9 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl rounded-xl my-6"
+        className={`w-full max-w-2xl rounded-xl my-6 ${
+          isClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
+        }`}
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
@@ -627,7 +634,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
         confirmColor="var(--color-danger)"
         onConfirm={() => {
           setConfirmClose(false);
-          onClose();
+          startClose();
         }}
         onCancel={() => setConfirmClose(false)}
       />

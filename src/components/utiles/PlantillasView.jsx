@@ -113,12 +113,17 @@ export function PlantillasView({ showToast, config = {} }) {
 
   return (
     <div className="space-y-3">
-      {/* Conteos por tipo */}
-      <div className="flex items-center gap-2 text-[10px] flex-wrap" style={{ color: 'var(--color-text-muted)' }}>
-        <span>{templates.length} total</span>
-        {Object.values(TEMPLATE_TYPES).map((type) => (
-          stats[type] ? <span key={type}>· {stats[type]} {TEMPLATE_TYPE_LABELS[type]}</span> : null
-        ))}
+      {/* Header */}
+      <div>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+          Plantillas
+        </h3>
+        <div className="flex items-center gap-2 text-[10px] flex-wrap" style={{ color: 'var(--color-text-muted)' }}>
+          <span>{templates.length} total</span>
+          {Object.values(TEMPLATE_TYPES).map((type) => (
+            stats[type] ? <span key={type}>· {stats[type]} {TEMPLATE_TYPE_LABELS[type]}</span> : null
+          ))}
+        </div>
       </div>
 
       {/* Toolbar */}

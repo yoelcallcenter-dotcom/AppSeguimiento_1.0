@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { detectarTipoIngresoPorKeywords, getTiposIngreso } from "./catalogos";
-import { TIPOS_INGRESO_SUGERIDOS } from "./constants";
+import {
+  detectarTipoIngresoPorKeywords,
+  getFichaFields,
+  getTiposIngreso,
+} from "./catalogos";
+import { TIPOS_INGRESO_SUGERIDOS, DEFAULT_FICHA_FIELDS } from "./constants";
 
 const configConKeywords = {
   tiposIngreso: [
@@ -106,5 +110,43 @@ describe("getTiposIngreso rehidratación", () => {
   it("agrega los tipos default faltantes", () => {
     const tipos = getTiposIngreso({ tiposIngreso: ["Enfermedad Profesional"] });
     expect(tipos.some((t) => t.v === "Accidente in itinere")).toBe(true);
+  });
+});
+
+describe("listas aditivas con eliminaciones persistentes", () => {
+  it("getFichaFields repone los defaults faltantes sin tumbstones", () => {
+    const lista = getFichaFields({
+      fichaFields: [{ id: "zona", label: "ZONA", keywords: ["zona"], target: "localidad" }],
+    });
+    expect(lista).toHaveLength(DEFAULT_FICHA_FIELDS.length + 1);
+    expect(lista.some((f) => f.id === "nombre")).toBe(true);
+  });
+
+  it("getFichaFields no repone los campos eliminados por el usuario", () => {
+    const lista = getFichaFields({
+      fichaFields: DEFAULT_FICHA_FIELDS.filter((d) => d.id !== "cita"),
+      fichaFieldsDeleted: ["cita"],
+    });
+    expect(lista.some((f) => f.id === "cita")).toBe(false);
+    expect(lista.some((f) => f.id === "nombre")).toBe(true);
+    expect(lista).toHaveLength(DEFAULT_FICHA_FIELDS.length - 1);
+  });
+
+  it("getFichaFields con lista vacia solo conserva lo no eliminado", () => {
+    const lista = getFichaFields({
+      fichaFields: [],
+      fichaFieldsDeleted: DEFAULT_FICHA_FIELDS.map((d) => d.id),
+    });
+    expect(lista).toEqual([]);
+  });
+
+  it("getTiposIngreso no repone los tipos sugeridos eliminados", () => {
+    const borrado = TIPOS_INGRESO_SUGERIDOS[0].v;
+    const tipos = getTiposIngreso({
+      tiposIngreso: TIPOS_INGRESO_SUGERIDOS.slice(1),
+      tiposIngresoDeleted: [borrado],
+    });
+    expect(tipos.some((t) => t.v === borrado)).toBe(false);
+    expect(tipos).toHaveLength(TIPOS_INGRESO_SUGERIDOS.length - 1);
   });
 });

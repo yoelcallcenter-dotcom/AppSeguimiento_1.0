@@ -9,9 +9,7 @@ import {
   Briefcase,
   Car,
   Building2,
-  Search,
-  LayoutGrid,
-  List,
+  Wrench,
   ShieldAlert,
   FileText,
 } from "lucide-react";
@@ -26,12 +24,37 @@ import { TransitoView } from "./TransitoView";
 import { MapeoView } from "./MapeoView";
 import { CondicionalesView } from "./CondicionalesView";
 import { PlantillasView } from "./PlantillasView";
-import { SearchInput } from "../common/SearchInput";
 import useAppStore from '../../core/store/useAppStore';
-import { SubPills } from "../common/UINav";
+import { NavDock, SubPills } from "../common/UINav";
 import { SectionHeader } from "../configuracion/ui";
 import { getAllTemplates } from "../../features/templates/templatesStore";
 import { DEFAULT_PLANTILLAS } from "../../utils/constants";
+
+const GRUPOS_UTILES = [
+  {
+    id: "textos",
+    label: "Textos",
+    icon: MessageSquare,
+    items: ["speechs", "objeciones", "conversacion", "pasos"],
+  },
+  {
+    id: "directorios",
+    label: "Directorios",
+    icon: Building2,
+    items: ["aseguradoras", "mapeo", "lesiones", "transito", "prolegal"],
+  },
+  {
+    id: "otros",
+    label: "Otros",
+    icon: Wrench,
+    items: ["condicionales", "plantillas"],
+  },
+];
+
+const grupoDeTab = (key) => {
+  const grupo = GRUPOS_UTILES.find((g) => g.items.includes(key));
+  return grupo ? grupo.id : "otros";
+};
 
 export function UtilesView({
   config,
@@ -61,9 +84,7 @@ export function UtilesView({
   casos,
   showToast,
 }) {
-  const [subvista, setSubvista] = useState("condicionales");
-  const [busqueda, setBusqueda] = useState("");
-  const [vistaTabs, setVistaTabs] = useState("grid");
+  const [subvista, setSubvista] = useState("speechs");
   const [plantillasCount, setPlantillasCount] = useState(0);
 
   useEffect(() => {
@@ -131,6 +152,14 @@ export function UtilesView({
   const tabs = utilesTabOrder
     .filter((k) => TAB_DEFS[k])
     .map((k) => [k, TAB_DEFS[k].label, TAB_DEFS[k].icon]);
+  const itemsDeGrupo = (grupoId) =>
+    tabs.filter(([k]) => grupoDeTab(k) === grupoId);
+  const grupoActivo = grupoDeTab(subvista);
+  const cambiarGrupo = (grupoId) => {
+    if (grupoId === grupoActivo) return;
+    const items = itemsDeGrupo(grupoId);
+    if (items.length) setSubvista(items[0][0]);
+  };
   const getBadge = (key) => {
     switch (key) {
       case "condicionales":
@@ -164,15 +193,6 @@ export function UtilesView({
         return 0;
     }
   };
-
-  const tabsFiltrados = useMemo(() => {
-    if (!busqueda.trim()) return tabs;
-    const q = busqueda.trim().toLowerCase();
-    return tabs.filter(
-      ([key, label]) =>
-        label.toLowerCase().includes(q) || key.toLowerCase().includes(q)
-    );
-  }, [tabs, busqueda]);
 
   const renderContenido = () => {
     switch (subvista) {
@@ -271,72 +291,15 @@ export function UtilesView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[180px]">
-          <SearchInput
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar en Utiles..."
-          />
-        </div>
-
-        <div
-          className="flex items-center gap-1"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            borderRadius: "6px",
-            padding: "2px",
-          }}
-        >
-          <button
-            onClick={() => setVistaTabs("grid")}
-            className={`p-1.5 rounded transition-colors ${
-              vistaTabs === "grid"
-                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-            }`}
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            onClick={() => setVistaTabs("list")}
-            className={`p-1.5 rounded transition-colors ${
-              vistaTabs === "list"
-                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-            }`}
-          >
-            <List size={16} />
-          </button>
-        </div>
-      </div>
-
-      <SubPills
-        items={tabsFiltrados.map(([k, label, Icon]) => {
-          const badge = getBadge(k);
-          return { id: k, label, icon: Icon, badge: badge > 0 ? badge : undefined };
-        })}
-        active={subvista}
-        onSelect={setSubvista}
-        ariaLabel="Secciones de Útiles"
-        className={vistaTabs === "list" ? "flex-col items-stretch" : ""}
-        itemClassName={vistaTabs === "list" ? "w-full justify-between" : ""}
-        singleLine={vistaTabs !== "list"}
-      />
-      {tabsFiltrados.length === 0 && (
-        <div
-          className="text-sm py-4"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          No hay secciones que coincidan con la búsqueda.
-        </div>
-      )}
-
-      <SectionHeader
-        icon={TAB_DEFS[subvista]?.icon}
-        titulo={TAB_DEFS[subvista]?.label || "Útiles"}
-        descripcion={TAB_DESC[subvista] || ""}
-        storageKey="utiles"
+      <NavDock
+        items={GRUPOS_UTILES.map((g) => ({
+          id: g.id,
+          label: g.label,
+          icon: g.icon,
+        }))}
+        active={grupoActivo}
+        onSelect={cambiarGrupo}
+        ariaLabel="Grupos de Útiles"
       />
 
       <div
@@ -347,6 +310,30 @@ export function UtilesView({
           minHeight: 200,
         }}
       >
+        <SubPills
+          items={itemsDeGrupo(grupoActivo).map(([k, label, Icon]) => {
+            const badge = getBadge(k);
+            return {
+              id: k,
+              label,
+              icon: Icon,
+              badge: badge > 0 ? badge : undefined,
+            };
+          })}
+          active={subvista}
+          onSelect={setSubvista}
+          ariaLabel="Secciones de Útiles"
+          className="mb-4 pb-3"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+        />
+
+        <SectionHeader
+          icon={TAB_DEFS[subvista]?.icon}
+          titulo={TAB_DEFS[subvista]?.label || "Útiles"}
+          descripcion={TAB_DESC[subvista] || ""}
+          storageKey="utiles"
+        />
+
         {renderContenido()}
       </div>
     </div>

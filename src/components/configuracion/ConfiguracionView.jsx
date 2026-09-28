@@ -17,6 +17,7 @@ import { Select } from "../common/Select";
 import { TextInput } from "../common/TextInput";
 import { Toggle } from "../common/Toggle";
 import { PersonalizacionColores } from "./PersonalizacionColores";
+import { KeywordsInput } from "./KeywordsInput";
 import { TipografiaView } from "./TipografiaView";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
 import { getOperatorSettings, saveOperatorSettings } from "../../features/operator/operatorStore";
@@ -47,6 +48,7 @@ import useAppStore from "../../core/store/useAppStore";
 import appDB from "../../core/db/appDB";
 import casesDB from "../../core/db/casesDB";
 import { useHelp } from "../../help";
+import { useDelayedClose } from "../../hooks/useAnimatedPresence";
 import { HelpSection } from "./HelpSection";
 import * as backupService from "../../services/backupService";
 import { localStorageAdapter } from "../../core/storage/localStorageAdapter";
@@ -212,18 +214,31 @@ export function ConfiguracionView({
   const previewAbierto =
     showImportPreview || showUtilesPreview || showNcPreview;
 
+  const {
+    isClosing: importClosing,
+    startClose: importClose,
+  } = useDelayedClose(() => setShowImportPreview(false));
+  const {
+    isClosing: utilesClosing,
+    startClose: utilesClose,
+  } = useDelayedClose(() => setShowUtilesPreview(false));
+  const {
+    isClosing: ncClosing,
+    startClose: ncClose,
+  } = useDelayedClose(() => setShowNcPreview(false));
+
   useEffect(() => {
     if (!previewAbierto) return undefined;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
-      if (showImportPreview) setShowImportPreview(false);
-      else if (showUtilesPreview) setShowUtilesPreview(false);
-      else if (showNcPreview) setShowNcPreview(false);
+      if (showImportPreview) importClose();
+      else if (showUtilesPreview) utilesClose();
+      else if (showNcPreview) ncClose();
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [showImportPreview, showUtilesPreview, showNcPreview, previewAbierto]);
+  }, [showImportPreview, showUtilesPreview, showNcPreview, previewAbierto, importClose, utilesClose, ncClose]);
 
   const handleChangeBackupFrequency = (frequency) => {
     if (!setBackupFrequency(frequency)) return;
@@ -329,6 +344,7 @@ export function ConfiguracionView({
         { id: "apariencia", label: "Colores", icon: Palette },
         { id: "tipografia", label: "Tipografía", icon: Type },
         { id: "dashboard", label: "Vistas", icon: Eye },
+        { id: "ux", label: "UX/Navegación", icon: Navigation },
       ],
     },
     {
@@ -353,7 +369,6 @@ export function ConfiguracionView({
       // Grupo fusionado (ex "Sistema" + ex "Avanzado").
       id: "sistema", label: "Avanzado", icon: Cpu,
       items: [
-        { id: "ux", label: "UX/Navegación", icon: Navigation },
         { id: "dashboard-config", label: "Dashboard", icon: LayoutDashboard },
         { id: "estados-caso", label: "Estados de Caso", icon: CircleDot },
         { id: "tipos-ingreso", label: "Tipos de Ingreso", icon: Tag },
@@ -2930,11 +2945,27 @@ export function ConfiguracionView({
         };
 
         const eliminarTipo = (idx) => {
-          actualizarConfig("tiposIngreso", tiposList.filter((_, i) => i !== idx));
+          const campo = tiposList[idx];
+          const esSugerido = TIPOS_INGRESO_SUGERIDOS.some((d) => d.v === campo?.v);
+          setConfig({
+            ...config,
+            tiposIngreso: tiposList.filter((_, i) => i !== idx),
+            ...(esSugerido
+              ? {
+                  tiposIngresoDeleted: [
+                    ...new Set([...(config.tiposIngresoDeleted || []), campo.v]),
+                  ],
+                }
+              : {}),
+          });
         };
 
         const restaurarTipos = () => {
-          actualizarConfig("tiposIngreso", TIPOS_INGRESO_SUGERIDOS);
+          setConfig({
+            ...config,
+            tiposIngreso: TIPOS_INGRESO_SUGERIDOS,
+            tiposIngresoDeleted: [],
+          });
           showToast("Tipos de ingreso restaurados", "info");
         };
 
@@ -2960,11 +2991,12 @@ export function ConfiguracionView({
                       className="flex-1 min-w-[150px]"
                       placeholder="Nombre del tipo de ingreso"
                     />
-                    <TextInput
-                      value={(Array.isArray(t.keywords) ? t.keywords : []).join(", ")}
-                      onChange={(ev) => actualizarTipo(idx, "keywords", ev.target.value.split(",").map((k) => k.trim()).filter(Boolean))}
+                    <KeywordsInput
+                      value={t.keywords}
+                      onCommit={(lista) => actualizarTipo(idx, "keywords", lista)}
                       className="min-w-[180px] flex-1"
                       placeholder="Palabras clave (separadas por coma)"
+                      ariaLabel={`Palabras clave de ${t.v || "tipo"}`}
                     />
                     <label className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
                       Prioridad:
@@ -3033,11 +3065,27 @@ export function ConfiguracionView({
         };
 
         const eliminarCampoFicha = (idx) => {
-          actualizarConfig("fichaFields", fichaList.filter((_, i) => i !== idx));
+          const campo = fichaList[idx];
+          const esDefault = DEFAULT_FICHA_FIELDS.some((d) => d.id === campo?.id);
+          setConfig({
+            ...config,
+            fichaFields: fichaList.filter((_, i) => i !== idx),
+            ...(esDefault
+              ? {
+                  fichaFieldsDeleted: [
+                    ...new Set([...(config.fichaFieldsDeleted || []), campo.id]),
+                  ],
+                }
+              : {}),
+          });
         };
 
         const restaurarFicha = () => {
-          actualizarConfig("fichaFields", DEFAULT_FICHA_FIELDS);
+          setConfig({
+            ...config,
+            fichaFields: DEFAULT_FICHA_FIELDS,
+            fichaFieldsDeleted: [],
+          });
           showToast("Campos de ficha restaurados", "info");
         };
 
@@ -3110,11 +3158,12 @@ export function ConfiguracionView({
                       className="w-32"
                       placeholder="Etiqueta"
                     />
-                    <TextInput
-                      value={(f.keywords || []).join(", ")}
-                      onChange={(ev) => actualizarCampoFicha(idx, "keywords", ev.target.value.split(",").map((k) => k.trim()).filter(Boolean))}
+                    <KeywordsInput
+                      value={f.keywords}
+                      onCommit={(lista) => actualizarCampoFicha(idx, "keywords", lista)}
                       className="min-w-[180px] flex-1"
                       placeholder="Palabras clave (separadas por coma)"
+                      ariaLabel={`Palabras clave de ${f.label || "campo"}`}
                     />
                     <select
                       value={f.target || ""}
@@ -3250,6 +3299,8 @@ export function ConfiguracionView({
       <div
         className="flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl"
         style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+        role="group"
+        aria-label="Grupos de Configuración"
       >
         {GRUPOS_CONFIG.map((g) => (
           <button
@@ -3274,7 +3325,12 @@ export function ConfiguracionView({
           minHeight: 300,
         }}
       >
-        <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div
+          className="flex flex-wrap items-center gap-1.5 mb-4 pb-3"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+          role="group"
+          aria-label="Secciones de Configuración"
+        >
           {GRUPOS_CONFIG.find((g) => g.id === grupoActivo)?.items.map((s) => (
             <button
               key={s.id}
@@ -3296,15 +3352,19 @@ export function ConfiguracionView({
 
       {showImportPreview && (
         <div
-          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
+          className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
+            importClosing ? "animate-fade-out" : "animate-fade-in"
+          }`}
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-          onClick={() => setShowImportPreview(false)}
+          onClick={importClose}
           role="dialog"
           aria-modal="true"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-5xl rounded-xl flex flex-col"
+            className={`w-full max-w-5xl rounded-xl flex flex-col ${
+              importClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
+            }`}
             style={{
               maxHeight: "90vh",
               backgroundColor: "var(--color-surface2)",
@@ -3321,7 +3381,7 @@ export function ConfiguracionView({
                 </div>
               </div>
               <button
-                onClick={() => setShowImportPreview(false)}
+                onClick={importClose}
                 className="p-1.5 rounded-md transition-colors hover:bg-white/5"
                 style={{ color: "var(--color-text-muted)" }}
                 aria-label="Cerrar"
@@ -3440,7 +3500,7 @@ export function ConfiguracionView({
                 )}
               </div>
               <div className="flex gap-2">
-                <BtnOutline onClick={() => setShowImportPreview(false)} size="sm" color="var(--color-text-muted)">
+                <BtnOutline onClick={importClose} size="sm" color="var(--color-text-muted)">
                   Cancelar
                 </BtnOutline>
                 <Btn onClick={handlePreviewImport} size="sm" icon={Upload} disabled={loading}>
@@ -3454,15 +3514,19 @@ export function ConfiguracionView({
 
       {showUtilesPreview && utilesPreviewData && (
         <div
-          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
+          className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
+            utilesClosing ? "animate-fade-out" : "animate-fade-in"
+          }`}
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-          onClick={() => setShowUtilesPreview(false)}
+          onClick={utilesClose}
           role="dialog"
           aria-modal="true"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl rounded-xl flex flex-col"
+            className={`w-full max-w-2xl rounded-xl flex flex-col ${
+              utilesClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
+            }`}
             style={{
               maxHeight: "80vh",
               backgroundColor: "var(--color-surface2)",
@@ -3481,7 +3545,7 @@ export function ConfiguracionView({
                 </div>
               </div>
               <button
-                onClick={() => setShowUtilesPreview(false)}
+                onClick={utilesClose}
                 className="p-1.5 rounded-md transition-colors hover:bg-white/5"
                 style={{ color: "var(--color-text-muted)" }}
                 aria-label="Cerrar"
@@ -3537,7 +3601,7 @@ export function ConfiguracionView({
                 {utilesPreviewData.keys.length} configuraciones a importar
               </span>
               <div className="flex gap-2">
-                <BtnOutline onClick={() => setShowUtilesPreview(false)} size="sm" color="var(--color-text-muted)">
+                <BtnOutline onClick={utilesClose} size="sm" color="var(--color-text-muted)">
                   Cancelar
                 </BtnOutline>
                 <Btn onClick={handleUtilesPreviewImport} size="sm" icon={Upload} disabled={loading}>
@@ -3551,15 +3615,19 @@ export function ConfiguracionView({
 
       {showNcPreview && ncPreviewData && (
         <div
-          className="fixed inset-0 z-submodal flex items-center justify-center p-4 animate-fade-in"
+          className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
+            ncClosing ? "animate-fade-out" : "animate-fade-in"
+          }`}
           style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
-          onClick={() => setShowNcPreview(false)}
+          onClick={ncClose}
           role="dialog"
           aria-modal="true"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl rounded-xl flex flex-col"
+            className={`w-full max-w-4xl rounded-xl flex flex-col ${
+              ncClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
+            }`}
             style={{
               maxHeight: "85vh",
               backgroundColor: "var(--color-surface2)",
@@ -3576,7 +3644,7 @@ export function ConfiguracionView({
                 </div>
               </div>
               <button
-                onClick={() => setShowNcPreview(false)}
+                onClick={ncClose}
                 className="p-1.5 rounded-md transition-colors hover:bg-white/5"
                 style={{ color: "var(--color-text-muted)" }}
                 aria-label="Cerrar"
@@ -3670,7 +3738,7 @@ export function ConfiguracionView({
                 {config.importNcEventos === false && " · Eventos: no"}
               </span>
               <div className="flex gap-2">
-                <BtnOutline onClick={() => setShowNcPreview(false)} size="sm" color="var(--color-text-muted)">
+                <BtnOutline onClick={ncClose} size="sm" color="var(--color-text-muted)">
                   Cancelar
                 </BtnOutline>
                 <Btn onClick={handleNcPreviewImport} size="sm" icon={Upload} disabled={loading}>

@@ -6,7 +6,7 @@
  * Centraliza el comportamiento de todos los modales de la app.
  */
 
-import React, { useEffect, useState, useId } from "react";
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useModal } from "../../hooks/useModal";
@@ -38,6 +38,14 @@ export function Modal({
   const [isRendered, setIsRendered] = useState(isOpen);
   const generatedTitleId = useId();
 
+  const frozenRef = useRef({ title, icon: Icon, children, footer, subheader });
+  if (isOpen) {
+    frozenRef.current = { title, icon: Icon, children, footer, subheader };
+  }
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const { dialogRef, handleBackdropClick } = useModal({
     isOpen,
     onClose,
@@ -50,12 +58,24 @@ export function Modal({
     setIsLeaving(true);
   };
 
-  // Manejar desmontaje tras animación de salida
+  // Animar salida antes de llamar a onClose
   useEffect(() => {
+    if (isLeaving && isOpen) {
+      const t = setTimeout(() => {
+        if (onCloseRef.current) onCloseRef.current();
+      }, 180);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [isLeaving, isOpen]);
+
+  // Manejar desmontaje tras animación de salida
+  useLayoutEffect(() => {
     if (isOpen) {
       setIsRendered(true);
       setIsLeaving(false);
     } else if (isRendered) {
+      setIsLeaving(true);
       const t = setTimeout(() => {
         setIsRendered(false);
         setIsLeaving(false);
@@ -65,21 +85,13 @@ export function Modal({
     return undefined;
   }, [isOpen]);
 
-  // Animar salida antes de llamar a onClose
-  useEffect(() => {
-    if (isLeaving) {
-      const t = setTimeout(() => {
-        if (onClose) onClose();
-      }, 180);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [isLeaving]);
-
   if (!isRendered && !isOpen) return null;
   if (!isRendered) return null;
 
-  const headerId = title ? generatedTitleId : undefined;
+  const visible = isOpen
+    ? { title, icon: Icon, children, footer, subheader }
+    : frozenRef.current;
+  const headerId = visible.title ? generatedTitleId : undefined;
 
   return createPortal(
     <div
@@ -95,26 +107,26 @@ export function Modal({
       <div
         ref={dialogRef}
         className={`w-full ${SIZE_CLASSES[size] || SIZE_CLASSES.md} rounded-xl shadow-2xl flex flex-col max-h-[90vh] ${
-          isLeaving ? "animate-scale-out" : "animate-scale-in"
+          isLeaving ? "animate-modal-rise-out" : "animate-modal-rise-in"
         }`}
         style={{
           backgroundColor: "var(--color-surface2)",
           border: "1px solid var(--color-border)",
         }}
       >
-        {title && (
+        {visible.title && (
           <div
             className="modal-header flex-shrink-0"
             style={{ backgroundColor: "var(--color-bg)" }}
           >
             <div className="flex items-center gap-3">
-              {Icon && <Icon size={20} color="var(--color-accent)" />}
+              {visible.icon && <visible.icon size={20} color="var(--color-accent)" />}
               <h2
                 id={headerId}
                 className="text-base font-bold"
                 style={{ color: "var(--color-text)" }}
               >
-                {title}
+                {visible.title}
               </h2>
             </div>
             {showCloseButton && (
@@ -131,7 +143,7 @@ export function Modal({
           </div>
         )}
 
-        {subheader && (
+        {visible.subheader && (
           <div
             className="flex-shrink-0 px-6 py-3 border-b"
             style={{
@@ -139,15 +151,15 @@ export function Modal({
               borderColor: "var(--color-border)",
             }}
           >
-            {subheader}
+            {visible.subheader}
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6">{visible.children}</div>
 
-        {footer && (
+        {visible.footer && (
           <div className="modal-footer flex-shrink-0 px-6 py-4 flex justify-end gap-2 border-t">
-            {footer}
+            {visible.footer}
           </div>
         )}
       </div>

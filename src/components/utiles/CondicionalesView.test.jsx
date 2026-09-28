@@ -23,11 +23,12 @@ function renderVista(props = {}) {
 }
 
 describe("CondicionalesView", () => {
-  it("renderiza una única tabla (sin títulos duplicados de sección)", () => {
+  it("renderiza una única tabla con su título de sección", () => {
     renderVista();
     expect(screen.getAllByRole("table")).toHaveLength(1);
-    expect(screen.queryByText("Condicionales de Estudios Jurídicos")).toBeNull();
-    expect(screen.queryByText(/Estudios que no toman todas las aseguradoras/)).toBeNull();
+    expect(screen.getByText("Condicionales de Estudios Jurídicos")).toBeTruthy();
+    expect(screen.getByText(/Estudios que no toman todas las aseguradoras/)).toBeTruthy();
+    expect(screen.getByText("3 registradas")).toBeTruthy();
   });
 
   it("muestra los grupos colapsados por defecto y los expande al hacer clic", () => {
@@ -48,7 +49,7 @@ describe("CondicionalesView", () => {
     expect(screen.getByText("Colapsar todo")).toBeTruthy();
   });
 
-  it("muestra el indicador de 'no toman' en la barra de acciones", () => {
+  it("muestra el indicador de 'no toman' junto al título", () => {
     renderVista();
     expect(screen.getByText("1 no toman")).toBeTruthy();
   });

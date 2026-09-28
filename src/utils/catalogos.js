@@ -76,12 +76,17 @@ function rehidratarTipoIngreso(t) {
  */
 export function getTiposIngreso(config) {
   const list = config?.tiposIngreso;
-  if (!Array.isArray(list) || list.length === 0) {
+  if (!Array.isArray(list)) {
     return TIPOS_INGRESO_SUGERIDOS.map(rehidratarTipoIngreso);
   }
+  const eliminados = new Set(
+    Array.isArray(config?.tiposIngresoDeleted) ? config.tiposIngresoDeleted : []
+  );
   const result = list.map(rehidratarTipoIngreso);
   const existing = new Set(result.map((t) => t.v).filter(Boolean));
-  const missing = TIPOS_INGRESO_SUGERIDOS.filter((d) => !existing.has(d.v));
+  const missing = TIPOS_INGRESO_SUGERIDOS.filter(
+    (d) => !existing.has(d.v) && !eliminados.has(d.v)
+  );
   if (missing.length === 0) return result;
   return [...result, ...missing];
 }
@@ -161,17 +166,23 @@ function rehidratarCampoFicha(campo, orden) {
  * Devuelve la lista de campos de ficha configurada. Cada entrada:
  * { id, label, keywords, target }.
  * Si `config.fichaFields` está vacío o no es un array, se usa la lista por
- * defecto. Si faltan campos del default (por actualizaciones o borrados), se
- * agregan al final manteniendo los que el usuario ya tiene (aditivo).
+ * defecto. Si faltan campos del default (por actualizaciones), se agregan al
+ * final manteniendo los que el usuario ya tiene (aditivo), salvo los que
+ * consten en `config.fichaFieldsDeleted` (eliminados por el usuario).
  */
 export function getFichaFields(config) {
   const list = config?.fichaFields;
-  if (!Array.isArray(list) || list.length === 0) {
+  if (!Array.isArray(list)) {
     return DEFAULT_FICHA_FIELDS;
   }
+  const eliminados = new Set(
+    Array.isArray(config?.fichaFieldsDeleted) ? config.fichaFieldsDeleted : []
+  );
   const result = list.map(rehidratarCampoFicha);
   const existing = new Set(result.map((f) => f.id));
-  const missing = DEFAULT_FICHA_FIELDS.filter((d) => !existing.has(d.id));
+  const missing = DEFAULT_FICHA_FIELDS.filter(
+    (d) => !existing.has(d.id) && !eliminados.has(d.id)
+  );
   if (missing.length === 0) return result;
   return [...result, ...missing];
 }

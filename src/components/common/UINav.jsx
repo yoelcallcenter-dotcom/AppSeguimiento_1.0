@@ -16,7 +16,7 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
             key={item.id}
             type="button"
             onClick={() => onSelect(item.id)}
-            className="flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors hover:opacity-80"
+            className="flex items-center gap-2 text-xs font-semibold px-3.5 h-[32px] rounded-lg transition-colors hover:opacity-80"
             style={
               isActive
                 ? { backgroundColor: "var(--color-accent)", color: "var(--color-text-on-accent)" }
@@ -27,7 +27,7 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
             <span>{item.label}</span>
             {item.badge != null && (
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                className="text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold"
                 style={{ backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--color-surface2)" }}
               >
                 {item.badge}
@@ -42,33 +42,50 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
 
 export function SubPills({ items, active, onSelect, className = "", style, ariaLabel, itemClassName = "", singleLine = false }) {
   return (
-    <div className={`flex ${singleLine ? "tab-strip scrollbar-hide" : "flex-wrap"} gap-1 ${className}`.trim()} style={style} role="group" aria-label={ariaLabel}>
-      {items.map((item) => {
+    <div className={`flex ${singleLine ? "tab-strip" : "flex-wrap"} gap-1 ${className}`.trim()} style={style} role="group" aria-label={ariaLabel}>
+      {items.map((item, index) => {
         const Icon = item.icon;
         const isActive = item.id === active;
+        const nuevoGrupo =
+          Boolean(item.group) && index > 0 && item.group !== items[index - 1].group;
         return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => onSelect(item.id)}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors hover:opacity-80 ${itemClassName}`.trim()}
-            style={
-              isActive
-                ? { backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)" }
-                : { color: "var(--color-text-muted)", border: "1px solid transparent" }
-            }
-          >
-            {Icon && <Icon size={13} aria-hidden="true" />}
-            <span>{item.label}</span>
-            {item.badge != null && (
+          <React.Fragment key={item.id}>
+            {nuevoGrupo && (
               <span
-                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                style={{ backgroundColor: isActive ? "var(--color-accent)22" : "var(--color-surface2)" }}
+                className="flex items-center gap-1.5 flex-shrink-0 select-none"
+                aria-hidden="true"
               >
-                {item.badge}
+                <span className="w-px h-4" style={{ backgroundColor: "var(--color-border)" }} />
+                <span
+                  className="text-[9px] font-bold uppercase tracking-wider"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  {item.groupLabel || item.group}
+                </span>
               </span>
             )}
-          </button>
+            <button
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className={`flex items-center gap-1.5 rounded-full px-3 h-[30px] text-xs font-semibold transition-colors hover:opacity-80 ${itemClassName}`.trim()}
+              style={
+                isActive
+                  ? { backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)" }
+                  : { color: "var(--color-text-muted)", border: "1px solid transparent" }
+              }
+            >
+              {Icon && <Icon size={13} aria-hidden="true" />}
+              <span>{item.label}</span>
+              {item.badge != null && (
+                <span
+                  className="text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold"
+                  style={{ backgroundColor: isActive ? "var(--color-accent)22" : "var(--color-surface2)" }}
+                >
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          </React.Fragment>
         );
       })}
     </div>

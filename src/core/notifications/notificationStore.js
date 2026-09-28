@@ -122,9 +122,13 @@ const useNotificationStore = create((set, get) => ({
     const id =
       alert.id ||
       `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    set((s) => ({
-      persistentAlerts: [...s.persistentAlerts, { ...alert, id }],
-    }));
+    set((s) => {
+      const exists = s.persistentAlerts.some((a) => a.id === id);
+      const persistentAlerts = exists
+        ? s.persistentAlerts.map((a) => (a.id === id ? { ...alert, id } : a))
+        : [...s.persistentAlerts, { ...alert, id }];
+      return { persistentAlerts };
+    });
     return id;
   },
 

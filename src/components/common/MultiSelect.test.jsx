@@ -15,9 +15,9 @@ describe('MultiSelect', () => {
     expect(screen.getByText('Todas')).toBeTruthy();
   });
 
-  it('muestra contador de seleccionados', () => {
+  it('muestra las opciones seleccionadas en una sola línea dentro del botón', () => {
     render(<MultiSelect options={OPTIONS} value={['a', 'b']} onChange={() => {}} />);
-    expect(screen.getByText('2 seleccionados')).toBeTruthy();
+    expect(screen.getByText('Opción A, Opción B')).toBeTruthy();
   });
 
   it('abre dropdown al hacer click en el botón principal', () => {
@@ -48,12 +48,12 @@ describe('MultiSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['b']);
   });
 
-  it('limpia un item desde la pill', () => {
+  it('limpia toda la selección desde el botón X', () => {
     const onChange = vi.fn();
     render(<MultiSelect options={OPTIONS} value={['a', 'b']} onChange={onChange} />);
-    const pill = screen.getByRole('button', { name: /Quitar Opción A/ });
-    fireEvent.click(pill);
-    expect(onChange).toHaveBeenCalledWith(['b']);
+    const clearBtn = screen.getByRole('button', { name: 'Limpiar selección' });
+    fireEvent.click(clearBtn);
+    expect(onChange).toHaveBeenCalledWith([]);
   });
 
   it('muestra label opcional', () => {

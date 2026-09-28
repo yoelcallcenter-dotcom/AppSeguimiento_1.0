@@ -105,4 +105,67 @@ describe("Modal", () => {
     );
     expect(screen.getByRole("dialog").className).toContain("z-notification");
   });
+
+  it("el cierre directo desde el footer anima la salida sin dejar la caja vacía", () => {
+    const Wrapper = () => {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <Modal
+          isOpen={open}
+          onClose={() => setOpen(false)}
+          title="Speech Completo"
+          footer={open ? <button onClick={() => setOpen(false)}>Cerrar</button> : null}
+        >
+          {open ? <p>contenido del speech</p> : null}
+        </Modal>
+      );
+    };
+    render(<Wrapper />);
+    fireEvent.click(screen.getByText("Cerrar"));
+    expect(screen.getByText("contenido del speech")).toBeTruthy();
+    expect(screen.getByRole("dialog").className).toContain("animate-fade-out");
+    closeWithAnim();
+    expect(screen.queryByText("Speech Completo")).toBeNull();
+    expect(screen.queryByText("contenido del speech")).toBeNull();
+  });
+
+  it("no re-llama a onClose cuando el padre cierra directo con isOpen=false", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <Modal isOpen={true} onClose={onClose} title="Titulo">
+        <p>x</p>
+      </Modal>
+    );
+    rerender(
+      <Modal isOpen={false} onClose={onClose} title="Titulo">
+        <p>x</p>
+      </Modal>
+    );
+    closeWithAnim();
+    closeWithAnim();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("el contenido sube con la animacion de entrada (rise) y baja al salir", () => {
+    const { rerender } = render(
+      <Modal isOpen={true} onClose={() => {}} title="Titulo">
+        <p>x</p>
+      </Modal>
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(
+      dialog.querySelector('[class*="animate-modal-rise-in"]')
+    ).toBeTruthy();
+
+    rerender(
+      <Modal isOpen={false} onClose={() => {}} title="Titulo">
+        <p>x</p>
+      </Modal>
+    );
+    expect(
+      dialog.querySelector('[class*="animate-modal-rise-out"]')
+    ).toBeTruthy();
+    closeWithAnim();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

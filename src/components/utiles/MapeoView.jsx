@@ -320,6 +320,15 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
 
   return (
     <div>
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div
+          className="text-sm font-semibold"
+          style={{ color: "var(--color-text)" }}
+        >
+          Estudios Jurídicos
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div>
           <SearchInput
