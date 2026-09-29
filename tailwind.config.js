@@ -3,6 +3,9 @@ module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
   theme: {
     extend: {
+      screens: {
+        xs: "480px",
+      },
       colors: {
         bg: "var(--color-bg)",
         surface: {

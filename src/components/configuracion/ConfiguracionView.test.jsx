@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { HelpProvider } from "../../help";
 import { ThemeProvider } from "../../context/ThemeContext";
+import { UXProvider } from "../../context/UXContext";
 import { ConfiguracionView } from "./ConfiguracionView";
 import { CONFIG_DEFAULT } from "../../utils/constants";
 
@@ -169,5 +170,42 @@ describe("ConfiguracionView", () => {
 
     fireEvent.click(within(radiogroup).getByText("Izquierda"));
     expect(visto.alineacionPestanas).toBe("izquierda");
+  });
+
+  it("Alineación de pestañas: Grupos y Secciones usan justifyContent por defecto (1.9.3)", () => {
+    render(<VistaConfig />);
+    expect(screen.getByLabelText("Grupos de Configuración").style.justifyContent).toBe(
+      "space-between"
+    );
+    expect(screen.getByLabelText("Secciones de Configuración").style.justifyContent).toBe(
+      "space-between"
+    );
+  });
+
+  it("Alineación de pestañas: izquierda y derecha se reflejan en Grupos y Secciones (1.9.3)", () => {
+    const izq = render(
+      <UXProvider config={{ alineacionPestanas: "izquierda" }}>
+        <VistaConfig />
+      </UXProvider>
+    );
+    expect(screen.getByLabelText("Grupos de Configuración").style.justifyContent).toBe(
+      "flex-start"
+    );
+    expect(screen.getByLabelText("Secciones de Configuración").style.justifyContent).toBe(
+      "flex-start"
+    );
+    izq.unmount();
+
+    render(
+      <UXProvider config={{ alineacionPestanas: "derecha" }}>
+        <VistaConfig />
+      </UXProvider>
+    );
+    expect(screen.getByLabelText("Grupos de Configuración").style.justifyContent).toBe(
+      "flex-end"
+    );
+    expect(screen.getByLabelText("Secciones de Configuración").style.justifyContent).toBe(
+      "flex-end"
+    );
   });
 });

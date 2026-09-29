@@ -15,11 +15,19 @@ export function nuevoId() {
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function pasosDe(speech) {
+  return Array.isArray(speech?.steps) ? speech.steps : [];
+}
+
+function opcionesDe(paso) {
+  return Array.isArray(paso?.opciones) ? paso.opciones : [];
+}
+
 function reindexar(steps) {
   return steps.map((paso, i) => ({
     ...paso,
     orden: i,
-    opciones: paso.opciones.map((op, j) => ({ ...op, orden: j })),
+    opciones: opcionesDe(paso).map((op, j) => ({ ...op, orden: j })),
   }));
 }
 
@@ -34,8 +42,8 @@ function conCambio(speech) {
 export function crearPaso(titulo = "", contenido = "") {
   return {
     id: nuevoId(),
-    titulo: sanitizeString(titulo.trim()),
-    contenido: sanitizeString(contenido),
+    titulo: sanitizeString(String(titulo ?? "").trim()),
+    contenido: sanitizeString(String(contenido ?? "")),
     orden: 0,
     opciones: [],
   };
@@ -44,7 +52,7 @@ export function crearPaso(titulo = "", contenido = "") {
 export function crearOpcion(texto, targetStepId = null) {
   return {
     id: nuevoId(),
-    texto: sanitizeString(texto.trim()),
+    texto: sanitizeString(String(texto ?? "").trim()),
     targetStepId,
     orden: 0,
   };
@@ -55,8 +63,8 @@ export function crearSpeechInteractivo({ nombre, descripcion = "" }) {
   const inicio = crearPaso("", "");
   return {
     id: nuevoId(),
-    nombre: sanitizeString(String(nombre).trim()),
-    descripcion: sanitizeString(String(descripcion).trim()),
+    nombre: sanitizeString(String(nombre ?? "").trim()),
+    descripcion: sanitizeString(String(descripcion ?? "").trim()),
     fechaCreacion: ahora,
     fechaModificacion: ahora,
     version: 1,
@@ -68,8 +76,8 @@ export function crearSpeechInteractivo({ nombre, descripcion = "" }) {
 export function actualizarInfo(speech, { nombre, descripcion }) {
   return conCambio({
     ...speech,
-    nombre: sanitizeString(String(nombre ?? speech.nombre).trim()),
-    descripcion: sanitizeString(String(descripcion ?? speech.descripcion).trim()),
+    nombre: sanitizeString(String(nombre ?? speech.nombre ?? "").trim()),
+    descripcion: sanitizeString(String(descripcion ?? speech.descripcion ?? "").trim()),
   });
 }
 
@@ -77,38 +85,40 @@ export function agregarPaso(speech) {
   const paso = crearPaso("", "");
   return conCambio({
     ...speech,
-    steps: reindexar([...speech.steps, paso]),
+    steps: reindexar([...pasosDe(speech), paso]),
     startStepId: speech.startStepId || paso.id,
   });
 }
 
 export function duplicarPaso(speech, stepId) {
-  const idx = speech.steps.findIndex((s) => s.id === stepId);
+  const pasos = pasosDe(speech);
+  const idx = pasos.findIndex((s) => s.id === stepId);
   if (idx === -1) return speech;
-  const original = speech.steps[idx];
+  const original = pasos[idx];
   const copia = {
     ...original,
     id: nuevoId(),
     titulo: original.titulo ? `${original.titulo} (copia)` : "",
-    opciones: original.opciones.map((op) => ({ ...op, id: nuevoId() })),
+    opciones: opcionesDe(original).map((op) => ({ ...op, id: nuevoId() })),
   };
-  const steps = [...speech.steps];
+  const steps = [...pasos];
   steps.splice(idx + 1, 0, copia);
   return conCambio({ ...speech, steps: reindexar(steps) });
 }
 
 export function eliminarPaso(speech, stepId, destinoReemplazo = null) {
+  const pasos = pasosDe(speech);
   const valido =
     destinoReemplazo &&
     destinoReemplazo !== stepId &&
-    speech.steps.some((s) => s.id === destinoReemplazo)
+    pasos.some((s) => s.id === destinoReemplazo)
       ? destinoReemplazo
       : null;
-  const steps = speech.steps
+  const steps = pasos
     .filter((s) => s.id !== stepId)
     .map((paso) => ({
       ...paso,
-      opciones: paso.opciones.map((op) =>
+      opciones: opcionesDe(paso).map((op) =>
         op.targetStepId === stepId ? { ...op, targetStepId: valido } : op
       ),
     }));
@@ -123,9 +133,9 @@ export function eliminarPaso(speech, stepId, destinoReemplazo = null) {
 
 export function referenciasA(speech, stepId) {
   const refs = [];
-  speech.steps.forEach((paso) => {
+  pasosDe(speech).forEach((paso) => {
     if (paso.id === stepId) return;
-    paso.opciones.forEach((op) => {
+    opcionesDe(paso).forEach((op) => {
       if (op.targetStepId === stepId) refs.push({ stepId: paso.id, opcionId: op.id });
     });
   });
@@ -133,53 +143,56 @@ export function referenciasA(speech, stepId) {
 }
 
 export function moverPaso(speech, stepId, delta) {
-  const idx = speech.steps.findIndex((s) => s.id === stepId);
+  const pasos = pasosDe(speech);
+  const idx = pasos.findIndex((s) => s.id === stepId);
   const destino = idx + delta;
-  if (idx === -1 || destino < 0 || destino >= speech.steps.length) return speech;
-  const steps = [...speech.steps];
+  if (idx === -1 || destino < 0 || destino >= pasos.length) return speech;
+  const steps = [...pasos];
   const [movido] = steps.splice(idx, 1);
   steps.splice(destino, 0, movido);
   return conCambio({ ...speech, steps: reindexar(steps) });
 }
 
 export function moverOpcion(speech, stepId, opcionId, delta) {
-  const idx = speech.steps.findIndex((s) => s.id === stepId);
+  const pasos = pasosDe(speech);
+  const idx = pasos.findIndex((s) => s.id === stepId);
   if (idx === -1) return speech;
-  const paso = speech.steps[idx];
-  const pos = paso.opciones.findIndex((op) => op.id === opcionId);
+  const ops = opcionesDe(pasos[idx]);
+  const pos = ops.findIndex((op) => op.id === opcionId);
   const destino = pos + delta;
-  if (pos === -1 || destino < 0 || destino >= paso.opciones.length) return speech;
-  const opciones = [...paso.opciones];
+  if (pos === -1 || destino < 0 || destino >= ops.length) return speech;
+  const opciones = [...ops];
   const [movida] = opciones.splice(pos, 1);
   opciones.splice(destino, 0, movida);
-  const steps = speech.steps.map((s, i) => (i === idx ? { ...s, opciones } : s));
+  const steps = pasos.map((s, i) => (i === idx ? { ...s, opciones } : s));
   return conCambio({ ...speech, steps: reindexar(steps) });
 }
 
 export function duplicarOpcion(speech, stepId, opcionId) {
-  const idx = speech.steps.findIndex((s) => s.id === stepId);
+  const pasos = pasosDe(speech);
+  const idx = pasos.findIndex((s) => s.id === stepId);
   if (idx === -1) return speech;
-  const paso = speech.steps[idx];
-  const pos = paso.opciones.findIndex((op) => op.id === opcionId);
+  const ops = opcionesDe(pasos[idx]);
+  const pos = ops.findIndex((op) => op.id === opcionId);
   if (pos === -1) return speech;
-  const copia = { ...paso.opciones[pos], id: nuevoId() };
-  const opciones = [...paso.opciones];
+  const copia = { ...ops[pos], id: nuevoId() };
+  const opciones = [...ops];
   opciones.splice(pos + 1, 0, copia);
-  const steps = speech.steps.map((s, i) => (i === idx ? { ...s, opciones } : s));
+  const steps = pasos.map((s, i) => (i === idx ? { ...s, opciones } : s));
   return conCambio({ ...speech, steps: reindexar(steps) });
 }
 
 export function crearPasoConectado(speech, stepIdOrigen, opcionId) {
-  const origen = speech.steps.find((s) => s.id === stepIdOrigen);
+  const origen = pasosDe(speech).find((s) => s.id === stepIdOrigen);
   if (!origen) return speech;
-  if (!origen.opciones.some((op) => op.id === opcionId)) return speech;
+  if (!opcionesDe(origen).some((op) => op.id === opcionId)) return speech;
   const nuevo = crearPaso("", "");
-  const steps = speech.steps.map((paso) =>
+  const steps = pasosDe(speech).map((paso) =>
     paso.id !== stepIdOrigen
       ? paso
       : {
           ...paso,
-          opciones: paso.opciones.map((op) =>
+          opciones: opcionesDe(paso).map((op) =>
             op.id !== opcionId ? op : { ...op, targetStepId: nuevo.id }
           ),
         }
@@ -190,18 +203,18 @@ export function crearPasoConectado(speech, stepIdOrigen, opcionId) {
 export function duplicarSpeech(speech) {
   const ahora = new Date().toISOString();
   const mapa = new Map();
-  const steps = (speech.steps || []).map((paso) => {
+  const steps = pasosDe(speech).map((paso) => {
     const idNuevo = nuevoId();
     mapa.set(paso.id, idNuevo);
     return {
       ...paso,
       id: idNuevo,
-      opciones: (paso.opciones || []).map((op) => ({ ...op, id: nuevoId() })),
+      opciones: opcionesDe(paso).map((op) => ({ ...op, id: nuevoId() })),
     };
   });
   const stepsFinales = steps.map((paso) => ({
     ...paso,
-    opciones: paso.opciones.map((op) => ({
+    opciones: opcionesDe(paso).map((op) => ({
       ...op,
       targetStepId: mapa.has(op.targetStepId) ? mapa.get(op.targetStepId) : op.targetStepId,
     })),
@@ -309,7 +322,7 @@ export function validarEstructuraSpeech(obj) {
 export function actualizarPaso(speech, stepId, cambios = {}) {
   return conCambio({
     ...speech,
-    steps: speech.steps.map((paso) =>
+    steps: pasosDe(speech).map((paso) =>
       paso.id !== stepId
         ? paso
         : {
@@ -320,7 +333,7 @@ export function actualizarPaso(speech, stepId, cambios = {}) {
                 : paso.titulo,
             contenido:
               cambios.contenido !== undefined
-                ? sanitizeString(cambios.contenido)
+                ? sanitizeString(String(cambios.contenido))
                 : paso.contenido,
           }
     ),
@@ -328,17 +341,17 @@ export function actualizarPaso(speech, stepId, cambios = {}) {
 }
 
 export function marcarInicio(speech, stepId) {
-  if (!speech.steps.some((s) => s.id === stepId)) return speech;
+  if (!pasosDe(speech).some((s) => s.id === stepId)) return speech;
   return conCambio({ ...speech, startStepId: stepId });
 }
 
 export function agregarOpcion(speech, stepId, texto = "") {
   return conCambio({
     ...speech,
-    steps: speech.steps.map((paso) =>
+    steps: pasosDe(speech).map((paso) =>
       paso.id !== stepId
         ? paso
-        : { ...paso, opciones: [...paso.opciones, crearOpcion(texto, null)] }
+        : { ...paso, opciones: [...opcionesDe(paso), crearOpcion(texto, null)] }
     ),
   });
 }
@@ -346,12 +359,12 @@ export function agregarOpcion(speech, stepId, texto = "") {
 export function actualizarOpcion(speech, stepId, opcionId, cambios = {}) {
   return conCambio({
     ...speech,
-    steps: speech.steps.map((paso) =>
+    steps: pasosDe(speech).map((paso) =>
       paso.id !== stepId
         ? paso
         : {
             ...paso,
-            opciones: paso.opciones.map((op) =>
+            opciones: opcionesDe(paso).map((op) =>
               op.id !== opcionId
                 ? op
                 : {
@@ -374,10 +387,10 @@ export function actualizarOpcion(speech, stepId, opcionId, cambios = {}) {
 export function eliminarOpcion(speech, stepId, opcionId) {
   return conCambio({
     ...speech,
-    steps: speech.steps.map((paso) =>
+    steps: pasosDe(speech).map((paso) =>
       paso.id !== stepId
         ? paso
-        : { ...paso, opciones: paso.opciones.filter((op) => op.id !== opcionId) }
+        : { ...paso, opciones: opcionesDe(paso).filter((op) => op.id !== opcionId) }
     ),
   });
 }

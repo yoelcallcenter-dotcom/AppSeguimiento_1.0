@@ -747,7 +747,7 @@ export default function HelpPanel({ showToast, onClose }) {
             <button
               key={s.id}
               onClick={() => setSeccion(s.id)}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors hover:opacity-80 ${
                 seccion === s.id ||
                 (seccion.startsWith("doc_") && s.id === "documentacion")
                   ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"

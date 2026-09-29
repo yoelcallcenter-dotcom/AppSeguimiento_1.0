@@ -130,5 +130,20 @@ describe('HelpPanel (alineación y resaltado de tabs, 1.9.2)', () => {
     expect(clasesSeccion).toContain('text-[var(--color-text-muted)]');
     expect(clasesSeccion).toContain('border-transparent');
     expect(clasesSeccion).toContain('hover:bg-[var(--color-surface2)]');
+    expect(clasesSeccion).toContain('hover:opacity-80');
+  });
+
+  it('respeta alineacionPestanas=derecha desde UXContext (1.9.3)', () => {
+    render(
+      <UXProvider config={{ alineacionPestanas: 'derecha' }}>
+        <HelpProvider>
+          <TourProvider>
+            <HelpPanel showToast={() => {}} onClose={() => {}} />
+          </TourProvider>
+        </HelpProvider>
+      </UXProvider>
+    );
+    expect(screen.getByLabelText('Grupos de Ayuda').style.justifyContent).toBe('flex-end');
+    expect(screen.getByLabelText('Secciones de Ayuda').style.justifyContent).toBe('flex-end');
   });
 });

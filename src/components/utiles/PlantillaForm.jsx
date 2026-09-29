@@ -258,7 +258,7 @@ export function PlantillaForm({ template, onSave, onCancel, showToast, config = 
                   type="button"
                   onClick={() => insertVariable(v.label)}
                   className="text-[10px] rounded px-1.5 py-0.5 cursor-pointer hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: 'var(--color-accent11)', color: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'var(--color-accent)11', color: 'var(--color-accent)' }}
                   title={`${v.description} — clic para insertar`}
                 >
                   {v.label}

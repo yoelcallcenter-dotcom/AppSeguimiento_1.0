@@ -329,6 +329,40 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.3] - Auditoría de bugs: header, pills, export con [origen] y robustez de Speechs
+
+Release de correcciones derivadas de la auditoría de Speechs Interactivos y el sistema de pills, sin funcionalidades nuevas.
+
+### Correcciones visuales
+
+- **Breakpoint \`xs\` definido (480px)**: Tailwind no generaba ninguna clase \`xs:*\`, por lo que las etiquetas de las pestañas del header (\`hidden xs:inline\`) estaban ocultas en **todos** los anchos y \`PendientesCard\` dependía solo de \`sm\`. Ahora el texto aparece desde 480px (por debajo, solo ícono).
+- **Token \`var(--color-accent11)\` malformado** (faltaba el \`)\`) dejaba fondos transparentes: el chip de categorías de Plantillas, los botones de variables del formulario de plantillas y el selector de plantillas ahora usan \`var(--color-accent)11\`.
+- **\`*:focus-visible { border-radius: 4px }\`** achataba las pills redondeadas al navegar con teclado: se quitó la regla (el outline sigue el radio propio del elemento).
+- **Hover unificado** en las pills de **Secciones** de Configuración y Ayuda (\`hover:opacity-80\`, igual que sus filas de Grupos).
+
+### Navegación y pills
+
+- **Plantillas**: la fila de filtros crece (\`grow\`) dentro del toolbar; antes era shrink-to-fit y la alineación configurada no tenía efecto visual.
+- **AvailabilityTabs** (Disponibilidad del operador) ahora consume \`useJustifyPestanas()\`: era la única fila de tabs que ignoraba la preferencia de alineación.
+- **\`DocumentacionView.jsx\` eliminado**: componente muerto (sin import en todo el repo), reemplazado por la sección "Documentación" de Ayuda.
+
+### Datos y exportación
+
+- **\`exportCasesToCSV\` vuelve a escribir el tag \`[origen]\`** en la columna de reportes (\`(fecha) [origen] texto\`): se perdía el origen real del reporte en el round-trip export/import CSV de la UI (el exportador de backup ya lo hacía).
+- **Speechs Interactivos**: los mutadores del modelo (\`agregarPaso\`, \`duplicarPaso\`, \`eliminarPaso\`, \`moverOpcion\`, \`agregarOpcion\`, etc.) ya no explotan con \`steps\`/\`opciones\` ausentes (importaciones incompletas); \`crearPaso\`/\`crearOpcion\`/\`crearSpeechInteractivo\` toleran valores no-string (ya no persisten \`"undefined"\`).
+
+### Tests
+
+- Nuevos: robustez del modelo de speechs ante datos incompletos, \`exportCasesToCSV\` con \`[origen]\`, \`justifyContent\` renderizado en Configuración (3 posiciones) y \`derecha\` en Ayuda, fila \`grow\` + alineación de Plantillas, \`AvailabilityTabs\`, \`alineacionPestanas\` en \`validateConfigIntegrity\` y breakpoint \`xs\` en \`tailwind.config\`.
+- **Suite: 881 tests en verde (81 archivos); \`npm run build\` compila sin errores.**
+- Bump a **1.9.3** en \`version.js\`, \`package.json\`, \`package-lock.json\`; CHANGELOG unificado byte-idéntico en \`CHANGELOG.md\`, \`src/docs/CHANGELOG.md\` y \`public/docs/CHANGELOG.md\`.
+
+### Deuda conocida (auditada, fuera de alcance de 1.9.3)
+
+- Rollback de \`localStorage\` incompleto en restauraciones parciales, \`clearAllState\` sin limpiar \`speechsInteractivos-art-tracker\`, \`validateConfigExport\` sin campo de versión y fórmulas/HTML sin escapar en la importación CSV de UI (solo lectura en pantalla).
+
+---
+
 ## [1.9.2] - Sistema global de pills/tabs: alineación de pestañas configurable
 
 Release de navegación: nueva preferencia de apariencia que controla cómo se distribuye el **conjunto** de botones/pills dentro del espacio disponible de la app, aplicada de forma centralizada a todos los sistemas de navegación por pestañas.

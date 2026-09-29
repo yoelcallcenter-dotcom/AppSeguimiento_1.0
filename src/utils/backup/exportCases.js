@@ -32,7 +32,9 @@ export async function exportCasesToCSV(months = null) {
 
   const formatearReportes = (reportes) => {
     if (!reportes || reportes.length === 0) return '';
-    return reportes.map((r) => `(${r.fecha}) ${r.texto}`).join(' // ');
+    return reportes
+      .map((r) => `(${r.fecha})${r.origen ? ` [${r.origen}]` : ''} ${r.texto}`)
+      .join(' // ');
   };
 
   const formatearComentarios = (comentarios) => {

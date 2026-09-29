@@ -167,7 +167,7 @@ export function PlantillasView({ showToast, config = {} }) {
           <ArrowUpDown size={12} />
         </button>
 
-        <div className="flex gap-1 flex-wrap" style={{ justifyContent: justifyPestanas }}>
+        <div className="flex gap-1 flex-wrap grow" style={{ justifyContent: justifyPestanas }}>
           <button
             onClick={() => setFilterType('all')}
             className={`category-tab ${filterType === 'all' ? 'active' : ''}`}
@@ -239,7 +239,7 @@ export function PlantillasView({ showToast, config = {} }) {
                   </div>
                 </div>
                 {tpl.category && (
-                  <span className="text-[10px] rounded px-1.5 py-0.5 mb-2 inline-block" style={{ backgroundColor: 'var(--color-accent11)', color: 'var(--color-accent)' }}>
+                  <span className="text-[10px] rounded px-1.5 py-0.5 mb-2 inline-block" style={{ backgroundColor: 'var(--color-accent)11', color: 'var(--color-accent)' }}>
                     {tpl.category}
                   </span>
                 )}

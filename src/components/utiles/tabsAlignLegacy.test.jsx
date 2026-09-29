@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { UXProvider } from "../../context/UXContext";
 import { LesionesView } from "./LesionesView";
@@ -41,5 +41,23 @@ describe("Filas legacy .category-tab respetan la alineación (1.9.2)", () => {
       <PlantillasView showToast={noop} config={{}} />
     );
     expect(filaDeCategorias(container).style.justifyContent).toBe("space-between");
+  });
+});
+
+describe("Plantillas: la fila de filtros tiene ancho real para que la alineación opere (1.9.3)", () => {
+  it("el contenedor de pills crece (grow) dentro del toolbar", () => {
+    const { container } = render(<PlantillasView showToast={noop} config={{}} />);
+    const fila = filaDeCategorias(container);
+    expect(fila.classList.contains("grow")).toBe(true);
+    expect(fila.classList.contains("flex")).toBe(true);
+  });
+
+  it("respeta alineacionPestanas=izquierda desde UXContext", () => {
+    const { container } = render(
+      <UXProvider config={{ alineacionPestanas: "izquierda" }}>
+        <PlantillasView showToast={noop} config={{}} />
+      </UXProvider>
+    );
+    expect(filaDeCategorias(container).style.justifyContent).toBe("flex-start");
   });
 });

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   crearSpeechInteractivo,
+  crearPaso,
+  crearOpcion,
   agregarPaso,
   duplicarPaso,
   eliminarPaso,
@@ -405,5 +407,59 @@ describe("interactiveSpeechModel", () => {
     expect(validarEstructuraSpeech(destinoIndefinido)).toContain(
       "La opción 1 del paso 1 tiene destino inválido."
     );
+  });
+});
+
+describe("robustez ante datos incompletos (1.9.3)", () => {
+  const sinSteps = { id: "s-x", nombre: "importado roto" };
+  const pasoSinOpciones = { id: "s1", titulo: "Paso" };
+
+  it("los mutadores no explotan cuando steps u opciones faltan", () => {
+    expect(() => agregarPaso(sinSteps)).not.toThrow();
+    expect(() => eliminarPaso(sinSteps, "s1")).not.toThrow();
+    expect(() => referenciasA(sinSteps, "s1")).not.toThrow();
+    expect(() => moverPaso(sinSteps, "s1", 1)).not.toThrow();
+    expect(() => actualizarPaso(sinSteps, "s1", { titulo: "x" })).not.toThrow();
+    expect(() => marcarInicio(sinSteps, "s1")).not.toThrow();
+    expect(() => duplicarSpeech(sinSteps)).not.toThrow();
+
+    const sinOpciones = { id: "s", nombre: "n", steps: [pasoSinOpciones] };
+    expect(() => duplicarPaso(sinOpciones, "s1")).not.toThrow();
+    expect(() => moverOpcion(sinOpciones, "s1", "op1", 1)).not.toThrow();
+    expect(() => duplicarOpcion(sinOpciones, "s1", "op1")).not.toThrow();
+    expect(() => crearPasoConectado(sinOpciones, "s1", "op1")).not.toThrow();
+    expect(() => actualizarOpcion(sinOpciones, "s1", "op1", { texto: "x" })).not.toThrow();
+    expect(() => eliminarOpcion(sinOpciones, "s1", "op1")).not.toThrow();
+    expect(() => agregarOpcion(sinOpciones, "s1", "Texto")).not.toThrow();
+  });
+
+  it("agregarPaso repara un speech sin steps", () => {
+    const r = agregarPaso(sinSteps);
+    expect(Array.isArray(r.steps)).toBe(true);
+    expect(r.steps).toHaveLength(1);
+    expect(r.startStepId).toBe(r.steps[0].id);
+  });
+
+  it("agregarPaso sobre un paso sin opciones lo reindexa con lista vacía", () => {
+    const r = agregarPaso({ id: "s", nombre: "n", steps: [pasoSinOpciones] });
+    expect(r.steps[0].opciones).toEqual([]);
+    expect(r.steps.map((s) => s.orden)).toEqual([0, 1]);
+  });
+
+  it("agregarOpcion sobre un paso sin opciones agrega la primera opción", () => {
+    const r = agregarOpcion(
+      { id: "s", nombre: "n", steps: [pasoSinOpciones] },
+      "s1",
+      "Continuar"
+    );
+    expect(r.steps[0].opciones).toHaveLength(1);
+    expect(r.steps[0].opciones[0].texto).toBe("Continuar");
+  });
+
+  it("crearPaso/crearOpcion/crearSpeechInteractivo toleran valores no-string", () => {
+    expect(crearPaso(null, undefined).titulo).toBe("");
+    expect(crearPaso(123).titulo).toBe("123");
+    expect(crearOpcion(undefined).texto).toBe("");
+    expect(crearSpeechInteractivo({}).nombre).toBe("");
   });
 });

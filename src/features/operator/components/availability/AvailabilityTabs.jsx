@@ -1,10 +1,12 @@
 import React from "react";
 import { TAB_META } from "./availabilityMeta";
 import { listForTab } from "./availabilityMeta";
+import { useJustifyPestanas } from "../../../../components/common/UINav";
 
 export function AvailabilityTabs({ availability, tab, onTabChange }) {
+  const justifyContent = useJustifyPestanas();
   return (
-    <div className="flex flex-wrap gap-1 mb-3">
+    <div className="flex flex-wrap gap-1 mb-3" style={{ justifyContent }}>
       {Object.entries(TAB_META).map(([key, meta]) => {
         const count = listForTab(availability, key).length;
         const Icon = meta.icon;

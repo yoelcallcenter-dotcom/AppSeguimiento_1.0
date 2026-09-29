@@ -3397,7 +3397,7 @@ export function ConfiguracionView({
             <button
               key={s.id}
               onClick={() => cambiarSubseccion(s.id)}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors hover:opacity-80 ${
                 seccion === s.id
                   ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
                   : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"

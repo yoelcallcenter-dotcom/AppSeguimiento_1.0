@@ -185,4 +185,16 @@ describe('validateConfigIntegrity', () => {
     expect(r.valid).toBe(false);
     expect(r.severity).toBe('critical');
   });
+
+  it('alineacionPestanas no-string se repara al default (1.9.3)', () => {
+    const r = validateConfigIntegrity({ alineacionPestanas: 42 });
+    expect(r.normalizedData.alineacionPestanas).toBe(CONFIG_DEFAULT.alineacionPestanas);
+    expect(r.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('alineacionPestanas válida pasa intacta (1.9.3)', () => {
+    const r = validateConfigIntegrity({ alineacionPestanas: 'derecha' });
+    expect(r.normalizedData.alineacionPestanas).toBe('derecha');
+    expect(r.warnings).toHaveLength(0);
+  });
 });
