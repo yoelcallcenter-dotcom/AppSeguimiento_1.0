@@ -16,6 +16,7 @@ import { BtnOutline } from "../common/BtnOutline";
 import { Select } from "../common/Select";
 import { TextInput } from "../common/TextInput";
 import { Toggle } from "../common/Toggle";
+import { useJustifyPestanas } from "../common/UINav";
 import { PersonalizacionColores } from "./PersonalizacionColores";
 import { KeywordsInput } from "./KeywordsInput";
 import { TipografiaView } from "./TipografiaView";
@@ -392,6 +393,8 @@ export function ConfiguracionView({
   const [grupoActivo, setGrupoActivo] = useState("general");
 
   const [seccion, setSeccion] = useState("general");
+
+  const justifyPestanas = useJustifyPestanas();
 
   const cambiarGrupo = (groupId) => {
     setGrupoActivo(groupId);
@@ -2028,6 +2031,37 @@ export function ConfiguracionView({
               </div>
             </div>
             <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <Navigation size={14} color="var(--color-accent)" />
+                Alineación de pestañas
+              </div>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Alineación de pestañas">
+                {[
+                  { value: "izquierda", label: "Izquierda" },
+                  { value: "centro", label: "Centro" },
+                  { value: "derecha", label: "Derecha" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={(config.alineacionPestanas || "centro") === opt.value}
+                    onClick={() => actualizarConfig("alineacionPestanas", opt.value)}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-80 ${
+                      (config.alineacionPestanas || "centro") === opt.value
+                        ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
+                        : "border border-[var(--color-border)] text-[var(--color-text-muted)]"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: "var(--color-text-muted)" }}>
+                Define cómo se distribuyen las pestañas dentro del espacio disponible.
+              </p>
+            </div>
+            <div className="config-section">
               <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• Desactivar animaciones en equipos con recursos limitados mejora el rendimiento.</p>
@@ -3319,7 +3353,11 @@ export function ConfiguracionView({
     <><div className="space-y-4">
       <div
         className="flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl"
-        style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+        style={{
+          backgroundColor: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          justifyContent: justifyPestanas,
+        }}
         role="group"
         aria-label="Grupos de Configuración"
       >
@@ -3330,7 +3368,7 @@ export function ConfiguracionView({
             className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors hover:opacity-80 ${
               grupoActivo === g.id
                 ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
             }`}
           >
             <g.icon size={14} aria-hidden="true" /> {g.label}
@@ -3348,7 +3386,10 @@ export function ConfiguracionView({
       >
         <div
           className="flex flex-wrap items-center gap-1.5 mb-4 pb-3"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+            justifyContent: justifyPestanas,
+          }}
           role="group"
           aria-label="Secciones de Configuración"
         >
@@ -3359,7 +3400,7 @@ export function ConfiguracionView({
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${
                 seccion === s.id
                   ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
-                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
               }`}
             >
               <s.icon size={14} aria-hidden="true" /> {s.label}

@@ -143,6 +143,7 @@ export const CONFIG_DEFAULT = {
   tooltipsMejorados: true,
   atajosTeclado: true,
   confirmaciones: false,
+  alineacionPestanas: "centro",
   busquedaFiltro: "todos",
   busquedaHistorial: true,
   busquedaMaxHistorial: 50,

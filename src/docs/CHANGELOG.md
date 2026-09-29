@@ -7,6 +7,36 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.2] - Sistema global de pills/tabs: alineación de pestañas configurable
+
+Release de navegación: nueva preferencia de apariencia que controla cómo se distribuye el **conjunto** de botones/pills dentro del espacio disponible de la app, aplicada de forma centralizada a todos los sistemas de navegación por pestañas.
+
+### Nueva configuración
+
+- **Configuración → Apariencia → UX/Navegación → "Alineación de pestañas"** con opciones **Izquierda**, **Centro** (predeterminado) y **Derecha**, y la descripción *"Define cómo se distribuyen las pestañas dentro del espacio disponible."*
+- La opción afecta solo la distribución horizontal del grupo (CSS `justify-content`): **no** cambia `text-align` del texto, alineación de iconos, padding interno, tamaños ni ancho individual de las pills.
+- Semántica: Izquierda = grupo compacto a la izquierda (`flex-start`); **Centro = repartido borde a borde** (`space-between`: primera al borde izquierdo, última al derecho, intermedias con espacio flexible); Derecha = grupo compacto a la derecha (`flex-end`).
+- Persiste en `config-art-tracker` (clave `alineacionPestanas`, default `centro`): viaja en el backup/export-importación de configuración y queda validada por `ESQUEMA_CONFIG` en el chequeo de integridad; valores desconocidos caen a `centro`.
+
+### Implementación centralizada
+
+- `UXContext` expone `alineacionPestanas` saneada y el helper `useJustifyPestanas()` vive en `UINav.jsx`: lo consumen `NavDock` y `SubPills`, cubriendo **Útiles** (Grupos y Secciones), **Speechs** (Clásicos | Interactivos), **Dashboard**, **Mi Espacio** y **Calendario**.
+- Implementaciones equivalentes comparten el mismo helper sin duplicar lógica: la navegación propia de **Configuración** (Grupos y Secciones), la de **Ayuda** (Grupos y Secciones), **Documentación del sistema**, el **header** (tira de vistas) y las filas legacy `.category-tab` (**Lesiones**, **Conversaciones Sugeridas**, **Plantillas**).
+- El header aplica la misma lógica que el resto de las pestañas: las vistas se distribuyen como una sola tira (sin clusters con fondo propio), con el divisor como tab más; con Centro, cada vista queda repartida borde a borde del espacio disponible.
+- Auditoría de alcance: fuera quedan chips de filtros multi-selección (Filtros/CSV/MultiSelect), el tablist de Documentos de Ayuda (grid de tarjetas) y el header de iconos; **Reportes** no tiene pills de navegación. En Calendario las pills comparten fila con botones (caja de ancho contenido → sin efecto visual).
+
+### Resaltado de las pestañas
+
+- En reposo las pestañas mantienen su tipografía original (12px, `text-xs`) y su color `text-muted`, sin chips ni bordes nuevos: el resaltado es **dinámico por hover** — al pasar el cursor, la pestaña inactiva muestra un chip `surface2` y su texto pasa a `--color-text`, el mismo patrón que ya usaban las filas `.category-tab`. Los estados activos conservan su tratamiento con color de acento.
+
+### Mantenimiento
+
+- Tests: `UINav` +6 (alineación: default centro, izquierda, derecha, valor inválido; resaltado: reposo original + hover en NavDock y SubPills), `ConfiguracionView` +2 (sección visible con descripción y cambio de opción), `HelpPanel` +3 (alineación Grupos/Secciones y hover), nuevo `tabsAlignLegacy` (3 filas), `backupRegression` +roundtrip de `alineacionPestanas` y smoke con aserción de la tira del header (alineación y tipografía). Suite completa **863/863**.
+- Docs: README (×3), tour de Configuración y Guía de Usuario (Temas y Personalización).
+- Bump a **1.9.2** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
 ## [1.9.1] - Editor completo, duplicación e importación/exportación de Speechs Interactivos
 
 Release de madurez del módulo de Speechs Interactivos (1.9.0): editor con árbol de flujo, reordenar y duplicar, borrado con resolución de referencias, advertencias no bloqueantes y exportación/importación en JSON versionado con estrategias por speech. Además se corrige la importación de configuración con categorías por defecto.
@@ -201,25 +231,34 @@ Release que reorganiza el header principal y unifica Filtros, Exportar CSV y Cen
 
 ---
 
-## [1.8.5] - Navegación unificada por pills
+## [1.8.7] - Filtro global con modal
 
-Release que aplica la misma lógica visual de **Configuración y Ayuda** a toda la app: navegación por pills/un burlader de grupo, encabezados de sección e íconos de tip en las 8 vistas principales.
+### Funciones nuevas
 
-### Primitivas de navegación compartidas
+- **Filtro global desde el header**: nuevo botón "Filtros" (icono de embudo) en la barra superior que abre un modal con 7 dimensiones — Estado, Aseguradora, Localidad, Estudio, Tipo, Origen (del último reporte del caso) y Teléfono (prefijo numérico). (#3-7)
+- El filtro es **una única fuente de verdad** (`filtroGlobal` en `FiltersContext`): App lo aplica una sola vez sobre el listado filtrado y **todas las vistas** (Dashboard, Tabla, Reportes, Kanban y Mi Espacio) lo heredan por composición, sin duplicar lógica por vista.
+- **Persistencia**: los filtros globales se guardan en `localStorage` junto a los filtros existentes (`app-filters`) y se restauran al reabrir la app.
+- **"Limpiar filtros"** disponible dentro del modal cuando hay cualquier dimensión activa.
 
-- Nuevo `src/components/common/UINav.jsx` con `NavDock` (dock horizontal con pills de grupo, activo con fondo accent sólido) y `SubPills` (pills secundarias rounded-full, activo con borde/fondo accent + badge de contador). Cubiertas por `UINav.test.jsx`.
-- **Dashboard**: la barra tipo navegador (subtabs con subrayado) pasa a `NavDock` + `SectionHeader` dinámico con ícono, título y descripción por tab.
-- **Mi Espacio**: secciones en grid de tarjetas → `NavDock`; el bloque "Sugerencias para vos" → tip estandarizado con borde accent e ícono 💡; tarjetas pulidas a `rounded-xl`.
-- **Útiles**: pills `.category-tab` → `SubPills` con badges (conserva el toggle grid/lista) + `SectionHeader` por sub-vista.
-- **Calendario**: segmented control del toolbar → `SubPills` + `SectionHeader`.
+---
 
-### Vistas sin tabs
+## [1.8.6] - Portadas contraíbles y roundtrip de origen
 
-- **Kanban, Tabla, Reportes y Bloc de Notas**: encabezado unificado con `SectionHeader`.
+Release de robustez de UI y datos:
+
+### Cambios de UI
+
+- **Portada de las vistas contraíble**: el encabezado de sección (título + descripción) de las 8 vistas principales ahora es contraíble mediante un chevron; el estado se persiste en `localStorage` por sección y se restaura al reabrir. (#1)
+- **Se quitó el botón "Reprogramar" del modal de detalle de caso** (VerCasoModal); el flujo de reprogramación se gestiona desde el reporte rápido (estado "Reprogramado"). Se eliminaron el handler y la prop muertos. (#9)
+- **Se quitó el ícono decorativo `MapPin` del Dashboard** (import y JSX), eliminando la advertencia de dependencia sin uso. (#11)
+
+### Datos y exportación
+
+- **El origen real del reporte se preserva en el round-trip export/import CSV**: el export escribe el tag `[origen]` y el import lo recupera sin forzar "Operador" cuando el archivo trae un origen válido (incluye orígenes no canónicos). (#8)
 
 ### Mantenimiento
 
-- Bump a **1.8.5** en `version.js`, `package.json`, `package-lock.json` y los README/CHANGELOG.
+- Bump a **1.8.6**; build de producción verificado.
 
 ---
 

@@ -135,4 +135,39 @@ describe("ConfiguracionView", () => {
     expect(screen.getByLabelText("Destino de ART")).toBeTruthy();
     expect(visto.fichaFieldsDeleted).toEqual([]);
   });
+
+  it("Alineación de pestañas: sección en UX/Navegación con descripción y default Centro", () => {
+    render(<VistaConfig />);
+    const grupos = screen.getByLabelText("Grupos de Configuración");
+    fireEvent.click(within(grupos).getByText("Apariencia"));
+    const secciones = screen.getByLabelText("Secciones de Configuración");
+    fireEvent.click(within(secciones).getByText("UX/Navegación"));
+
+    const radiogroup = screen.getByLabelText("Alineación de pestañas");
+    expect(within(radiogroup).getByText("Izquierda")).toBeTruthy();
+    expect(within(radiogroup).getByText("Centro")).toBeTruthy();
+    expect(within(radiogroup).getByText("Derecha")).toBeTruthy();
+    expect(
+      within(radiogroup).getByRole("radio", { name: "Centro" }).getAttribute("aria-checked")
+    ).toBe("true");
+    expect(
+      screen.getByText("Define cómo se distribuyen las pestañas dentro del espacio disponible.")
+    ).toBeTruthy();
+  });
+
+  it("Alineación de pestañas: cambiar a Derecha actualiza config.alineacionPestanas", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    const grupos = screen.getByLabelText("Grupos de Configuración");
+    fireEvent.click(within(grupos).getByText("Apariencia"));
+    const secciones = screen.getByLabelText("Secciones de Configuración");
+    fireEvent.click(within(secciones).getByText("UX/Navegación"));
+
+    const radiogroup = screen.getByLabelText("Alineación de pestañas");
+    fireEvent.click(within(radiogroup).getByText("Derecha"));
+    expect(visto.alineacionPestanas).toBe("derecha");
+
+    fireEvent.click(within(radiogroup).getByText("Izquierda"));
+    expect(visto.alineacionPestanas).toBe("izquierda");
+  });
 });

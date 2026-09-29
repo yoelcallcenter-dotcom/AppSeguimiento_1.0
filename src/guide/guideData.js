@@ -443,7 +443,13 @@ Configuracion → Apariencia → Dashboard:
 TAMAÑO DE FUENTE
 - Pequeno: ideal para pantallas con mucha densidad
 - Mediano: tamaño predeterminado
-- Grande: mejor legibilidad`,
+- Grande: mejor legibilidad
+
+ALINEACIÓN DE PESTAÑAS
+Configuracion → Apariencia → UX/Navegación:
+- Izquierda, Centro (predeterminado) o Derecha
+- Define cómo se distribuyen las pestañas dentro del espacio disponible
+- Aplica a toda la navegación por pills de la aplicación`,
   },
   {
     id: "atajos",

@@ -7,6 +7,230 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.2] - Sistema global de pills/tabs: alineación de pestañas configurable
+
+Release de navegación: nueva preferencia de apariencia que controla cómo se distribuye el **conjunto** de botones/pills dentro del espacio disponible de la app, aplicada de forma centralizada a todos los sistemas de navegación por pestañas.
+
+### Nueva configuración
+
+- **Configuración → Apariencia → UX/Navegación → "Alineación de pestañas"** con opciones **Izquierda**, **Centro** (predeterminado) y **Derecha**, y la descripción *"Define cómo se distribuyen las pestañas dentro del espacio disponible."*
+- La opción afecta solo la distribución horizontal del grupo (CSS `justify-content`): **no** cambia `text-align` del texto, alineación de iconos, padding interno, tamaños ni ancho individual de las pills.
+- Semántica: Izquierda = grupo compacto a la izquierda (`flex-start`); **Centro = repartido borde a borde** (`space-between`: primera al borde izquierdo, última al derecho, intermedias con espacio flexible); Derecha = grupo compacto a la derecha (`flex-end`).
+- Persiste en `config-art-tracker` (clave `alineacionPestanas`, default `centro`): viaja en el backup/export-importación de configuración y queda validada por `ESQUEMA_CONFIG` en el chequeo de integridad; valores desconocidos caen a `centro`.
+
+### Implementación centralizada
+
+- `UXContext` expone `alineacionPestanas` saneada y el helper `useJustifyPestanas()` vive en `UINav.jsx`: lo consumen `NavDock` y `SubPills`, cubriendo **Útiles** (Grupos y Secciones), **Speechs** (Clásicos | Interactivos), **Dashboard**, **Mi Espacio** y **Calendario**.
+- Implementaciones equivalentes comparten el mismo helper sin duplicar lógica: la navegación propia de **Configuración** (Grupos y Secciones), la de **Ayuda** (Grupos y Secciones), **Documentación del sistema**, el **header** (tira de vistas) y las filas legacy `.category-tab` (**Lesiones**, **Conversaciones Sugeridas**, **Plantillas**).
+- El header aplica la misma lógica que el resto de las pestañas: las vistas se distribuyen como una sola tira (sin clusters con fondo propio), con el divisor como tab más; con Centro, cada vista queda repartida borde a borde del espacio disponible.
+- Auditoría de alcance: fuera quedan chips de filtros multi-selección (Filtros/CSV/MultiSelect), el tablist de Documentos de Ayuda (grid de tarjetas) y el header de iconos; **Reportes** no tiene pills de navegación. En Calendario las pills comparten fila con botones (caja de ancho contenido → sin efecto visual).
+
+### Resaltado de las pestañas
+
+- En reposo las pestañas mantienen su tipografía original (12px, `text-xs`) y su color `text-muted`, sin chips ni bordes nuevos: el resaltado es **dinámico por hover** — al pasar el cursor, la pestaña inactiva muestra un chip `surface2` y su texto pasa a `--color-text`, el mismo patrón que ya usaban las filas `.category-tab`. Los estados activos conservan su tratamiento con color de acento.
+
+### Mantenimiento
+
+- Tests: `UINav` +6 (alineación: default centro, izquierda, derecha, valor inválido; resaltado: reposo original + hover en NavDock y SubPills), `ConfiguracionView` +2 (sección visible con descripción y cambio de opción), `HelpPanel` +3 (alineación Grupos/Secciones y hover), nuevo `tabsAlignLegacy` (3 filas), `backupRegression` +roundtrip de `alineacionPestanas` y smoke con aserción de la tira del header (alineación y tipografía). Suite completa **863/863**.
+- Docs: README (×3), tour de Configuración y Guía de Usuario (Temas y Personalización).
+- Bump a **1.9.2** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
+## [1.9.1] - Editor completo, duplicación e importación/exportación de Speechs Interactivos
+
+Release de madurez del módulo de Speechs Interactivos (1.9.0): editor con árbol de flujo, reordenar y duplicar, borrado con resolución de referencias, advertencias no bloqueantes y exportación/importación en JSON versionado con estrategias por speech. Además se corrige la importación de configuración con categorías por defecto.
+
+### Editor y flujo
+
+- **Árbol de flujo** (`FlowTree`): pasa la lista plana a una jerarquía visual pasos → opciones → destino (conector en L), con badge **INICIO**, iconos de error/advertencia, sección "Sin conexión" para pasos no alcanzables, clic en una opción que navega al destino y flechas **↑↓** (Subir/Bajar paso) para reordenar. Sin INICIO válido, todos los pasos quedan en la lista principal.
+- **Nombre y descripción editables** en el encabezado del editor.
+- **Advertencias no bloqueantes**: los pasos huérfanos (no alcanzables desde el INICIO) se listan en un bloque amarillo sin impedir Iniciar ni Ejecutar.
+- **Eliminar paso con resolución de referencias**: diálogo que lista qué opciones de otros pasos apuntan al paso y exige elegir el nuevo destino (o deshabilita Eliminar cuando hay referencias y no se elige).
+- **Reordenar y duplicar**: flechas ↑↓ en pasos y en opciones, duplicar paso y duplicar opción, y "+ Crear nuevo paso…" desde una fila de opción para crear y conectar en un paso.
+
+### Duplicación de speechs
+
+- Botón **Duplicar speech interactivo** en la tarjeta: copia con IDs nuevos, remapea `startStepId` y destinos preservando referencias, nombre con sufijo " (copia)" y versión 1.
+
+### Exportar / Importar
+
+- **Exportar** con modal y checklist de speechs (Seleccionar todos / Quitar todos y conteo) a `speechs_interactivos_<fecha>.json` con envelope `{tipo, version, speechs}`.
+- **Importar** con parser de errores claros (JSON inválido, tipo desconocido, versión no soportada, vacío), previsualización por fila con chips **Nuevo / ID duplicado / Inválido**, migración v0 → v1 y validación de estructura (los huérfanos solo advierten).
+- **Conflictos por speech** resueltos con estrategia **Copia / Reemplazar / Omitir** (default Omitir), con `ConfirmDialog` si alguna fila queda en Reemplazar; toast con agregados/reemplazados/omitidos.
+
+### Correcciones
+
+- **Importación de configuración (categorías)**: `importConfigFromJSON` trata ausente o true como ON, igual que la UI. Antes, un mapa `{}` o parcial devolvía "No hay categorías seleccionadas para importar" u omitía categorías en silencio; ahora solo el `false` explícito excluye.
+- El preview de importación de Útiles muestra las categorías realmente importables ("N de M") e Importar queda deshabilitado si quedan 0.
+
+### Mantenimiento
+
+- Tests nuevos/ampliados: `interactiveSpeechModel` (21), `speechsInteractivosIO` (6), `InteractivosView` (24) y `backupRegression` (+4).
+- Docs actualizados: Acerca de Vistas (HelpPanel), tour de Útiles, glosario ("Speech interactivo"), FAQ, Guía de Usuario, descripción de la pestaña Speechs y README (×3).
+- Bump a **1.9.1** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
+## [1.9.0] - Speechs Interactivos: recorridos por pasos con edición y ejecución
+
+Nuevo módulo dentro de Útiles → Speechs: pestañas internas **Clásicos | Interactivos** con speechs "interactivos" — recorridos de pasos con opciones que conectan entre sí, determinísticos y 100% locales (sin IA). Persisten con el sistema de storage existente y quedan incluidos en el backup/import de Útiles.
+
+### Speechs interactivos
+
+- Nueva pestaña **Interactivos** dentro de Speechs (`SubPills` con aria-label "Secciones de Speechs"); la rama clásica queda intacta. App pasa `speechsInteractivos` (nueva clave `speechs-interactivos-art-tracker`) por UtilesView → SpeechsView.
+- Lista con búsqueda por nombre/descripción, contador, tarjetas con badge de errores (`N errores`), metadatos (cantidad de pasos y última modificación) y acciones **Ejecutar / Editar / Eliminar** (con `ConfirmDialog`). "Nuevo Speech Interactivo" abre un modal con nombre* y descripción y lleva directo al editor.
+- **Editor** en dos columnas: a la izquierda la lista de pasos (badge **INICIO** y aviso de pasos con opciones rotas); a la derecha título, contenido, **Marcar como INICIO**, duplicar/eliminar paso y filas de opción `[texto][destino][✕]` con "Agregar opción". Se edita en vivo (persistencia con debounce de 500 ms del `useStorage`), sin pasos intermedios de Guardar.
+- **Validación visible**: errores puntuales (paso inicial ausente, IDs duplicados, opciones sin texto o sin destino, destinos inexistentes, nombre vacío) listados siempre en el editor; **Iniciar Speech** y **Ejecutar** quedan deshabilitados hasta corregirlos.
+- **Modo ejecución** en modal solo lectura (`SpeechRunner`): `PASO n / total` con badge INICIO, título y contenido, opciones como botones grandes apilados, y botones **Atrás** / **Reiniciar** / **Cerrar**; el historial vive en estado local y un paso sin opciones se muestra como **Fin del recorro**.
+- Las variables de contenido (`(NOMBRE)`, `(LOCALIDAD)`, `(ESTUDIO)`, `(DÍA/HORARIO)`, `(NOMBRE DEL TRABAJADOR)`) siguen siendo placeholders: el runner las muestra tal cual.
+
+### Persistencia y backups
+
+- Clave `speechs-interactivos-art-tracker` en `STORAGE_KEYS`/`CONFIG_KEYS`: se exporta/importa con Útiles JSON (nueva categoría "Speechs interactivos"), entra al `beforeunload`, a "Eliminar útiles" y al borrado total de datos (sufijo `-art-tracker`).
+- Configuración muestra el conteo de "Speechs interactivos" junto al de Speechs clásicos.
+
+### Mantenimiento
+
+- Tests nuevos: `interactiveSpeechModel` (11), `InteractivosView` (8: creación, búsqueda, eliminación, validación en vivo, badge INICIO, ejecución) y `SpeechsView` (2: pestañas); `ConfiguracionView.test` actualizado con las props nuevas.
+- Bump a **1.9.0** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
+## [1.8.10] - Animaciones: vistas con movimiento, modales que suben y drawers der↔izq
+
+Release de pulido visual: se reemplaza el fundido cruzado entre vistas por un deslizamiento horizontal direccional, los modales suben desde abajo al abrir (y bajan al cerrar) y los paneles laterales entran/salen por la derecha.
+
+### Transición entre vistas
+
+- `useViewTransition` calcula la dirección del cambio según el orden de pestañas (`VIEW_ORDER`): la vista entrante se desliza **opaca y por encima** de la saliente (`view-enter-right/left`), que deriva en parallax hacia el lado contrario (`view-drift-left/right`, ∓20%) y queda recortada (`top/bottom` + `overflow: hidden`) a la altura de la entrante; el fundido queda solo como fallback cuando la vista no está en el orden.
+- Fix de superposición: las vistas llevan fondo opaco (`var(--color-bg)`) durante la transición para que la nueva no se transparente sobre la vieja; la saliente se alinea al pixel mediante un wrapper sin padding dentro de `Suspense` (antes quedaba desfasada por el padding `p-4 sm:p-6`); y la activa queda **sin clases al terminar** la transición (sin `transform`/`will-change` residual que afectaría a hijos `position: fixed`).
+- El contenedor de vistas usa `overflow-x-clip` para que el deslizamiento no genere scroll horizontal momentáneo.
+- **El scroll ya no se manipula al cambiar de vista**: se eliminaron el guardado/restauración de posiciones y el salto a tope; el navegador conserva la posición actual.
+
+### Sin recarga entre vistas
+
+- Las vistas se montan **una sola vez** y luego quedan ocultas (`.view-transition-hidden`, `display: none`): cambiar de pestaña ya no desmonta ni remonta componentes — no hay skeleton, y el estado de cada vista se conserva (página/orden de Tabla, columnas del Kanban, periodo del Dashboard, sub-tab de Útiles).
+- Nuevo `isHiddenView` en `useViewTransition`; la vista saliente sigue animando su salida y al volver a mostrar una vista el navegador reinicia sus animaciones (el slide funciona en cada ida y vuelta).
+- Precarga unificada en `VIEW_IMPORTS` (mapa clave→import) reutilizado por la precarga en idle y por **`onMouseEnter` en las pestañas**, que descarga el chunk antes del primer click.
+
+### Modales con subida suave
+
+- Nuevo hook `useAnimatedPresence` (`useAnimatedPresence(isOpen)` para padres que mantienen montado y `useDelayedClose(onClose)` para padres con render condicional) y keyframes `modal-rise-in/out`: el contenido sube 40 px con fade al abrir (0.25 s) y baja al cerrar (0.18 s), con backdrop en fade.
+- Aplicado en `Modal` (Speechs y EventModal), `OverlayPanel` (Calendario, Bloc de Notas, Configuración, Ayuda, Importador CSV), `ConfirmDialog`, `VerCasoModal`, `CasoEditModal`, `ReporteRapidoModal`, `PdfExportModal` y los tres previews de importación de Configuración; los que desaparecían instantáneamente ahora animan la salida (con el contenido congelado durante el cierre). Calendario y Bloc de Notas pasan a montarse siempre con `isOpen` para poder animar el cierre.
+
+### Sidebars der↔izq
+
+- `SidePanel` (Filtros, Exportar CSV, Centro de Notificaciones) corrige la entrada: el panel se desliza **desde la derecha** (`drawer-in`, 100%→0) en lugar de subir 8 px, y vuelve hacia la derecha al cerrar (`drawer-out`); entrada y salida ahora son simétricas y coinciden con su documentación.
+
+### Calendario: barra de filtros estandarizada
+
+- `CalendarFilters` se reescribe sobre las primitivas estándar (`FilterBar`, `FilterGroup`, `FilterCounter`) como el Dashboard: labels en mayúsculas del sistema (se elimina el label interno duplicado de cada `MultiSelect`), ancho uniforme de los 5 grupos (`flex: 1 1 150px`, sin huecos vacíos al envolver), botón **Limpiar filtros** estilo "Limpiar sección" y contador `Total: N eventos` con la cantidad de eventos tras filtrar.
+- `MultiSelect` (Calendario, Dashboard y Filtros globales) deja de pintar **pills bajo el control** —era la segunda línea por opción que hacía saltar la tarjeta al seleccionar—: la selección se resume **en una sola línea dentro del botón** (`Opción A, Opción B`, con truncate) y el chip X limpia toda la selección; el chip ahora usa `--color-primary`/`--color-text-on-accent` y la opción seleccionada del dropdown `--ring` (antes usaban `--color-accent11`, token inexistente que quedaba invisible).
+- La tarjeta conserva **altura fija** al filtrar: **Limpiar filtros** queda siempre visible (deshabilitado con opacidad cuando no hay filtros activos) para que no haya reflow al activar el primer filtro.
+
+### Mantenimiento
+
+- Tests: `useViewTransition` reescrito (dirección, fallback fade, scroll intacto, vista activa sin clases en reposo), nuevo `useAnimatedPresence.test.js` (+5) y `modal.test` (+1 de rise); el smoke endurecido espera los grupos de Útiles.
+- Bump a **1.8.10** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
+## [1.8.9] - Pulido general: scroll, Útiles, filtros y backups
+
+Release de mantenimiento y pulido: fixes de scroll al abrir overlays, notificaciones y toolbars corregidas, reescritura de la vista Útiles, filtros con staging ("Aplicar Filtro"), export/import de backups con checksum canónico y el nuevo editor de campos para el pegado de ficha.
+
+### Correcciones
+
+- **Fix**: `bodyScrollLock` compensa el ancho de la barra de scroll con `padding-right` en `body` al bloquear el scroll y lo restaura exactamente al desbloquear (respetando el padding previo y el contador de overlays anidados). Abrir/cerrar cualquier overlay ya no elimina la barra de scroll ni desplaza el contenido.
+- **Fix**: los overlays ya no mueven el scroll del fondo: `useDialogA11y`, `useModal`, `ConfirmDialog`, `CasoEditModal`, `ReporteRapidoModal`, `NotesSearch`, `GlobalSearch` y `OverlayPanel` pasan a `useLayoutEffect` con `preventScroll`; `VerCasoModal` bloquea el scroll por `casoId` y el Tour ya no desplaza la página.
+- **Fix**: en `NotificationCenter` el texto de los avisos largos se corta con `min-w-0`/ellipsis en vez de desbordar la card; el ícono de `NotificationBell` se alinea con `align-middle`.
+
+### Filtros con staging (Aplicar Filtro)
+
+- `FilterModal` trabaja sobre un borrador local: los cambios solo se escriben al tocar **Aplicar Filtro** y X/Escape los descartan; nuevo botón **Limpiar sección**, contador de previsualización contra `baseCasos` y aviso "Filtro aplicado: N caso(s)".
+- `SidePanel` expone `startClose` (forwardRef) para cerrar con la animación; App estabiliza los handlers del filtro y agrega el chip **Limpiar todo**; Dashboard y `DashboardFilters` memoizan cálculos y los 9 gráficos se renderizan sin animación (`isAnimationActive={false}`) para que el filtrado sea instantáneo.
+
+### Cambio de vista sin pantalla en blanco
+
+- `App.jsx` envuelve cada vista lazy en `Suspense` con skeleton de contenido y precarga en idle de 9 imports; la vista anterior durante el crossfade sale del flujo (`.view-transition-exit` con `position: absolute`) y el scroll solo se restaura de forma condicional (`useViewTransition`).
+
+### Speechs y componentes
+
+- `Modal` acepta `subheader`; el editor de Speechs pasa de `OverlayPanel` a `Modal` ("2xl") con subheader y footer.
+- `PlantillasView`: confirmación de borrado con `open`/`onCancel` explícitos.
+- `globals.css`: `.input-optimized` se declara antes de `@tailwind utilities` (las utilidades `pl-*`/`text-*` de Tailwind lo pueden sobreescribir) y se elimina el hack `.pl-8`.
+
+### Vista Útiles reescrita
+
+- Orden de pestañas agrupado (Textos: Speechs, Objeciones, Conversación, Pasos; Directorios: Aseguradoras, Mapeo, Lesiones, Tránsito; Otros: Pro Legal, Condicionales, Plantillas) persistido en `utilesTabOrder` con migración automática para configuraciones que guardaban el orden anterior.
+- Pills de las pestañas en una sola línea con scroll horizontal (`.tab-strip`) fuera de la vista de lista; badges reales en Conversación Sugerida (mensajes configurados), Pro Legal (mapeos con carga pro legal) y Plantillas (cantidad de plantillas).
+- Títulos de página redundantes eliminados en Objeciones, Pasos, Mapeo, Plantillas, Pro Legal y Condicionales, con toolbars reordenados bajo una misma lógica: búsqueda/orden/crear-importar primero, exportar siempre al final.
+- `CondicionalesView`: una sola tabla con thead sticky, encabezado de estudio colapsable (chevron + cantidad de condiciones) y filas expandidas con `rowSpan`; scroll único de 560px sin doble barra. El contador "no toman" vive en la toolbar.
+
+### Export / Import de backups
+
+- Checksum canónico: JSON con claves ordenadas recursivas + SHA-256 (FNV-1a como fallback sin WebCrypto), de modo que la verificación no dependa del orden de claves; compatibilidad con el formato legacy (string hex) y con el objeto `{alg, sum}`.
+- `importBackup` recalcula el checksum tras migrar backups v1/v2 (fix: crasheaba con ReferenceError por uso antes de declarar `warnings`), acepta `omitirChecksum` para importar igualmente con aviso, y `parseBackupJSON` tolera BOM inicial y devuelve `checksumMismatch` con el backup parseable.
+- Configuración → Datos: si el checksum no coincide aparece el aviso "Checksum no coincide" con botón **Importar igualmente**; el preview del respaldo muestra versión y fecha, y el JSON se muestra con ajuste de línea (`pre`).
+- `validateConfigExport` e `importConfigFromJSON` aceptan claves con sufijo `-art-tracker` y archivos con BOM.
+
+### Pegado de ficha configurable
+
+- Nuevo catálogo `fichaFields` (`DEFAULT_FICHA_FIELDS` + `getFichaFields`): por campo se definen etiqueta, palabras clave y destino; el orden de la lista es el orden de evaluación y las palabras clave se anclan al inicio de una línea seguida de ":" o "-", sin distinguir mayúsculas ni acentos (gana la más larga y se usa la primera ocurrencia).
+- `parseFicha(texto, config)` aplica las transformaciones por destino (mayúsculas para nombre/localidad, limpieza de paréntesis en ART, split de tags/comentarios) y `CasoEditModal` pasa la config al pegar.
+- Nueva sección **Configuración - Avanzado - Pegado de Ficha**: editor de campos (etiqueta, palabras clave, destino, reordenar, agregar/eliminar, restaurar por defecto) con aviso de palabras clave duplicadas.
+
+### Mantenimiento
+
+- Nuevos tests: `referentialChecks` (+2 de migración del orden de Útiles), `CondicionalesView.test.jsx` (4), `UINav` (+`singleLine`), `helpers` (+7 de parseFicha configurable), `FilterModal.test.jsx` (7 de staging), `backupService` (+6: checksum canónico, legacy, BOM, mismatch, omitirChecksum, TDZ) y `backupRegression` (+3 de config con claves con sufijo).
+- Suite: **756 tests en verde** en 67 archivos; build de producción OK.
+- Bump a **1.8.9** en `version.js`, `package.json` y `package-lock.json`.
+
+---
+
+## [1.8.8] - Sidebars unificados y header reorganizado
+
+Release que reorganiza el header principal y unifica Filtros, Exportar CSV y Centro de Notificaciones en tres sidebars con la misma lógica visual de pills del resto de la app. Incluye además el filtro global de casos (work de 1.8.7, sin entry previa).
+
+### Header
+
+- Fila 1: `Caso`, `Exportar`, `Notas`, `Calendario`, `Configuración` y `Ayuda` + iconos sueltos (Filtros, Exportar CSV, Centro de Notificaciones, Descargar PWA), todos con padding `p-2.5` uniforme.
+- Fila 2: buscador, chips de filtros activos y botones `Caso` (sólido) y `Reporte` (outline).
+
+### Sidebars unificados (`SidePanel`)
+
+- Nuevo componente base `src/components/common/SidePanel.jsx`: drawer derecho, overlay con blur, animación de entrada/salida idéntica a la de notificaciones, slots `actions`, `subheader` y `footer`, y ancho ≤25% (`w-1/4 max-w-[560px] min-w-[320px]`).
+- **Filtros**, **Exportar CSV** y **Centro de Notificaciones** migran de modal/diálogo propio a `SidePanel`, con `FilterChip`/`FilterGroup` como pills estándar y footers fijos con contadores.
+
+### Indicador de filtro activo
+
+- Badge de punto en el ícono de Filtros (fila 1) con `title` dinámico.
+- Chips `FilterChip` de cada filtro activo con quita individual (×) y chip "Limpiar" junto al buscador.
+- Iconos diferenciados: `FileSpreadsheet` para Exportar CSV y `Download` para Descargar PWA.
+
+### Filtros globales unificados y multi-selección
+
+- **Una sola fuente de filtros para toda la app**: la barra "Filtros analíticos" del Dashboard pasa a editar el mismo `filtroGlobal` de la sidebar (antes era un state local aislado que no afectaba al resto de las vistas). Los cambios se reflejan en la sidebar, en los chips del header y en todas las vistas (Mi Espacio, Tabla, Kanban, Reportes). Su "Limpiar filtros" limpia solo sus 6 dimensiones; el "Limpiar" del header limpia todo.
+- **Multi-selección por dimensión**: cada dimensión del `filtroGlobal` (Estado, Aseguradora, Localidad, Estudio, Tipo, Origen y la nueva **Provincia**) pasa a array, con OR dentro de la dimensión y AND entre dimensiones; migración automática del shape escalar persistido en `app-filters`.
+- `FilterModal` (sidebar): layout de una columna con `MultiSelect` por dimensión — corrige el solapamiento de texto a 320px y permite elegir varias opciones a la vez.
+- `DashboardFilters` (Analítica) también sobre `MultiSelect`; `computeMetrics.aplicarFiltros` acepta arrays, por lo que la pestaña Analítica ahora respeta el filtro global de la sidebar (antes lo ignoraba).
+- Chips del header: un chip por valor seleccionado con quita individual.
+
+### Cabeceras plegables por vista
+
+- `SectionHeader` acepta `storageKey`: al contraer queda solo el chevron, sin card (se ocultan icono, título, descripción y el contenedor). En Tabla, Kanban y Reportes el chevron se superpone a la barra de mes/día, a la altura de las tarjetas de día, sin generar una fila vacía (`overlayCollapsed`); en el resto de vistas queda alineado a la derecha. Estado por vista persistido en localStorage (`app.sh.<clave>`), default expandido. Activado en Dashboard, Tabla, Kanban, Reportes, Notas, Calendario, Útiles, Ayuda y Configuración.
+
+### Correcciones y mantenimiento
+
+- **Fix**: loop infinito de render en `EventModal` (`casos` en las deps de un `useEffect` con default `[]` creaba una referencia nueva en cada render).
+- **Fix**: `Building2` y `CircleDot` sin importar en `Dashboard.jsx` → `ReferenceError` al abrir las pestañas Estudios y Estados.
+- `.gitignore`: ignorar directorios literales `~` (evita ingerir el perfil de usuario con `git add -A`).
+- Tests: `testTimeout`/`hookTimeout` 15000 en `vitest.config.mjs` (suite fiable en máquinas lentas); **721 tests en verde**.
+- Bump a **1.8.8** en `version.js`, `package.json`, `package-lock.json` y los README/CHANGELOG.
+
+---
+
 ## [1.8.7] - Filtro global con modal
 
 ### Funciones nuevas

@@ -1,10 +1,28 @@
 import React from "react";
+import { useUX } from "../../context/UXContext";
+
+const JUSTIFY_PESTANAS = {
+  izquierda: "flex-start",
+  centro: "space-between",
+  derecha: "flex-end",
+};
+
+export function useJustifyPestanas() {
+  const { alineacionPestanas } = useUX();
+  return JUSTIFY_PESTANAS[alineacionPestanas] || JUSTIFY_PESTANAS.centro;
+}
 
 export function NavDock({ items, active, onSelect, className = "", style, ariaLabel }) {
+  const justifyContent = useJustifyPestanas();
   return (
     <div
       className={`flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl ${className}`.trim()}
-      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", ...style }}
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        ...style,
+        justifyContent,
+      }}
       role="group"
       aria-label={ariaLabel}
     >
@@ -16,19 +34,19 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
             key={item.id}
             type="button"
             onClick={() => onSelect(item.id)}
-            className="flex items-center gap-2 text-xs font-semibold px-3.5 h-[32px] rounded-lg transition-colors hover:opacity-80"
-            style={
+            className={`flex items-center gap-2 text-xs font-semibold px-3.5 h-[32px] rounded-lg transition-colors hover:opacity-80 ${
               isActive
-                ? { backgroundColor: "var(--color-accent)", color: "var(--color-text-on-accent)" }
-                : { color: "var(--color-text-muted)" }
-            }
+                ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
+            }`}
           >
             {Icon && <Icon size={14} aria-hidden="true" />}
             <span>{item.label}</span>
             {item.badge != null && (
               <span
-                className="text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold"
-                style={{ backgroundColor: isActive ? "rgba(255,255,255,0.25)" : "var(--color-surface2)" }}
+                className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold ${
+                  isActive ? "bg-white/25" : "bg-[var(--color-surface2)]"
+                }`}
               >
                 {item.badge}
               </span>
@@ -41,8 +59,14 @@ export function NavDock({ items, active, onSelect, className = "", style, ariaLa
 }
 
 export function SubPills({ items, active, onSelect, className = "", style, ariaLabel, itemClassName = "", singleLine = false }) {
+  const justifyContent = useJustifyPestanas();
   return (
-    <div className={`flex ${singleLine ? "tab-strip" : "flex-wrap"} gap-1 ${className}`.trim()} style={style} role="group" aria-label={ariaLabel}>
+    <div
+      className={`flex ${singleLine ? "tab-strip" : "flex-wrap"} gap-1 ${className}`.trim()}
+      style={{ ...style, justifyContent }}
+      role="group"
+      aria-label={ariaLabel}
+    >
       {items.map((item, index) => {
         const Icon = item.icon;
         const isActive = item.id === active;
@@ -67,19 +91,19 @@ export function SubPills({ items, active, onSelect, className = "", style, ariaL
             <button
               type="button"
               onClick={() => onSelect(item.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 h-[30px] text-xs font-semibold transition-colors hover:opacity-80 ${itemClassName}`.trim()}
-              style={
+              className={`flex items-center gap-1.5 rounded-full px-3 h-[30px] text-xs font-semibold transition-colors hover:opacity-80 border ${
                 isActive
-                  ? { backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)" }
-                  : { color: "var(--color-text-muted)", border: "1px solid transparent" }
-              }
+                  ? "bg-[var(--color-accent)22] text-[var(--color-accent)] border-[var(--color-accent)]"
+                  : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
+              } ${itemClassName}`.trim()}
             >
               {Icon && <Icon size={13} aria-hidden="true" />}
               <span>{item.label}</span>
               {item.badge != null && (
                 <span
-                  className="text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold"
-                  style={{ backgroundColor: isActive ? "var(--color-accent)22" : "var(--color-surface2)" }}
+                  className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold ${
+                    isActive ? "bg-[var(--color-accent)22]" : "bg-[var(--color-surface2)]"
+                  }`}
                 >
                   {item.badge}
                 </span>

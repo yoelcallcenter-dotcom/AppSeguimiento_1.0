@@ -31,6 +31,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { SectionHeader, ConfigTip } from "../configuracion/ui";
+import { useJustifyPestanas } from "../common/UINav";
 import { FAQView } from "../../faq";
 import { GlossaryView } from "../../glossary";
 import { GuideView } from "../../guide";
@@ -74,6 +75,7 @@ function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
 export default function HelpPanel({ showToast, onClose }) {
   const [seccion, setSeccion] = useState("tour");
   const [grupoActivo, setGrupoActivo] = useState("comenzar");
+  const justifyContent = useJustifyPestanas();
   const [docTab, setDocTab] = useState("readme");
   const { startTour } = useTour();
   // Contenidos tomados DIRECTAMENTE de src/docs/ (generados por scripts/build-docs.js).
@@ -701,7 +703,13 @@ export default function HelpPanel({ showToast, onClose }) {
     <div className="space-y-4 w-full">
       <div
         className="flex flex-wrap gap-1.5 mb-3 p-1.5 rounded-xl"
-        style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+        style={{
+          backgroundColor: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          justifyContent,
+        }}
+        role="group"
+        aria-label="Grupos de Ayuda"
       >
         {HELP_GRUPOS.map((g) => (
           <button
@@ -710,7 +718,7 @@ export default function HelpPanel({ showToast, onClose }) {
             className={`flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors hover:opacity-80 ${
               grupoActivo === g.id
                 ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
             }`}
           >
             <g.icon size={14} aria-hidden="true" /> {g.label}
@@ -726,7 +734,15 @@ export default function HelpPanel({ showToast, onClose }) {
           minHeight: 300,
         }}
       >
-        <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div
+          className="flex flex-wrap items-center gap-1.5 mb-4 pb-3"
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+            justifyContent,
+          }}
+          role="group"
+          aria-label="Secciones de Ayuda"
+        >
           {grupoActual.items.map((s) => (
             <button
               key={s.id}
@@ -735,7 +751,7 @@ export default function HelpPanel({ showToast, onClose }) {
                 seccion === s.id ||
                 (seccion.startsWith("doc_") && s.id === "documentacion")
                   ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
-                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                  : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
               }`}
             >
               <s.icon size={14} aria-hidden="true" /> {s.label}

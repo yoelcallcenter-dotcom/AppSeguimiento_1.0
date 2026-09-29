@@ -7,8 +7,10 @@ import { TextArea } from "../common/TextArea";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString } from "../../utils/sanitize";
 import { hoyISO } from "../../utils/dateUtils";
+import { useJustifyPestanas } from "../common/UINav";
 
 export function LesionesView({ lesiones, setLesiones, showToast }) {
+  const justifyPestanas = useJustifyPestanas();
   const [nuevaLesion, setNuevaLesion] = useState("");
   const [nuevaObservacion, setNuevaObservacion] = useState("");
   const [categoriaSeleccionada, setCategoriaSeleccionada] =
@@ -102,7 +104,7 @@ export function LesionesView({ lesiones, setLesiones, showToast }) {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4" style={{ justifyContent: justifyPestanas }}>
         {categorias.map((c) => (
           <button
             key={c}

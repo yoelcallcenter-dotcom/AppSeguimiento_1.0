@@ -78,6 +78,11 @@ describe("App smoke", () => {
       await wait(700);
     }
 
+    const stripHeader = document.querySelector(".tab-strip.grow");
+    expect(stripHeader, "tira de tabs del header").toBeTruthy();
+    expect(stripHeader.style.justifyContent).toBe("space-between");
+    expect(document.querySelector('[data-tour="mi-espacio"]').className).toContain("text-xs");
+
     const groupSel = '[aria-label="Grupos de Útiles"] button';
     const pillSel = '[aria-label="Secciones de Útiles"] button';
     await waitFor(

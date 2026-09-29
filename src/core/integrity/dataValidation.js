@@ -171,6 +171,7 @@ export function validateHistoryEventIntegrity(evento) {
 const ESQUEMA_CONFIG = {
   estadoDefault: { tipo: 'string', default: CONFIG_DEFAULT.estadoDefault },
   formatoFecha: { tipo: 'string', default: CONFIG_DEFAULT.formatoFecha },
+  alineacionPestanas: { tipo: 'string', default: CONFIG_DEFAULT.alineacionPestanas },
   casosPorPagina: { tipo: 'number', default: CONFIG_DEFAULT.casosPorPagina },
   estados: { tipo: 'array', default: null },
   tiposIngreso: { tipo: 'array', default: null },

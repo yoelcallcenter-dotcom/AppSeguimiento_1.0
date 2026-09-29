@@ -7,6 +7,7 @@ import {
   Info,
 } from "lucide-react";
 import { BtnOutline } from "../common/BtnOutline";
+import { useJustifyPestanas } from "../common/UINav";
 import { APP_VERSION } from "../../core/version";
 import { DOC_README, DOC_CHANGELOG, DOC_LICENSE } from "../../docs/docsContent";
 
@@ -24,6 +25,7 @@ const CONTENIDOS = {
 
 export function DocumentacionView() {
   const [seccion, setSeccion] = useState("readme");
+  const justifyContent = useJustifyPestanas();
 
   const descargarDocumento = (seccionId) => {
     const info = DOC_NAMES[seccionId];
@@ -51,7 +53,12 @@ export function DocumentacionView() {
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-1">
+      <div
+        className="flex flex-wrap gap-1"
+        style={{ justifyContent }}
+        role="group"
+        aria-label="Documentos del sistema"
+      >
         {Object.entries(DOC_NAMES).map(([id, info]) => (
           <button
             key={id}
@@ -59,7 +66,7 @@ export function DocumentacionView() {
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors hover:opacity-70 ${
               seccion === id
                 ? "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
-                : "text-[var(--color-text-muted)]"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
             }`}
           >
             {id === "readme" ? <BookOpen size={13} /> : <ScrollText size={13} />}

@@ -13,8 +13,10 @@ import { SearchInput } from '../common/SearchInput';
 import { EmptyState } from '../common/EmptyState';
 import { Spinner } from '../common/Spinner';
 import { ConfirmDialog } from '../common/ConfirmDialog';
+import { useJustifyPestanas } from '../common/UINav';
 
 export function PlantillasView({ showToast, config = {} }) {
+  const justifyPestanas = useJustifyPestanas();
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -165,7 +167,7 @@ export function PlantillasView({ showToast, config = {} }) {
           <ArrowUpDown size={12} />
         </button>
 
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap" style={{ justifyContent: justifyPestanas }}>
           <button
             onClick={() => setFilterType('all')}
             className={`category-tab ${filterType === 'all' ? 'active' : ''}`}

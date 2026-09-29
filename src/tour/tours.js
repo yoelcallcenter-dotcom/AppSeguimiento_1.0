@@ -176,7 +176,7 @@ export const TOURS = {
         description: "Categorias para adaptar la app a tu forma de trabajar.",
         details: [
           "General: operador, formato de fecha/telefono, idioma, sonidos, columnas y datos",
-          "Apariencia: temas, colores por estado y vistas del Dashboard",
+          "Apariencia: temas, colores por estado, vistas del Dashboard y alineacion de pestanas",
           "Notificaciones: sonido, tipos de eventos y frecuencia",
           "Busqueda: campos indexados e historial",
           "Sistema: experiencia de usuario, modo bajo consumo y diagnostico",

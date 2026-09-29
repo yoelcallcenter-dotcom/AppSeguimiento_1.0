@@ -7,7 +7,10 @@ const UXContext = createContext({
   skeletonLoader: true,
   tooltipsMejorados: true,
   atajosTeclado: true,
+  alineacionPestanas: 'centro',
 });
+
+const ALINEACIONES_VALIDAS = ['izquierda', 'centro', 'derecha'];
 
 export function UXProvider({ children, config }) {
 
@@ -19,6 +22,9 @@ export function UXProvider({ children, config }) {
     tooltipsMejorados: config?.tooltipsMejorados !== false,
     atajosTeclado: config?.atajosTeclado !== false,
     bajoConsumo: config?.bajoConsumo === true,
+    alineacionPestanas: ALINEACIONES_VALIDAS.includes(config?.alineacionPestanas)
+      ? config.alineacionPestanas
+      : 'centro',
   }), [config]);
 
   return <UXContext.Provider value={value}>{children}</UXContext.Provider>;

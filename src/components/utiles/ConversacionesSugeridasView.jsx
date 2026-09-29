@@ -8,6 +8,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString } from "../../utils/sanitize";
 import { DEFAULT_PLANTILLAS } from "../../utils/constants";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+import { useJustifyPestanas } from "../common/UINav";
 
 export const CATEGORIAS_CONVERSACION = [
   "Accidente Laboral",
@@ -17,6 +18,7 @@ export const CATEGORIAS_CONVERSACION = [
 ];
 
 export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
+  const justifyPestanas = useJustifyPestanas();
   const [categoria, setCategoria] = useState("Accidente Laboral");
   const [nuevoMensaje, setNuevoMensaje] = useState("");
   const [confirmEliminar, setConfirmEliminar] = useState(null);
@@ -91,7 +93,7 @@ export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
         </div>
       </div>
       <div>
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-3" style={{ justifyContent: justifyPestanas }}>
           {categorias.map((c) => (
             <button
               key={c}

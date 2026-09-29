@@ -126,6 +126,7 @@ import { SearchInput } from "./components/common/SearchInput";
 import { Spinner } from "./components/common/Spinner";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { OverlayPanel } from "./components/common/OverlayPanel";
+import { useJustifyPestanas } from "./components/common/UINav";
 
 // Features (lazy: se cargan bajo demanda para reducir el bundle inicial)
 const NotesView = lazy(() => import("./features/notes").then((m) => ({ default: m.NotesView })));
@@ -242,6 +243,7 @@ const VIEW_IMPORTS = {
 
 function ViewTabs({ tabs, selectedView, onSelect }) {
   const { t } = useI18n();
+  const justifyContent = useJustifyPestanas();
   const grupoPrincipal = tabs.filter(([k]) => k === "mi-espacio" || k === "dashboard");
   const grupoSecundario = tabs.filter(([k]) => k !== "mi-espacio" && k !== "dashboard");
 
@@ -265,7 +267,7 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
               : "bg-[var(--color-surface)] text-[var(--color-accent)] border border-[var(--color-border)]"
             : isMiEspacio
               ? "bg-[var(--color-accent)] text-[var(--color-text-on-accent)] shadow-sm"
-              : "text-[var(--color-text-muted)] hover:opacity-70"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
         }`}
         style={
           isActive && isMiEspacio
@@ -280,14 +282,13 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
   };
 
   return (
-    <div className="tab-strip scrollbar-hide items-center gap-0.5 pb-2">
-      <div className="flex gap-0.5 bg-[var(--color-surface)] rounded-md px-1 py-0.5 flex-shrink-0">
-        {grupoPrincipal.map(renderBtn)}
-      </div>
+    <div
+      className="tab-strip scrollbar-hide items-center gap-0.5 pb-2 grow"
+      style={{ justifyContent }}
+    >
+      {grupoPrincipal.map(renderBtn)}
       <div className="w-px h-5 mx-1 flex-shrink-0" style={{ backgroundColor: "var(--color-border)" }} />
-      <div className="flex gap-0.5 flex-shrink-0">
-        {grupoSecundario.map(renderBtn)}
-      </div>
+      {grupoSecundario.map(renderBtn)}
     </div>
   );
 }

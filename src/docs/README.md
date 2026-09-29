@@ -75,6 +75,7 @@
 ### Personalización
 - Temas: Oscuro, Claro o Personalizado.
 - Tamaño de fuente: Pequeño, Mediano o Grande.
+- Alineación de pestañas: Izquierda, Centro o Derecha para toda la navegación por pills.
 - Colores base (Primario, Secundario, Terciario) que generan toda la paleta, y colores por estado de caso.
 
 ### Almacenamiento y Backup

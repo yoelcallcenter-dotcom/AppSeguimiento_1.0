@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NavDock, SubPills } from "./UINav";
+import { UXProvider } from "../../context/UXContext";
 import { Sun, Target } from "lucide-react";
 
 const items = [
@@ -100,5 +101,73 @@ describe("UINav", () => {
     expect(botones).toHaveLength(2);
     botones.forEach((b) => expect(b.className).toContain("h-[32px]"));
     expect(container.querySelector(".leading-none")).toBeTruthy();
+  });
+});
+
+describe("UINav — alineación de pestañas (1.9.2)", () => {
+  it("sin provider usa el default centro (space-between)", () => {
+    const nav = render(<NavDock items={items} active="hoy" onSelect={vi.fn()} />);
+    expect(nav.container.firstChild.style.justifyContent).toBe("space-between");
+    const pills = render(<SubPills items={items} active="hoy" onSelect={vi.fn()} />);
+    expect(pills.container.firstChild.style.justifyContent).toBe("space-between");
+  });
+
+  it("izquierda aplica flex-start en NavDock", () => {
+    const { container } = render(
+      <UXProvider config={{ alineacionPestanas: "izquierda" }}>
+        <NavDock items={items} active="hoy" onSelect={vi.fn()} />
+      </UXProvider>
+    );
+    expect(container.firstChild.style.justifyContent).toBe("flex-start");
+  });
+
+  it("derecha aplica flex-end en SubPills", () => {
+    const { container } = render(
+      <UXProvider config={{ alineacionPestanas: "derecha" }}>
+        <SubPills items={items} active="hoy" onSelect={vi.fn()} />
+      </UXProvider>
+    );
+    expect(container.firstChild.style.justifyContent).toBe("flex-end");
+  });
+
+  it("valor inválido de alineacionPestanas cae al default centro", () => {
+    const { container } = render(
+      <UXProvider config={{ alineacionPestanas: "arriba" }}>
+        <SubPills items={items} active="hoy" onSelect={vi.fn()} />
+      </UXProvider>
+    );
+    expect(container.firstChild.style.justifyContent).toBe("space-between");
+  });
+});
+
+describe("UINav — resaltado de tabs por hover (1.9.2)", () => {
+  it("NavDock: reposo original (texto muted, sin chip) y hover resalta con chip", () => {
+    const mixto = [
+      { id: "a", label: "Textos" },
+      { id: "b", label: "Otros", badge: 3 },
+    ];
+    const { container } = render(<NavDock items={mixto} active="a" onSelect={vi.fn()} />);
+    const [activa, inactiva] = container.querySelectorAll("button");
+    const clasesInactiva = inactiva.className.split(" ");
+    expect(clasesInactiva).toContain("text-xs");
+    expect(clasesInactiva).toContain("text-[var(--color-text-muted)]");
+    expect(clasesInactiva).not.toContain("bg-[var(--color-surface2)]");
+    expect(clasesInactiva).toContain("hover:text-[var(--color-text)]");
+    expect(clasesInactiva).toContain("hover:bg-[var(--color-surface2)]");
+    expect(activa.className.split(" ")).toContain("bg-[var(--color-accent)]");
+    expect(inactiva.querySelector(".leading-none").className.split(" ")).toContain("bg-[var(--color-surface2)]");
+  });
+
+  it("SubPills: reposo original (borde transparente) y hover resalta con chip", () => {
+    const { container } = render(<SubPills items={items} active="hoy" onSelect={vi.fn()} />);
+    const [activa, inactiva] = container.querySelectorAll("button");
+    const clasesInactiva = inactiva.className.split(" ");
+    expect(clasesInactiva).toContain("text-xs");
+    expect(clasesInactiva).toContain("text-[var(--color-text-muted)]");
+    expect(clasesInactiva).toContain("border-transparent");
+    expect(clasesInactiva).not.toContain("bg-[var(--color-surface)]");
+    expect(clasesInactiva).toContain("hover:text-[var(--color-text)]");
+    expect(clasesInactiva).toContain("hover:bg-[var(--color-surface2)]");
+    expect(activa.className.split(" ")).toContain("border-[var(--color-accent)]");
   });
 });

@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import HelpPanel from './HelpPanel';
 import { HelpProvider } from '../../help';
 import { TourProvider } from '../../tour';
+import { UXProvider } from '../../context/UXContext';
 
 const renderHelp = () =>
   render(
@@ -91,4 +92,43 @@ describe('HelpPanel (rediseño grupos)', () => {
       });
     });
   }, 15000);
+});
+
+describe('HelpPanel (alineación y resaltado de tabs, 1.9.2)', () => {
+  it('aplica la alineación global por defecto (centro) a Grupos y Secciones', () => {
+    renderHelp();
+    expect(screen.getByLabelText('Grupos de Ayuda').style.justifyContent).toBe('space-between');
+    expect(screen.getByLabelText('Secciones de Ayuda').style.justifyContent).toBe('space-between');
+  });
+
+  it('respeta alineacionPestanas=izquierda desde UXContext', () => {
+    render(
+      <UXProvider config={{ alineacionPestanas: 'izquierda' }}>
+        <HelpProvider>
+          <TourProvider>
+            <HelpPanel showToast={() => {}} onClose={() => {}} />
+          </TourProvider>
+        </HelpProvider>
+      </UXProvider>
+    );
+    expect(screen.getByLabelText('Grupos de Ayuda').style.justifyContent).toBe('flex-start');
+    expect(screen.getByLabelText('Secciones de Ayuda').style.justifyContent).toBe('flex-start');
+  });
+
+  it('las tabs inactivas se resaltan por hover (chip + texto alto contraste)', () => {
+    renderHelp();
+    const grupoInactivo = screen.getByRole('button', { name: 'Referencia' });
+    const clases = grupoInactivo.className.split(' ');
+    expect(clases).toContain('text-xs');
+    expect(clases).toContain('text-[var(--color-text-muted)]');
+    expect(clases).toContain('hover:text-[var(--color-text)]');
+    expect(clases).toContain('hover:bg-[var(--color-surface2)]');
+    expect(clases).not.toContain('bg-[var(--color-surface2)]');
+    const seccionInactiva = screen.getByRole('button', { name: /^Acerca de Vistas/ });
+    const clasesSeccion = seccionInactiva.className.split(' ');
+    expect(clasesSeccion).toContain('text-xs');
+    expect(clasesSeccion).toContain('text-[var(--color-text-muted)]');
+    expect(clasesSeccion).toContain('border-transparent');
+    expect(clasesSeccion).toContain('hover:bg-[var(--color-surface2)]');
+  });
 });

@@ -187,6 +187,7 @@ describe('v1.1.0: nuevos campos (condicionales, estados, tipos de ingreso, direc
     ],
     'config-art-tracker': {
       operador: 'Yoel',
+      alineacionPestanas: 'izquierda',
       estados: [{ v: 'Firmo', accent: '#10B981', peso: 2 }, { v: 'Cita virtual', accent: '#60A5FA', peso: 1 }],
       tiposIngreso: ['Accidente + Cirugía', 'Enfermedad Profesional'],
     },
@@ -204,6 +205,7 @@ describe('v1.1.0: nuevos campos (condicionales, estados, tipos de ingreso, direc
     expect(exported.configuracion.condicionales).toEqual(DATOS_NUEVOS['condicionales-art-tracker']);
     expect(exported.configuracion.config.estados).toEqual(DATOS_NUEVOS['config-art-tracker'].estados);
     expect(exported.configuracion.config.tiposIngreso).toEqual(DATOS_NUEVOS['config-art-tracker'].tiposIngreso);
+    expect(exported.configuracion.config.alineacionPestanas).toBe('izquierda');
     expect(exported.configuracion.mapeo[0].direccion).toBe('Av. España 123');
     expect(exported.configuracion.mapeo[0].prolegal).toBe(true);
     expect(exported.configuracion.mapeo[1].direcciones).toEqual(['Av. España 123', 'Calle 5 678']);
@@ -221,6 +223,7 @@ describe('v1.1.0: nuevos campos (condicionales, estados, tipos de ingreso, direc
     const config = localStorageAdapter.get('config-art-tracker');
     expect(config.estados).toEqual(DATOS_NUEVOS['config-art-tracker'].estados);
     expect(config.tiposIngreso).toEqual(DATOS_NUEVOS['config-art-tracker'].tiposIngreso);
+    expect(config.alineacionPestanas).toBe('izquierda');
   });
 });
 
