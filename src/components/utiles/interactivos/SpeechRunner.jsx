@@ -4,8 +4,9 @@ import { Btn } from "../../common/Btn";
 import { BtnOutline } from "../../common/BtnOutline";
 import { Play, ArrowLeft, RotateCcw, AlertTriangle } from "lucide-react";
 import { validarSpeech } from "./interactiveSpeechModel";
+import { resolverObjeciones } from "./resolveObjeciones";
 
-export function SpeechRunner({ speech, onClose }) {
+export function SpeechRunner({ speech, onClose, objeciones = [] }) {
   const steps = speech.steps || [];
   const [stepId, setStepId] = useState(speech.startStepId || steps[0]?.id || null);
   const [historial, setHistorial] = useState([]);
@@ -137,7 +138,7 @@ export function SpeechRunner({ speech, onClose }) {
               className="text-sm whitespace-pre-wrap"
               style={{ color: "var(--color-text)", lineHeight: 1.7 }}
             >
-              {paso.contenido}
+              {resolverObjeciones(paso.contenido, objeciones)}
             </div>
           </div>
 

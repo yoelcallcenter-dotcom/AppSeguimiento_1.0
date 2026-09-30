@@ -107,10 +107,11 @@ export function ConversacionesSugeridasView({ config, setConfig, showToast }) {
             Restaurar originales
           </BtnOutline>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <TextInput
+        <div className="flex flex-wrap items-end gap-2 mb-3">
+          <TextArea
             className="flex-1 min-w-[200px]"
-            placeholder="Nuevo mensaje..."
+            rows={2}
+            placeholder="Nuevo mensaje... (Enter agrega un salto de línea)"
             value={nuevoMensaje}
             onChange={(e) => setNuevoMensaje(e.target.value)}
           />

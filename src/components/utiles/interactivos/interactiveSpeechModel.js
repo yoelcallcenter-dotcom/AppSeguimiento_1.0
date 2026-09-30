@@ -1,4 +1,5 @@
 import { sanitizeString } from "../../../utils/sanitize";
+import { buscarObjecion, llavesObjecion } from "./resolveObjeciones";
 
 /**
  * interactiveSpeechModel.js
@@ -251,10 +252,25 @@ export function pasosAlcanzables(speech) {
   return alcanzables;
 }
 
-export function advertenciasSpeech(speech) {
+export function advertenciasSpeech(speech, objeciones) {
   const advertencias = [];
   const steps = Array.isArray(speech.steps) ? speech.steps : [];
   if (!steps.length) return advertencias;
+  if (Array.isArray(objeciones)) {
+    const vistas = new Set();
+    steps.forEach((paso) => {
+      llavesObjecion(paso?.contenido).forEach((ref) => {
+        const clave = ref.toLowerCase();
+        if (vistas.has(clave)) return;
+        vistas.add(clave);
+        if (!buscarObjecion(ref, objeciones)) {
+          advertencias.push(
+            `La llave {OBJECION:${ref}} no corresponde a ninguna objeción cargada.`
+          );
+        }
+      });
+    });
+  }
   const alcanzables = pasosAlcanzables(speech);
   if (!steps.some((s) => s.id === speech.startStepId)) return advertencias;
   steps.forEach((paso, i) => {

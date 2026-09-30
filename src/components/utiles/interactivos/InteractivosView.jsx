@@ -53,7 +53,7 @@ const chipEstado = (estado) => {
   return { label: "Nuevo", color: "var(--color-success)" };
 };
 
-export function InteractivosView({ speechs, setSpeechs, showToast }) {
+export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = [] }) {
   const [busqueda, setBusqueda] = useState("");
   const [modalNuevo, setModalNuevo] = useState(null);
   const [confirmEliminar, setConfirmEliminar] = useState(null);
@@ -221,11 +221,13 @@ export function InteractivosView({ speechs, setSpeechs, showToast }) {
           onVolver={() => setEditandoId(null)}
           onEjecutar={(id) => setEjecutandoId(id)}
           showToast={showToast}
+          objeciones={objeciones}
         />
         {enEjecucion && (
           <SpeechRunner
             speech={enEjecucion}
             onClose={() => setEjecutandoId(null)}
+            objeciones={objeciones}
           />
         )}
       </div>
@@ -666,6 +668,7 @@ export function InteractivosView({ speechs, setSpeechs, showToast }) {
         <SpeechRunner
           speech={enEjecucion}
           onClose={() => setEjecutandoId(null)}
+          objeciones={objeciones}
         />
       )}
     </div>

@@ -139,7 +139,7 @@ export function UtilesView({
     plantillas: { label: "Plantillas", icon: FileText },
   };
   const TAB_DESC = {
-    condicionales: "Planillas y reglas para el control de condiciones de tus casos.",
+    condicionales: "Reglas de ingreso y condiciones por estudio jurídico y aseguradora.",
     pasos: "Secuencia operativa paso a paso con tips y enlaces de utilidad.",
     speechs: "Libretos de comunicación y recorridos interactivos paso a paso.",
     objeciones: "Argumentos y respuestas ante objeciones frecuentes.",
@@ -228,6 +228,7 @@ export function UtilesView({
             speechsInteractivos={speechsInteractivos}
             setSpeechsInteractivos={setSpeechsInteractivos}
             showToast={showToast}
+            objeciones={objeciones}
           />
         );
       case "objeciones":

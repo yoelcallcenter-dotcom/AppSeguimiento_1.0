@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -48,14 +48,16 @@ export function SpeechEditor({
   onVolver,
   onEjecutar,
   showToast,
+  objeciones = [],
 }) {
   const steps = speech.steps || [];
   const [pasoId, setPasoId] = useState(speech.startStepId || steps[0]?.id || null);
   const [eliminando, setEliminando] = useState(null);
   const [destinoElim, setDestinoElim] = useState("");
+  const contenidoRef = useRef(null);
 
   const errores = validarSpeech(speech);
-  const advertencias = advertenciasSpeech(speech);
+  const advertencias = advertenciasSpeech(speech, objeciones);
   const paso = steps.find((s) => s.id === pasoId) || steps[0] || null;
   const pasoIndex = paso ? steps.findIndex((s) => s.id === paso.id) : -1;
   const refsEliminacion = eliminando ? referenciasA(speech, eliminando.id) : [];
@@ -116,6 +118,30 @@ export function SpeechEditor({
     }
     onChange(
       actualizarOpcion(speech, pasoActual.id, op.id, { targetStepId: valor })
+    );
+  };
+
+  const insertarObjecion = (obj) => {
+    if (!paso || !obj?.id) return;
+    const llave = `{OBJECION:${obj.id}}`;
+    const actual = paso.contenido || "";
+    const el = contenidoRef.current;
+    if (el && typeof el.selectionStart === "number") {
+      const pos = el.selectionStart;
+      const fin =
+        typeof el.selectionEnd === "number" ? el.selectionEnd : pos;
+      const nuevo = actual.slice(0, pos) + llave + actual.slice(fin);
+      onChange(actualizarPaso(speech, paso.id, { contenido: nuevo }));
+      el.focus();
+      setTimeout(() => {
+        try {
+          el.setSelectionRange(pos + llave.length, pos + llave.length);
+        } catch {}
+      }, 0);
+      return;
+    }
+    onChange(
+      actualizarPaso(speech, paso.id, { contenido: `${actual}${llave}` })
     );
   };
 
@@ -275,7 +301,41 @@ export function SpeechEditor({
                 placeholder="Contenido del paso..."
                 className="w-full"
                 aria-label="Contenido del paso"
+                ref={contenidoRef}
               />
+
+              <div className="space-y-1.5">
+                <div
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  Objeciones — hacé clic para insertar
+                </div>
+                {objeciones.length === 0 ? (
+                  <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                    No hay objeciones cargadas — cargalas en Útiles › Objeciones.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {objeciones.map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => insertarObjecion(o)}
+                        title={`${o.titulo || "Sin título"} — ${o.contenido || "Sin contenido"}`}
+                        aria-label={`Insertar objeción: ${o.titulo || o.id}`}
+                        className="pill-sm font-semibold transition-colors hover:opacity-80"
+                        style={{
+                          backgroundColor: "var(--color-accent)22",
+                          color: "var(--color-accent)",
+                        }}
+                      >
+                        {`{OBJECION:${o.id}}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <BtnOutline onClick={handleDuplicar} icon={Copy} size="sm">

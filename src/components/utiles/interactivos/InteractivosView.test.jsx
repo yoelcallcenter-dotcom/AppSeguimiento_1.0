@@ -41,18 +41,20 @@ const speechSoloInicio = {
   steps: [paso("p1", "", "")],
 };
 
-function ConEstado({ inicial = [] }) {
+function ConEstado({ inicial = [], objeciones = [] }) {
   const [speechs, setSpeechs] = useState(inicial);
   return (
     <InteractivosView
       speechs={speechs}
       setSpeechs={setSpeechs}
       showToast={noop}
+      objeciones={objeciones}
     />
   );
 }
 
-const renderVista = (inicial = []) => render(<ConEstado inicial={inicial} />);
+const renderVista = (inicial = [], objeciones = []) =>
+  render(<ConEstado inicial={inicial} objeciones={objeciones} />);
 
 describe("InteractivosView (lista)", () => {
   it("muestra estado vacío y contador en cero", () => {
@@ -519,5 +521,59 @@ describe("InteractivosView (1.9.1 · editor completo)", () => {
     expect(screen.getByText("Sin conexión (1)")).toBeTruthy();
     expect(screen.queryByText(/1 error/)).toBeNull();
     expect(screen.getByText("Iniciar Speech").closest("button").disabled).toBe(false);
+  });
+});
+
+describe("InteractivosView (1.9.4 · objeciones vía llaves)", () => {
+  const objeciones = [
+    { id: "o1", titulo: "No le interesa", contenido: "Explicar beneficios." },
+    { id: "o2", titulo: "Es muy caro", contenido: "Mencionar cuotas." },
+  ];
+
+  it("muestra los chips de objeciones en el editor y advierte llaves huérfanas", () => {
+    renderVista([speechValido], objeciones);
+    fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
+
+    expect(screen.getByLabelText("Insertar objeción: No le interesa")).toBeTruthy();
+    expect(screen.getByLabelText("Insertar objeción: Es muy caro")).toBeTruthy();
+    expect(screen.queryByText(/no corresponde a ninguna objeción/)).toBeNull();
+  });
+
+  it("el chip inserta la llave en el contenido del paso", () => {
+    renderVista([speechSoloInicio], objeciones);
+    fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
+
+    const contenido = screen.getByLabelText("Contenido del paso");
+    expect(contenido.value).toBe("");
+    fireEvent.click(screen.getByLabelText("Insertar objeción: No le interesa"));
+    expect(contenido.value).toBe("{OBJECION:o1}");
+
+    fireEvent.click(screen.getByLabelText("Insertar objeción: Es muy caro"));
+    expect(contenido.value).toContain("{OBJECION:o1}");
+    expect(contenido.value).toContain("{OBJECION:o2}");
+  });
+
+  it("sin objeciones cargadas muestra el mensaje orientativo", () => {
+    renderVista([speechSoloInicio], []);
+    fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
+    expect(
+      screen.getByText(/No hay objeciones cargadas/)
+    ).toBeTruthy();
+  });
+
+  it("una llave sin objeción asociada genera advertencia pero no error", () => {
+    const conLlave = {
+      ...speechSoloInicio,
+      steps: [
+        paso("p1", "Apertura", "Va {OBJECION:falta} en el texto", []),
+      ],
+    };
+    renderVista([conLlave], objeciones);
+    fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
+
+    expect(screen.getByLabelText("Advertencias").textContent).toContain(
+      "{OBJECION:falta}"
+    );
+    expect(screen.getByText("Listo para ejecutar")).toBeTruthy();
   });
 });

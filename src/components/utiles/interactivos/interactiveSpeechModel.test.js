@@ -345,6 +345,28 @@ describe("interactiveSpeechModel", () => {
     expect(advertenciasSpeech({ ...speech, steps: [] })).toEqual([]);
   });
 
+  it("advertencias advierte llaves de objeciones sin asociar y deduplica", () => {
+    const base = nuevo();
+    const conLlaves = actualizarPaso(base, base.steps[0].id, {
+      contenido: "Dice {OBJECION:falta} y otra vez {OBJECION:FALTA}",
+    });
+    const objeciones = [{ id: "o1", titulo: "Asociada", contenido: "Texto" }];
+
+    const adv = advertenciasSpeech(conLlaves, objeciones);
+    expect(adv).toHaveLength(1);
+    expect(adv[0]).toContain("{OBJECION:falta}");
+    expect(adv[0]).toContain("ninguna objeción cargada");
+
+    const conAsociada = actualizarPaso(base, base.steps[0].id, {
+      contenido: "Va {OBJECION:Asociada} y {OBJECION:o1}",
+    });
+    expect(advertenciasSpeech(conAsociada, objeciones)).toEqual([]);
+
+    expect(advertenciasSpeech(conLlaves)).toEqual([]);
+    expect(advertenciasSpeech(conLlaves, [])).toHaveLength(1);
+    expect(advertenciasSpeech(conLlaves, undefined)).toEqual([]);
+  });
+
   it("validarEstructuraSpeech valida forma, ids y referencias", () => {
     const speech = armarSpeech();
     expect(validarEstructuraSpeech(speech)).toEqual([]);

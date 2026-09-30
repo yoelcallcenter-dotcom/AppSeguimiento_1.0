@@ -243,12 +243,9 @@ describe('ritmo requerido', () => {
   it('meta mensual sin días restantes devuelve ritmo null', () => {
     const goals = { monthly: { cases: { enabled: true, target: 100 } } };
     const casos = [];
-    const pace = getRequiredDailyPace(goals, casos, 2026, 8, {}, [1, 2, 3, 4, 5], '2026-09-30');
-    // Solo resta un día hábil: 30/09 (miércoles). Si ya pasó, ritmo 0 días restantes.
-    const isAfterLast = new Date() > new Date(2026, 8, 30);
-    if (isAfterLast) {
-      expect(pace.remainingDays).toBe(0);
-    }
+    const pace = getRequiredDailyPace(goals, casos, 2026, 8, {}, [1, 2, 3, 4, 5], '2026-10-01');
+    expect(pace.remainingDays).toBe(0);
+    expect(pace.cases).toBeNull();
   });
 });
 

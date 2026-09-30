@@ -191,7 +191,7 @@ export function VerCasoModal({
     );
   }, [caso, casos]);
 
-  // Herramientas relacionadas (condicionales, speechs, objeciones) — recibidos como props
+  // Herramientas relacionadas — recibidas como props; solo se listan las objeciones.
   const toolsData = useMemo(() => {
     if (!caso?.aseguradora && !caso?.estudioJuridico) return { condicionales: [], speechs: [], objeciones: [], hasContent: false };
     return getRelatedTools(caso.aseguradora, caso.estudioJuridico, condicionales, speechs, objeciones);
@@ -612,8 +612,8 @@ export function VerCasoModal({
             </div>
           </div>
 
-          {/* HERRAMIENTAS RELACIONADAS */}
-          {toolsData.hasContent && (
+          {/* HERRAMIENTAS: acciones rápidas (Notas/Calendario) y objeciones */}
+          {(toolsData.objeciones.length > 0 || onNuevaNota || onNuevoEvento) && (
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
               <button aria-expanded={mostrarHerramientas} onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
                 {mostrarHerramientas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -621,27 +621,28 @@ export function VerCasoModal({
               </button>
               {mostrarHerramientas && (
                 <div className="mt-2 space-y-2">
-                  {toolsData.condicionales.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Condicionales ({toolsData.condicionales.length})</div>
-                      {toolsData.condicionales.slice(0, 3).map((c) => (
-                        <div key={c.id} className="flex items-center gap-2 px-2 py-1 rounded text-xs mb-1" style={{ backgroundColor: "var(--color-surface)" }}>
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.condicion === 'no-toma' ? 'var(--color-danger)' : 'var(--color-warning)' }} />
-                          <span className="font-medium" style={{ color: "var(--color-text)" }}>{c.condicion === 'no-toma' ? 'No toma' : 'Condicional'}</span>
-                          <span style={{ color: "var(--color-text-muted)" }}>—</span>
-                          <span className="truncate" style={{ color: "var(--color-text)" }}>{c.aseguradora}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {toolsData.speechs.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Speechs ({toolsData.speechs.length})</div>
-                      {toolsData.speechs.slice(0, 2).map((s, i) => (
-                        <div key={i} className="text-xs px-2 py-1 rounded truncate" style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}>
-                          {typeof s === 'string' ? s.slice(0, 80) : (s.contenido || s.texto || '').slice(0, 80)}
-                        </div>
-                      ))}
+                  {(onNuevaNota || onNuevoEvento) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {onNuevaNota && (
+                        <BtnOutline
+                          onClick={() => {
+                            setMostrarFormNota((v) => !v);
+                            setMostrarFormEvento(false);
+                          }}
+                          icon={FileText}
+                          size="sm"
+                        >Notas</BtnOutline>
+                      )}
+                      {onNuevoEvento && (
+                        <BtnOutline
+                          onClick={() => {
+                            setMostrarFormEvento((v) => !v);
+                            setMostrarFormNota(false);
+                          }}
+                          icon={Calendar}
+                          size="sm"
+                        >Calendario</BtnOutline>
+                      )}
                     </div>
                   )}
                   {toolsData.objeciones.length > 0 && (
@@ -938,36 +939,19 @@ export function VerCasoModal({
           </div>
         </div>
 
-        {/* Acciones: fila única con wrap (1.8.1) */}
-        <div className="flex flex-wrap items-center gap-1.5 px-5 py-4" style={{ borderTop: "1px solid var(--color-border)" }}>
-          <Btn onClick={() => { onEdit(caso); }} icon={Edit3} size="sm">Editar</Btn>
+        {/* Acciones: gestión a la izquierda, Cerrar a la derecha */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 px-5 py-4" style={{ borderTop: "1px solid var(--color-border)" }}>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Btn onClick={() => { onEdit(caso); }} icon={Edit3} size="sm">Editar</Btn>
             {onReporteRapido && (
               <Btn onClick={() => { onReporteRapido(caso); }} icon={ClipboardList} size="sm">Reporte</Btn>
             )}
             {/* 1.8.6: se quita el botón "Reprogramar". La reprogramación se
                 sigue gestionando desde ReporteRapidoModal con estado
                 "Reprogramado" (requiere nueva fecha/hora de cita). */}
-            {onNuevaNota && (
-              <BtnOutline
-                onClick={() => {
-                  setMostrarFormNota((v) => !v);
-                  setMostrarFormEvento(false);
-                }}
-                icon={FileText}
-                size="sm"
-              >Notas</BtnOutline>
-            )}
-            {onNuevoEvento && (
-              <BtnOutline
-                onClick={() => {
-                  setMostrarFormEvento((v) => !v);
-                  setMostrarFormNota(false);
-                }}
-                icon={Calendar}
-                size="sm"
-              >Calendario</BtnOutline>
-            )}
-          <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
+            <BtnOutline onClick={handleDeleteCaso} color="var(--color-danger)" size="sm" icon={Trash2}>Eliminar</BtnOutline>
+          </div>
+          <BtnOutline onClick={startClose} size="sm" icon={X}>Cerrar</BtnOutline>
         </div>
       </div>
       <ConfirmDialog

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import {
   Plus, Trash2, ShieldAlert, ShieldCheck, Scale,
-  ChevronDown, ChevronUp, X,
+  ChevronDown, ChevronUp, X, FileText, Upload,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -11,13 +11,13 @@ import { Select } from "../common/Select";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { sanitizeString, sanitizeObject } from "../../utils/sanitize";
 import { normalizarTexto } from "../../utils/helpers";
-import { uid } from "../../utils/dateUtils";
+import { uid, hoyISO } from "../../utils/dateUtils";
 import { soundSystem } from "../../core/notifications/soundSystem";
 
 /**
  * Condicionales de Estudios Jurídicos.
  * Registra observaciones sobre estudios que no toman todas las aseguradoras o
- * que las toman con condiciones específicas de ingreso y lesión.
+ * que las toman con condiciones específicas de ingreso.
  */
 export function CondicionalesView({
   condicionales,
@@ -41,8 +41,12 @@ export function CondicionalesView({
 
   const estudiosUnicos = useMemo(() => {
     const set = new Set((mapeo || []).map((m) => (m.estudio || "").trim()).filter(Boolean));
+    (condicionales || []).forEach((c) => {
+      const e = (c.estudio || "").trim();
+      if (e) set.add(e);
+    });
     return [...set].sort((a, b) => a.localeCompare(b, "es"));
-  }, [mapeo]);
+  }, [mapeo, condicionales]);
 
   const aseguradorasUnicas = useMemo(() => {
     const set = new Set((aseguradoras || []).filter(Boolean));
@@ -106,12 +110,26 @@ export function CondicionalesView({
     if (!borrador) return;
     if (editando) {
       const limpio = sanitizeObject(borrador);
-      if (!limpio.estudio.trim()) {
+      if (!String(limpio.estudio || "").trim()) {
         showToast("Indicá el estudio jurídico", "error");
         return;
       }
-      if (!limpio.aseguradora.trim()) {
+      if (!String(limpio.aseguradora || "").trim()) {
         showToast("Indicá la aseguradora", "error");
+        return;
+      }
+      const duplicada = (condicionales || []).some(
+        (c) =>
+          c.id !== editando &&
+          normalizarTexto(c.estudio) === normalizarTexto(limpio.estudio) &&
+          normalizarTexto(c.aseguradora) ===
+            normalizarTexto(limpio.aseguradora)
+      );
+      if (duplicada) {
+        showToast(
+          "Ya existe una condición para ese estudio y aseguradora",
+          "error"
+        );
         return;
       }
       setCondicionales((list) =>
@@ -126,14 +144,14 @@ export function CondicionalesView({
 
     // Alta (simple o masiva): una condición por cada combinación estudio × aseguradora.
     const estudios = uniqPorClave(
-      (multiEstudios.length ? multiEstudios : [borrador.estudio]).map((v) =>
-        sanitizeString(v || "").trim()
-      )
+      [...multiEstudios, inputEstudio, borrador.estudio]
+        .map((v) => sanitizeString(String(v || "")).trim())
+        .filter(Boolean)
     );
     const asegs = uniqPorClave(
-      (multiAsegs.length ? multiAsegs : [borrador.aseguradora]).map((v) =>
-        sanitizeString(v || "").trim()
-      )
+      [...multiAsegs, inputAseg, borrador.aseguradora]
+        .map((v) => sanitizeString(String(v || "")).trim())
+        .filter(Boolean)
     );
     if (!estudios.length) {
       showToast("Indicá al menos un estudio jurídico", "error");
@@ -195,6 +213,97 @@ export function CondicionalesView({
     showToast("Condición eliminada", "info");
   };
 
+  const exportar = () => {
+    const data = JSON.stringify(
+      {
+        type: "appseguimiento-condicionales",
+        version: 1,
+        fecha: hoyISO(),
+        condicionales: condicionales || [],
+      },
+      null,
+      2
+    );
+    const blob = new Blob([data], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `condicionales_${hoyISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exportación completada", "success");
+  };
+
+  const importar = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const filas = Array.isArray(parsed)
+          ? parsed
+          : Array.isArray(parsed && parsed.condicionales)
+          ? parsed.condicionales
+          : null;
+        if (!filas) {
+          showToast("El archivo no contiene condiciones válidas.", "error");
+          return;
+        }
+        const existentes = new Set(
+          (condicionales || []).map(
+            (c) => `${normalizarTexto(c.estudio)}|${normalizarTexto(c.aseguradora)}`
+          )
+        );
+        let omitidas = 0;
+        const nuevas = [];
+        for (const f of filas) {
+          if (!f || typeof f !== "object") {
+            omitidas++;
+            continue;
+          }
+          const estudio = sanitizeString(String(f.estudio || "")).trim();
+          const aseguradora = sanitizeString(String(f.aseguradora || "")).trim();
+          if (!estudio || !aseguradora) {
+            omitidas++;
+            continue;
+          }
+          const clave = `${normalizarTexto(estudio)}|${normalizarTexto(aseguradora)}`;
+          if (existentes.has(clave)) {
+            omitidas++;
+            continue;
+          }
+          existentes.add(clave);
+          nuevas.push({
+            id: uid(),
+            estudio,
+            aseguradora,
+            condicion: f.condicion === "no-toma" ? "no-toma" : "condicion",
+            observacion: sanitizeString(String(f.observacion || "")),
+          });
+        }
+        if (!nuevas.length) {
+          showToast("No se importaron condiciones nuevas", "warning");
+          return;
+        }
+        setCondicionales((list) => [...(list || []), ...nuevas]);
+        soundSystem.playAction("create");
+        showToast(
+          nuevas.length === 1
+            ? "Condición importada"
+            : `${nuevas.length} condiciones importadas${
+                omitidas ? ` · ${omitidas} omitida${omitidas !== 1 ? "s" : ""}` : ""
+              }`,
+          "success"
+        );
+      } catch {
+        showToast("El archivo no es un JSON válido.", "error");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   const agregarChip = (valor, lista, setLista) => {
     const v = (valor || "").trim();
     if (!v) return;
@@ -207,8 +316,8 @@ export function CondicionalesView({
   };
 
   const CONDICION_OPTS = [
-    { value: "no-toma", label: "No toma la aseguradora", icon: ShieldAlert, color: "#EF4444" },
-    { value: "condicion", label: "Toma con condiciones", icon: Scale, color: "#F59E0B" },
+    { value: "no-toma", label: "No toma la aseguradora", icon: ShieldAlert, color: "var(--color-danger)" },
+    { value: "condicion", label: "Toma con condiciones", icon: Scale, color: "var(--color-warning)" },
   ];
 
   const condMeta = (condicion) =>
@@ -279,23 +388,26 @@ export function CondicionalesView({
         </div>
         <span
           className="pill-sm"
+          aria-live="polite"
           style={{
             backgroundColor: "var(--color-surface)",
             border: "1px solid var(--color-border)",
             color: "var(--color-text-muted)",
           }}
         >
-          {total} registradas
+          {busqueda || filtro !== "todas"
+            ? `${filtrados.length} de ${total} registradas`
+            : `${total} registradas`}
         </span>
         {noToma > 0 && (
-          <span className="pill-sm" style={{ backgroundColor: "#EF4444" + "22", color: "#EF4444" }}>
+          <span className="pill-sm" style={{ backgroundColor: "var(--color-danger)22", color: "var(--color-danger)" }}>
             {noToma} no toman
           </span>
         )}
       </div>
       <div className="text-[10px] mb-4" style={{ color: "var(--color-text-muted)" }}>
         Estudios que no toman todas las aseguradoras o que las aceptan con
-        condiciones de ingreso y lesión.
+        condiciones específicas de ingreso.
       </div>
 
       {/* Barra de acciones */}
@@ -304,7 +416,7 @@ export function CondicionalesView({
           <SearchInput
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por estudio, aseguradora, lesión..."
+            placeholder="Buscar por estudio, aseguradora u observación..."
           />
         </div>
         <Select
@@ -320,6 +432,32 @@ export function CondicionalesView({
         <Btn onClick={abrirNuevo} icon={Plus} size="sm">
           Nueva condición
         </Btn>
+        <BtnOutline
+          onClick={exportar}
+          icon={FileText}
+          size="sm"
+          color="var(--color-accent)"
+          disabled={!total}
+        >
+          Exportar
+        </BtnOutline>
+        <label
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors hover:opacity-70"
+          style={{
+            backgroundColor: "transparent",
+            border: "1px solid var(--color-accent)",
+            color: "var(--color-accent)",
+          }}
+        >
+          <Upload size={13} /> Importar
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={importar}
+            className="hidden"
+            aria-label="Archivo de condicionales"
+          />
+        </label>
       </div>
 
       {/* Formulario agregar/editar */}
@@ -366,6 +504,7 @@ export function CondicionalesView({
                   <button
                     type="button"
                     title="Agregar estudio"
+                    aria-label="Agregar estudio"
                     onClick={() => {
                       agregarChip(inputEstudio, multiEstudios, setMultiEstudios);
                       setInputEstudio("");
@@ -416,6 +555,7 @@ export function CondicionalesView({
                   <button
                     type="button"
                     title="Agregar aseguradora"
+                    aria-label="Agregar aseguradora"
                     onClick={() => {
                       agregarChip(inputAseg, multiAsegs, setMultiAsegs);
                       setInputAseg("");
@@ -509,7 +649,11 @@ export function CondicionalesView({
               scrollbarGutter: "stable",
             }}
           >
-            <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+            <table
+              className="w-full text-xs"
+              style={{ borderCollapse: "collapse" }}
+              aria-label="Condiciones de estudios jurídicos"
+            >
               <thead>
                 <tr>
                   {["Estudio", "Condición", "Aseguradora", "Observaciones"].map((h) => (
@@ -649,13 +793,19 @@ export function CondicionalesView({
                           {sanitizeString(c.observacion || "—")}
                         </td>
                         <td className="px-4 py-2 text-right align-middle whitespace-nowrap">
-                          <button onClick={() => abrirEdicion(c)} className="text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70" style={{ color: "var(--color-accent)" }}>
+                          <button
+                            onClick={() => abrirEdicion(c)}
+                            className="text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70"
+                            style={{ color: "var(--color-accent)" }}
+                            aria-label={`Editar: ${c.estudio} — ${c.aseguradora || "sin aseguradora"}`}
+                          >
                             Editar
                           </button>
                           <button
                             onClick={() => setFilaAEliminar(c)}
                             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded transition-colors hover:opacity-70 ml-1"
                             style={{ color: "var(--color-danger)" }}
+                            aria-label={`Eliminar: ${c.estudio} — ${c.aseguradora || "sin aseguradora"}`}
                           >
                             <Trash2 size={12} /> Eliminar
                           </button>

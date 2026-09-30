@@ -329,6 +329,46 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.4] - Objeciones vía llaves en Speechs, corrección de Condicionales y reorden del modal de caso
+
+Funcionalidad nueva: los Speechs Interactivos ahora pueden insertar las objeciones ya cargadas en el contenido de los pasos mediante llaves \`{OBJECION:id}\`; se corrigió la vista de Condicionales y se reordenó el modal del caso (Herramientas / pie) junto con la Conversación Sugerida multilínea.
+
+### Speechs Interactivos · objeciones vía llaves
+
+- **Llave \`{OBJECION:id}\`**: nuevo resolvedor \`resolveObjeciones.js\`; en modo ejecución la llave se reemplaza por el **título de la objeción arriba y el contenido debajo**. Match por id exacto con fallback por título (insensible a mayúsculas/acentos); llaves desconocidas quedan literales.
+- **Chips de inserción en el editor**: bloque "Objeciones — hacé clic para insertar" debajo del contenido del paso; cada chip inserta la llave en la posición del cursor (o al final si no hay foco). Sin objeciones cargadas muestra un mensaje orientativo a Útiles › Objeciones.
+- **Advertencias en vivo**: \`advertenciasSpeech\` (con la lista de objeciones opcional) avisa *"La llave {OBJECION:…} no corresponde a ninguna objeción cargada"* sin bloquear la ejecución.
+- **\`TextArea\` ahora soporta \`ref\`** (\`forwardRef\` combinado con el autoresize interno, patrón ya usado por \`TextInput\`), necesario para la inserción en cursor. Retrocompatible con todos los usos existentes.
+- Cableado de \`objeciones\` desde \`UtilesView\` → \`SpeechsView\` → \`InteractivosView\` → \`SpeechEditor\`/\`SpeechRunner\` con default \`[]\` (sin cambios de schema: la llave viaja como texto en \`contenido\`, por lo que persistencia, backup e IO no cambian).
+
+### Condicionales · correcciones
+
+- **Alta ignoraba lo tipeado (P1)**: el texto escrito en Estudio(s)/Aseguradora(s) sin confirmar con Enter/＋ se descartaba y el guardado fallaba con "Indicá al menos un estudio" aunque estuviera escrito; ahora se combinan chips y texto pendiente, con dedup case/acento-insensible.
+- **Edición sin crash ni duplicados (P2-P3)**: validaciones con guards ante datos incompletos (antes \`trim()\` sobre valores no-string podía explotar) y verificación de duplicado estudio+aseguradora contra el resto de filas (antes el guardado de edición no deduplicaba).
+- **Copys actualizados (P4)**: placeholder de búsqueda sin "lesión", descripción y JSDoc de la sección sin "condiciones de ingreso y lesión", \`TAB_DESC.condicionales\` acorde al contenido real.
+- **Contadores (P5)**: con filtro activo muestra *"N de M registradas"*; \`estudiosUnicos\` ahora incluye también los estudios de las condicionales (simetría con aseguradoras).
+- **Tokens de color (P7)**: \`#EF4444\`/\`#F59E0B\` hardcodeados reemplazados por \`var(--color-danger)\`/\`var(--color-warning)\`.
+- **Accesibilidad (P8)**: \`aria-label\` con estudio+aseguradora en Editar/Eliminar, \`aria-label\` en los botones ＋ de alta, nombre accesible para la tabla y \`aria-live="polite"\` en el contador.
+- **Exportar/Importar JSON (P10)**: nueva toolbar al estilo de Lesiones; exporta \`{type:"appseguimiento-condicionales", version, fecha, condicionales}\` (compatible con la categoría "Condicionales" de la importación de Útiles en Configuración) e importa aceptando array plano o envuelto, con dedup y resumen de omitidos.
+
+### Modal del caso · sección Herramientas y pie
+
+- **Herramientas simplificada**: se quitaron de la sección las listas de **Condicionales** y **Speechs** relacionados; ahora muestra las **Objeciones** vinculadas a la ART/estudio del caso. La sección se renderiza siempre que haya objeciones o acciones disponibles (antes dependía de \`hasContent\`).
+- **Notas y Calendario se movieron del pie a Herramientas**: los botones que abrían los formularios inline de nota/evento ahora viven dentro de la sección, justo arriba de los formularios que abren.
+- **Botón Cerrar en el pie**: el footer pasó a dos grupos (\`justify-between\`) — Editar / Reporte / Eliminar a la izquierda y **Cerrar** a la derecha, con la misma animación de cierre (\`startClose\`) que la X del header.
+- **Tour paso 15 actualizado**: la descripción dejó de mencionar condicionales/speechs y refleja el contenido real de la sección.
+
+### Conversación Sugerida · mensajes multilínea
+
+- El campo **"Nuevo mensaje..."** pasó de input de una sola línea a **\`TextArea\` multilínea**: con **Enter ahora se ingresa un salto de línea** en el mensaje (el alta se confirma con el botón *Agregar*). Se conservan los saltos de línea al guardar, al editar mensajes existentes y al copiar.
+
+### Tests
+
+- Nuevos: \`resolveObjeciones.test.js\` (10 casos), \`SpeechRunner.test.jsx\` (resolución, literal, plano), chips/advertencias en \`InteractivosView.test\`, llaves en \`interactiveSpeechModel.test\`, y 12 tests en \`CondicionalesView.test\` (alta sin Enter, combinación chips+pendiente, validaciones de edición, duplicados, contadores filtrados, a11y, export/import roundtrip e inválido); además \`VerCasoModal.test.jsx\` (sección Herramientas, pie con Cerrar, ausencia de condicionales/speechs) y \`ConversacionesSugeridasView.test.jsx\` (textarea multilínea y saltos de línea).
+- **Suite: 923 tests en verde (85 archivos); \`npm run build\` compila sin errores.**
+- Bump a **1.9.4** en \`version.js\`, \`package.json\`, \`package-lock.json\`; CHANGELOG unificado byte-idéntico en \`CHANGELOG.md\`, \`src/docs/CHANGELOG.md\` y \`public/docs/CHANGELOG.md\`.
+- Test de \`operatorMetrics\` *"meta mensual sin días restantes"* dejó de depender de la fecha real (fallaba el 30/09/2026); ahora prueba el caso con \`todayISO\` posterior al mes de forma determinista.
+
 ## [1.9.3] - Auditoría de bugs: header, pills, export con [origen] y robustez de Speechs
 
 Release de correcciones derivadas de la auditoría de Speechs Interactivos y el sistema de pills, sin funcionalidades nuevas.

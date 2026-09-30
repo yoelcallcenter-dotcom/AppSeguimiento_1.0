@@ -1,7 +1,10 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, forwardRef } from "react";
 import { sanitizeString } from "../../utils/sanitize";
 
-export function TextArea({ onBlur, className = "", style = {}, ...props }) {
+export const TextArea = forwardRef(function TextArea(
+  { onBlur, className = "", style = {}, ...props },
+  ref
+) {
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -12,6 +15,12 @@ export function TextArea({ onBlur, className = "", style = {}, ...props }) {
     }
   }, [props.value]);
 
+  const setRefs = (el) => {
+    textareaRef.current = el;
+    if (typeof ref === "function") ref(el);
+    else if (ref) ref.current = el;
+  };
+
   const handleChange = (e) => {
     const sanitized = sanitizeString(e.target.value);
     props.onChange &&
@@ -21,12 +30,12 @@ export function TextArea({ onBlur, className = "", style = {}, ...props }) {
   return (
     <textarea
       {...props}
-      ref={textareaRef}
+      ref={setRefs}
       onChange={handleChange}
       className={`input-optimized resize-none overflow-hidden min-h-[3rem] ${className}`}
       style={style}
     />
   );
-}
+});
 
 export default TextArea;

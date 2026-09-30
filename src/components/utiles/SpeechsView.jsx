@@ -37,6 +37,7 @@ export function SpeechsView({
   speechsInteractivos,
   setSpeechsInteractivos,
   showToast,
+  objeciones = [],
 }) {
   const [modo, setModo] = useState("clasicos");
   const [nuevo, setNuevo] = useState("");
@@ -193,6 +194,7 @@ export function SpeechsView({
           speechs={interactivos}
           setSpeechs={setSpeechsInteractivos}
           showToast={showToast}
+          objeciones={objeciones}
         />
       ) : (
         <>
