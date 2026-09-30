@@ -7,7 +7,8 @@
  * Contrato del quickFilter:
  *  - null | { tipo: string, valor: string | string[] }
  *  - tipo "grupo": valor es un string entre ACTIVOS / CERRADOS / FIRMAS /
- *    PERDIDOS / SINRESPUESTA / SINREPORTE / SINASIGNACION (rótulos de métricas).
+ *    PERDIDOS / PENDIENTES / SINRESPUESTA / SINREPORTE / SINASIGNACION
+ *    (rótulos de métricas).
  *  - tipo "sinReporte": filtra casos sin historial de reportes.
  *  - cualquier otro tipo (ej. "estado", "aseguradora", "estudioJuridico",
  *    "provincia"): comparación por igualdad exacta (normalizada a mayúsculas y
@@ -43,6 +44,7 @@ export function aplicarQuickFilter(casos, quickFilter, categories = {}) {
     lost: categories.lost || [],
     success: categories.success || [],
     pending: categories.pending || [],
+    contact: categories.contact || [],
   };
   const values = quickFilterValues(quickFilter);
   if (values.length === 0) return casos;
@@ -67,6 +69,9 @@ export function aplicarQuickFilter(casos, quickFilter, categories = {}) {
         break;
       case "PERDIDOS":
         filtered = filtered.filter((c) => cats.lost.includes(c.estado));
+        break;
+      case "PENDIENTES":
+        filtered = filtered.filter((c) => cats.contact.includes(c.estado));
         break;
       case "SINRESPUESTA":
         filtered = filtered.filter((c) => cats.pending.includes(c.estado));
@@ -104,6 +109,91 @@ export function quickFilterEstados(quickFilter) {
   if (!quickFilter || quickFilter.tipo !== "estado") return [];
   if (Array.isArray(quickFilter.valor)) return quickFilter.valor;
   return quickFilter.valor ? [quickFilter.valor] : [];
+}
+
+const GRUPO_LABELS = {
+  ACTIVOS: "Activos",
+  CERRADOS: "Cerrados",
+  FIRMAS: "Firmas",
+  PERDIDOS: "Perdidos",
+  PENDIENTES: "Pendientes",
+  SINRESPUESTA: "Sin respuesta",
+  SINREPORTE: "Sin reporte",
+  SINASIGNACION: "Sin asignación",
+};
+
+const TIPO_LABELS = {
+  estado: "Estado",
+  aseguradora: "Aseguradora",
+  localidad: "Localidad",
+  estudioJuridico: "Estudio",
+  provincia: "Provincia",
+  tipo: "Tipo",
+  tipoIngreso: "Tipo de ingreso",
+  origen: "Origen",
+};
+
+function formatValores(valores) {
+  if (valores.length <= 3) return valores.join(", ");
+  return `${valores.slice(0, 3).join(", ")} (+${valores.length - 3})`;
+}
+
+/**
+ * Rótulo de chip para el header (mismo formato "Etiqueta: valor" que los
+ * chips de `filtroGlobal`). Devuelve `null` si no hay filtro rápido.
+ */
+export function quickFilterChip(quickFilter) {
+  if (!quickFilter || !quickFilter.tipo) return null;
+  const { tipo, valor } = quickFilter;
+  if (valor === undefined || valor === null || valor === "") return null;
+
+  if (tipo === "sinReporte") {
+    return { key: "quick:sinReporte", label: "Sin reporte", valor: "" };
+  }
+
+  if (tipo === "grupo") {
+    const grupo = String(valor).trim().toUpperCase();
+    return {
+      key: "quick:grupo",
+      label: "Grupo",
+      valor: GRUPO_LABELS[grupo] || grupo,
+    };
+  }
+
+  const valores = (Array.isArray(valor) ? valor : [valor])
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+  if (valores.length === 0) return null;
+
+  const label =
+    TIPO_LABELS[tipo] || tipo.charAt(0).toUpperCase() + tipo.slice(1);
+  return { key: `quick:${tipo}`, label, valor: formatValores(valores) };
+}
+
+/**
+ * Acciones rápidas del dashboard ⇄ filtro rápido (`tipo: "grupo"`).
+ * Compartidas por "Acciones rápidas", el drill de métricas y los chips del
+ * header, para que todos filtren con el mismo mecanismo.
+ */
+export const ACCIONES_RAPIDAS = {
+  pendientes: { tipo: "grupo", valor: "pendientes" },
+  firmas: { tipo: "grupo", valor: "firmas" },
+  perdidos: { tipo: "grupo", valor: "perdidos" },
+  sinReporte: { tipo: "grupo", valor: "sinreporte" },
+};
+
+export function accionToQuickFilter(accion) {
+  return ACCIONES_RAPIDAS[accion] || null;
+}
+
+/** Id de la acción rápida equivalente, o null si no corresponde a ninguna. */
+export function quickFilterToAccion(quickFilter) {
+  if (!quickFilter || quickFilter.tipo !== "grupo") return null;
+  const valor = String(quickFilter.valor || "").trim().toUpperCase();
+  const hit = Object.entries(ACCIONES_RAPIDAS).find(
+    ([, f]) => f.valor.toUpperCase() === valor
+  );
+  return hit ? hit[0] : null;
 }
 
 export default aplicarQuickFilter;

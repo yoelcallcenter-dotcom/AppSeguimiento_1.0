@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import {
-  Calendar, AlertTriangle, FileText, MessageSquare, Clock, Target, GripVertical, ChevronUp, ChevronDown, X, Sparkles, Filter, Download,
+  Calendar, AlertTriangle, FileText, MessageSquare, Clock, Target, GripVertical, ChevronUp, ChevronDown, Sparkles, Download,
   Plus, Upload, Play, Shield, TrendingUp, BarChart3, MapPin, Building2, CircleDot,
 } from 'lucide-react';
 import {
@@ -17,6 +17,10 @@ import { VistaMapa } from '../../components/estadisticas/VistaMapa';
 import useAppStore from '../../core/store/useAppStore';
 import { useFilters, opcionesFiltroGlobal } from '../../context/FiltersContext';
 import { trackEvent } from '../../utils/behaviorEngine';
+import {
+  accionToQuickFilter,
+  quickFilterToAccion,
+} from '../../utils/filtrarQuickFilter';
 import { escapeCSV, sanitizeCSV } from '../../utils/backup/csvUtils';
 import { MonthDayFilterBar } from '../../components/common/MonthDayFilterBar';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -159,8 +163,6 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   const notes = useAppStore((s) => s.notes);
   const events = useAppStore((s) => s.events);
 
-  const activeFilter = useAppStore((s) => s.dashActiveFilter);
-  const setActiveFilter = useAppStore((s) => s.setDashActiveFilter);
   const tab = useAppStore((s) => s.dashTab);
   const setTab = useAppStore((s) => s.setDashTab);
   const tabOrder = useAppStore((s) => s.dashTabOrder);
@@ -173,7 +175,7 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   // Filtro global de mes/día (compartido con Kanban, Tabla y Reportes) + drill-down.
   const {
     selectedMonth, selectedYear, selectedDays,
-    setSelectedView, setSearchQuery, setQuickFilter,
+    setSelectedView, setSearchQuery, setQuickFilter, quickFilter,
     filtroGlobal, setFiltroGlobal,
   } = useFilters();
 
@@ -189,11 +191,27 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     return 'Todo';
   }, [selectedMonth, selectedYear, selectedDays]);
 
-  const QUICK_ACTIONS_LABELS = { pendientes: 'Pendientes', firmas: 'Firmas', perdidos: 'Perdidos', sinReporte: 'Sin reporte' };
-  const activeFilterLabel = activeFilter ? QUICK_ACTIONS_LABELS[activeFilter] || activeFilter : null;
+  // Acción rápida activa: se deriva del filtro rápido único (mismo mecanismo
+  // que el drill de métricas y la Pipeline Bar) para resaltar el botón.
+  const activeFilter = useMemo(() => quickFilterToAccion(quickFilter), [quickFilter]);
 
   const handleDrill = useCallback((f) => {
     if (!f) return;
+    // "Ver actividad" (InsightsPanel): no es un filtro de casos.
+    if (f.tipo === 'actividad') {
+      setQuickFilter(null);
+      setSearchQuery('');
+      setSelectedView('mi-espacio');
+      return;
+    }
+    // "Todos" (KPI Casos totales): limpia el filtro en lugar de dejar un
+    // quickFilter sin efecto.
+    if (f.tipo === 'grupo' && String(f.valor).toLowerCase() === 'todos') {
+      setQuickFilter(null);
+      setSearchQuery('');
+      setSelectedView('tabla');
+      return;
+    }
     trackEvent("DASHBOARD_DRILL");
     setQuickFilter(f);
     setSearchQuery('');
@@ -240,10 +258,6 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   );
 
   const showWidget = useCallback((key) => config?.[key] !== false, [config]);
-
-  const handleGlobalMonthChange = useCallback(() => {
-    setActiveFilter(null);
-  }, [setActiveFilter]);
 
   // Datos analíticos (memoizados) usando los mismos filtros globales.
   const mesAnalitica = selectedMonth >= 0 && selectedYear >= 0
@@ -355,20 +369,11 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   const analitica = useAnalytics(allCases, config, periodoId, operatorData);
 
   // ============================================================
-  // FILTRADO (casos ya filtrados por mes/día desde App)
+  // FILTRADO: App ya aplica mes/día, búsqueda, filtro global y filtro
+  // rápido. Acciones rápidas, drill de métricas y Pipeline Bar comparten
+  // ese mismo `quickFilter`, así que no hace falta filtrar de nuevo acá.
   // ============================================================
-  const filteredCases = useMemo(() => {
-    if (!activeFilter) return casos;
-    const actions = {
-      pendientes: (c) => cats.contact.includes(c.estado),
-      firmas: (c) => cats.success.includes(c.estado),
-      perdidos: (c) => cats.lost.includes(c.estado),
-      sinReporte: (c) => !c.reporteHistory || c.reporteHistory.length === 0,
-    };
-    const fn = actions[activeFilter];
-    if (!fn) return casos;
-    return casos.filter((c) => fn(c));
-  }, [casos, activeFilter, cats]);
+  const filteredCases = casos;
 
   const ctx = useMemo(() => ({ filtered: filteredCases, cats }), [filteredCases, cats]);
 
@@ -472,10 +477,25 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     return [...notes].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)).slice(0, 5);
   }, [notes, showWidget]);
 
-  const handleFilter = useCallback((id) => {
-    setActiveFilter(id);
+  // Acciones rápidas y AseguradorasWidget escriben en el filtro rápido único
+  // (mismo mecanismo que el drill y la Pipeline Bar): el chip del header lo
+  // hace visible en todas las vistas. Repetir el mismo filtro lo limpia.
+  const handleFilter = useCallback((filtroOrAccion) => {
+    const filtro =
+      typeof filtroOrAccion === 'string'
+        ? accionToQuickFilter(filtroOrAccion)
+        : filtroOrAccion;
+    if (!filtro) {
+      setQuickFilter(null);
+    } else {
+      const mismoFiltro =
+        quickFilter &&
+        quickFilter.tipo === filtro.tipo &&
+        String(quickFilter.valor) === String(filtro.valor);
+      setQuickFilter(mismoFiltro ? null : filtro);
+    }
     setActivityDay(null);
-  }, [setActiveFilter, setActivityDay]);
+  }, [quickFilter, setQuickFilter, setActivityDay]);
 
   // Optimización 1.6.6: handlers estables para widgets memorizados (evitan
   // re-renders al recrear la función inline en cada render del dashboard).
@@ -676,30 +696,10 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         total={casos.length}
         casos={casos}
         casosMes={casosMes}
-        onMonthChange={handleGlobalMonthChange}
       />
 
-      {activeFilterLabel && (
-        <div className="flex items-center gap-2 mb-3">
-          <span
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{ backgroundColor: 'var(--color-accent)18', color: 'var(--color-accent)', border: '1px solid var(--color-accent)44' }}
-          >
-            <Filter size={12} />
-            Filtro activo: {activeFilterLabel}
-          </span>
-          <button
-            onClick={() => setActiveFilter(null)}
-            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-          >
-            <X size={12} />
-            Limpiar filtro
-          </button>
-        </div>
-      )}
+      {/* El filtro activo (acciones rápidas / drill / pipeline) se muestra en
+          el header de la app como chip con el resto de los filtros. */}
 
       {/* ============================================================ */}
       {/* TABS */}

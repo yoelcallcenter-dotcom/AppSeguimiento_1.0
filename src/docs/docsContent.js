@@ -329,6 +329,32 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.5] - Filtro rápido en el header y backups sin anidamiento
+
+Correcciones de usabilidad y rendimiento: los filtros del dashboard (acciones rápidas, drill de métricas, Pipeline Bar y aseguradoras) pasaron a un único filtro rápido visible y limpiable desde el header, lo que además resolvía un error de render (#31); y los backups dejaron de embeber el historial de backups, que congelaba la UI al abrir Configuración o al cambiar de pestaña.
+
+### Dashboard · un filtro único, visible y consistente
+
+- **Error de render #31 eliminado**: "Acciones rápidas" y el widget de Aseguradoras guardaban un **objeto** en \`dashActiveFilter\` mientras la etiqueta del pill esperaba un string, y React explotaba al renderizar el nodo (\`span > div > div > vr\`). Se quitó \`dashActiveFilter\`/\`setDashActiveFilter\` del store (\`restoreDashboardDefaults\` ya no lo resetea) y el pill "Filtro activo" interno del dashboard.
+- **Un solo filtro rápido para todo el dashboard**: acciones rápidas, drill de métricas, Pipeline Bar y drill de aseguradoras escriben sobre el mismo \`quickFilter\`. El chip resultante se muestra en el **header**, junto a los filtros de mes/global (visible en todas las vistas, no solo en el Dashboard) y se quita con clic o con "Limpiar todos los filtros".
+- **Los botones de acción ahora se resaltan**: \`activeFilter\` se deriva de \`quickFilter\` (\`quickFilterToAccion\`); antes se comparaba objeto contra id y el resaltado nunca se encendía. Al navegar por el dashboard (drill, pipeline, KPIs) las acciones rápidas reflejan el filtro vigente.
+- **Repetir un filtro lo limpia**: volver a clickear "Pendientes"/"Firmas"/etc. con el mismo filtro aplicado lo remite (toggle); antes quedaba aplicado sin forma de apagarlo desde el mismo botón.
+- **Grupo \`PENDIENTES\` en \`aplicarQuickFilter\`**: el drill de la métrica "Pendientes" no filtraba nada (categoría de contacto no contemplada); ahora filtra por la categoría \`contact\`.
+- **KPI "Casos totales"** limpia el filtro rápido en lugar de dejar un \`quickFilter\` sin efecto; **"Ver actividad"** (InsightsPanel) navega a Mi Espacio en lugar de ir a Tabla sin filtro.
+- **\`mesesDisponibles\` en \`useMemo\`** en Configuración: recalculaba los meses disponibles en cada render de la vista.
+
+### Backups · fin del historial anidado (congelamiento)
+
+- **\`auto_backups\` quedó fuera del payload de backup**: un backup ya no incluye el historial de backups. Antes cada snapshot embebía todos los anteriores (crecimiento exponencial, hasta ~63× el peso real con \`MAX_BACKUPS = 6\`) y leer el historial en el hilo principal congelaba la UI al abrir Configuración o al cambiar de pestaña. Restaurar un backup **conserva el historial local** (la sección ausente no se vacía).
+- **Normalización one-time** (\`normalizeAutoBackupHistory\`): a los 3 segundos del arranque recorre las filas existentes una por una —cortando el trabajo con \`yieldToUI()\` para no bloquear— y elimina el anidamiento heredado; también vacía \`data.auto_backups\` de los \`migration_snapshots\`. El avance queda marcado en \`localStorage\` (\`app.auto-backups-normalized\`), por lo que corre una sola vez.
+
+### Tests
+
+- Nuevos: \`autoBackup.test.js\` (3 tests: normalización de filas anidadas y de \`migration_snapshots\`, marca de idempotencia e historial limpio) y 9 tests en \`filtrarQuickFilter.test.js\` (grupo \`PENDIENTES\`, \`quickFilterChip\` y conversión acciones rápidas ⇄ \`quickFilter\`).
+- El roundtrip de backup ahora verifica que \`auto_backups\` queda **fuera** del payload y que la restauración conserva el historial.
+- **Suite: 935 tests en verde (86 archivos); \`npm run build\` compila sin errores.**
+- Bump a **1.9.5** en \`version.js\`, \`package.json\`, \`package-lock.json\`; CHANGELOG unificado byte-idéntico en \`CHANGELOG.md\`, \`src/docs/CHANGELOG.md\` y \`public/docs/CHANGELOG.md\`.
+
 ## [1.9.4] - Objeciones vía llaves en Speechs, corrección de Condicionales y reorden del modal de caso
 
 Funcionalidad nueva: los Speechs Interactivos ahora pueden insertar las objeciones ya cargadas en el contenido de los pasos mediante llaves \`{OBJECION:id}\`; se corrigió la vista de Condicionales y se reordenó el modal del caso (Herramientas / pie) junto con la Conversación Sugerida multilínea.

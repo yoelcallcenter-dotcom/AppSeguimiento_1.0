@@ -264,6 +264,58 @@ export async function getBackupHistory() {
   }
 }
 
+const NORMALIZED_KEY = "app.auto-backups-normalized";
+
+function yieldToUI() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Normalización one-time (1.9.5): los snapshots antiguos incluían la tabla
+ * `auto_backups` completa (backups dentro de backups) y los snapshots de
+ * migración guardaban otra copia del historial. Se elimina ese anidamiento
+ * registro por registro, cediendo el hilo entre cada uno, para que leer el
+ * historial deje de congelar la UI. Idempotente: solo corre una vez.
+ */
+export async function normalizeAutoBackupHistory() {
+  try {
+    if (localStorage.getItem(NORMALIZED_KEY)) return 0;
+
+    let normalizados = 0;
+    // Se itera por clave primaria (`++id`) y se recupera fila por fila para
+    // no cargar todo el historial en memoria de una sola vez.
+    const ids = await appDB.auto_backups.toCollection().primaryKeys();
+    for (const id of ids) {
+      const row = await appDB.auto_backups.get(id);
+      const anidados = row?.backup?.data?.db?.auto_backups;
+      if (Array.isArray(anidados) && anidados.length > 0) {
+        delete row.backup.data.db.auto_backups;
+        await appDB.auto_backups.put(row);
+        normalizados += 1;
+      }
+      await yieldToUI();
+    }
+
+    const snapshotIds = await appDB.migration_snapshots.toCollection().primaryKeys();
+    for (const id of snapshotIds) {
+      const snapshot = await appDB.migration_snapshots.get(id);
+      const copia = snapshot?.data?.auto_backups;
+      if (Array.isArray(copia) && copia.length > 0) {
+        snapshot.data.auto_backups = [];
+        await appDB.migration_snapshots.put(snapshot);
+        normalizados += 1;
+      }
+      await yieldToUI();
+    }
+
+    localStorage.setItem(NORMALIZED_KEY, "1");
+    return normalizados;
+  } catch (error) {
+    reportError(error, { context: "autoBackup.normalizeAutoBackupHistory" });
+    return 0;
+  }
+}
+
 /** Elimina un backup del historial. */
 export async function deleteBackup(id) {
   await appDB.auto_backups.delete(id);

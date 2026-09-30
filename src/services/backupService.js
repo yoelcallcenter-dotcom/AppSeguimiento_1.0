@@ -22,14 +22,19 @@ import { migrateBackup, validateMigratedBackup, needsMigration } from "../utils/
 export const BACKUP_KIND = "appseguimiento-backup";
 export const BACKUP_SCHEMA_VERSION = 3;
 
-/** Tablas de datos del usuario (excluye diagnostics/logs). */
+/**
+ * Tablas de datos del usuario (excluye diagnostics/logs).
+ * `auto_backups` queda fuera a propósito (1.9.5): un backup no contiene
+ * backups — incluirla hacía que cada snapshot embebiera los anteriores
+ * (crecimiento exponencial, congelando la UI al leer el historial).
+ * Al restaurar, la ausencia de la sección preserva el historial local.
+ */
 const DB_TABLES = [
   { db: "casesDB", name: "cases" },
   { db: "casesDB", name: "case_history" },
   { db: "appDB", name: "notes" },
   { db: "appDB", name: "events" },
   { db: "appDB", name: "note_versions" },
-  { db: "appDB", name: "auto_backups" },
   { db: "appDB", name: "templates" },
   { db: "appDB", name: "saved_reports" },
 ];

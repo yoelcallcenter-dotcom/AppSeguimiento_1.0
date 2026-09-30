@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { SectionHeader as UISectionHeader } from "./ui";
 import {
   Settings, Palette, Layout, Database, AlertTriangle, Download, Upload,
@@ -408,7 +408,10 @@ export function ConfiguracionView({
     setSeccion(subId);
   };
 
-  const mesesDisponibles = getAvailableMonths(casos, "fecha");
+  const mesesDisponibles = useMemo(
+    () => getAvailableMonths(casos, "fecha"),
+    [casos]
+  );
 
   const actualizarConfig = (campo, valor) => {
     setConfig({ ...config, [campo]: valor });

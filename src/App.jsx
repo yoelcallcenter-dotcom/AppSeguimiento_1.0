@@ -62,7 +62,7 @@ import { recordGoalAction, pushLastCase } from "./features/productivity/producti
 // Utils
 import { casoEnMes, getAvailableMonthsConReportes } from "./utils/dateFilters";
 import { casoCoincide } from "./utils/searchEngine";
-import { aplicarQuickFilter } from "./utils/filtrarQuickFilter";
+import { aplicarQuickFilter, quickFilterChip } from "./utils/filtrarQuickFilter";
 import { trackEvent, evaluate } from "./utils/behaviorEngine";
 import { notificationManager } from "./core/notifications/notificationManager";
 import { soundSystem } from "./core/notifications/soundSystem";
@@ -70,7 +70,7 @@ import { eventBus, AppEvents } from "./core/events/eventBus";
 import { notifyChange, SYNC_EVENTS } from "./core/sync/syncService";
 import { reportError } from "./core/error/reportError";
 import { localStorageAdapter } from "./core/storage/localStorageAdapter";
-import { setupAutoBackupWatcher } from "./services/autoBackup";
+import { setupAutoBackupWatcher, normalizeAutoBackupHistory } from "./services/autoBackup";
 import { startSystemStatusMonitor } from "./core/status/storageHealth";
 import { SystemStatusBanner } from "./components/common/SystemStatusBanner";
 import { NotificationBell } from "./components/notifications/NotificationBell";
@@ -492,6 +492,11 @@ function AppContent() {
         }
       })
       .catch(() => {});
+    // Normalización one-time del historial de backups (1.9.5): corre en
+    // background, fuera del arranque, para limpiar el anidamiento heredado.
+    setTimeout(() => {
+      normalizeAutoBackupHistory();
+    }, 3000);
     return () => {
       stopAutoBackup();
       stopStatusMonitor();
@@ -682,7 +687,12 @@ function AppContent() {
     return activos;
   }, [filtroGlobal, setFiltroGlobal]);
 
-  const filtrosActivos = filtrosDetalle.length > 0;
+  // Filtro rápido (drill del dashboard / Pipeline Bar): se muestra con el
+  // mismo formato que los chips de filtroGlobal para que sea visible en
+  // todas las vistas y se pueda limpiar desde el header.
+  const chipRapido = useMemo(() => quickFilterChip(quickFilter), [quickFilter]);
+
+  const filtrosActivos = filtrosDetalle.length > 0 || !!chipRapido;
 
   // Casos del mes seleccionado SIN el filtro de día: sirve para que el selector
   // de día siga mostrando todos los días con casos aunque ya se haya elegido uno.
@@ -1407,8 +1417,24 @@ function AppContent() {
                     <X size={10} />
                   </FilterChip>
                 ))}
+                {chipRapido && (
+                  <FilterChip
+                    active
+                    onClick={() => setQuickFilter(null)}
+                    title={`Quitar filtro rápido: ${chipRapido.label}${
+                      chipRapido.valor ? ` = ${chipRapido.valor}` : ""
+                    }`}
+                  >
+                    {chipRapido.label}
+                    {chipRapido.valor ? `: ${chipRapido.valor}` : ""}
+                    <X size={10} />
+                  </FilterChip>
+                )}
                 <FilterChip
-                  onClick={resetFiltroGlobal}
+                  onClick={() => {
+                    resetFiltroGlobal();
+                    setQuickFilter(null);
+                  }}
                   title="Limpiar todos los filtros"
                   style={{
                     color: "var(--color-danger)",

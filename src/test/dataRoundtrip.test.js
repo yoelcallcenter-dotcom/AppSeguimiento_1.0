@@ -159,11 +159,24 @@ describe('Roundtrip Backup → Restore', () => {
     expect(validateBackup({ kind: 'otro' }).length).toBeGreaterThan(0);
   });
 
-  it('backup v3 incluye auto_backups', async () => {
+  it('backup no incluye auto_backups y la restauración conserva el historial', async () => {
     await seedTestData();
+    const id = await appDB.auto_backups.add({
+      timestamp: new Date().toISOString(),
+      kind: 'auto',
+      sizeKB: 8,
+      counts: { cases: 1, notes: 1, events: 1 },
+      backup: { data: { db: { cases: [] } } },
+    });
+
     const backup = await exportBackup();
-    expect(backup.data.db.auto_backups).toBeDefined();
-    expect(Array.isArray(backup.data.db.auto_backups)).toBe(true);
+    expect(backup.data.db.auto_backups).toBeUndefined();
+
+    await importBackup(backup, { permitirVaciar: true });
+
+    const sobreviviente = await appDB.auto_backups.get(id);
+    expect(sobreviviente).toBeDefined();
+    expect(sobreviviente.kind).toBe('auto');
   });
 
   it('restore protege claves conocidas no presentes en backup', async () => {

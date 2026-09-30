@@ -3,6 +3,9 @@ import {
   aplicarQuickFilter,
   quickFilterValues,
   quickFilterEstados,
+  quickFilterChip,
+  accionToQuickFilter,
+  quickFilterToAccion,
 } from './filtrarQuickFilter';
 import { contarCasosPorEstado } from './casosStats';
 
@@ -114,5 +117,89 @@ describe('contarCasosPorEstado', () => {
   it('maneja listas vacías y estados faltantes', () => {
     expect(contarCasosPorEstado([])).toEqual({});
     expect(contarCasosPorEstado([{ id: 1 }])).toEqual({ 'Sin estado': 1 });
+  });
+});
+
+describe('grupo PENDIENTES (acciones rápidas)', () => {
+  it('filtra por la categoría de contacto', () => {
+    expect(
+      aplicarQuickFilter(CASOS, { tipo: 'grupo', valor: 'pendientes' }, CATS)
+        .map((c) => c.id)
+        .sort()
+    ).toEqual([2, 3, 6]);
+    expect(
+      aplicarQuickFilter(CASOS, { tipo: 'grupo', valor: 'PENDIENTES' }, CATS)
+    ).toHaveLength(3);
+  });
+});
+
+describe('quickFilterChip', () => {
+  it('devuelve null sin filtro o con valor vacío', () => {
+    expect(quickFilterChip(null)).toBeNull();
+    expect(quickFilterChip({ tipo: 'estado' })).toBeNull();
+    expect(quickFilterChip({ tipo: 'estado', valor: '' })).toBeNull();
+    expect(quickFilterChip({ tipo: 'provincia', valor: [] })).toBeNull();
+  });
+
+  it('grupo con rótulo legible', () => {
+    expect(quickFilterChip({ tipo: 'grupo', valor: 'firmas' })).toEqual({
+      key: 'quick:grupo',
+      label: 'Grupo',
+      valor: 'Firmas',
+    });
+    expect(quickFilterChip({ tipo: 'grupo', valor: 'sinAsignacion' }).valor)
+      .toBe('Sin asignación');
+  });
+
+  it('sinReporte es un chip de un solo rótulo', () => {
+    expect(quickFilterChip({ tipo: 'sinReporte', valor: 'x' })).toEqual({
+      key: 'quick:sinReporte',
+      label: 'Sin reporte',
+      valor: '',
+    });
+  });
+
+  it('tipos conocidos usan su etiqueta', () => {
+    expect(quickFilterChip({ tipo: 'aseguradora', valor: 'Galeno' })).toEqual({
+      key: 'quick:aseguradora',
+      label: 'Aseguradora',
+      valor: 'Galeno',
+    });
+    expect(quickFilterChip({ tipo: 'estudioJuridico', valor: 'Estudio A' }).label)
+      .toBe('Estudio');
+  });
+
+  it('arrays se listan y se recortan a 3', () => {
+    expect(
+      quickFilterChip({ tipo: 'estado', valor: ['Firmo', 'Pendiente'] }).valor
+    ).toBe('Firmo, Pendiente');
+    expect(
+      quickFilterChip({
+        tipo: 'estado',
+        valor: ['A', 'B', 'C', 'D', 'E'],
+      }).valor
+    ).toBe('A, B, C (+2)');
+  });
+
+  it('tipos desconocidos se capitalizan', () => {
+    expect(quickFilterChip({ tipo: 'barrio', valor: 'Centro' }).label).toBe('Barrio');
+  });
+});
+
+describe('acciones rápidas ⇄ filtro rápido', () => {
+  it('accionToQuickFilter mapea cada acción a un grupo', () => {
+    expect(accionToQuickFilter('pendientes')).toEqual({ tipo: 'grupo', valor: 'pendientes' });
+    expect(accionToQuickFilter('firmas')).toEqual({ tipo: 'grupo', valor: 'firmas' });
+    expect(accionToQuickFilter('perdidos')).toEqual({ tipo: 'grupo', valor: 'perdidos' });
+    expect(accionToQuickFilter('sinReporte')).toEqual({ tipo: 'grupo', valor: 'sinreporte' });
+    expect(accionToQuickFilter('desconocida')).toBeNull();
+  });
+
+  it('quickFilterToAccion deriva la acción activa (o null)', () => {
+    expect(quickFilterToAccion({ tipo: 'grupo', valor: 'FIRMAS' })).toBe('firmas');
+    expect(quickFilterToAccion({ tipo: 'grupo', valor: 'sinReporte' })).toBe('sinReporte');
+    expect(quickFilterToAccion({ tipo: 'grupo', valor: 'activos' })).toBeNull();
+    expect(quickFilterToAccion({ tipo: 'estado', valor: 'Firmo' })).toBeNull();
+    expect(quickFilterToAccion(null)).toBeNull();
   });
 });

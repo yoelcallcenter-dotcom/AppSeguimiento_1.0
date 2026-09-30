@@ -52,19 +52,16 @@ const useAppStore = create(
   },
 
   // --- Dashboard ---
-  dashActiveFilter: null,
   dashTab: 'analitica',
   dashTabOrder: ORDENES_DEFAULT.dashTabOrder,
   dashWidgetOrder: {},
 
-  setDashActiveFilter: (v) => set({ dashActiveFilter: v }),
   setDashTab: (v) => set({ dashTab: v }),
   setDashTabOrder: (v) => set({ dashTabOrder: v }),
   setDashWidgetOrder: (v) => set({ dashWidgetOrder: v }),
   restoreDashboardDefaults: () => set({
     dashTabOrder: ORDENES_DEFAULT.dashTabOrder,
     dashWidgetOrder: {},
-    dashActiveFilter: null,
     dashTab: 'analitica',
   }),
 
