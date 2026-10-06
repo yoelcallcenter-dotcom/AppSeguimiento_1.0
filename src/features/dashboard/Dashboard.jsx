@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Calendar, AlertTriangle, FileText, MessageSquare, Clock, Target, GripVertical, ChevronUp, ChevronDown, Sparkles, Download,
   Plus, Upload, Play, Shield, TrendingUp, BarChart3, MapPin, Building2, CircleDot,
@@ -63,6 +63,8 @@ import {
   getOperatorGoals,
   getOperatorProfile,
   getOperatorAvailability,
+  // v1.9.6 (fix metas): refresca operatorData al editar metas en la misma pestaña.
+  subscribeOperatorGoals,
 } from '../operator/operatorStore';
 import {
   computeMetrics, computeFunnel, evaluateAlerts, generateInsight,
@@ -358,13 +360,22 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     setPeriodoId(id);
     try { localStorage.setItem('app_analytics_period', id); } catch {}
   }, []);
+  // v1.9.6 (fix metas unificadas): operatorData estaba memoizado con [] y el
+  // evento `storage` no llega en la misma pestaña, así que las metas/proyección
+  // del Dashboard quedaban congeladas al editarlas desde Configuración o Mi
+  // Espacio (Dashboard además está envuelto en React.memo). Se agrega un
+  // contador que se incrementa al cambiar las metas para que operatorData (y
+  // useAnalytics, que depende de él) se recalculen al instante.
+  const [goalsVersion, setGoalsVersion] = useState(0);
+  useEffect(() => subscribeOperatorGoals(() => setGoalsVersion((v) => v + 1)), []);
   const operatorData = useMemo(
     () => ({
       goals: getOperatorGoals(),
       profile: getOperatorProfile(),
       availability: getOperatorAvailability(),
     }),
-    []
+    // goalsVersion: fuerza recomputo al notificar cambios de metas (misma pestaña).
+    [goalsVersion]
   );
   const analitica = useAnalytics(allCases, config, periodoId, operatorData);
 

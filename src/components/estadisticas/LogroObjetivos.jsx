@@ -1,16 +1,21 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Target } from "lucide-react";
 import { PillMemo } from "../common/Pill";
 import { sanitizeString } from "../../utils/sanitize";
 import { ESTADOS } from "../../utils/constants";
 import { useFilters } from "../../context/FiltersContext";
 import { onKeyActivate } from "../../utils/a11y";
-import { getOperatorGoals } from "../../features/operator/operatorStore";
+// v1.9.6 (fix metas): suscripción para refrescar la meta mensual en la misma
+// pestaña (antes se leía dentro del useMemo y nunca se actualizaba).
+import { getOperatorGoals, subscribeOperatorGoals } from "../../features/operator/operatorStore";
 import { DEFAULT_GOALS } from "../../features/operator/operatorDefaults";
 
 export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
   const { selectedMonth, selectedYear } = useFilters();
   const [showDetalle, setShowDetalle] = useState(false);
+  const [goals, setGoals] = useState(() => getOperatorGoals());
+
+  useEffect(() => subscribeOperatorGoals(() => setGoals(getOperatorGoals())), []);
 
   const statsMes = useMemo(() => {
     const casosMes = casos.filter((c) => {
@@ -32,7 +37,8 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
         c.estado === "Reprogramado" ||
         c.estado === "2do Llamado"
     ).length;
-    const goals = getOperatorGoals();
+    // v1.9.6: la meta mensual viene del estado suscripto (goals) en lugar de
+    // leerse dentro del memo, para que los cambios de metas recalculen stats.
     const meta = goals?.monthly?.signed?.target || DEFAULT_GOALS.monthly.signed.target;
     const progreso = Math.min(100, (firmados / meta) * 100);
     const cumplido = firmados >= meta;
@@ -46,7 +52,7 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
       cumplido,
       total: casosMes.length,
     };
-  }, [casos, selectedMonth, selectedYear]);
+  }, [casos, selectedMonth, selectedYear, goals]);
 
   if (!casos || casos.length === 0) {
     return (

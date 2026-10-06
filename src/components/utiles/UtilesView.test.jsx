@@ -74,4 +74,22 @@ describe("UtilesView (navegación por grupos)", () => {
       screen.getByText(/Plantillas de documentos para reutilizar/)
     ).toBeTruthy();
   });
+
+  // 1.9.6: el badge dejó de contar las 4 categorías hardcodeadas y pasa a usar
+  // las categorías configuradas en config.conversacionesCategorias.
+  it("el badge de Conversación Sugerida cuenta las categorías configuradas", () => {
+    localStorage.setItem("conversaciones_Custom", JSON.stringify(["a", "b"]));
+    render(
+      <UtilesView
+        {...baseProps}
+        config={{ conversacionesCategorias: ["Custom"] }}
+      />
+    );
+    try {
+      const pills = screen.getByLabelText("Secciones de Útiles");
+      expect(within(pills).getByText("2")).toBeTruthy();
+    } finally {
+      localStorage.removeItem("conversaciones_Custom");
+    }
+  });
 });

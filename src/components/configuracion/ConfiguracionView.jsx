@@ -15,13 +15,17 @@ import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { Select } from "../common/Select";
 import { TextInput } from "../common/TextInput";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { Toggle } from "../common/Toggle";
 import { useJustifyPestanas } from "../common/UINav";
 import { PersonalizacionColores } from "./PersonalizacionColores";
 import { KeywordsInput } from "./KeywordsInput";
 import { TipografiaView } from "./TipografiaView";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
-import { getOperatorSettings, saveOperatorSettings } from "../../features/operator/operatorStore";
+// v1.9.6 (fix metas): getOperatorGoals + subscribeOperatorGoals para que el
+// input de meta muestre siempre el valor canónico (Mi Espacio) y se refresque
+// si cambia desde otra vista en la misma pestaña.
+import { getOperatorSettings, saveOperatorSettings, getOperatorGoals, subscribeOperatorGoals } from "../../features/operator/operatorStore";
 import { getOrderedMiEspacioKeys, MI_ESPACIO_LABELS, DEFAULT_MI_ESPACIO_ORDER } from "../../features/operator/miEspacioConfig";
 import { getMetricDefs, getDefaultCategories, getDefaultAlerts } from '../../features/dashboard/metricsEngine';
 import {
@@ -31,6 +35,19 @@ import {
 } from "../../features/dashboard/dashboardConfig";
 import { ESTADOS, TIPOS_INGRESO_SUGERIDOS, TEMPLATE_CATEGORIES_SUGERIDOS, DEFAULT_FICHA_FIELDS, FICHA_TARGET_OPCIONES } from '../../utils/constants';
 import { getEstados, getTiposIngreso, getTemplateCategories, getFichaFields } from '../../utils/catalogos';
+// 1.9.6: modelo de Útiles → Conversación Sugerida (categorías + variables con llaves).
+import {
+  CATEGORIAS_CONVERSACION_DEFAULT,
+  VARIABLE_OPERADOR,
+  getConversacionesCategorias,
+  getConversacionesVariables,
+  leerMensajes,
+  renombrarCategoria as renombrarClaveCategoria,
+  eliminarMensajes,
+  normalizarNombreVariable,
+  errorNombreCategoria,
+  errorNombreVariable,
+} from '../../utils/conversaciones';
 import { normalizarTexto } from '../../utils/helpers';
 import { getAllTemplates } from '../../features/templates/templatesStore';
 import {
@@ -100,6 +117,8 @@ const SECTION_META = {
   datos: "Backup completo, auto-backup, exportar/importar configuración y limpieza de datos.",
   citas: "Ajustes del calendario y de las citas vinculadas a casos.",
   plantillas: "Plantillas de reportes para agilizar el registro.",
+  conversaciones:
+    "Categorías y variables con llaves de Útiles → Conversación Sugerida.",
   apariencia: "Tema claro/oscuro, paletas de color y colores por estado de caso.",
   tipografia: "Presets tipográficos y tamaño de fuente de toda la app.",
   dashboard: "Orden de pestañas y widgets del Dashboard, Mi Espacio, Tablero, Tabla, Reportes y Útiles.",
@@ -347,6 +366,8 @@ export function ConfiguracionView({
         { id: "datos", label: "Datos", icon: Database },
         { id: "citas", label: "Citas y Calendario", icon: CalendarClock },
         { id: "plantillas", label: "Plantillas", icon: FileText },
+        // 1.9.6: editor de categorías y variables de Útiles → Conversación Sugerida.
+        { id: "conversaciones", label: "Conversación Sugerida", icon: MessagesSquare },
       ],
     },
     {
@@ -393,6 +414,13 @@ export function ConfiguracionView({
   const [grupoActivo, setGrupoActivo] = useState("general");
 
   const [seccion, setSeccion] = useState("general");
+
+  // 1.9.6: estados locales del editor de Conversación Sugerida.
+  const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [renombresCat, setRenombresCat] = useState({});
+  const [confirmCatBorrar, setConfirmCatBorrar] = useState(null);
+  const [nuevaVarNombre, setNuevaVarNombre] = useState("");
+  const [nuevaVarValor, setNuevaVarValor] = useState("");
 
   const justifyPestanas = useJustifyPestanas();
 
@@ -1090,8 +1118,22 @@ export function ConfiguracionView({
   };
 
   const [prodSettings, setProdSettings] = useState(() => getProductivitySettings());
-  const [dailyTarget, setDailyTargetState] = useState(() => getProductivitySettings().caseTarget || 5);
+  // v1.9.6 (fix metas): el valor inicial viene de la fuente canónica
+  // (userOperatorGoals) en lugar de la clave legacy userProductivitySettings.
+  const [dailyTarget, setDailyTargetState] = useState(
+    () => getOperatorGoals().daily.cases.target || getProductivitySettings().caseTarget || 5
+  );
   const [operatorSettings, setOperatorSettings] = useState(() => getOperatorSettings());
+
+  // v1.9.6 (fix metas): si la meta cambia desde Mi Espacio (misma pestaña),
+  // este input se refresca; sin esto mostraba el valor viejo hasta remontar.
+  useEffect(
+    () =>
+      subscribeOperatorGoals(() =>
+        setDailyTargetState(getOperatorGoals().daily.cases.target || 5)
+      ),
+    []
+  );
 
   const updateProdSetting = (key, val) => {
     const updated = saveProductivitySettings({ [key]: val });
@@ -1101,9 +1143,11 @@ export function ConfiguracionView({
 
   const handleTargetChange = (val) => {
     const num = Number(val) || 5;
+    // v1.9.6 (fix metas): setDailyTarget escribe ahora en userOperatorGoals
+    // (fuente canónica) y notifica a los suscriptores; se eliminó la llamada
+    // duplicada que había (se invocaba dos veces por cada guardado).
     setDailyTarget(num);
     setDailyTargetState(num);
-    setDailyTarget(num);
     showToast("Meta diaria actualizada", "success");
   };
 
@@ -1274,8 +1318,11 @@ export function ConfiguracionView({
                 </Btn>
               </div>
               <div className="text-[11px] mt-2" style={{ color: "var(--color-text-muted)" }}>
-                La meta de reportes diaria se calcula automáticamente según los casos
-                cargados el día hábil anterior (ignorando fines de semana y días sin casos).
+                {/* v1.9.6 (fix metas): la meta de reportes ya no se calcula
+                    sola; es la misma meta editable de Mi Espacio → Metas. */}
+                Esta meta se sincroniza con Mi Espacio → Metas (misma fuente que
+                usa el Dashboard). Las metas de reportes y firmas se configuran
+                directamente en Mi Espacio → Metas.
               </div>
             </div>
           </div>
@@ -2388,26 +2435,46 @@ export function ConfiguracionView({
                           {b.counts?.events || 0} eventos · {b.sizeKB || "?"} KB
                         </div>
                       </div>
-                      <div className="flex gap-1.5 flex-shrink-0 items-center">
-                        <Btn
-                          onClick={() => handleRestoreFromHistory(b.id)}
-                          size="sm"
-                          color="var(--color-accent)"
-                          icon={confirmRestoreBackupId === b.id ? AlertTriangle : Download}
-                          disabled={loading}
-                        >
-                          {confirmRestoreBackupId === b.id ? "Confirmar" : "Restaurar"}
-                        </Btn>
-                        {confirmRestoreBackupId === b.id && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo</span>}
-                        <BtnOutline
-                          onClick={() => handleDeleteBackup(b.id)}
-                          size="sm"
-                          color="var(--color-danger)"
-                          icon={confirmDeleteBackupId === b.id ? AlertTriangle : Trash2}
-                        >
-                          {confirmDeleteBackupId === b.id ? "Confirmar" : "Eliminar"}
-                        </BtnOutline>
-                        {confirmDeleteBackupId === b.id && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo</span>}
+                      {/* Fix visual 1.9.6: columna vertical en lugar de fila única.
+                          Antes la leyenda de confirmación quedaba ENTRE Restaurar y
+                          Eliminar y los desplazaba al aparecer, y el label cambiaba
+                          ("Restaurar"→"Confirmar") alterando el ancho y moviendo al
+                          vecino. Ahora: labels fijos y la leyenda en su propia línea
+                          debajo, sin tocar el layout de los botones.
+                          Respuesta visual de confirmación: en reposo son outline y al
+                          armar la 2da confirmación pasan a SOLID (fondo con color) +
+                          icono AlertTriangle + title, así el estado se ve de un vistazo. */}
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className="flex gap-1.5 items-center">
+                          <Btn
+                            onClick={() => handleRestoreFromHistory(b.id)}
+                            size="sm"
+                            color="var(--color-accent)"
+                            variant={confirmRestoreBackupId === b.id ? "solid" : "outline-accent"}
+                            icon={confirmRestoreBackupId === b.id ? AlertTriangle : Download}
+                            disabled={loading}
+                            title={confirmRestoreBackupId === b.id ? "Haz clic de nuevo para confirmar" : undefined}
+                          >
+                            Restaurar
+                          </Btn>
+                          <Btn
+                            onClick={() => handleDeleteBackup(b.id)}
+                            size="sm"
+                            color="var(--color-danger)"
+                            variant={confirmDeleteBackupId === b.id ? "solid" : "outline-accent"}
+                            icon={confirmDeleteBackupId === b.id ? AlertTriangle : Trash2}
+                            title={confirmDeleteBackupId === b.id ? "Haz clic de nuevo para confirmar" : undefined}
+                          >
+                            Eliminar
+                          </Btn>
+                        </div>
+                        {(confirmRestoreBackupId === b.id || confirmDeleteBackupId === b.id) && (
+                          <div className="text-xs" style={{ color: "var(--color-warning)" }}>
+                            {confirmRestoreBackupId === b.id && "Haz clic en Restaurar de nuevo para confirmar"}
+                            {confirmRestoreBackupId === b.id && confirmDeleteBackupId === b.id && " · "}
+                            {confirmDeleteBackupId === b.id && "Haz clic en Eliminar de nuevo para confirmar"}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2528,38 +2595,49 @@ export function ConfiguracionView({
                 >
                   Exportar JSON
                 </Btn>
-                <div className="relative">
-                  <label
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors hover:opacity-70"
-                    style={{
-                      backgroundColor: "transparent",
-                      border: "1px solid var(--color-accent)",
-                      color: "var(--color-accent)",
-                      opacity: _importOn("utilesJson") ? 1 : 0.4,
-                      pointerEvents: _importOn("utilesJson") ? "auto" : "none",
-                    }}
-                    title={_importOn("utilesJson") ? undefined : "Deshabilitado en Avanzado > Importación"}
-                  >
-                    <Upload size={13} /> Importar
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={handleImportConfig}
-                      className="hidden"
-                      disabled={!_importOn("utilesJson")}
-                    />
-                  </label>
-                </div>
+                {/* Fix visual 1.9.6: "Importar" era un <label> crudo (borde 1px,
+                    px-2.5 py-1.5, sin min-height) con una altura distinta al resto de
+                    la sección. Ahora es BtnOutline (mismo .btn-sm/borde 1.5px) con input
+                    oculto por ref, idéntico al patrón de "Restaurar backup" de Backup
+                    Completo; además suma disabled por loading como los demás imports.
+                    configFileInputRef (:190) estaba declarado sin uso y se recicla. */}
                 <BtnOutline
+                  onClick={() => configFileInputRef.current?.click()}
+                  size="sm"
+                  color="var(--color-accent)"
+                  icon={Upload}
+                  disabled={loading || !_importOn("utilesJson")}
+                  title={_importOn("utilesJson") ? undefined : "Deshabilitado en Avanzado > Importación"}
+                >
+                  Importar
+                </BtnOutline>
+                <input
+                  ref={configFileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportConfig}
+                  className="hidden"
+                />
+                {/* Fix visual 1.9.6: en reposo outline, al confirmar pasa a SOLID con
+                    icono AlertTriangle + title: respuesta visual clara del estado. */}
+                <Btn
                   onClick={handleEliminarUtiles}
                   color="var(--color-danger)"
                   size="sm"
+                  variant={confirmDeleteUtiles ? "solid" : "outline-accent"}
                   icon={confirmDeleteUtiles ? AlertTriangle : Trash2}
+                  title={confirmDeleteUtiles ? "Haz clic de nuevo para confirmar" : undefined}
                 >
-                  {confirmDeleteUtiles ? "Confirmar" : "Eliminar"}
-                </BtnOutline>
-                {confirmDeleteUtiles && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo para confirmar</span>}
+                  Eliminar
+                </Btn>
               </div>
+              {/* Fix visual 1.9.6: la leyenda estaba dentro de la fila flex; ahora vive
+                  en su propia línea debajo para que no desplace a los botones. */}
+              {confirmDeleteUtiles && (
+                <div className="text-xs mt-1" style={{ color: "var(--color-warning)" }}>
+                  Haz clic en Eliminar de nuevo para confirmar
+                </div>
+              )}
               <div
                 className="text-xs mt-2"
                 style={{ color: "var(--color-text-muted)" }}
@@ -2604,21 +2682,17 @@ export function ConfiguracionView({
                 >
                   Seleccionar meses (exportar o eliminar):
                 </label>
+                {/* Fix visual 1.9.6: eran <button> crudos con px-2 py-1 (una tercera
+                    altura distinta dentro de la misma sección). Ahora BtnOutline sm:
+                    misma altura/borde/hover que el resto de los botones de Datos,
+                    igual que "Cancelar" de Backup Completo. */}
                 <div className="flex flex-wrap gap-2 mb-2">
-                  <button
-                    onClick={selectAllMonths}
-                    className="px-2 py-1 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
+                  <BtnOutline onClick={selectAllMonths} size="sm" color="var(--color-text-muted)">
                     Seleccionar todos
-                  </button>
-                  <button
-                    onClick={clearMonths}
-                    className="px-2 py-1 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-surface)] transition-colors"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
+                  </BtnOutline>
+                  <BtnOutline onClick={clearMonths} size="sm" color="var(--color-text-muted)">
                     Limpiar selección
-                  </button>
+                  </BtnOutline>
                 </div>
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-[var(--color-border)] rounded">
                   {mesesDisponibles.length === 0 ? (
@@ -2690,20 +2764,28 @@ export function ConfiguracionView({
                   className="hidden"
                   onChange={handleImportCases}
                 />
-                <BtnOutline
+                {/* Fix visual 1.9.6: label fijo (antes "Eliminar"→"Confirmar" cambiaba
+                    el ancho y movía a los vecinos de la fila) y respuesta visual de
+                    confirmación: outline en reposo → SOLID al armar la 2da confirmación,
+                    con icono AlertTriangle + title. */}
+                <Btn
                   onClick={handleEliminarCasos}
                   color="var(--color-danger)"
                   size="sm"
+                  variant={confirmDeleteCases ? "solid" : "outline-accent"}
                   icon={confirmDeleteCases ? AlertTriangle : Trash2}
+                  title={confirmDeleteCases ? "Haz clic de nuevo para confirmar" : undefined}
                 >
-                  {confirmDeleteCases ? "Confirmar" : "Eliminar"}
-                </BtnOutline>
-                {confirmDeleteCases && (
-                  <span className="text-xs" style={{ color: "var(--color-warning)" }}>
-                    Haz clic de nuevo para confirmar
-                  </span>
-                )}
+                  Eliminar
+                </Btn>
               </div>
+              {/* Fix visual 1.9.6: leyenda fuera de la fila flex (antes al final de la
+                  misma fila, podía hacer wrap y desplazar botones). */}
+              {confirmDeleteCases && (
+                <div className="text-xs mt-1" style={{ color: "var(--color-warning)" }}>
+                  Haz clic en Eliminar de nuevo para confirmar
+                </div>
+              )}
               <div
                 className="text-xs mt-2"
                 style={{ color: "var(--color-text-muted)" }}
@@ -2741,16 +2823,42 @@ export function ConfiguracionView({
                 </BtnOutline>
                 <input ref={ncFileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportNotesCalendar} />
               </div>
+              {/* Fix visual 1.9.6: labels fijos y ambas leyendas MOVIDAS fuera de la
+                  fila. Antes la leyenda de "Eliminar notas" aparecía literalmente ENTRE
+                  "Eliminar notas" y "Eliminar eventos" y empujaba el segundo botón al
+                  confirmar (y el cambio de texto "Eliminar notas"→"Confirmar" también
+                  movía al vecino).
+                  Respuesta visual: outline en reposo → SOLID al armar la confirmación +
+                  icono AlertTriangle + title, con la leyenda en línea propia debajo. */}
               <div className="flex flex-wrap gap-2 pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-                <Btn onClick={handleDeleteNotes} color="var(--color-danger)" size="sm" icon={confirmDeleteNotes ? AlertTriangle : Trash2}>
-                  {confirmDeleteNotes ? "Confirmar" : "Eliminar notas"}
+                <Btn
+                  onClick={handleDeleteNotes}
+                  color="var(--color-danger)"
+                  size="sm"
+                  variant={confirmDeleteNotes ? "solid" : "outline-accent"}
+                  icon={confirmDeleteNotes ? AlertTriangle : Trash2}
+                  title={confirmDeleteNotes ? "Haz clic de nuevo para confirmar" : undefined}
+                >
+                  Eliminar notas
                 </Btn>
-                {confirmDeleteNotes && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo para confirmar</span>}
-                <Btn onClick={handleDeleteEvents} color="var(--color-danger)" size="sm" icon={confirmDeleteEvents ? AlertTriangle : Trash2}>
-                  {confirmDeleteEvents ? "Confirmar" : "Eliminar eventos"}
+                <Btn
+                  onClick={handleDeleteEvents}
+                  color="var(--color-danger)"
+                  size="sm"
+                  variant={confirmDeleteEvents ? "solid" : "outline-accent"}
+                  icon={confirmDeleteEvents ? AlertTriangle : Trash2}
+                  title={confirmDeleteEvents ? "Haz clic de nuevo para confirmar" : undefined}
+                >
+                  Eliminar eventos
                 </Btn>
-                {confirmDeleteEvents && <span className="text-xs" style={{ color: "var(--color-warning)" }}>Haz clic de nuevo para confirmar</span>}
               </div>
+              {(confirmDeleteNotes || confirmDeleteEvents) && (
+                <div className="text-xs mt-1" style={{ color: "var(--color-warning)" }}>
+                  {confirmDeleteNotes && "Haz clic en Eliminar notas de nuevo para confirmar"}
+                  {confirmDeleteNotes && confirmDeleteEvents && " · "}
+                  {confirmDeleteEvents && "Haz clic en Eliminar eventos de nuevo para confirmar"}
+                </div>
+              )}
             </div>
 
             {/* SECCION 3: Eliminacion de Datos */}
@@ -2764,8 +2872,23 @@ export function ConfiguracionView({
                     <span className="text-xs" style={{ color: "var(--color-text)" }}>
                       Elimina TODOS los datos cargados (útiles y casos)
                     </span>
-                    <Btn onClick={handleEliminarTodos} color="var(--color-danger)" size="sm" icon={AlertTriangle} disabled={confirmFinal && deleteKeyword !== "ELIMINAR"}>
-                      {confirmFinal ? "ULTIMA CONFIRMACION" : confirmEliminar ? "Confirmar eliminacion" : "Eliminar todos los datos"}
+                    {/* Fix visual 1.9.6: label fijo en los 3 estados (antes cambiaba a
+                        "Confirmar eliminacion"/"ULTIMA CONFIRMACION" y el ancho movía al
+                        texto de la izquierda); los estados se comunican en los bloques de
+                        abajo (leyenda de 2º clic y campo ELIMINAR).
+                        Respuesta visual: outline en reposo → SOLID en cuanto se arma la
+                        confirmación (1er clic), con icono AlertTriangle + title; igual
+                        que todos los demás botones de doble clic de la sección. */}
+                    <Btn
+                      onClick={handleEliminarTodos}
+                      color="var(--color-danger)"
+                      size="sm"
+                      variant={confirmEliminar || confirmFinal ? "solid" : "outline-accent"}
+                      icon={confirmEliminar || confirmFinal ? AlertTriangle : Trash2}
+                      disabled={confirmFinal && deleteKeyword !== "ELIMINAR"}
+                      title={confirmEliminar && !confirmFinal ? "Haz clic de nuevo para confirmar" : undefined}
+                    >
+                      Eliminar todos los datos
                     </Btn>
                   </div>
                   {confirmEliminar && !confirmFinal && (
@@ -3343,6 +3466,371 @@ export function ConfiguracionView({
                 <p>• Si renombrás una categoría, se actualiza automáticamente en todas las plantillas que la usen.</p>
               </div>
             </div>
+          </div>
+        );
+      }
+
+      // 1.9.6: editor de categorías y variables de Útiles → Conversación
+      // Sugerida. Todo vive en config (viaja en backups y resetea con Configuración).
+      case "conversaciones": {
+        const categorias = getConversacionesCategorias(config);
+        const variables = getConversacionesVariables(config);
+        const mensajesDe = (cat) => leerMensajes(cat, config).length;
+
+        const agregarCategoria = () => {
+          const nombre = nuevaCategoria.trim();
+          const error = errorNombreCategoria(nombre, categorias);
+          if (error) {
+            showToast(error, "error");
+            return;
+          }
+          actualizarConfig("conversacionesCategorias", [
+            ...categorias,
+            nombre,
+          ]);
+          setNuevaCategoria("");
+          showToast("Categoría agregada", "success");
+        };
+
+        // El rename se confirma al salir del campo (blur/Enter) para poder
+        // migrar la clave de localStorage de sus mensajes en un solo paso.
+        const confirmarRenombre = (idx) => {
+          const anterior = categorias[idx];
+          const propuesto = (renombresCat[idx] ?? anterior).trim();
+          setRenombresCat((prev) => {
+            const copia = { ...prev };
+            delete copia[idx];
+            return copia;
+          });
+          if (propuesto === anterior) return;
+          const otras = categorias.filter((_, i) => i !== idx);
+          const error = errorNombreCategoria(propuesto, otras);
+          if (error) {
+            showToast(error, "error");
+            return;
+          }
+          if (!renombrarClaveCategoria(anterior, propuesto)) {
+            showToast("Ya hay mensajes guardados con ese nombre", "error");
+            return;
+          }
+          actualizarConfig(
+            "conversacionesCategorias",
+            categorias.map((c, i) => (i === idx ? propuesto : c))
+          );
+          showToast("Categoría renombrada", "success");
+        };
+
+        const eliminarCategoria = () => {
+          const cat = confirmCatBorrar;
+          if (!cat) return;
+          const total = mensajesDe(cat);
+          eliminarMensajes(cat);
+          actualizarConfig(
+            "conversacionesCategorias",
+            categorias.filter((c) => c !== cat)
+          );
+          setConfirmCatBorrar(null);
+          showToast(`Categoría eliminada (${total} mensajes)`, "info");
+        };
+
+        const restaurarCategorias = () => {
+          actualizarConfig("conversacionesCategorias", [
+            ...CATEGORIAS_CONVERSACION_DEFAULT,
+          ]);
+          showToast("Categorías restauradas a los 4 originales", "info");
+        };
+
+        const agregarVariable = () => {
+          const nombre = normalizarNombreVariable(nuevaVarNombre);
+          const error = errorNombreVariable(
+            nombre,
+            variables.map((v) => v.nombre)
+          );
+          if (error) {
+            showToast(error, "error");
+            return;
+          }
+          actualizarConfig("conversacionesVariables", [
+            ...variables,
+            { nombre, valor: nuevaVarValor },
+          ]);
+          setNuevaVarNombre("");
+          setNuevaVarValor("");
+          showToast("Variable agregada", "success");
+        };
+
+        // Normalización en vivo (mayúsculas y " " → "_"): el input siempre
+        // muestra el nombre final que se usará en las llaves {NOMBRE_VARIABLE}.
+        const cambiarNombreVariable = (idx, valor) => {
+          actualizarConfig(
+            "conversacionesVariables",
+            variables.map((v, i) =>
+              i === idx ? { ...v, nombre: normalizarNombreVariable(valor) } : v
+            )
+          );
+        };
+        const validarNombreVariable = (idx) => {
+          const otras = variables
+            .filter((_, i) => i !== idx)
+            .map((v) => v.nombre);
+          const error = errorNombreVariable(variables[idx]?.nombre, otras);
+          if (error) showToast(error, "error");
+        };
+        const cambiarValorVariable = (idx, valor) => {
+          actualizarConfig(
+            "conversacionesVariables",
+            variables.map((v, i) => (i === idx ? { ...v, valor } : v))
+          );
+        };
+        const eliminarVariable = (idx) => {
+          actualizarConfig(
+            "conversacionesVariables",
+            variables.filter((_, i) => i !== idx)
+          );
+          showToast("Variable eliminada", "info");
+        };
+        const restaurarVariables = () => {
+          actualizarConfig("conversacionesVariables", []);
+          showToast("Variables restauradas (solo OPERADOR)", "info");
+        };
+
+        return (
+          <div className="space-y-4">
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <MessagesSquare size={14} color="var(--color-accent)" />
+                Variables con llaves
+              </div>
+              <div
+                className="text-[10px] mb-3"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Se usan en Útiles → Conversación Sugerida: al copiar un mensaje
+                cada llave se reemplaza por su valor. Las llaves sin valor quedan
+                como texto literal. OPERADOR siempre está disponible y toma el
+                campo Operador.
+              </div>
+              <div className="space-y-2">
+                <div
+                  className="flex items-center gap-2"
+                  style={{
+                    backgroundColor: "var(--color-surface2)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                    padding: "8px",
+                  }}
+                >
+                  <TextInput
+                    value={VARIABLE_OPERADOR}
+                    disabled
+                    className="flex-1"
+                    aria-label="Variable reservada"
+                  />
+                  <TextInput
+                    value={config.operador || ""}
+                    disabled
+                    placeholder="Sin operador definido"
+                    className="flex-1"
+                    aria-label="Valor de la variable OPERADOR"
+                  />
+                  <span
+                    className="text-[10px] whitespace-nowrap"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Reservada
+                  </span>
+                </div>
+                {variables.map((v, idx) => (
+                  <div
+                    key={`${idx}-${v.nombre}`}
+                    className="flex items-center gap-2"
+                    style={{
+                      backgroundColor: "var(--color-surface2)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "8px",
+                      padding: "8px",
+                    }}
+                  >
+                    <TextInput
+                      value={v.nombre}
+                      onChange={(e) => cambiarNombreVariable(idx, e.target.value)}
+                      onBlur={() => validarNombreVariable(idx)}
+                      className="flex-1"
+                      placeholder="NOMBRE_VARIABLE"
+                      aria-label="Nombre de la variable"
+                    />
+                    <TextInput
+                      value={v.valor}
+                      onChange={(e) => cambiarValorVariable(idx, e.target.value)}
+                      className="flex-1"
+                      placeholder="Valor al copiar"
+                      aria-label={`Valor de ${v.nombre}`}
+                    />
+                    <button
+                      onClick={() => eliminarVariable(idx)}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--color-surface)]"
+                      style={{ color: "var(--color-danger)" }}
+                      aria-label={`Eliminar ${v.nombre}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                {variables.length === 0 && (
+                  <div
+                    className="text-xs py-2"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Sin variables personalizadas: solo OPERADOR.
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap items-center">
+                <TextInput
+                  value={nuevaVarNombre}
+                  onChange={(e) => setNuevaVarNombre(e.target.value)}
+                  placeholder="NOMBRE_VARIABLE"
+                  style={{ maxWidth: 190 }}
+                  aria-label="Nombre de la nueva variable"
+                />
+                <TextInput
+                  value={nuevaVarValor}
+                  onChange={(e) => setNuevaVarValor(e.target.value)}
+                  placeholder="Valor al copiar"
+                  style={{ maxWidth: 220 }}
+                  aria-label="Valor de la nueva variable"
+                />
+                <Btn onClick={agregarVariable} size="sm" icon={Plus}>
+                  Agregar variable
+                </Btn>
+                <BtnOutline
+                  onClick={restaurarVariables}
+                  size="sm"
+                  color="var(--color-text-muted)"
+                >
+                  Restaurar por defecto
+                </BtnOutline>
+              </div>
+            </div>
+
+            <div className="config-section">
+              <div className="config-section-title flex items-center gap-2">
+                <MessagesSquare size={14} color="var(--color-accent)" />
+                Categorías
+              </div>
+              <div
+                className="text-[10px] mb-3"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Pestañas de Útiles → Conversación Sugerida. Renombrar mueve los
+                mensajes guardados; eliminar borra también sus mensajes.
+              </div>
+              <div className="space-y-2">
+                {categorias.map((cat, idx) => (
+                  <div
+                    key={`${idx}-${cat}`}
+                    className="flex items-center gap-2"
+                    style={{
+                      backgroundColor: "var(--color-surface2)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "8px",
+                      padding: "8px",
+                    }}
+                  >
+                    <TextInput
+                      value={renombresCat[idx] ?? cat}
+                      onChange={(e) =>
+                        setRenombresCat((prev) => ({
+                          ...prev,
+                          [idx]: e.target.value,
+                        }))
+                      }
+                      onBlur={() => confirmarRenombre(idx)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.target.blur();
+                      }}
+                      className="flex-1"
+                      aria-label={`Nombre de la categoría ${cat}`}
+                    />
+                    <span
+                      className="text-[10px] whitespace-nowrap"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      {mensajesDe(cat)} mensajes
+                    </span>
+                    <button
+                      onClick={() => setConfirmCatBorrar(cat)}
+                      className="p-1.5 rounded transition-colors hover:bg-[var(--color-surface)]"
+                      style={{ color: "var(--color-danger)" }}
+                      aria-label={`Eliminar ${cat}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-3 flex-wrap items-center">
+                <TextInput
+                  value={nuevaCategoria}
+                  onChange={(e) => setNuevaCategoria(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") agregarCategoria();
+                  }}
+                  placeholder="Nueva categoría"
+                  style={{ maxWidth: 240 }}
+                  aria-label="Nueva categoría"
+                />
+                <Btn onClick={agregarCategoria} size="sm" icon={Plus}>
+                  Agregar categoría
+                </Btn>
+                <BtnOutline
+                  onClick={restaurarCategorias}
+                  size="sm"
+                  color="var(--color-text-muted)"
+                >
+                  Restaurar por defecto
+                </BtnOutline>
+              </div>
+            </div>
+
+            <div className="config-section">
+              <div
+                className="config-section-title flex items-center gap-1.5"
+                style={{ color: "var(--color-accent)" }}
+              >
+                <Lightbulb size={13} aria-hidden="true" /> Sugerencias
+              </div>
+              <div
+                className="text-xs space-y-1"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                <p>
+                  • OPERADOR no se puede editar: su valor sale del campo
+                  Operador (Configuración → General).
+                </p>
+                <p>
+                  • Creá variables útiles como{" "}
+                  <code>{"{HORARIO}"}</code> con valor "de 9 a 18" y usalas con
+                  los chips de inserción en la vista.
+                </p>
+                <p>
+                  • Los cambios se guardan junto con la configuración y los
+                  backups.
+                </p>
+              </div>
+            </div>
+
+            <ConfirmDialog
+              open={!!confirmCatBorrar}
+              title="Eliminar categoría"
+              message={`Se eliminarán los ${mensajesDe(
+                confirmCatBorrar
+              )} mensajes de "${confirmCatBorrar}". Esta acción no se puede deshacer.`}
+              confirmLabel="Eliminar"
+              confirmColor="var(--color-danger)"
+              onCancel={() => setConfirmCatBorrar(null)}
+              onConfirm={eliminarCategoria}
+            />
           </div>
         );
       }

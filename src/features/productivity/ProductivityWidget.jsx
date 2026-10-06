@@ -14,6 +14,8 @@ import {
   getOperatorGoals,
   getOperatorSettings,
   readOperatorCases,
+  // v1.9.6 (fix metas): refresco en la misma pestaña al editar metas.
+  subscribeOperatorGoals,
 } from '../operator/operatorStore';
 import { buildPersonalSuggestions } from '../operator/operatorMetrics';
 
@@ -32,8 +34,16 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
   const settings = getProductivitySettings();
 
   useEffect(() => {
-    setGoals(getGoalsState(dayISO));
-    setMemory(getContextMemory());
+    const refresh = () => {
+      setGoals(getGoalsState(dayISO));
+      setMemory(getContextMemory());
+    };
+    refresh();
+    // v1.9.6 (fix metas): el evento `storage` no se dispara en la misma
+    // pestaña; se suscribe a los cambios de metas de Mi Espacio para que este
+    // widget (dentro del Dashboard, que está memoizado con React.memo) se
+    // refresque al instante al editar metas desde Configuración o Mi Espacio.
+    return subscribeOperatorGoals(refresh);
   }, [dayISO]);
 
   const suggestions = settings.suggestionsEnabled
@@ -60,10 +70,16 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
 
   const diaLabel = dayISO ? `día ${dayISO.slice(-2)}/${dayISO.slice(5, 7)}` : "hoy";
   const casesProgress = Math.min(100, Math.round(((goals.casesLoadedToday || 0) / (goals.dailyTarget || 1)) * 100));
+  // v1.9.6 (fix metas unificadas): reportsTarget ahora viene de la meta
+  // editable de Mi Espacio (userOperatorGoals.daily.reports) y el numerador
+  // usa countReportsOnDay, igual que Mi Espacio. Si la meta está
+  // deshabilitada, la barra queda en 0 (antes marcaba 100% "completada",
+  // lo que confundía: deshabilitada ≠ cumplida).
   const reportsTarget = goals.reportsTarget || 0;
-  const reportsProgress = reportsTarget > 0
-    ? Math.min(100, Math.round(((goals.reportsDoneToday || 0) / reportsTarget) * 100))
-    : 100;
+  const reportsProgress =
+    goals.reportsEnabled && reportsTarget > 0
+      ? Math.min(100, Math.round(((goals.reportsDoneToday || 0) / reportsTarget) * 100))
+      : 0;
   const lastCase = memory.lastCases && memory.lastCases.length > 0 ? memory.lastCases[0] : null;
 
   return (
@@ -118,9 +134,11 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
             />
           </div>
           <div className="text-[10px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            {reportsTarget > 0
-              ? `Meta de reportes del día hábil anterior (${goals.prevDayISO || 'sin casos previos'}).`
-              : 'Sin casos del día hábil anterior. Meta de reportes completada.'}
+            {/* v1.9.6 (fix metas): antes mostraba la meta automática "del día
+                hábil anterior" (prevDayISO), que divergía de Mi Espacio. */}
+            {goals.reportsEnabled
+              ? 'Meta de reportes diaria, idéntica a Mi Espacio → Metas.'
+              : 'Meta de reportes deshabilitada en Mi Espacio → Metas.'}
           </div>
         </div>
       )}

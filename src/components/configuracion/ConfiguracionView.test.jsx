@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import { HelpProvider } from "../../help";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { UXProvider } from "../../context/UXContext";
@@ -28,7 +28,9 @@ window.ResizeObserver =
     disconnect() {}
   };
 
-function VistaConfig({ onCfg }) {
+// 1.9.6: showToast ahora es parametrizable para poder asertar errores de
+// validación del editor de Conversación Sugerida.
+function VistaConfig({ onCfg, showToast = noop }) {
   const [cfg, setCfg] = useState({ ...CONFIG_DEFAULT });
   const setConfig = (next) => {
     setCfg(next);
@@ -64,7 +66,7 @@ function VistaConfig({ onCfg }) {
           setObservacionesTransito={noop}
           condicionales={[]}
           setCondicionales={noop}
-          showToast={noop}
+          showToast={showToast}
           casos={[]}
           onEliminarTodos={noop}
           setCasos={noop}
@@ -79,6 +81,19 @@ const abrirPegadoDeFicha = () => {
   fireEvent.click(within(grupos).getByText("Avanzado"));
   const secciones = screen.getByLabelText("Secciones de Configuración");
   fireEvent.click(within(secciones).getByText("Pegado de Ficha"));
+};
+
+// 1.9.6: sección nueva en el grupo General.
+const abrirConversaciones = () => {
+  const secciones = screen.getByLabelText("Secciones de Configuración");
+  fireEvent.click(within(secciones).getByText("Conversación Sugerida"));
+};
+
+// 1.9.6 (fix visual): sección Datos del grupo General (General es el grupo por
+// defecto, igual que para Conversación Sugerida, así que no hace falta clickearlo).
+const abrirDatos = () => {
+  const secciones = screen.getByLabelText("Secciones de Configuración");
+  fireEvent.click(within(secciones).getByText("Datos"));
 };
 
 const tipear = (input, texto) => {
@@ -207,5 +222,201 @@ describe("ConfiguracionView", () => {
     expect(screen.getByLabelText("Secciones de Configuración").style.justifyContent).toBe(
       "flex-end"
     );
+  });
+});
+
+// 1.9.6: editor de categorías y variables de Útiles → Conversación Sugerida.
+describe("ConfiguracionView · Conversación Sugerida (1.9.6)", () => {
+  const KEY = "conversaciones_Accidente_Laboral";
+  beforeEach(() => localStorage.removeItem(KEY));
+  afterEach(() => localStorage.removeItem(KEY));
+
+  it("lista las categorías con su conteo y OPERADOR como variable reservada", () => {
+    localStorage.setItem(KEY, JSON.stringify(["a", "b", "c"]));
+    render(<VistaConfig />);
+    abrirConversaciones();
+
+    expect(screen.getByLabelText("Variable reservada").disabled).toBe(true);
+    expect(screen.getByDisplayValue("Accidente Laboral")).toBeTruthy();
+    expect(screen.getAllByText(/mensajes$/).length).toBeGreaterThanOrEqual(4);
+    // 3 mensajes en cada una de las 4 categorías originales.
+    expect(screen.getAllByText("3 mensajes")).toHaveLength(4);
+  });
+
+  it("agregar categoría válida la agrega a config", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirConversaciones();
+
+    const input = screen.getByLabelText("Nueva categoría");
+    fireEvent.change(input, { target: { value: "Gestiones" } });
+    fireEvent.click(screen.getByText("Agregar categoría"));
+
+    expect(visto.conversacionesCategorias).toContain("Gestiones");
+    expect(input.value).toBe("");
+  });
+
+  it("agregar categoría duplicada muestra error y no la agrega", () => {
+    const showToast = vi.fn();
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} showToast={showToast} />);
+    abrirConversaciones();
+
+    fireEvent.change(screen.getByLabelText("Nueva categoría"), {
+      target: { value: "accidente laboral" },
+    });
+    fireEvent.click(screen.getByText("Agregar categoría"));
+
+    expect(showToast).toHaveBeenCalledWith(
+      expect.stringMatching(/Ya existe/),
+      "error"
+    );
+    // setConfig nunca se invocó: config quedó intacta.
+    expect(visto).toBeNull();
+  });
+
+  it("renombrar en blur migra los mensajes a la nueva clave", () => {
+    localStorage.setItem(KEY, JSON.stringify(["m1"]));
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirConversaciones();
+
+    const input = screen.getByLabelText(
+      "Nombre de la categoría Accidente Laboral"
+    );
+    fireEvent.change(input, { target: { value: "Accidente Nuevo" } });
+    fireEvent.blur(input);
+
+    expect(visto.conversacionesCategorias).toContain("Accidente Nuevo");
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(
+      JSON.parse(localStorage.getItem("conversaciones_Accidente_Nuevo"))
+    ).toEqual(["m1"]);
+    localStorage.removeItem("conversaciones_Accidente_Nuevo");
+  });
+
+  it("eliminar categoría pide confirmación y borra sus mensajes", () => {
+    localStorage.setItem(KEY, JSON.stringify(["m1", "m2"]));
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirConversaciones();
+
+    fireEvent.click(screen.getByLabelText("Eliminar Accidente Laboral"));
+    expect(screen.getByText(/Se eliminarán los 2 mensajes/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Eliminar"));
+
+    expect(visto.conversacionesCategorias).not.toContain("Accidente Laboral");
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it("agregar variable normaliza el nombre y guarda el valor", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirConversaciones();
+
+    fireEvent.change(screen.getByLabelText("Nombre de la nueva variable"), {
+      target: { value: "horario atencion" },
+    });
+    fireEvent.change(screen.getByLabelText("Valor de la nueva variable"), {
+      target: { value: "de 9 a 18" },
+    });
+    fireEvent.click(screen.getByText("Agregar variable"));
+
+    expect(visto.conversacionesVariables).toEqual([
+      { nombre: "HORARIO_ATENCION", valor: "de 9 a 18" },
+    ]);
+  });
+
+  it("el nombre de variable existente normaliza en vivo y OPERADOR no es borrable", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirConversaciones();
+
+    fireEvent.change(screen.getByLabelText("Nombre de la nueva variable"), {
+      target: { value: "Empresa" },
+    });
+    fireEvent.click(screen.getByText("Agregar variable"));
+
+    const nombre = screen.getByLabelText("Nombre de la variable");
+    fireEvent.change(nombre, { target: { value: "otra cosa" } });
+    expect(visto.conversacionesVariables[0].nombre).toBe("OTRA_COSA");
+
+    expect(screen.queryByLabelText("Eliminar OPERADOR")).toBeNull();
+  });
+
+  // Fix visual 1.9.6: Configuración → Datos. Antes los labels cambiaban a
+  // "Confirmar" (alterando el ancho y moviendo a los botones vecinos de la fila)
+  // y las leyendas de confirmación aparecían DENTRO de la fila flex, empujando a
+  // los demás botones. Estos tests blindan el comportamiento nuevo.
+  describe("Datos (fix visual 1.9.6)", () => {
+    it("confirmar mantiene el label fijo y la leyenda vive fuera de la fila", () => {
+      render(<VistaConfig />);
+      abrirDatos();
+
+      fireEvent.click(screen.getByRole("button", { name: "Eliminar notas" }));
+
+      // Label constante: el ancho del botón no cambia y no desplaza al vecino.
+      expect(screen.getByRole("button", { name: "Eliminar notas" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Confirmar" })).toBeNull();
+      // La leyenda se comunica en una línea propia (ya dentro o fuera de la fila,
+      // el text del botón es lo que garantiza que no haya movimiento).
+      expect(
+        screen.getByText("Haz clic en Eliminar notas de nuevo para confirmar")
+      ).toBeTruthy();
+    });
+
+    it("'Importar' de Utiles es un botón BtnOutline con .btn-sm, no un <label> crudo", () => {
+      render(<VistaConfig />);
+      abrirDatos();
+
+      // Antes era un <label> con borde 1px y padding propio (altura distinta al
+      // resto de la sección); ahora hereda .btn-base/.btn-sm como todos.
+      const btn = screen.getByRole("button", { name: "Importar" });
+      expect(btn.className).toContain("btn-base");
+      expect(btn.className).toContain("btn-sm");
+    });
+
+    it("'Seleccionar todos' y 'Limpiar selección' usan el componente Btn (btn-sm)", () => {
+      render(<VistaConfig />);
+      abrirDatos();
+
+      // Antes eran <button> crudos con px-2 py-1 (una tercera altura en la página).
+      expect(
+        screen.getByRole("button", { name: "Seleccionar todos" }).className
+      ).toContain("btn-sm");
+      expect(
+        screen.getByRole("button", { name: "Limpiar selección" }).className
+      ).toContain("btn-sm");
+    });
+
+    // Respuesta visual del estado: outline en reposo → SOLID al armar la 2da
+    // confirmación (fondo con color + sin borde), igual en todos los de doble clic.
+    it("los botones de doble clic pasan de outline a solid al confirmar", async () => {
+      render(<VistaConfig />);
+      // Deja resolver dentro de act la promesa del efecto getBackupHistory del
+      // montaje, para que su setState no escape al warnings "act(...)".
+      await act(async () => {});
+      abrirDatos();
+
+      const notas = screen.getByRole("button", { name: "Eliminar notas" });
+      expect(notas.style.backgroundColor).toBe("transparent");
+
+      fireEvent.click(notas);
+
+      const armado = screen.getByRole("button", { name: "Eliminar notas" });
+      // Solid: el fondo deja de ser transparente (jsdom no conserva el var() del
+      // borde en el shorthand, por eso se assertea el background y no el border).
+      expect(armado.style.backgroundColor).not.toBe("transparent");
+      expect(armado.title).toBe("Haz clic de nuevo para confirmar");
+
+      // Mismo patrón en el botón de tres estados "Eliminar todos los datos".
+      const todos = screen.getByRole("button", { name: "Eliminar todos los datos" });
+      expect(todos.style.backgroundColor).toBe("transparent");
+      fireEvent.click(todos);
+      expect(
+        screen.getByRole("button", { name: "Eliminar todos los datos" }).style
+          .backgroundColor
+      ).not.toBe("transparent");
+    });
   });
 });

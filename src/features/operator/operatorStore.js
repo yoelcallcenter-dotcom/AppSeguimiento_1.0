@@ -48,6 +48,32 @@ function writeJSON(key, value) {
 }
 
 // ============================================================
+// SUSCRIPCIÓN A CAMBIOS DE METAS (misma pestaña)
+// v1.9.6 (fix metas unificadas): el evento `storage` solo se dispara en otra
+// pestaña, así que el Dashboard y Mi Espacio no se enteraban de cambios de
+// metas hechos en la misma pestaña (p.ej. desde Configuración). Se agrega un
+// pub/suscripción simple que notifica al guardar metas; cada consumidor se
+// suscribe en un useEffect y refresca su estado.
+// ============================================================
+const goalsListeners = new Set();
+
+/** Suscribe un callback a cambios de metas. Devuelve la función de baja. */
+export function subscribeOperatorGoals(listener) {
+  goalsListeners.add(listener);
+  return () => goalsListeners.delete(listener);
+}
+
+function notifyGoalsChanged() {
+  goalsListeners.forEach((cb) => {
+    try {
+      cb();
+    } catch {
+      /* un listener con error no debe cortar la cadena */
+    }
+  });
+}
+
+// ============================================================
 // MIGRACIÓN DESDE DATOS LEGACY (v1.1.x)
 // ============================================================
 /**
@@ -72,12 +98,16 @@ function migrateLegacyGoals(goals) {
     const target =
       legacyCaseTarget || legacyDailyTarget || goals.daily.cases.target || 5;
 
-    if (target !== goals.daily.cases.target || !goals.daily.cases.enabled) {
+    // v1.9.6 (fix metas): ANTES se forzaba `enabled: true` en toda migración
+    // (`|| !goals.daily.cases.enabled`), por lo que desactivar la meta diaria
+    // de casos en Mi Espacio se revertía en cada lectura. Ahora solo se
+    // migra el valor legado cuando difiere, respetando el `enabled` guardado.
+    if (target !== goals.daily.cases.target) {
       return {
         ...goals,
         daily: {
           ...goals.daily,
-          cases: { enabled: true, target },
+          cases: { ...goals.daily.cases, target },
         },
       };
     }
@@ -146,6 +176,9 @@ export function saveOperatorGoals(patch) {
   const updated = { ...current, ...patch };
   writeJSON(OPERATOR_STORAGE_KEYS.GOALS, updated);
   syncCaseTargetToLegacy(updated);
+  // v1.9.6: notifica a los suscriptores (Dashboard, Mi Espacio, Configuración,
+  // widgets) para que refresquen en la misma pestaña.
+  notifyGoalsChanged();
   return updated;
 }
 

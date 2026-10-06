@@ -7,6 +7,59 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.9.6] - Categorías y variables configurables en Conversación Sugerida
+
+Conversión de "Conversación Sugerida" en una herramienta configurable: ahora se pueden crear, renombrar y eliminar categorías (pestañas) y variables con llaves como `{HORARIO}`, todo desde Configuración, además de funciones nuevas de uso diario (copiar la secuencia completa, reordenar y duplicar mensajes, buscar y contar caracteres). Todo determinístico y local, sin servicios externos.
+
+### Configuración → General → Conversación Sugerida (sección nueva)
+
+- **Categorías editables**: alta, renombrado (migra los mensajes guardados a la clave nueva, sin pisar claves existentes) y baja con confirmación que advierte y **borra también sus mensajes**; "Restaurar por defecto" repone las 4 originales sin tocar los datos guardados.
+- **Variables con llaves configurables**: cada `{NOMBRE_VARIABLE}` tiene un valor fijo (ej: `{HORARIO}` = "de 9 a 18"), con validación de nombre (mayúsculas, espacios a `_`, dígitos permitidos, sin duplicados) y valores que se guardan a medida que se tipean.
+- **`{OPERADOR}` es reservada**: no se puede editar ni borrar; sigue tomando el valor del campo Operador.
+- Las categorías y variables viven en `config` (`conversacionesCategorias` / `conversacionesVariables`): viajan en los backups de configuración y se resetean con Restaurar de Configuración; las claves `conversaciones_*` y el formato `string[]` de los mensajes no cambian (compatibilidad total con backups, restore y reset existentes).
+
+### En la vista de Conversación Sugerida
+
+- **Resolución completa al copiar**: antes solo se reemplazaba `{OPERADOR}`; ahora se reemplazan todas las variables configuradas. `{NOMBRE}` y `{HORARIO}` de las plantillas originales **ya no se copian literales sin aviso**: la vista previa resalta en verde cada variable resuelta y en rojo ondulado las que faltan, con el aviso "Hay variables sin valor configurado" (se copian tal cual, decisión sin sorpresas).
+- **Chips "Insertar:"**: fila de botones con cada variable que pega la llave en el cursor del textarea de alta.
+- **Copiar secuencia completa**: un botón copia todos los mensajes de la categoría con las variables resueltas, separados por línea en blanco.
+- **Reordenar (↑/↓) y duplicar** mensajes en cada fila; **buscar** dentro de la categoría (filtra la vista, no toca lo guardado); **contador de caracteres** en el textarea de alta y en cada mensaje.
+- **Categorías nuevas arrancan vacías** (antes heredaban las 3 plantillas genéricas ajenas); **"Restaurar originales" solo aparece en las 4 categorías originales** (antes restauraba plantillas ajenas sobre una categoría nueva); si la categoría activa desaparece desde Configuración, la vista cae a la primera disponible.
+- **Badge dinámico**: la pestaña "Conversación Sugerida" de Útiles cuenta las categorías configuradas (antes solo las 4 hardcodeadas).
+
+### Configuración → Datos (fix visual de botones)
+
+- **Labels de confirmación fijos**: los botones de doble clic ya no cambian su texto ("Restaurar"→"Confirmar", "Eliminar notas"→"Confirmar", "Eliminar todos los datos"→"ULTIMA CONFIRMACION"). Ese cambio de ancho movía a los botones vecinos de la misma fila; ahora el texto es constante y el estado de confirmación se comunica con el icono `AlertTriangle` + tooltip `title`.
+- **Leyendas de confirmación fuera de la fila**: los avisos "Haz clic…" ya no aparecen dentro del `flex` de botones (en Notas y Calendario quedaban literalmente *entre* "Eliminar notas" y "Eliminar eventos" y lo empujaban); ahora viven en su propia línea debajo, sin desplazar nada al aparecer. En el historial de backups la columna de botones pasó a columna vertical (fila de botones + leyenda debajo).
+- **Unificación de componentes**: "Importar" de Gestión de Útiles dejó de ser un `<label>` crudo (borde 1px, sin `min-height`, estado por `opacity` en vez de `disabled`) y pasó a `BtnOutline size="sm"` con input oculto por ref (mismo patrón que "Restaurar backup", reutilizando el ref `configFileInputRef` que estaba declarado sin uso); "Seleccionar todos" y "Limpiar selección" dejaron de ser `<button>` crudos (`px-2 py-1`) y también pasaron a `BtnOutline sm`. Toda la sección queda con una sola altura de botón (`.btn-sm`, borde 1.5px) en lugar de las 3 anteriores.
+- **Respuesta visual en la 2da confirmación**: todos los botones de doble clic de la sección arrancan **outline** y al armar la confirmación pasan a **solid** (fondo con color), además de icono `AlertTriangle` y tooltip `title`. Antes el estado casi no se notaba: los outline solo cambiaban de icono y los que ya eran sólidos no cambiaban en absoluto.
+
+### Estadísticas · filtro por día: no más días sin casos
+
+- **`MonthDayFilterBar` ya no renderiza días sin casos**: antes agregaba al selector los días no disponibles de Mi Espacio (feriados, vacaciones, ausencias y días libres); al seleccionarlos la lista quedaba vacía porque no había casos en esas fechas. Ahora solo se muestran los días con casos reales, según el contrato de `DayFilter` ("solo muestra los días que tienen casos").
+- **Filtro por día normalizado**: el filtrado en `App.jsx` partía `c.fecha` a mano (`split('-')`), por lo que una fecha legada `DD/MM/YYYY` no coincidía con el día elegido y el día se renderizaba sin resultados. Ahora usa `normalizeDate`, igual que el selector de días.
+
+### Metas unificadas: Dashboard ↔ Mi Espacio
+
+- **Fuente canónica única (`userOperatorGoals`)**: "Guardar Meta" de Configuración escribía solo `userProductivitySettings.caseTarget` y `userGoals.dailyTarget` sin tocar las metas de Mi Espacio; ahora `setDailyTarget` escribe vía `saveOperatorGoals` (que además espeja las claves legacy) y se eliminó la llamada duplicada que se hacía en cada guardado.
+- **Meta de reportes unificada**: el widget del Dashboard calculaba sola la meta de reportes ("día hábil anterior", con numerador distinto) mientras Mi Espacio usa la meta editable `daily.reports` con `countReportsOnDay`; ahora ambos muestran los mismos números, y si la meta está deshabilitada la barra queda en 0 (antes marcaba 100% "completada"). La leyenda del widget y la ayuda de Configuración se actualizaron: la meta de reportes ya no es automática.
+- **Se eliminó el override con fecha de `userGoals.dailyTarget`** en `getGoalsState` (un snapshot del día pisaba el valor vigente); ese registro ahora solo aporta los contadores de micro-analítica.
+- **Refresco en la misma pestaña**: nuevo `subscribeOperatorGoals` en `operatorStore`; `saveOperatorGoals` notifica a los suscriptores y Dashboard (memoizado con `[]` + `React.memo`), ProductivityWidget, LogroObjetivos, `useOperatorState` (Mi Espacio) y Configuración se refrescan al instante (el evento `storage` solo llega desde otra pestaña).
+- **Migración respeta el apagado de la meta**: `migrateLegacyGoals` ya no fuerza `enabled: true` en cada lectura, por lo que desactivar la meta diaria de casos en Mi Espacio ahora persiste.
+- **Fix "casos undefined/5"**: la tarjeta de Pendientes de Mi Espacio pasaba las metas crudas a `getPendientesDelDia`, que espera la forma de progreso con `current`; ahora envuelve el progreso con `getDailyGoalProgress` y el detalle muestra valores reales.
+
+### Tests
+
+- Nuevo `src/utils/conversaciones.test.js` (20 tests): catálogo de categorías, variables, resolución de llaves, storage con fallback por categoría, migración de claves y validaciones.
+- Ampliados `ConversacionesSugeridasView.test.jsx` (15 tests: copiado con variables resueltas, chips, secuencia, orden, duplicado, búsqueda, categorías nuevas), `ConfiguracionView.test.jsx` (+11: +7 de alta/renombrado/baja de categorías con migración y borrado de mensajes, alta de variables con normalización; +4 del fix visual de Datos: label fijo al confirmar sin botón "Confirmar", "Importar" como botón con `btn-sm`, `btn-sm` en selección de meses, y transición outline→solid al confirmar) y `UtilesView.test.jsx` (+1: badge con categorías configuradas).
+- Nuevos: `productivityStore.test.js` (7 tests: escritura canónica de la meta + espejo de claves legacy + notificación a suscriptores, meta de reportes unificada y sin `prevDayISO`, ignorado del snapshot legado, migración que respeta `enabled` y espejo en `saveOperatorGoals`), `MonthDayFilterBar.test.jsx` (2: solo días con casos y ausencia de días no disponibles de Mi Espacio; "Sin casos en el mes") y `ProductivityWidget.test.jsx` (1: refresco de la meta por suscripción en la misma pestaña).
+- **Suite: 990 tests en verde (90 archivos); `npm run build` compila sin errores.**
+- Bump a **1.9.6** en `version.js`, `package.json`, `package-lock.json`; CHANGELOG unificado byte-idéntico en `CHANGELOG.md`, `src/docs/CHANGELOG.md` y `public/docs/CHANGELOG.md`.
+
+### Nota conocida
+
+- Importar un backup viejo puede dejar claves `conversaciones_*` huérfanas de categorías ya borradas (quedan invisibles); se limpian con "Borrar todos los datos" en Configuración → Datos.
+
 ## [1.9.5] - Filtro rápido en el header y backups sin anidamiento
 
 Correcciones de usabilidad y rendimiento: los filtros del dashboard (acciones rápidas, drill de métricas, Pipeline Bar y aseguradoras) pasaron a un único filtro rápido visible y limpiable desde el header, lo que además resolvía un error de render (#31); y los backups dejaron de embeber el historial de backups, que congelaba la UI al abrir Configuración o al cambiar de pestaña.

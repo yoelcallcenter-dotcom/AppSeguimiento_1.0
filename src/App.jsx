@@ -60,7 +60,7 @@ import { useModalStack } from "./hooks/useModalStack";
 import { recordGoalAction, pushLastCase } from "./features/productivity/productivityStore";
 
 // Utils
-import { casoEnMes, getAvailableMonthsConReportes } from "./utils/dateFilters";
+import { casoEnMes, getAvailableMonthsConReportes, normalizeDate } from "./utils/dateFilters";
 import { casoCoincide } from "./utils/searchEngine";
 import { aplicarQuickFilter, quickFilterChip } from "./utils/filtrarQuickFilter";
 import { trackEvent, evaluate } from "./utils/behaviorEngine";
@@ -609,9 +609,14 @@ function AppContent() {
     }
     if (selectedDays.length > 0) {
       const pads = new Set(selectedDays.map((d) => String(d).padStart(2, '0')));
+      // v1.9.6 (fix bug 1): se normaliza la fecha con normalizeDate para que el
+      // filtro por día coincida con MonthDayFilterBar/DayFilter (que usan
+      // normalizeDate). Antes se partía `c.fecha` a mano y las fechas legado en
+      // DD/MM/YYYY no coincidían con el día seleccionado → el día se renderizaba
+      // pero la lista quedaba vacía.
       filtered = filtered.filter(c => {
-        const parts = (c.fecha || '').split('-');
-        return parts.length === 3 && pads.has(parts[2]);
+        const iso = normalizeDate(c.fecha);
+        return iso ? pads.has(iso.slice(8, 10)) : false;
       });
     }
     const filtro = config.busquedaFiltro || "todos";

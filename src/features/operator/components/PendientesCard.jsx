@@ -10,6 +10,12 @@ import {
   Building2,
 } from "lucide-react";
 import { getPendientesDelDia } from "../../../core/alerts/attentionRules";
+// v1.9.6 (fix metas): getPendientesDelDia espera la forma de progreso
+// (goals.daily.cases.current); recibir el goals crudo de MiEspacio hacía que
+// la regla "meta diaria pendiente" mostrara "casos undefined/5" y nunca se
+// cumpliera. Se envuelve el progreso diario calculado con la misma función
+// que usan MetasCard/GoalsSection.
+import { getDailyGoalProgress } from "../operatorMetrics";
 
 const PRIORITY_ORDER = { alta: 0, media: 1, baja: 2 };
 
@@ -45,12 +51,15 @@ function PriorityBadge({ priority }) {
 export function PendientesCard({ cases, events, notes, todayISO, goals, onVerCaso, onNavigateToEvent, onNavigateMetas }) {
   const items = useMemo(() => {
     if (!todayISO) return [];
+    // v1.9.6 (fix metas): ver comentario del import; se reemplaza `daily`
+    // (que la regla lee como goals.daily.*) por el progreso calculado.
+    const progress = getDailyGoalProgress(goals || {}, cases || [], todayISO);
     const all = getPendientesDelDia({
       cases: cases || [],
       events: events || [],
       notes: notes || [],
       todayISO,
-      goals: goals || {},
+      goals: { ...(goals || {}), daily: progress },
     });
     return [...all].sort(
       (a, b) =>

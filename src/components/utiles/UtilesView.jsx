@@ -16,7 +16,7 @@ import {
 import { PasosView } from "./PasosView";
 import { SpeechsView } from "./SpeechsView";
 import { ObjecionesView } from "./ObjecionesView";
-import { ConversacionesSugeridasView, CATEGORIAS_CONVERSACION } from "./ConversacionesSugeridasView";
+import { ConversacionesSugeridasView } from "./ConversacionesSugeridasView";
 import { AseguradorasView } from "./AseguradorasView";
 import { LesionesView } from "./LesionesView";
 import { ProlegalView } from "./ProlegalView";
@@ -28,7 +28,9 @@ import useAppStore from '../../core/store/useAppStore';
 import { NavDock, SubPills } from "../common/UINav";
 import { SectionHeader } from "../configuracion/ui";
 import { getAllTemplates } from "../../features/templates/templatesStore";
-import { DEFAULT_PLANTILLAS } from "../../utils/constants";
+// 1.9.6: el badge cuenta las categorías configuradas en config (antes eran
+// las 4 hardcodeadas) y aplica el mismo fallback de plantillas que la vista.
+import { contarMensajesConversacion } from "../../utils/conversaciones";
 
 const GRUPOS_UTILES = [
   {
@@ -101,22 +103,6 @@ export function UtilesView({
     };
   }, [subvista]);
 
-  const contarMensajesConversacion = () => {
-    let total = 0;
-    for (const cat of CATEGORIAS_CONVERSACION) {
-      try {
-        const stored = localStorage.getItem(
-          `conversaciones_${cat.replace(/\s/g, "_")}`
-        );
-        const lista = stored ? JSON.parse(stored) : null;
-        total += Array.isArray(lista) ? lista.length : DEFAULT_PLANTILLAS.length;
-      } catch {
-        total += DEFAULT_PLANTILLAS.length;
-      }
-    }
-    return total;
-  };
-
   const aseguradorasSugeridas = useMemo(() => {
     const set = new Set();
     (art || []).forEach((a) => a?.nombre && set.add(a.nombre));
@@ -173,7 +159,7 @@ export function UtilesView({
       case "objeciones":
         return objeciones.length;
       case "conversacion":
-        return contarMensajesConversacion();
+        return contarMensajesConversacion(config);
       case "aseguradoras":
         return art.length + transito.length;
       case "lesiones":

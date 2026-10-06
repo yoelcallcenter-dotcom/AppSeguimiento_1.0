@@ -19,6 +19,8 @@ import {
   deleteCredential,
   getOperatorSettings,
   saveOperatorSettings,
+  // v1.9.6 (fix metas): refresco en la misma pestaña.
+  subscribeOperatorGoals,
 } from "./operatorStore";
 
 export function useOperatorState() {
@@ -39,7 +41,15 @@ export function useOperatorState() {
       setVersion((v) => v + 1);
     };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    // v1.9.6 (fix metas): el evento `storage` solo llega de OTRA pestaña;
+    // cambios de metas hechos en esta misma pestaña (p.ej. Configuración →
+    // "Guardar Meta") ahora notifican vía subscribeOperatorGoals y Mi Espacio
+    // refresca sus metas al instante.
+    const unsubscribe = subscribeOperatorGoals(onStorage);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      unsubscribe();
+    };
   }, []);
 
   const updateProfile = useCallback((patch) => {
