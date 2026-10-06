@@ -20,6 +20,8 @@ import {
 import { generarInsightsAnaliticos } from './smartInsights';
 import { PERIODO_DEFAULT } from './periodUtils';
 import { INSIGHTS_CONFIG } from './insightsConfig';
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from '../../utils/dateUtils';
 
 /**
  * @param {Array} allCases todos los casos (IndexedDB vía useAppStore/useCases).
@@ -52,7 +54,8 @@ export function useAnalytics(allCases = [], config = {}, periodoId = PERIODO_DEF
           availability: operator.availability || {},
           year: new Date().getFullYear(),
           month: new Date().getMonth(),
-          todayISO: new Date().toISOString().slice(0, 10),
+          // v1.9.7 (fix B3): proyección con el día en hora local.
+          todayISO: hoyISO(),
           workingDays,
         });
       } catch {

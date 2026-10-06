@@ -5,6 +5,10 @@
  * Sin IA, sin ML, sin predicciones. Cada regla es explícita, transparente y justificable.
  */
 
+// v1.9.7 (fix B4): normalizeDate admite fechas ISO y legadas DD/MM/YYYY; se usa
+// en el cierre de jornada para no comparar strings crudos contra todayISO.
+import { normalizeDate } from '../../utils/dateFilters';
+
 const DEFAULT_CONFIG = {
   staleDays: 15,
   upcomingDays: 3,
@@ -314,15 +318,18 @@ export function getDayClosureData(cases, notes, events, goals, todayISO) {
   if (!cases || !todayISO) return null;
 
   const casesActiveToday = cases.filter((c) => {
-    const created = (c.createdAt || '').slice(0, 10);
-    const lastActivity = (c.lastActivityAt || '').slice(0, 10);
+    // v1.9.7 (fix B4): antes `.slice(0, 10)` en crudo; con una fecha legada
+    // DD/MM/YYYY el caso nunca coincidía con todayISO y el cierre mostraba 0.
+    const created = normalizeDate(c.createdAt);
+    const lastActivity = normalizeDate(c.lastActivityAt);
     return created === todayISO || lastActivity === todayISO;
   });
 
   const firmasHoy = cases.filter((c) => {
     if (!c.reporteHistory || c.reporteHistory.length === 0) return false;
     return c.reporteHistory.some((r) => {
-      const fecha = (r.fecha || '').slice(0, 10);
+      // v1.9.7 (fix B4): idem, reporte con fecha legada o datetime ISO.
+      const fecha = normalizeDate(r.fecha);
       return fecha === todayISO;
     });
   });

@@ -9,6 +9,9 @@ import TagsPills from '../../components/common/TagsPills';
 import { Modal } from '../../components/common/Modal';
 import { TemplateSelector } from '../../components/common/TemplateSelector';
 import { sanitizeString } from '../../utils/sanitize';
+// v1.9.7 (fix B3): fecha por defecto de un evento nuevo en hora local (antes:
+// toISOString en UTC, que tras las 21:00 proponía "mañana").
+import { hoyISO } from '../../utils/dateUtils';
 
 const PRIORITIES = [
   { value: 'low', label: 'Baja', color: '#10B981' },
@@ -79,8 +82,9 @@ export default function EventModal({
         caseContext: event.caseContext || null,
       });
     } else {
-      const now = new Date();
-      const dateStr = (initialData?.startDate) || now.toISOString().slice(0, 10);
+      // v1.9.7 (fix B3): fecha por defecto del evento en hora local (antes:
+      // now.toISOString() en UTC → tras las 21:00 proponía el día siguiente).
+      const dateStr = (initialData?.startDate) || hoyISO();
       const startTime = initialData?.startTime || '09:00';
       const endTime = initialData?.endTime || '10:00';
       let caseContext = null;

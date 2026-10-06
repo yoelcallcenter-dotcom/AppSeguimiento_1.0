@@ -62,7 +62,12 @@ import { recordGoalAction, pushLastCase } from "./features/productivity/producti
 // Utils
 import { casoEnMes, getAvailableMonthsConReportes, normalizeDate } from "./utils/dateFilters";
 import { casoCoincide } from "./utils/searchEngine";
-import { aplicarQuickFilter, quickFilterChip } from "./utils/filtrarQuickFilter";
+// v1.9.7 (fix B7): limpieza one-time de claves conversaciones_* huérfanas
+// (nota conocida de 1.9.6 al importar backups viejos).
+import { limpiarConversacionesHuerfanas } from "./utils/conversaciones";
+// v1.9.7 (fix B1): aplicarBusquedaFiltro reemplaza el bloque inline del filtro
+// "todos/activos/pendientes/hoy" — la lógica vive testeada en filtrarQuickFilter.js.
+import { aplicarQuickFilter, quickFilterChip, aplicarBusquedaFiltro } from "./utils/filtrarQuickFilter";
 import { trackEvent, evaluate } from "./utils/behaviorEngine";
 import { notificationManager } from "./core/notifications/notificationManager";
 import { soundSystem } from "./core/notifications/soundSystem";
@@ -330,7 +335,10 @@ function AppContent() {
     "mapeo-art-tracker",
     MAPEO_EJEMPLO
   );
-  const [config, setConfig] = useStorage("config-art-tracker", CONFIG_DEFAULT);
+  // configLoaded (v1.9.7): necesario para ejecutar la limpieza de claves
+  // conversaciones_* con la config REAL de storage (useStorage carga async; con
+  // el CONFIG_DEFAULT se borrarían mensajes de categorías custom).
+  const [config, setConfig, configLoaded] = useStorage("config-art-tracker", CONFIG_DEFAULT);
   const [pasos, setPasos] = useStorage("pasos-art-tracker", DEFAULT_PASOS);
   const [tips, setTips] = useStorage("tips-art-tracker", DEFAULT_TIPS);
   const [links, setLinks] = useStorage("links-art-tracker", DEFAULT_LINKS);
@@ -503,6 +511,17 @@ function AppContent() {
     };
   }, []);
 
+  // v1.9.7 (fix B7): limpieza ONE-TIME de claves `conversaciones_*` huérfanas
+  // (nota conocida de 1.9.6: importar un backup viejo dejaba mensajes de
+  // categorías ya borradas, invisibles en la UI). Corre una sola vez por
+  // montaje, recién con config ya cargada de storage (configLoaded).
+  const conversacionesCleanupRef = useRef(false);
+  useEffect(() => {
+    if (!configLoaded || conversacionesCleanupRef.current) return;
+    conversacionesCleanupRef.current = true;
+    limpiarConversacionesHuerfanas(config);
+  }, [configLoaded, config]);
+
   // Sync cases changes to Zustand store
   useEffect(() => {
     useAppStore.getState().setCases(casos);
@@ -619,15 +638,13 @@ function AppContent() {
         return iso ? pads.has(iso.slice(8, 10)) : false;
       });
     }
+    // v1.9.7 (fix B1): filtro de búsqueda extraído a aplicarBusquedaFiltro
+    // (lógica pura testeable). El branch "hoy" ahora normaliza la fecha con
+    // normalizeDate (acepta ISO y legado DD/MM/YYYY) y compara contra hoyISO()
+    // (día en hora local); antes usaba slice crudo + fecha en UTC y las fechas
+    // legadas nunca coincidían (lista vacía).
     const filtro = config.busquedaFiltro || "todos";
-    if (filtro === "activos") {
-      filtered = filtered.filter((c) => !catsFiltro.lost.includes(c.estado));
-    } else if (filtro === "pendientes") {
-      filtered = filtered.filter((c) => catsFiltro.contact.includes(c.estado));
-    } else if (filtro === "hoy") {
-      const hoy = new Date().toISOString().slice(0, 10);
-      filtered = filtered.filter((c) => (c.fecha || '').slice(0, 10) === hoy);
-    }
+    filtered = aplicarBusquedaFiltro(filtered, filtro, catsFiltro);
 
     return filtered;
   }, [casos, selectedMonth, selectedYear, selectedDays, config.busquedaFiltro, catsFiltro]);

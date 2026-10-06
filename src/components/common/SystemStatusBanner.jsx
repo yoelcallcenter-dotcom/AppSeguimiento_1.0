@@ -150,20 +150,5 @@ export function SystemStatusBanner() {
   );
 }
 
-export function StoragePersistedIndicator() {
-  const storagePersisted = useSystemStatus((s) => s.storagePersisted);
-  if (storagePersisted === null || storagePersisted) return null;
-  return (
-    <div
-      className="flex items-center gap-2 text-xs rounded-lg px-3 py-2"
-      style={{ backgroundColor: "var(--color-warning)11", border: "1px solid var(--color-warning)" }}
-      role="alert"
-    >
-      <Info size={14} color="var(--color-warning)" />
-      <span style={{ color: "var(--color-text-muted)" }}>
-        El navegador no garantiza el almacenamiento persistente. Exportá backups
-        periódicos para no perder tus datos.
-      </span>
-    </div>
-  );
-}
+// v1.9.7 (limpieza): se eliminó StoragePersistedIndicator — export sin uso
+// (el aviso de persistencia ya vive en SystemStatusBanner principal).

@@ -73,6 +73,28 @@ function notifyGoalsChanged() {
   });
 }
 
+// v1.9.7 (fix B5): segundo canal de suscripción para perfil, disponibilidad y
+// preferencias. En 1.9.6 solo las metas notificaban en la misma pestaña, así
+// que editar la disponibilidad en Mi Espacio dejaba el Dashboard (días
+// efectivos, gráficos de disponibilidad) desactualizado hasta recargar.
+const dataListeners = new Set();
+
+/** Suscribe un callback a cambios de perfil/disponibilidad/preferencias. */
+export function subscribeOperatorData(listener) {
+  dataListeners.add(listener);
+  return () => dataListeners.delete(listener);
+}
+
+function notifyOperatorDataChanged() {
+  dataListeners.forEach((cb) => {
+    try {
+      cb();
+    } catch {
+      /* un listener con error no debe cortar la cadena */
+    }
+  });
+}
+
 // ============================================================
 // MIGRACIÓN DESDE DATOS LEGACY (v1.1.x)
 // ============================================================
@@ -136,6 +158,8 @@ export function saveOperatorProfile(patch) {
     updated.initials = initialsFromName(updated.fullName);
   }
   writeJSON(OPERATOR_STORAGE_KEYS.PROFILE, updated);
+  // v1.9.7 (fix B5): notifica para refrescar el Dashboard en la misma pestaña.
+  notifyOperatorDataChanged();
   return updated;
 }
 
@@ -160,6 +184,9 @@ export function saveOperatorAvailability(patch) {
   const current = getOperatorAvailability();
   const updated = { ...current, ...patch };
   writeJSON(OPERATOR_STORAGE_KEYS.AVAILABILITY, updated);
+  // v1.9.7 (fix B5): notifica para refrescar el Dashboard en la misma pestaña
+  // (días efectivos y gráficos dependen de la disponibilidad).
+  notifyOperatorDataChanged();
   return updated;
 }
 
@@ -268,6 +295,8 @@ export function saveOperatorSettings(patch) {
   const current = getOperatorSettings();
   const updated = { ...current, ...patch };
   writeJSON(OPERATOR_STORAGE_KEYS.SETTINGS, updated);
+  // v1.9.7 (fix B5): notifica por completitud del canal de datos del operador.
+  notifyOperatorDataChanged();
   return updated;
 }
 

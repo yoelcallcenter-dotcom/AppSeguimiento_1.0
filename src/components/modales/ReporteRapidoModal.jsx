@@ -24,7 +24,8 @@ import { OrigenBadge, OrigenSelector, ORIGEN_OPTIONS } from "../common/OrigenBad
 import { PhoneLink } from "../common/PhoneLink";
 import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
-import { hoyDDMM } from "../../utils/dateUtils";
+// v1.9.7 (fix B3): hoyISO (día en hora local) como fecha por defecto.
+import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { useDelayedClose } from "../../hooks/useAnimatedPresence";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
@@ -97,7 +98,8 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       setNuevaHoraIni(propia.horaIni);
       setNuevaHoraFin(propia.horaFin);
     } else {
-      setNuevaFecha(new Date().toISOString().slice(0, 10));
+      // v1.9.7 (fix B3): fecha por defecto en hora local (antes: UTC).
+      setNuevaFecha(hoyISO());
       setNuevaHoraIni("09:00");
       setNuevaHoraFin("10:00");
     }

@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import { Calendar, Clock, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PillMemo } from "../common/Pill";
 import { onKeyActivate } from "../../utils/a11y";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from "../../utils/dateUtils";
 
 const INITIAL_SHOW = 3;
 
@@ -52,7 +54,7 @@ function CategoriaSection({ icon: Icon, label, count, color, casos, onVerCaso })
 }
 
 export function MiDiaView({ casos, onVerCaso }) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyISO();
   const hoyLabel = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const { citasHoy, pendientes, sinReporte } = useMemo(() => {

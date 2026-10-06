@@ -18,6 +18,10 @@ import { readOperatorCases } from "./operatorStore";
 import useAppStore from "../../core/store/useAppStore";
 import { NavDock } from "../../components/common/UINav";
 import { ConfigTip } from "../../components/configuracion/ui";
+// v1.9.7 (fix B3): toLocalDateStr en vez de toISOString() — con UTC, entre
+// 21:00 y medianoche (UTC-3) el "hoy" de Mi Espacio era el día siguiente y las
+// metas diarias se contaban en 0.
+import { toLocalDateStr } from "../../utils/dateUtils";
 
 export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso, onNavigateToEvent, onNuevoCaso, onNuevoReporte, onNuevaNota, onNuevoEvento, onBuscar, onExportar }) {
   const state = useOperatorState();
@@ -42,7 +46,8 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
     return () => clearInterval(id);
   }, []);
 
-  const todayISO = now.toISOString().slice(0, 10);
+  // v1.9.7 (fix B3): toLocalDateStr(now) en lugar de toISOString() (UTC).
+  const todayISO = toLocalDateStr(now);
   const year = now.getFullYear();
   const month = now.getMonth();
 

@@ -39,35 +39,9 @@ export function useCalendarService() {
     }
   }
 
-  async function createEventWithNotification(data) {
-    const event = await createEvent(data);
-    const diffMs = new Date(event.startDate).getTime() - Date.now();
-    if (diffMs > 0 && diffMs < 86400000) {
-      scheduleReminder(event);
-    }
-    return event;
-  }
-
-  function scheduleReminder(eventData) {
-    if (!eventData) return null;
-    const fecha = eventData.startDate ? eventData.startDate.slice(0, 10) : '';
-    if (!fecha) return null;
-    const eventDate = new Date(eventData.startDate);
-    const timeDiff = eventDate.getTime() - Date.now();
-    if (timeDiff <= 0) return null;
-    const reminderTime = timeDiff - 3600000;
-    if (reminderTime > 0 && reminderTime < 86400000 * 3) {
-      return setTimeout(() => {
-        notificationManager.notify({
-          type: "info",
-          title: `Recordatorio: ${eventData.title || ''}`,
-          message: `Evento programado para ${fecha}`,
-          source: "calendar",
-        });
-      }, reminderTime);
-    }
-    return null;
-  }
-
-  return { checkUpcomingEvents, createEventWithNotification };
+  // v1.9.7 (limpieza): se eliminaron createEventWithNotification y su
+  // scheduleReminder (setTimeout en memoria): no tenían ningún llamador y el
+  // recordatorio real de la app es checkUpcomingEvents (polling de 60 s con
+  // flag `_notified` persistido, que sobrevive recargas).
+  return { checkUpcomingEvents };
 }

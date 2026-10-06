@@ -65,6 +65,9 @@ import {
   getOperatorAvailability,
   // v1.9.6 (fix metas): refresca operatorData al editar metas en la misma pestaña.
   subscribeOperatorGoals,
+  // v1.9.7 (fix B5): refresca operatorData al editar perfil/disponibilidad en
+  // la misma pestaña (antes solo notificaban las metas).
+  subscribeOperatorData,
 } from '../operator/operatorStore';
 import {
   computeMetrics, computeFunnel, evaluateAlerts, generateInsight,
@@ -368,6 +371,11 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
   // useAnalytics, que depende de él) se recalculen al instante.
   const [goalsVersion, setGoalsVersion] = useState(0);
   useEffect(() => subscribeOperatorGoals(() => setGoalsVersion((v) => v + 1)), []);
+  // v1.9.7 (fix B5): mismo mecanismo para perfil/disponibilidad/preferencias;
+  // sin esto, cambiar días laborables o agregar vacaciones en Mi Espacio no
+  // movía los gráficos del Dashboard hasta recargar la pestaña.
+  const [operatorDataVersion, setOperatorDataVersion] = useState(0);
+  useEffect(() => subscribeOperatorData(() => setOperatorDataVersion((v) => v + 1)), []);
   const operatorData = useMemo(
     () => ({
       goals: getOperatorGoals(),
@@ -375,7 +383,8 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
       availability: getOperatorAvailability(),
     }),
     // goalsVersion: fuerza recomputo al notificar cambios de metas (misma pestaña).
-    [goalsVersion]
+    // operatorDataVersion: idem para perfil/disponibilidad (v1.9.7).
+    [goalsVersion, operatorDataVersion]
   );
   const analitica = useAnalytics(allCases, config, periodoId, operatorData);
 

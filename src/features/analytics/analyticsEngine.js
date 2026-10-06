@@ -14,6 +14,10 @@ import {
   INSIGHTS_CONFIG,
   DIAS_SEMANA,
 } from "./insightsConfig";
+// v1.9.7 (fix B3): hoyISO (día en hora local) para los días hábiles
+// transcurridos; antes se usaba toISOString() (UTC) que desde las 21:00
+// locales adelantaba "hoy" a mañana.
+import { hoyISO } from "../../utils/dateUtils";
 import {
   getPeriodRange,
   rangoAnteriorEquivalente,
@@ -59,7 +63,8 @@ function esFirma(caso, cats) {
  */
 export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5], config = {}, availability = {}) {
   const cats = catsDe(config);
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  // v1.9.7 (fix B3): "hoy" en hora local (antes: toISOString en UTC).
+  const hoy = hoyISO();
 
   const medir = (rg) => {
     const cohorte = casosEnRango(casos, rg);
@@ -74,8 +79,8 @@ export function computeResumenPeriodo(casos, rango, workingDays = [1, 2, 3, 4, 5
     // Los días hábiles no pueden exceder los transcurridos hasta hoy.
     const habilesTotales = diasHabilesEnRango(rg, workingDays, availability);
     let habilesTranscurridos = habilesTotales;
-    if (rg.endISO > hoyISO) {
-      habilesTranscurridos = diasHabilesEnRango({ ...rg, endISO: hoyISO }, workingDays, availability);
+    if (rg.endISO > hoy) {
+      habilesTranscurridos = diasHabilesEnRango({ ...rg, endISO: hoy }, workingDays, availability);
     }
     const totalFirmasFecha = [...firmasPorFecha.values()].reduce((a, b) => a + b, 0);
     return {

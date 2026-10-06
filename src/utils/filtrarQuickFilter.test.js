@@ -6,6 +6,8 @@ import {
   quickFilterChip,
   accionToQuickFilter,
   quickFilterToAccion,
+  // v1.9.7 (fix B1): filtro de búsqueda extraído de App.jsx.
+  aplicarBusquedaFiltro,
 } from './filtrarQuickFilter';
 import { contarCasosPorEstado } from './casosStats';
 
@@ -201,5 +203,56 @@ describe('acciones rápidas ⇄ filtro rápido', () => {
     expect(quickFilterToAccion({ tipo: 'grupo', valor: 'activos' })).toBeNull();
     expect(quickFilterToAccion({ tipo: 'estado', valor: 'Firmo' })).toBeNull();
     expect(quickFilterToAccion(null)).toBeNull();
+  });
+});
+
+// 1.9.7 (fix B1): el filtro de búsqueda "todos/activos/pendientes/hoy" vivía
+// inline en App.jsx con comparación cruda + fecha UTC: las fechas legadas
+// DD/MM/YYYY nunca coincidían con "hoy" (lista vacía).
+describe('aplicarBusquedaFiltro (1.9.7)', () => {
+  const ahora = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const HOY_ISO = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())}`;
+  const HOY_LEGADO = `${pad(ahora.getDate())}/${pad(ahora.getMonth() + 1)}/${ahora.getFullYear()}`;
+
+  const CASOS = [
+    { id: 1, estado: 'Firmo', fecha: HOY_ISO },
+    { id: 2, estado: 'Firmo', fecha: HOY_LEGADO },
+    { id: 3, estado: 'No viable', fecha: '2020-01-01' },
+    { id: 4, estado: 'Pendiente', fecha: '' },
+  ];
+
+  it('"todos" devuelve la lista completa', () => {
+    expect(aplicarBusquedaFiltro(CASOS, 'todos', CATS)).toHaveLength(4);
+    expect(aplicarBusquedaFiltro(CASOS, undefined, CATS)).toHaveLength(4);
+  });
+
+  it('"activos" excluye los estados perdidos', () => {
+    const res = aplicarBusquedaFiltro(CASOS, 'activos', CATS);
+    expect(res.map((c) => c.id)).toEqual([1, 2, 4]);
+  });
+
+  it('"pendientes" solo estados de contacto', () => {
+    const res = aplicarBusquedaFiltro(CASOS, 'pendientes', CATS);
+    expect(res.map((c) => c.id)).toEqual([4]);
+  });
+
+  it('"hoy" incluye la fecha ISO del día', () => {
+    const res = aplicarBusquedaFiltro(CASOS, 'hoy', CATS);
+    expect(res.map((c) => c.id)).toContain(1);
+  });
+
+  // Regresión directa del bug: una fecha legada DD/MM/YYYY de HOY debe
+  // coincidir (antes slice(0,10) nunca igualaba con ISO).
+  it('"hoy" incluye la fecha legada DD/MM/YYYY del día (fix B1)', () => {
+    const res = aplicarBusquedaFiltro(CASOS, 'hoy', CATS);
+    expect(res.map((c) => c.id)).toEqual(expect.arrayContaining([1, 2]));
+  });
+
+  it('"hoy" excluye otros días, vacíos e inválidos y respeta el parámetro hoy', () => {
+    const res = aplicarBusquedaFiltro(CASOS, 'hoy', CATS, HOY_ISO);
+    expect(res.map((c) => c.id).sort()).toEqual([1, 2]);
+    const otroDia = aplicarBusquedaFiltro(CASOS, 'hoy', CATS, '1999-12-31');
+    expect(otroDia).toHaveLength(0);
   });
 });

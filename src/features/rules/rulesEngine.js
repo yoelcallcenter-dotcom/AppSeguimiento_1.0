@@ -1,4 +1,6 @@
 import { reportError } from '../../core/error/reportError';
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from '../../utils/dateUtils';
 
 let rules = [];
 let listeners = [];
@@ -110,7 +112,8 @@ const defaultRules = [
       entity._prevEstado !== entity.estado,
     action: async (entity) => {
       const { createEvent } = await import('../calendar/calendarStore');
-      const today = new Date().toISOString().slice(0, 10);
+      // v1.9.7 (fix B3): fecha "hoy" en hora local.
+      const today = hoyISO();
       await createEvent({
         title: `Cita: ${entity.nombre || 'Sin nombre'}`,
         startDate: `${today}T09:00:00`,

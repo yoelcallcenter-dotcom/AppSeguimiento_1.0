@@ -18,6 +18,8 @@ import {
   subscribeOperatorGoals,
 } from '../operator/operatorStore';
 import { buildPersonalSuggestions } from '../operator/operatorMetrics';
+// v1.9.7 (fix B3): hoyISO (día en hora local) como fallback de todayISO.
+import { hoyISO } from '../../utils/dateUtils';
 
 function suggestionColor(type) {
   switch (type) {
@@ -54,7 +56,8 @@ export function ProductivityWidget({ onOpenCaso, onChangeView, dayISO }) {
         profile: getOperatorProfile(),
         year: new Date().getFullYear(),
         month: new Date().getMonth(),
-        todayISO: dayISO || new Date().toISOString().slice(0, 10),
+        // v1.9.7 (fix B3): hoyISO() en vez de fecha en UTC.
+        todayISO: dayISO || hoyISO(),
         settings: getOperatorSettings(),
       })
     : [];

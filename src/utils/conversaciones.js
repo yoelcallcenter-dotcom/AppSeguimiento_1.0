@@ -226,6 +226,34 @@ export function eliminarMensajes(categoria) {
   localStorage.removeItem(claveCategoria(categoria));
 }
 
+/**
+ * v1.9.7 (fix B7): elimina las claves `conversaciones_*` huérfanas —mensajes de
+ * categorías que ya no existen en `config.conversacionesCategorias`—, el
+ * problema documentado como "nota conocida" en 1.9.6 al importar backups
+ * viejos (las claves quedaban invisibles y solo se iban con "Borrar todos los
+ * datos"). Idempotente: solo lee el prefijo y borra lo que no está en el
+ * catálogo vigente. Devuelve la cantidad de claves eliminadas.
+ */
+export function limpiarConversacionesHuerfanas(config) {
+  try {
+    const clavesValidas = new Set(
+      getConversacionesCategorias(config).map(claveCategoria)
+    );
+    const huerfanas = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("conversaciones_") && !clavesValidas.has(key)) {
+        huerfanas.push(key);
+      }
+    }
+    huerfanas.forEach((key) => localStorage.removeItem(key));
+    return huerfanas.length;
+  } catch {
+    // localStorage inaccesible (modo privado/quotas): no rompe el arranque.
+    return 0;
+  }
+}
+
 /** Primer error de validación de nombre de categoría, o null si es válido. */
 export function errorNombreCategoria(nombre, existentes) {
   const limpio = String(nombre ?? "").trim();

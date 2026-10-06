@@ -20,6 +20,8 @@ import {
   eliminarMensajes,
   errorNombreCategoria,
   errorNombreVariable,
+  // 1.9.7 (fix B7): limpieza de claves huérfanas (nota conocida de 1.9.6).
+  limpiarConversacionesHuerfanas,
 } from "./conversaciones";
 
 // 1.9.6: modelo de Conversación Sugerida (categorías configurables + variables
@@ -205,5 +207,54 @@ describe("conversaciones · errorNombreVariable", () => {
     // Renombrar FECHA → HORARIO chocando con otra HORARIO:
     expect(errorNombreVariable("HORARIO", ["HORARIO", "FECHA"], "FECHA")).toBeTruthy();
     expect(errorNombreVariable("NUEVA", ["HORARIO"])).toBeNull();
+  });
+});
+
+// 1.9.7 (fix B7): claves conversaciones_* huérfanas (nota conocida 1.9.6).
+describe("conversaciones · limpiarConversacionesHuerfanas", () => {
+  it("borra solo las claves de categorías que ya no existen", () => {
+    localStorage.setItem("conversaciones_Accidente_Laboral", JSON.stringify(["a"]));
+    localStorage.setItem("conversaciones_Custom", JSON.stringify(["b"]));
+    localStorage.setItem("conversaciones_Categoria_Borrada", JSON.stringify(["c"]));
+    localStorage.setItem("otra_clave", "no-tocar");
+    try {
+      const eliminadas = limpiarConversacionesHuerfanas({
+        conversacionesCategorias: ["Accidente Laboral", "Custom"],
+      });
+      expect(eliminadas).toBe(1);
+      expect(localStorage.getItem("conversaciones_Accidente_Laboral")).not.toBeNull();
+      expect(localStorage.getItem("conversaciones_Custom")).not.toBeNull();
+      expect(localStorage.getItem("conversaciones_Categoria_Borrada")).toBeNull();
+      expect(localStorage.getItem("otra_clave")).toBe("no-tocar");
+    } finally {
+      localStorage.removeItem("conversaciones_Accidente_Laboral");
+      localStorage.removeItem("conversaciones_Custom");
+      localStorage.removeItem("conversaciones_Categoria_Borrada");
+      localStorage.removeItem("otra_clave");
+    }
+  });
+
+  it("sin config en config usa las categorías default como válidas", () => {
+    localStorage.setItem("conversaciones_Accidente_Laboral", JSON.stringify(["a"]));
+    localStorage.setItem("conversaciones_Mia", JSON.stringify(["b"]));
+    try {
+      limpiarConversacionesHuerfanas(undefined);
+      expect(localStorage.getItem("conversaciones_Accidente_Laboral")).not.toBeNull();
+      // "Mia" no está en los defaults → huérfana.
+      expect(localStorage.getItem("conversaciones_Mia")).toBeNull();
+    } finally {
+      localStorage.removeItem("conversaciones_Accidente_Laboral");
+      localStorage.removeItem("conversaciones_Mia");
+    }
+  });
+
+  it("es idempotente: la segunda corrida elimina 0", () => {
+    localStorage.setItem("conversaciones_Borrada", JSON.stringify(["x"]));
+    try {
+      expect(limpiarConversacionesHuerfanas({ conversacionesCategorias: [] })).toBe(1);
+      expect(limpiarConversacionesHuerfanas({ conversacionesCategorias: [] })).toBe(0);
+    } finally {
+      localStorage.removeItem("conversaciones_Borrada");
+    }
   });
 });

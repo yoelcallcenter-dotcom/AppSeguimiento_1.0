@@ -7,12 +7,14 @@ import { TextInput } from "../../../components/common/TextInput";
 import { Select } from "../../../components/common/Select";
 import { Toggle } from "../../../components/common/Toggle";
 import { getWeeklyGoalProgress } from "../operatorMetrics";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from "../../../utils/dateUtils";
 
 export function GoalsSection({ goals, updateGoals, daily, monthly, pace, effective, availabilitySummary, cases, availability, profile, perDay, showToast, showPace = true }) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customForm, setCustomForm] = useState({ name: "", type: "casos", target: "", deadline: "" });
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = hoyISO();
   const weeklyProgress = getWeeklyGoalProgress(goals, cases, profile.workingDays, todayISO, availability);
 
   const setDaily = (kind, patch) => {

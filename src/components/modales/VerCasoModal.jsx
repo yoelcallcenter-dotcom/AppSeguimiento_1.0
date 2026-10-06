@@ -14,7 +14,8 @@ const CaseTimeline = lazy(() =>
 import { sanitizeString } from "../../utils/sanitize";
 import { formatDateWithConfig } from "../../utils/configFormatters";
 import { capitalizarSiMayus } from "../../utils/helpers";
-import { hoyDDMM } from "../../utils/dateUtils";
+// v1.9.7 (fix B3): hoyISO (día en hora local) para "próximo seguimiento".
+import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
 import { PhoneLink } from "../common/PhoneLink";
 import useAppStore from "../../core/store/useAppStore";
 import { getEstadoAccent } from "../../utils/catalogos";
@@ -156,11 +157,12 @@ export function VerCasoModal({
 
   const proximoSeguimiento = useMemo(() => {
     if (!caso?.id) return null;
-    const hoyISO = new Date().toISOString().slice(0, 10);
+    // v1.9.7 (fix B3): día en hora local (antes: fecha en UTC).
+    const hoy = hoyISO();
     return (
       eventos
         .filter((e) => (e.relatedCaseIds || []).includes(caso.id))
-        .filter((e) => (e.startDate || "") >= hoyISO)
+        .filter((e) => (e.startDate || "") >= hoy)
         .sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""))[0] ||
       null
     );

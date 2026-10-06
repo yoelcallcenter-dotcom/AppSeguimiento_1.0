@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Bell, AlertTriangle, Clock, UserX, FileWarning, CheckCircle2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { EmptyState } from '../../../components/common/EmptyState';
 import { getCasesNeedingAttention } from '../../../core/alerts/attentionRules';
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from '../../../utils/dateUtils';
 
 const SEVERITY = {
   danger: { color: 'var(--chart-color-danger)', bg: 'var(--chart-color-danger-bg)' },
@@ -33,7 +35,7 @@ const GROUP_DRILL = {
 const INITIAL_SHOW = 3;
 
 export default function AlertsPanel({ metrics, cases, notes, events, onDrill, onVerCaso }) {
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayISO = useMemo(() => hoyISO(), []);
   const [expandedGroups, setExpandedGroups] = useState({});
 
   const attentionItems = useMemo(() => {

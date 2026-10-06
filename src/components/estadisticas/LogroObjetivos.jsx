@@ -5,6 +5,9 @@ import { sanitizeString } from "../../utils/sanitize";
 import { ESTADOS } from "../../utils/constants";
 import { useFilters } from "../../context/FiltersContext";
 import { onKeyActivate } from "../../utils/a11y";
+// v1.9.7 (fix B2): normalizeDate para comparar el mes del caso sin importar el
+// formato de la fecha (ISO o legado DD/MM/YYYY).
+import { normalizeDate } from "../../utils/dateFilters";
 // v1.9.6 (fix metas): suscripción para refrescar la meta mensual en la misma
 // pestaña (antes se leía dentro del useMemo y nunca se actualizaba).
 import { getOperatorGoals, subscribeOperatorGoals } from "../../features/operator/operatorStore";
@@ -20,8 +23,13 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
   const statsMes = useMemo(() => {
     const casosMes = casos.filter((c) => {
       if (selectedMonth < 0 || selectedYear < 0) return true;
-      const fecha = c.fecha || "";
-      const [year, month] = fecha.split("-").map(Number);
+      // v1.9.7 (fix B2): antes `c.fecha.split("-")` en crudo; una fecha legada
+      // DD/MM/YYYY daba year=NaN → el caso se excluía del mes y la meta mensual
+      // se sub-contaba. normalizeDate lo lleva a YYYY-MM-DD (o null si inválida).
+      const iso = normalizeDate(c.fecha);
+      if (!iso) return false;
+      const year = Number(iso.slice(0, 4));
+      const month = Number(iso.slice(5, 7));
       return year === selectedYear && month === selectedMonth + 1;
     });
     const firmados = Math.max(0, casosMes.filter((c) => c.estado === "Firmo").length - casosMes.filter((c) => c.estado === "Baja").length);

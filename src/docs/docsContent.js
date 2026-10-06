@@ -194,9 +194,9 @@ src/
 │   ├── events/           # eventBus pub-sub
 │   ├── sync/             # sincronización entre pestañas (BroadcastChannel)
 │   ├── alerts/ rules/ integrity/ entities/ cases/ status/ i18n/ error/ monitoring/ storage/
-├── context/              # ThemeContext, FiltersContext, CalendarContext, UXContext, etc.
+├── context/              # ThemeContext, FiltersContext, UXContext, etc.
 ├── hooks/                # useModal, useDialogA11y, useViewTransition, useDebounce,
-│                         # useKeyboardShortcuts, useNotify, useCalendar, etc.
+│                         # useKeyboardShortcuts, useNotify, etc.
 ├── features/             # dashboard, operator ("Mi Espacio"), calendar, notes, search, export
 ├── services/             # backupService, autoBackup, EstudioService, StorageService
 ├── utils/                # backups/, csvUtils, csvParse, exportPDF, searchEngine, etc.
@@ -328,6 +328,39 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.9.7] - Fechas consistentes en hora local y limpieza de código
+
+Versión menor de correcciones: el "hoy" de la app se calculaba con \`toISOString()\` (UTC), por lo que en Argentina (UTC-3) entre las 21:00 y medianoche el "hoy" ya era el día siguiente (Mi Espacio mostraba 0 avance de meta); varias comparaciones no entendían fechas legadas \`DD/MM/YYYY\` (listas vacías y cierres en 0 con datos migrados); el Dashboard no se enteraba de cambios de perfil/disponibilidad en la misma pestaña; se resuelve la nota conocida de 1.9.6 (claves \`conversaciones_*\` huérfanas) y se elimina código sin uso.
+
+### Fechas: "hoy" en hora local y fechas legadas normalizadas
+
+- **Filtro "Solo de hoy" reparado**: \`config.busquedaFiltro = "hoy"\` comparaba \`c.fecha.slice(0,10)\` con la fecha en UTC de \`toISOString()\`. Dos bugs: una fecha legada \`DD/MM/YYYY\` **nunca coincidía** (la lista quedaba vacía) y desde las 21:00 locales "hoy" era mañana. La lógica se extrajo a \`aplicarBusquedaFiltro()\` en \`filtrarQuickFilter.js\` (lógica pura testeable, mismo criterio que \`aplicarQuickFilter\`), con \`normalizeDate\` (acepta ISO y DD/MM) + \`hoyISO()\`.
+- **Barrido "hoy" UTC → hora local (15 sitios de cálculo)**: \`OperatorView\` (metas, ritmo, sugerencias, recordatorios de Mi Espacio — *el más visible: de 21:00 a medianoche la meta diaria se contaba para el día siguiente*), \`GoalsSection\`, \`AvailabilityList\`/\`AvailabilityStatus\`, \`PdfExportModal\`, \`MiDiaView\`, \`AlertsPanel\`, \`ProximasAcciones\`, \`useAnalytics\`, \`metricsEngine\`, \`rulesEngine\`, \`analyticsEngine\` (días hábiles transcurridos), \`ProductivityWidget\`, \`VerCasoModal\` (próximo seguimiento) y los defaults de fecha de \`EventModal\`, \`InlineEventForm\` y \`ReporteRapidoModal\`. Se conservan en UTC los nombres de archivo de descarga (sin impacto funcional).
+- **Logro de Objetivos: casos legados en la meta mensual**: el filtro de mes partía \`c.fecha.split("-")\` en crudo; una fecha \`DD/MM/YYYY\` daba \`year = NaN\` y el caso se excluía del mes → la meta mensual del Dashboard se sub-contaba. Ahora usa \`normalizeDate\`.
+- **Cierre de jornada con datos migrados en 0**: \`getDayClosureData\` (Mi Espacio) comparaba \`createdAt\` y \`reporteHistory.fecha\` con \`slice(0,10)\` crudo contra \`todayISO\`; con fechas legadas los "casos trabajados" y "firmas de hoy" del cierre quedaban en 0. Ahora normaliza con \`normalizeDate\` (acepta ISO, datetime ISO y DD/MM).
+
+### Misma pestaña: el Dashboard refresca perfil y disponibilidad
+
+- **Nuevo canal \`subscribeOperatorData\`** en \`operatorStore\`: notifican \`saveOperatorProfile\`, \`saveOperatorAvailability\` y \`saveOperatorSettings\` (además del canal de metas de 1.9.6). El Dashboard se suscribe y recalcula \`operatorData\` → días efectivos, disponibilidad y analítica se actualizan al instante al editarlos en Mi Espacio (antes: solo al recargar la pestaña).
+
+### Nota conocida de 1.9.6 resuelta: claves \`conversaciones_*\` huérfanas
+
+- **Limpieza automática one-time** (\`limpiarConversacionesHuerfanas\` en \`conversaciones.js\`): al arrancar, y recién con la config ya cargada de storage (\`configLoaded\`), se eliminan las claves \`conversaciones_*\` de categorías que ya no existen en \`config.conversacionesCategorias\` (el problema al importar backups viejos, que antes solo se iban con "Borrar todos los datos"). Idempotente; las claves de categorías vigentes (defaults y propias) no se tocan.
+
+### Limpieza de código sin uso
+
+- **10 archivos eliminados** (verificados sin imports en todo \`src\`): \`DashboardStats\`, \`MetricsConfigPanel\`, \`ReporteGuardadoBar\`, \`OrdenamientoSelector\`, \`Breadcrumbs\`, \`ColorPickerCaso\`, \`Stepper\`, \`FilterLabel\` (export también quitado del barrel \`filters\`), \`context/CalendarContext.jsx\` y \`hooks/useCalendar.js\` — los dos últimos eran sistemas legados de eventos **no montados** en la app.
+- **\`calendarService\`**: se eliminaron \`createEventWithNotification\` y su \`scheduleReminder\` (timers \`setTimeout\` en memoria **sin llamadores**); el recordatorio real de la app es \`checkUpcomingEvents\` (polling cada 60 s con flag \`_notified\` persistido, que sobrevive recargas).
+- **\`SystemStatusBanner\`**: export \`StoragePersistedIndicator\` sin uso.
+- README ×3 actualizado (árbol de directorios sin \`CalendarContext\`/\`useCalendar\`).
+
+### Tests
+
+- Nuevos: \`dateUtils.test.js\` (4: contrato local de \`hoyISO\`/\`toLocalDateStr\` en extremos de medianoche), \`operatorStore.test.js\` (6: canales \`subscribeOperatorData\` vs \`subscribeOperatorGoals\`, alta/baja y multi-suscriptor), \`attentionRules.test.js\` (5: cierre de jornada con fechas legadas DD/MM, datetime ISO y de otros días) y \`LogroObjetivos.test.jsx\` (3: caso legado en la meta mensual, exclusiones y estado vacío).
+- Ampliados: \`filtrarQuickFilter.test.js\` (+6: \`aplicarBusquedaFiltro\` con hoy ISO/legado/otro día, activos y pendientes) y \`conversaciones.test.js\` (+3: limpieza de huérfanas, defaults y idempotencia).
+- **Suite: 1017 tests en verde (94 archivos); \`npm run build\` compila sin errores.**
+- Bump a **1.9.7** en \`version.js\`, \`package.json\`, \`package-lock.json\`; CHANGELOG unificado byte-idéntico en \`CHANGELOG.md\`, \`src/docs/CHANGELOG.md\` y \`public/docs/CHANGELOG.md\`.
 
 ## [1.9.6] - Categorías y variables configurables en Conversación Sugerida
 

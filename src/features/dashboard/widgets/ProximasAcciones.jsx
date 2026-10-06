@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, Clock, FileText, User, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { getProximasAcciones } from '../../../core/alerts/attentionRules';
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from '../../../utils/dateUtils';
 
 const ICON_MAP = {
   AlertTriangle,
@@ -19,7 +21,7 @@ const SEVERITY_STYLES = {
 const INITIAL_SHOW = 5;
 
 export default React.memo(function ProximasAcciones({ cases, notes, events, onVerCaso, onNavigateToEvent, onNavigateFiltered }) {
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayISO = useMemo(() => hoyISO(), []);
   const [expanded, setExpanded] = useState(false);
 
   const acciones = useMemo(

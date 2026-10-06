@@ -2,6 +2,8 @@
 // CATEGORÍAS DE ESTADO (configurables)
 // ============================================================
 import { normalizeDate } from "../../utils/dateFilters";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from "../../utils/dateUtils";
 
 export const CATEGORIAS_DEFAULT = {
   success: ['Firmo'],
@@ -111,7 +113,8 @@ function avgDays(ctx, filterFn) {
   for (const c of filtered) {
     const start = normalizeDate(c.fecha);
     if (!start) continue;
-    const end = fechaDeFirma(c) || new Date().toISOString().slice(0, 10);
+    // v1.9.7 (fix B3): fecha "hoy" en hora local para el promedio de días.
+    const end = fechaDeFirma(c) || hoyISO();
     if (!end) continue;
     const diff = Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
     totalDays += Math.max(0, diff);

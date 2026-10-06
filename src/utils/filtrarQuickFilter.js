@@ -16,6 +16,10 @@
  *    Bar), la coincidencia es OR sobre los valores.
  */
 
+// v1.9.7 (fix B1): para aplicarBusquedaFiltro (filtro "hoy" normalizado).
+import { normalizeDate } from "./dateFilters";
+import { hoyISO } from "./dateUtils";
+
 function norm(v) {
   return String(v).trim().toUpperCase();
 }
@@ -194,6 +198,42 @@ export function quickFilterToAccion(quickFilter) {
     ([, f]) => f.valor.toUpperCase() === valor
   );
   return hit ? hit[0] : null;
+}
+
+/**
+ * Filtro de búsqueda persistente (`config.busquedaFiltro`), extraído de
+ * App.jsx con el mismo criterio que aplicarQuickFilter: lógica pura testeable.
+ *
+ * v1.9.7 (fix B1): el branch "hoy" comparaba `c.fecha.slice(0,10)` con la fecha
+ * en UTC de toISOString(). Dos bugs: (1) una fecha legada DD/MM/YYYY nunca
+ * coincidía → la lista quedaba vacía; (2) en UTC-3, entre 21:00 y medianoche
+ * "hoy" ya era mañana. Ahora: normalizeDate admite ambos formatos y `hoy`
+ * (por defecto hoyISO()) es el día en hora local. El parámetro `hoy` permite
+ * testear con fechas fijas.
+ *
+ * @param {Array} casos
+ * @param {string} filtro "todos" | "activos" | "pendientes" | "hoy"
+ * @param {object} categories { lost, contact } categorías de estados
+ * @param {string} hoy YYYY-MM-DD en hora local (default: hoyISO())
+ */
+export function aplicarBusquedaFiltro(
+  casos,
+  filtro = "todos",
+  categories = {},
+  hoy = hoyISO()
+) {
+  if (filtro === "activos") {
+    const lost = categories.lost || [];
+    return casos.filter((c) => !lost.includes(c.estado));
+  }
+  if (filtro === "pendientes") {
+    const contact = categories.contact || [];
+    return casos.filter((c) => contact.includes(c.estado));
+  }
+  if (filtro === "hoy") {
+    return casos.filter((c) => normalizeDate(c.fecha) === hoy);
+  }
+  return casos;
 }
 
 export default aplicarQuickFilter;

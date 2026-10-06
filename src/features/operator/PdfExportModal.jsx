@@ -17,6 +17,8 @@ import { getDailyGreeting } from "./operatorMessages";
 import { Btn, OutlineButton } from "../../components/common/Btn";
 import { useModal } from "../../hooks/useModal";
 import { useAnimatedPresence } from "../../hooks/useAnimatedPresence";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { toLocalDateStr } from "../../utils/dateUtils";
 
 const SECCIONES = [
   { key: "perfil", label: "Perfil del operador", Icon: User },
@@ -54,7 +56,8 @@ export function PdfExportModal({ open, onClose, config, casos, showToast, evento
   const { isRendered, isLeaving } = useAnimatedPresence(open);
 
   const now = new Date();
-  const todayISO = now.toISOString().slice(0, 10);
+  // v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+  const todayISO = toLocalDateStr(now);
   const allCases = casos || [];
   const year = now.getFullYear();
   const month = now.getMonth();

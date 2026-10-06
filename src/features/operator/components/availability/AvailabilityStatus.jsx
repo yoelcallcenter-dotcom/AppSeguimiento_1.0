@@ -4,9 +4,11 @@ import { BtnOutline } from "../../../../components/common/BtnOutline";
 import { TAB_META } from "./availabilityMeta";
 import { formatearFechaLarga } from "../../operatorFormat";
 import { ABSENCE_TYPES } from "../../operatorDefaults";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from "../../../../utils/dateUtils";
 
 export function buildUpcoming(availability, limit = 4) {
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = hoyISO();
   return [
     ...(availability.vacations || []).map((v) => ({ tab: "vacaciones", date: v.start, end: v.end, label: `Vacaciones hasta el ${formatearFechaLarga(v.end)}`, item: v })),
     ...(availability.holidays || []).map((h) => ({ tab: "feriados", date: h.date, label: h.name || "Feriado", item: h })),

@@ -1,6 +1,8 @@
 import React from "react";
 import { Trash2, Pencil } from "lucide-react";
 import { TAB_META, tabColor, itemTitle, itemSubtitle, itemActive, itemStatusPill } from "./availabilityMeta";
+// v1.9.7 (fix B3): día en hora local, no en UTC (ver OperatorView).
+import { hoyISO } from "../../../../utils/dateUtils";
 
 export function AvailabilityList({ availability, tab, onEdit, onRemove }) {
   const list = {
@@ -21,7 +23,7 @@ export function AvailabilityList({ availability, tab, onEdit, onRemove }) {
     );
   }
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = hoyISO();
 
   return (
     <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">

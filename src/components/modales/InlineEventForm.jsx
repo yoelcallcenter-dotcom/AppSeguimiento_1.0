@@ -4,6 +4,8 @@ import { Btn } from "../../components/common/Btn";
 import { BtnOutline } from "../../components/common/BtnOutline";
 import { TextInput } from "../../components/common/TextInput";
 import { reportError } from "../../core/error/reportError";
+// v1.9.7 (fix B3): fecha por defecto en hora local (antes: UTC).
+import { hoyISO } from "../../utils/dateUtils";
 
 /**
  * InlineEventForm (Sistema de Citas, 1.5.0)
@@ -12,7 +14,8 @@ import { reportError } from "../../core/error/reportError";
  */
 export default function InlineEventForm({ caso, onCancel, onCreated, onOpenFull }) {
   const [titulo, setTitulo] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  // v1.9.7 (fix B3): fecha por defecto en hora local (antes: UTC).
+  const [fecha, setFecha] = useState(hoyISO());
   const [horaIni, setHoraIni] = useState("09:00");
   const [horaFin, setHoraFin] = useState("10:00");
   const [descripcion, setDescripcion] = useState("");

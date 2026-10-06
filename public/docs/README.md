@@ -186,9 +186,9 @@ src/
 │   ├── events/           # eventBus pub-sub
 │   ├── sync/             # sincronización entre pestañas (BroadcastChannel)
 │   ├── alerts/ rules/ integrity/ entities/ cases/ status/ i18n/ error/ monitoring/ storage/
-├── context/              # ThemeContext, FiltersContext, CalendarContext, UXContext, etc.
+├── context/              # ThemeContext, FiltersContext, UXContext, etc.
 ├── hooks/                # useModal, useDialogA11y, useViewTransition, useDebounce,
-│                         # useKeyboardShortcuts, useNotify, useCalendar, etc.
+│                         # useKeyboardShortcuts, useNotify, etc.
 ├── features/             # dashboard, operator ("Mi Espacio"), calendar, notes, search, export
 ├── services/             # backupService, autoBackup, EstudioService, StorageService
 ├── utils/                # backups/, csvUtils, csvParse, exportPDF, searchEngine, etc.
