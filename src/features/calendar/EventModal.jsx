@@ -175,8 +175,8 @@ export default function EventModal({
           <div
             className="rounded-md p-2.5 text-xs flex items-start gap-2"
             style={{
-              backgroundColor: 'var(--color-accent)11',
-              border: '1px solid var(--color-accent)44',
+              backgroundColor: 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)',
               color: 'var(--color-text)',
             }}
           >
@@ -421,9 +421,9 @@ export default function EventModal({
                       onClick={() => onVerCaso && onVerCaso(linkedCase)}
                       className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md hover:opacity-70 transition-opacity"
                       style={{
-                        backgroundColor: 'var(--color-accent)22',
+                        backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)',
                         color: 'var(--color-accent)',
-                        border: '1px solid var(--color-accent)44',
+                        border: '1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)',
                       }}
                     >
                       <ExternalLink size={9} />

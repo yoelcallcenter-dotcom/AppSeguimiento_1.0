@@ -143,7 +143,15 @@ const CSVImporter = lazy(() => import("./features/import/CSVImporter"));
 // Core
 import useAppStore from "./core/store/useAppStore";
 import { initTheme } from "./core/theme/themeManager";
-import { startAlertSystem } from "./features/alerts/alertsSystem";
+import { startAlertSystem, runCaseRules } from "./features/alerts/alertsSystem";
+// v1.10.0 (feature D): el motor de reglas se sincroniza con Configuración
+// (toggles on/off + reglas custom creadas desde la UI).
+import {
+  getRules,
+  registerRule,
+  unregisterRule,
+  enableRule,
+} from "./features/rules/rulesEngine";
 import {
   computeCaseChanges,
   recordCaseChanges,
@@ -227,7 +235,7 @@ function AppTitle() {
         </div>
         <span
           className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
           title={`Versión ${APP_VERSION}`}
         >
           v{APP_VERSION}
@@ -374,6 +382,9 @@ function AppContent() {
 
   // ============ UI STATE ============
   const [query, setQuery] = useState("");
+  // v1.10.0 (revisión): se quitó el chip "Solo de hoy" del header (resultó muy
+  // llamativo); el mismo atajo ahora vive en el filtro de Día (arriba de la
+  // Pipeline Bar) marcando el día de HOY con un estilo propio (ver DayFilter).
   const [modalCaso, setModalCaso] = useState(null);
   const [modalReporte, setModalReporte] = useState(false);
   const [casoReporteRapido, setCasoReporteRapido] = useState(null);
@@ -522,6 +533,59 @@ function AppContent() {
     limpiarConversacionesHuerfanas(config);
   }, [configLoaded, config]);
 
+  // v1.10.0 (feature D): sincroniza el motor de reglas (memoria del módulo)
+  // con la config persistida. Corre al cargar storage y ante cada cambio de
+  // config.rulesCustom / config.rulesEnabled:
+  //  1) da de baja las reglas custom que ya no están en config;
+  //  2) (re)registra las custom (condición declarativa {field, operator,
+  //     value} y acción "alert" con mensaje e interpolación {campo});
+  //  3) aplica los toggles a TODAS las reglas (default: encendidas).
+  useEffect(() => {
+    if (!configLoaded) return;
+    try {
+      const custom = Array.isArray(config?.rulesCustom) ? config.rulesCustom : [];
+      const enabled = config?.rulesEnabled || {};
+
+      getRules()
+        .filter((r) => r.custom)
+        .forEach((r) => {
+          // v1.10.0 (auditoría H3): guard ante entries corruptas en
+          // rulesCustom; sin él, una entrada null acá abortaba TODO el sync
+          // (código dentro de try/catch → se perdía la sincronización entera).
+          if (!custom.some((c) => c && c.name === r.name)) unregisterRule(r.name);
+        });
+
+      custom.forEach((r) => {
+        if (!r || !r.name || !r.field || !r.operator) return;
+        unregisterRule(r.name); // re-registro limpio (registerRule rechaza duplicados)
+        registerRule({
+          name: r.name,
+          description: r.description || `${r.field} ${r.operator} ${r.value ?? ""}`.trim(),
+          enabled: true,
+          custom: true,
+          condition: { field: r.field, operator: r.operator, value: r.value },
+          action: async (entity) => ({
+            action: "alert",
+            // Interpolación simple de {campo} del caso en el mensaje.
+            message: (r.message || `Regla "${r.name}" detectada`).replace(
+              /\{(\w+)\}/g,
+              (_, k) => (entity[k] !== undefined && entity[k] !== null ? String(entity[k]) : "")
+            ),
+            severity: r.severity === "error" ? "error" : r.severity === "warning" ? "warning" : "info",
+          }),
+        });
+      });
+
+      getRules().forEach((rule) => {
+        const pref = enabled[rule.name];
+        if (pref === false) enableRule(rule.name, false);
+        else if (pref === true) enableRule(rule.name, true);
+      });
+    } catch (err) {
+      reportError(err, { context: "rulesSync" });
+    }
+  }, [configLoaded, config?.rulesCustom, config?.rulesEnabled]);
+
   // Sync cases changes to Zustand store
   useEffect(() => {
     useAppStore.getState().setCases(casos);
@@ -645,6 +709,9 @@ function AppContent() {
     // legadas nunca coincidían (lista vacía).
     const filtro = config.busquedaFiltro || "todos";
     filtered = aplicarBusquedaFiltro(filtered, filtro, catsFiltro);
+    // v1.10.0 (revisión): se quitó la capa "Solo de hoy" del header; el filtro
+    // de día (selectedDays) que ahora marca el día de HOY en DayFilter ya
+    // cubre ese caso vía el memo de más arriba.
 
     return filtered;
   }, [casos, selectedMonth, selectedYear, selectedDays, config.busquedaFiltro, catsFiltro]);
@@ -860,6 +927,11 @@ function AppContent() {
           celebrarLogroSiCorresponde(updatedForGoal, caso);
         }
       }
+      // v1.10.0 (feature D): motor de reglas en altas (el estado inicial
+      // cuenta como transición) y en ediciones con cambio de estado.
+      if (isNew || (prev && prev.estado !== casoFinal.estado)) {
+        runCaseRules(casoFinal, isNew ? null : prev);
+      }
     },
     [setCasos, showToast, casos, pushUndo]
   );
@@ -907,6 +979,9 @@ function AppContent() {
         if (estado === "Firmo") {
           celebrarLogroSiCorresponde(updated, cambio);
         }
+        // v1.10.0 (feature D): reglas al cambiar estado desde la vista
+        // (tabla/kanban/dropdown).
+        runCaseRules(cambio, prev);
       }
       setCasos(updated);
     },
@@ -964,6 +1039,8 @@ function AppContent() {
           );
           celebrarLogroSiCorresponde(updatedForGoal, casoFinal);
         }
+        // v1.10.0 (feature D): reglas al cargar un reporte que cambia el estado.
+        runCaseRules(casoFinal, prev);
       }
     },
     [setCasos, casos, pushUndo]
@@ -985,6 +1062,11 @@ function AppContent() {
       pushUndo("Caso actualizado");
       trackEvent("CASE_EDITED");
       setCasos((list) => list.map((c) => (c.id === casoFinal.id ? casoFinal : c)));
+      // v1.10.0 (feature D): reglas si la edición cambió el estado
+      // (esta ruta no tenía detección de transición).
+      if (prev && prev.estado !== casoFinal.estado) {
+        runCaseRules(casoFinal, prev);
+      }
     },
     [setCasos, casos, pushUndo]
   );
@@ -1234,7 +1316,7 @@ function AppContent() {
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-lg border"
           style={{
-            backgroundColor: "var(--color-danger)11",
+            backgroundColor: "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
             borderColor: "var(--color-danger)",
           }}
           role="alert"
@@ -1426,6 +1508,10 @@ function AppContent() {
                 data-tour="buscar"
               />
             </div>
+            {/* v1.10.0 (revisión): se quitó el chip "Solo de hoy" de acá
+                (demasiado llamatorio); el atajo ahora es el día de HOY
+                destacado en DayFilter (filtro de Día, arriba de la Pipeline
+                Bar), que sí se persiste con selectedDays. */}
             {filtrosActivos && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 {filtrosDetalle.map((f) => (
@@ -1456,6 +1542,9 @@ function AppContent() {
                   onClick={() => {
                     resetFiltroGlobal();
                     setQuickFilter(null);
+                    // v1.10.0 (revisión): "Limpiar todo" ya no apaga el chip
+                    // del header (se quitó); el filtro de día se limpia desde
+                    // el propio filtro de Día (botón "Todos").
                   }}
                   title="Limpiar todos los filtros"
                   style={{

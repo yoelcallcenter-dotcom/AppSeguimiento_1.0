@@ -28,7 +28,7 @@ export const QuickActions = React.memo(({ casos, categorias, onFilter, activeFil
               onClick={() => onFilter(isActive ? null : acc.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
               style={{
-                backgroundColor: isActive ? `${acc.color}22` : 'var(--color-surface2)',
+                backgroundColor: isActive ? `color-mix(in srgb, ${acc.color} 13.3%, transparent)` : 'var(--color-surface2)',
                 color: isActive ? acc.color : 'var(--color-text)',
                 border: `1px solid ${isActive ? acc.color : 'var(--color-border)'}`,
               }}

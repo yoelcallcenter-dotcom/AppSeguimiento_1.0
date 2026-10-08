@@ -35,10 +35,13 @@ function clearRules() {
   rules = [];
 }
 
-function evaluateCondition(entity, condition) {
+// v1.10.0 (feature D): las condiciones-función reciben ahora `context`
+// (con { prev } del caso anterior) además de la entidad. Sin esto la regla de
+// citas no podía distinguir "entró en estado Cita" de "ya está en Cita".
+function evaluateCondition(entity, condition, context = {}) {
   if (typeof condition === 'function') {
     try {
-      return condition(entity);
+      return condition(entity, context);
     } catch (err) {
       reportError({ type: 'rule', message: `Condition error: ${condition.name || 'anonymous'}`, context: err });
       return false;
@@ -75,7 +78,7 @@ async function runRules(entity, context = {}) {
   for (const rule of rules) {
     if (!rule.enabled) continue;
     try {
-      const matched = evaluateCondition(entity, rule.condition);
+      const matched = evaluateCondition(entity, rule.condition, context);
       if (matched) {
         const result = await rule.action(entity, context);
         results.push({ rule: rule.name, matched: true, result });
@@ -106,10 +109,15 @@ const defaultRules = [
     name: 'case-estado-nuevo-create-event',
     description: 'Crear evento automatico cuando un caso entra en estado "Cita virtual" o "Cita presencial"',
     enabled: true,
-    condition: (entity) =>
+    // v1.10.0 (feature D): antes comparaba `entity._prevEstado`, un campo que
+    // nadie escribía → con el cableado nuevo se disparaba en CADA revisión de
+    // un caso que ya estaba en Cita. Ahora compara contra el estado PREVIO
+    // real (context.prev, que llega desde runRules); en altas (sin prev) el
+    // `undefined` hace que cuente como transición, que es lo deseado.
+    condition: (entity, context) =>
       entity.estado &&
       ['Cita virtual', 'Cita presencial'].includes(entity.estado) &&
-      entity._prevEstado !== entity.estado,
+      (context?.prev?.estado ?? null) !== entity.estado,
     action: async (entity) => {
       const { createEvent } = await import('../calendar/calendarStore');
       // v1.9.7 (fix B3): fecha "hoy" en hora local.

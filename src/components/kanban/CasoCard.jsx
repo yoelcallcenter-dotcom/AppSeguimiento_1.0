@@ -79,7 +79,7 @@ export const CasoCard = React.memo(
                   key={t}
                   className="text-[8px] px-1.5 py-0.5 rounded"
                   style={{
-                    backgroundColor: "var(--color-accent)22",
+                    backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                     color: "var(--color-accent)",
                   }}
                 >

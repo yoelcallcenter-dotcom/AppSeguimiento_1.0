@@ -56,7 +56,7 @@ export function SectionHeader({ icon: Icon, titulo, descripcion, storageKey, ove
         <>
           <div
             className="flex items-center justify-center flex-shrink-0 rounded-md"
-            style={{ backgroundColor: "var(--color-accent)22", width: 32, height: 32 }}
+            style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", width: 32, height: 32 }}
           >
             {Icon && <Icon size={16} style={{ color: "var(--color-accent)" }} aria-hidden="true" />}
           </div>
@@ -177,8 +177,8 @@ export function ConfigTip({ title = "Sugerencias", children, style }) {
       style={{
         borderRadius: "var(--border-radius)",
         padding: "0.75rem",
-        backgroundColor: "var(--color-accent)0d",
-        border: "1px solid var(--color-accent)33",
+        backgroundColor: "color-mix(in srgb, var(--color-accent) 5.1%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)",
         borderLeft: "3px solid var(--color-accent)",
         ...style,
       }}

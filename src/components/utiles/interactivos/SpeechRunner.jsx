@@ -78,7 +78,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
         <div
           className="rounded-lg p-4 flex items-start gap-2 text-sm"
           style={{
-            backgroundColor: "var(--color-danger)11",
+            backgroundColor: "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
             border: "1px solid var(--color-danger)",
             color: "var(--color-danger)",
           }}
@@ -106,7 +106,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
             <span
               className="pill-sm font-bold"
               style={{
-                backgroundColor: "var(--color-accent)22",
+                backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                 color: "var(--color-accent)",
               }}
             >
@@ -116,7 +116,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
               <span
                 className="pill-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-success)22",
+                  backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)",
                   color: "var(--color-success)",
                 }}
               >
@@ -151,7 +151,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
                   onClick={() => elegir(op.targetStepId)}
                   className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors hover:opacity-80"
                   style={{
-                    backgroundColor: "var(--color-accent)22",
+                    backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                     border: "1px solid var(--color-accent)",
                     color: "var(--color-accent)",
                   }}
@@ -164,7 +164,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
             <div
               className="rounded-lg px-3 py-2 text-sm font-semibold text-center"
               style={{
-                backgroundColor: "var(--color-success)22",
+                backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)",
                 color: "var(--color-success)",
               }}
             >

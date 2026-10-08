@@ -117,7 +117,7 @@ export default function AlertsPanel({ metrics, cases, notes, events, onDrill, on
         <Bell size={18} style={{ color: 'var(--color-accent)' }} />
         <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Alertas</span>
         {attentionItems.length > 0 && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-danger)22', color: 'var(--color-danger)' }}>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 13.3%, transparent)', color: 'var(--color-danger)' }}>
             {attentionItems.length}
           </span>
         )}

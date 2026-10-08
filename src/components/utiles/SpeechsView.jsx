@@ -352,7 +352,7 @@ export function SpeechsView({
                     <span
                       className="pill-sm font-bold"
                       style={{
-                        backgroundColor: "var(--color-accent)22",
+                        backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                         color: "var(--color-accent)",
                       }}
                     >
@@ -580,7 +580,7 @@ export function SpeechsView({
                 <span
                   className="pill-sm font-bold"
                   style={{
-                    backgroundColor: "var(--color-accent)22",
+                    backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                     color: "var(--color-accent)",
                   }}
                 >
@@ -617,7 +617,7 @@ export function SpeechsView({
                   }
                   className={`ml-auto p-1.5 rounded-md transition-colors ${
                     modalBorrador !== null
-                      ? "bg-[var(--color-accent)22]"
+                      ? "bg-[color-mix(in_srgb,var(--color-accent)_13.3%,_transparent)]"
                       : "hover:bg-white/5"
                   }`}
                   style={{

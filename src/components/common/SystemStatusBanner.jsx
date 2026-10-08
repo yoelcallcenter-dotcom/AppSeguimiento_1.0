@@ -107,9 +107,9 @@ export function SystemStatusBanner() {
   if (banners.length === 0) return null;
 
   const styleMap = {
-    warning: { color: "var(--color-warning)", bg: "var(--color-warning)11" },
-    error: { color: "var(--color-danger)", bg: "var(--color-danger)11" },
-    info: { color: "var(--color-primary)", bg: "var(--color-primary)11" },
+    warning: { color: "var(--color-warning)", bg: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)" },
+    error: { color: "var(--color-danger)", bg: "color-mix(in srgb, var(--color-danger) 6.7%, transparent)" },
+    info: { color: "var(--color-primary)", bg: "color-mix(in srgb, var(--color-primary) 6.7%, transparent)" },
   };
 
   return (

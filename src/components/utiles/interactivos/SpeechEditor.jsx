@@ -204,7 +204,7 @@ export function SpeechEditor({
         <ul
           className="rounded-lg p-2 space-y-0.5 text-[11px]"
           style={{
-            backgroundColor: "var(--color-danger)11",
+            backgroundColor: "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
             border: "1px solid var(--color-danger)",
             color: "var(--color-danger)",
           }}
@@ -219,7 +219,7 @@ export function SpeechEditor({
         <ul
           className="rounded-lg p-2 space-y-0.5 text-[11px]"
           style={{
-            backgroundColor: "var(--color-warning)11",
+            backgroundColor: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)",
             border: "1px solid var(--color-warning)",
             color: "var(--color-warning)",
           }}
@@ -273,7 +273,7 @@ export function SpeechEditor({
                   <span
                     className="pill-sm font-bold"
                     style={{
-                      backgroundColor: "var(--color-success)22",
+                      backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)",
                       color: "var(--color-success)",
                     }}
                   >
@@ -326,7 +326,7 @@ export function SpeechEditor({
                         aria-label={`Insertar objeción: ${o.titulo || o.id}`}
                         className="pill-sm font-semibold transition-colors hover:opacity-80"
                         style={{
-                          backgroundColor: "var(--color-accent)22",
+                          backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                           color: "var(--color-accent)",
                         }}
                       >
@@ -502,7 +502,7 @@ export function SpeechEditor({
               <div
                 className="rounded-lg p-3 space-y-2 text-xs"
                 style={{
-                  backgroundColor: "var(--color-warning)11",
+                  backgroundColor: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)",
                   border: "1px solid var(--color-warning)",
                 }}
               >

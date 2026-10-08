@@ -370,7 +370,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
                 <span
                   key={tag}
                   className="flex items-center gap-1 pill-sm cursor-pointer hover:opacity-70"
-                  style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
                   onClick={() => handleRemoveTag(tag)}
                 >
                   {tag} <span className="text-[8px]">&times;</span>
@@ -411,9 +411,9 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
                         onClick={() => onVerCaso && onVerCaso(linkedCase)}
                         className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md hover:opacity-70 transition-opacity"
                         style={{
-                          backgroundColor: 'var(--color-accent)22',
+                          backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)',
                           color: 'var(--color-accent)',
-                          border: '1px solid var(--color-accent)44',
+                          border: '1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)',
                         }}
                       >
                         <ExternalLink size={9} />

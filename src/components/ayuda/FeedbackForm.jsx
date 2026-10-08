@@ -158,7 +158,7 @@ Navegador: ${navigator.userAgent}
       <div className="text-center py-8">
         <div
           className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{ backgroundColor: "var(--color-success)22" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)" }}
         >
           <Check size={36} color="var(--color-success)" />
         </div>
@@ -241,8 +241,8 @@ Navegador: ${navigator.userAgent}
         <div
           className="rounded-md p-3"
           style={{
-            backgroundColor: "var(--color-danger)22",
-            border: "1px solid var(--color-danger)55",
+            backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--color-danger) 33.3%, transparent)",
           }}
         >
           <div className="flex items-start gap-2">
@@ -457,8 +457,8 @@ Navegador: ${navigator.userAgent}
         <div
           className="rounded-md p-2.5 flex items-start gap-2"
           style={{
-            backgroundColor: "var(--color-accent)11",
-            border: "1px solid var(--color-accent)33",
+            backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)",
           }}
         >
           <Info

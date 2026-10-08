@@ -39,7 +39,7 @@ function GoalStatusBadge({ met, percent, status }) {
   if (met) {
     return (
       <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
-        style={{ backgroundColor: "var(--color-success)22", color: "var(--color-success)" }}>
+        style={{ backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)", color: "var(--color-success)" }}>
         <CheckCircle2 size={9} />
         Completado
       </span>
@@ -48,7 +48,7 @@ function GoalStatusBadge({ met, percent, status }) {
   if (percent >= 75) {
     return (
       <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
-        style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}>
+        style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}>
         Cerca
       </span>
     );
@@ -110,7 +110,7 @@ function WeeklyGoals({ weeklyProgress }) {
                 <span style={{ color: "var(--color-text)" }}>{g.label}</span>
                 {g.met && (
                   <span className="inline-flex items-center gap-0.5 pill-compact font-semibold"
-                    style={{ backgroundColor: "var(--color-success)22", color: "var(--color-success)" }}>
+                    style={{ backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)", color: "var(--color-success)" }}>
                     <CheckCircle2 size={9} />
                     Logrado
                   </span>
@@ -167,16 +167,16 @@ function ProximoHito({ milestone }) {
       className="mt-4 pt-3 flex items-center gap-3"
       style={{
         borderTop: "1px solid var(--color-border)",
-        backgroundColor: color + "0D",
+        backgroundColor: `color-mix(in srgb, ${color} 5.1%, transparent)`,
         borderRadius: "8px",
-        border: `1px solid ${color}33`,
+        border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
         padding: "12px",
         marginTop: "16px",
       }}
     >
       <div
         className="flex items-center justify-center rounded-lg flex-shrink-0"
-        style={{ backgroundColor: color + "22", width: "36px", height: "36px" }}
+        style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, width: "36px", height: "36px" }}
       >
         <Icon size={18} style={{ color }} />
       </div>

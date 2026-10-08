@@ -26,9 +26,10 @@ describe('dashboardConfig', () => {
     expect(getOrderedDashTabOrder(reversed)).toEqual(reversed);
   });
 
-  it('registra 16 widgets en el tab resumen', () => {
+  it('registra 17 widgets en el tab resumen', () => {
+    // v1.10.0 (feature A): se agregó metaFirmas → 16 → 17.
     const keys = Object.keys(DASH_WIDGET_REGISTRY.resumen);
-    expect(keys).toHaveLength(16);
+    expect(keys).toHaveLength(17);
   });
 
   it('cada widget registrado tiene label, defaultOrder e icono', () => {

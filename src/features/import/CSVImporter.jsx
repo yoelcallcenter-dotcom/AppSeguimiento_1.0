@@ -416,7 +416,7 @@ export default function CSVImporter({ onComplete }) {
         {validationErrors.length > 0 && (
           <div
             className="rounded-lg p-3 flex items-start gap-2"
-            style={{ backgroundColor: 'var(--color-danger)22', border: '1px solid var(--color-danger)44' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 13.3%, transparent)', border: '1px solid color-mix(in srgb, var(--color-danger) 26.7%, transparent)' }}
           >
             <AlertTriangle size={14} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: 1 }} />
             <div>
@@ -433,13 +433,13 @@ export default function CSVImporter({ onComplete }) {
 
         {/* Integridad (1.3.3): clasificación de filas antes de aplicar */}
         <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
-          <span className="pill-md" style={{ backgroundColor: 'var(--color-success)22', color: 'var(--color-success)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'color-mix(in srgb, var(--color-success) 13.3%, transparent)', color: 'var(--color-success)' }}>
             {resumenClasificacion.validos} válidas
           </span>
-          <span className="pill-md" style={{ backgroundColor: 'var(--color-warning)22', color: 'var(--color-warning)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'color-mix(in srgb, var(--color-warning) 13.3%, transparent)', color: 'var(--color-warning)' }}>
             {resumenClasificacion.advertencias} con advertencias
           </span>
-          <span className="pill-md" style={{ backgroundColor: 'var(--color-danger)22', color: 'var(--color-danger)' }}>
+          <span className="pill-md" style={{ backgroundColor: 'color-mix(in srgb, var(--color-danger) 13.3%, transparent)', color: 'var(--color-danger)' }}>
             {resumenClasificacion.invalidos} inválidas (no se importan)
           </span>
         </div>
@@ -463,7 +463,7 @@ export default function CSVImporter({ onComplete }) {
                     <td className="px-2 py-1" style={{ color: 'var(--color-text-muted)' }}>{i + 1}</td>
                     <td className="px-2 py-1 font-medium" style={{ color: 'var(--color-text)' }}>{c.nombre || '—'}</td>
                     <td className="px-2 py-1"><PhoneLink telefono={c.telefono} /></td>
-                    <td className="px-2 py-1"><span className="px-1.5 py-0.5 rounded text-[9px]" style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}>{c.estado || '—'}</span></td>
+                    <td className="px-2 py-1"><span className="px-1.5 py-0.5 rounded text-[9px]" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}>{c.estado || '—'}</span></td>
                     <td className="px-2 py-1" style={{ color: 'var(--color-text)' }}>{c.localidad || '—'}</td>
                   </tr>
                 );

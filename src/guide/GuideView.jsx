@@ -71,7 +71,7 @@ export function GuideView({ showToast }) {
         </span>
         <span
           className="pill-sm"
-          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
         >
           {GUIDE_SECTIONS.length} secciones
         </span>

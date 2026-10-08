@@ -403,7 +403,7 @@ export function VerCasoModal({
                 <span
                   className="pill-sm"
                   style={{
-                    backgroundColor: "var(--color-accent)22",
+                    backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                     color: "var(--color-accent)",
                   }}
                 >
@@ -540,7 +540,7 @@ export function VerCasoModal({
                   {casosByInsurer.length > 0 && (
                     <span
                       className="pill-compact flex-shrink-0"
-                      style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+                      style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
                     >
                       +{casosByInsurer.length}
                     </span>
@@ -586,7 +586,7 @@ export function VerCasoModal({
                   {casosByLawFirm.length > 0 && (
                     <span
                       className="pill-compact flex-shrink-0"
-                      style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+                      style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
                     >
                       +{casosByLawFirm.length}
                     </span>
@@ -601,7 +601,7 @@ export function VerCasoModal({
                 <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Etiquetas</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {caso.tags.map((t) => (
-                    <span key={t} className="pill-sm" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px solid var(--color-accent)44" }}>
+                    <span key={t} className="pill-sm" style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)", border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)" }}>
                       {sanitizeString(t)}
                     </span>
                   ))}

@@ -54,7 +54,10 @@ const CitasWidget = React.memo(function CitasWidget({ period }) {
                 </div>
               </div>
               {ev.status === 'confirmed' && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-success, #10B981)22', color: 'var(--color-success, #10B981)' }}>
+                // v1.10.0 (auditoría H1): el sufijo hex-alpha pegado al cierre
+                // de var() con fallback es sintaxis inválida → fondo invisible;
+                // se reemplaza por color-mix() conservando la alfa.
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--color-success, #10B981) 13.3%, transparent)', color: 'var(--color-success, #10B981)' }}>
                   OK
                 </span>
               )}

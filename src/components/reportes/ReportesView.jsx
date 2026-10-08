@@ -275,7 +275,7 @@ export function ReportesView({ casos, casosBase = [], casosMes, onVerCaso, meses
                       {vieneDeReporte && (
                         <span
                           className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
-                          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)", border: "1px dashed var(--color-accent)66" }}
+                          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)", border: "1px dashed color-mix(in srgb, var(--color-accent) 40%, transparent)" }}
                           title="Aparece en este mes por su último reporte"
                         >
                           por reporte

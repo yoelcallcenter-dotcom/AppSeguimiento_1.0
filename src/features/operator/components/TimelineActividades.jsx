@@ -24,7 +24,7 @@ function TipoBubble({ type, color }) {
   return (
     <div
       className="flex items-center justify-center rounded-full flex-shrink-0"
-      style={{ backgroundColor: color + "22", width: "30px", height: "30px" }}
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, width: "30px", height: "30px" }}
       aria-hidden="true"
     >
       <Icon size={14} style={{ color }} />

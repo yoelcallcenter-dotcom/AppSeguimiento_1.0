@@ -56,9 +56,9 @@ export function BienvenidaCard({ profile, now, greeting, encouragement, metaDiar
             onClick={goToProxima}
             className="inline-flex items-center gap-1.5 pill-compact font-semibold transition-opacity hover:opacity-70"
             style={{
-              backgroundColor: "var(--color-accent)22",
+              backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
               color: "var(--color-accent)",
-              border: "1px solid var(--color-accent)44",
+              border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)",
             }}
           >
             <CalendarClock size={12} aria-hidden="true" />
@@ -73,7 +73,7 @@ export function BienvenidaCard({ profile, now, greeting, encouragement, metaDiar
           {metaDiariaCumplida && (
             <div
               className="rounded-md px-3 py-2 flex items-center gap-2 animate-fade-in"
-              style={{ backgroundColor: "var(--color-success)11", border: "1px solid var(--color-success)44" }}
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-success) 6.7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-success) 26.7%, transparent)" }}
               role="status"
             >
               <Trophy size={15} className="flex-shrink-0" style={{ color: "var(--color-success)" }} />
@@ -85,7 +85,7 @@ export function BienvenidaCard({ profile, now, greeting, encouragement, metaDiar
           {encouragement && (
             <div
               className="rounded-md px-3 py-2 flex items-start gap-2 animate-fade-in"
-              style={{ backgroundColor: "var(--color-warning)11", border: "1px solid var(--color-warning)44" }}
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-warning) 26.7%, transparent)" }}
               role="status"
             >
               <MessagesSquare size={15} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-warning)" }} />

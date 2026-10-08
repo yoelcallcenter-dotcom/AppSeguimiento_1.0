@@ -13,9 +13,9 @@ const ICON_MAP = {
 };
 
 const SEVERITY_STYLES = {
-  danger: { border: 'var(--color-danger)', bg: 'var(--color-danger)11', text: 'var(--color-danger)' },
-  warning: { border: 'var(--color-warning)', bg: 'var(--color-warning)11', text: 'var(--color-warning)' },
-  info: { border: 'var(--color-accent)', bg: 'var(--color-accent)11', text: 'var(--color-accent)' },
+  danger: { border: 'var(--color-danger)', bg: 'color-mix(in srgb, var(--color-danger) 6.7%, transparent)', text: 'var(--color-danger)' },
+  warning: { border: 'var(--color-warning)', bg: 'color-mix(in srgb, var(--color-warning) 6.7%, transparent)', text: 'var(--color-warning)' },
+  info: { border: 'var(--color-accent)', bg: 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)', text: 'var(--color-accent)' },
 };
 
 const INITIAL_SHOW = 5;
@@ -65,7 +65,7 @@ export default React.memo(function ProximasAcciones({ cases, notes, events, onVe
           <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>Próximas acciones</span>
           <span
             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-            style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
           >
             {acciones.length}
           </span>

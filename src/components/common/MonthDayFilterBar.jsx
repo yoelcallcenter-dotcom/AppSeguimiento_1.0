@@ -5,6 +5,7 @@ import { FilterBar, FilterGroup, FilterCounter } from "./filters";
 import { useFilters } from "../../context/FiltersContext";
 import { getMonthLabel } from "../../utils/dateFilters";
 import { normalizeDate } from "../../utils/dateFilters";
+import { hoyISO } from "../../utils/dateUtils";
 
 /**
  * Barra de filtro por mes/día compartida entre Tablero, Tabla, Reportes y Dashboard.
@@ -80,6 +81,15 @@ export function MonthDayFilterBar({
       ? `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`
       : "all";
 
+  // v1.10.0 (revisión): si el mes mostrado es el mes actual, pasamos el día de
+  // HOY a DayFilter para que lo resalte con su marcador propio (atajo
+  // discreto de "Solo de hoy"; el chip del header se quitó en esta revisión).
+  const hoyDia = useMemo(() => {
+    if (selectedMonth < 0 || selectedYear < 0) return null;
+    const [hoyY, hoyM, hoyD] = hoyISO().split("-").map(Number);
+    return selectedYear === hoyY && selectedMonth + 1 === hoyM ? hoyD : null;
+  }, [selectedMonth, selectedYear]);
+
   return (
     <FilterBar>
       <FilterGroup label="Mes">
@@ -95,6 +105,7 @@ export function MonthDayFilterBar({
           selectedDays={selectedDays}
           onDayChange={setSelectedDays}
           diasDisponibles={diasDisponibles}
+          hoyDia={hoyDia}
         />
       )}
       <FilterCounter total={total} label="prospecto" />

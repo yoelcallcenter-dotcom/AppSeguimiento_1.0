@@ -30,8 +30,10 @@ window.ResizeObserver =
 
 // 1.9.6: showToast ahora es parametrizable para poder asertar errores de
 // validación del editor de Conversación Sugerida.
-function VistaConfig({ onCfg, showToast = noop }) {
-  const [cfg, setCfg] = useState({ ...CONFIG_DEFAULT });
+// 1.10.0 (auditoría): initialCfg permite inyectar config corrupta (p. ej.
+// rulesCustom: [null]) para verificar que los guards no crashean la vista.
+function VistaConfig({ onCfg, showToast = noop, initialCfg }) {
+  const [cfg, setCfg] = useState({ ...CONFIG_DEFAULT, ...initialCfg });
   const setConfig = (next) => {
     setCfg(next);
     if (onCfg) onCfg(next);
@@ -94,6 +96,15 @@ const abrirConversaciones = () => {
 const abrirDatos = () => {
   const secciones = screen.getByLabelText("Secciones de Configuración");
   fireEvent.click(within(secciones).getByText("Datos"));
+};
+
+// 1.10.0 (revisión): grupo y sección Notificaciones se llaman igual, por eso
+// primero se clickea el grupo (que pinta sus secciones) y después la sección.
+const abrirNotificaciones = () => {
+  const grupos = screen.getByLabelText("Grupos de Configuración");
+  fireEvent.click(within(grupos).getByText("Notificaciones"));
+  const secciones = screen.getByLabelText("Secciones de Configuración");
+  fireEvent.click(within(secciones).getByText("Notificaciones"));
 };
 
 const tipear = (input, texto) => {
@@ -418,5 +429,150 @@ describe("ConfiguracionView · Conversación Sugerida (1.9.6)", () => {
           .backgroundColor
       ).not.toBe("transparent");
     });
+  });
+});
+
+// 1.10.0 (revisión del usuario): la UI de Reglas automáticas se rediseñó para
+// ser menos técnica — dos bloques separados (lista + "Crear una regla"), frase
+// natural, nombre autogenerado, chips de severidad y vista previa en vivo.
+describe("ConfiguracionView · Reglas automáticas (revisión 1.10.0)", () => {
+  it("la lista y el form son bloques separados: el form solo se abre con 'Nueva regla'", () => {
+    render(<VistaConfig />);
+    abrirNotificaciones();
+
+    // Bloque 1: la lista con las reglas del motor en lenguaje llano.
+    expect(screen.getByText(/Alertar si un caso no tiene telefono/)).toBeTruthy();
+    expect(screen.getByText(/Crear evento automatico cuando un caso entra/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Nueva regla" })).toBeTruthy();
+    // El form NO está a la vista (antes estaba siempre mezclado con la lista).
+    expect(screen.queryByText("Crear una regla")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+
+    // Bloque 2: la frase armable, sin campo de nombre técnico.
+    expect(screen.getByText("Crear una regla")).toBeTruthy();
+    expect(screen.getByText("Cuando")).toBeTruthy();
+    expect(screen.getByLabelText("Campo de la regla")).toBeTruthy();
+    expect(screen.getByLabelText("Condición de la regla")).toBeTruthy();
+    // Sin campo de nombre técnico (el viejo placeholder "Nombre (ej: ...)"
+    // ya no existe en el form; el interno se autogenera).
+    expect(screen.queryByPlaceholderText(/Nombre \(/)).toBeNull();
+    // Severidad en chips clicables (no en un Select técnico).
+    expect(screen.getByRole("button", { name: "Aviso" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Error" }).getAttribute("aria-pressed")).toBe("false");
+    // Vista previa en vivo.
+    expect(screen.getByText("Así se va a ver")).toBeTruthy();
+    expect(screen.getByText(/Escribí el mensaje del aviso/)).toBeTruthy();
+
+    // Cancelar cierra el form sin tocar la config.
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByText("Crear una regla")).toBeNull();
+  });
+
+  it("crear una regla guarda rulesCustom con nombre autogenerado y la muestra como frase", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirNotificaciones();
+    fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+
+    fireEvent.change(screen.getByLabelText("Valor a comparar"), {
+      target: { value: "Pendiente" },
+    });
+    fireEvent.change(screen.getByLabelText("Mensaje del aviso"), {
+      target: { value: "Falta el teléfono de {nombre}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Error" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar regla" }));
+
+    const nueva = (visto.rulesCustom || [])[0];
+    expect(nueva.name).toMatch(/^propia-\d+$/);
+    expect(nueva.field).toBe("estado");
+    expect(nueva.operator).toBe("equals");
+    expect(nueva.value).toBe("Pendiente");
+    expect(nueva.message).toBe("Falta el teléfono de {nombre}");
+    expect(nueva.severity).toBe("error");
+
+    // El form se cierra y la regla queda en la lista como frase + mensaje.
+    expect(screen.queryByText("Crear una regla")).toBeNull();
+    expect(screen.getByText(/Cuando Estado es igual a "Pendiente"/)).toBeTruthy();
+    expect(screen.getByText(/Falta el teléfono de \{nombre\}/)).toBeTruthy();
+    expect(screen.getByText("Propia")).toBeTruthy();
+  });
+
+  it("sin valor o sin mensaje no crea la regla y explica el problema", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirNotificaciones();
+    fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar regla" }));
+    expect(screen.getByText("Falta el valor a comparar.")).toBeTruthy();
+    expect(visto).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Valor a comparar"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar regla" }));
+    expect(screen.getByText("Falta el mensaje de la alerta.")).toBeTruthy();
+    expect(visto).toBeNull();
+  });
+
+  it("el interruptor de una regla del motor persiste rulesEnabled", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirNotificaciones();
+
+    // 1.10.0 (auditoría H5): el aria-label ahora usa la descripción legible
+    // de la regla en vez del name interno tipo slug.
+    const toggle = screen.getByLabelText("Activar regla: Alertar si un caso no tiene telefono");
+    expect(toggle.checked).toBe(true);
+    fireEvent.click(toggle);
+    expect(visto.rulesEnabled["case-sin-telefono-alert"]).toBe(false);
+  });
+
+  // 1.10.0 (auditoría H2): gt/lt convertía el valor con Number() sin validar →
+  // "abc" se persistía como NaN y la regla nunca matcheaba (falla silenciosa).
+  it("la regla numérica (gt/lt) valida el número y guarda value finito, aceptando coma decimal", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirNotificaciones();
+    fireEvent.click(screen.getByRole("button", { name: "Nueva regla" }));
+
+    fireEvent.change(screen.getByLabelText("Condición de la regla"), {
+      target: { value: "gt" },
+    });
+    fireEvent.change(screen.getByLabelText("Valor a comparar"), {
+      target: { value: "abc" },
+    });
+    fireEvent.change(screen.getByLabelText("Mensaje del aviso"), {
+      target: { value: "Demasiados casos" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar regla" }));
+
+    // No crea la regla y explica el problema (el form sigue abierto).
+    expect(screen.getByText("Ingresá un número válido.")).toBeTruthy();
+    expect(visto).toBeNull();
+    expect(screen.getByText("Crear una regla")).toBeTruthy();
+
+    // Con número válido (coma decimal → punto) sí la crea, con value numérico.
+    fireEvent.change(screen.getByLabelText("Valor a comparar"), {
+      target: { value: "10,5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Agregar regla" }));
+    expect(visto).not.toBeNull();
+    const nueva = (visto.rulesCustom || [])[0];
+    expect(nueva.value).toBe(10.5);
+    expect(Number.isFinite(nueva.value)).toBe(true);
+  });
+
+  // 1.10.0 (auditoría H3): entradas corruptas en rulesCustom (config editada a
+  // mano o storage viejo) rompían el find/filter de la sección → crash del
+  // panel de Configuración completo.
+  it("rulesCustom con entradas corruptas (null) no rompe la sección", () => {
+    render(<VistaConfig initialCfg={{ rulesCustom: [null] }} />);
+    abrirNotificaciones();
+
+    expect(screen.getByText(/Alertar si un caso no tiene telefono/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Nueva regla" })).toBeTruthy();
   });
 });

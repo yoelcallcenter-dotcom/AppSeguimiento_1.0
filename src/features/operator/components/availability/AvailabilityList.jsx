@@ -36,7 +36,7 @@ export function AvailabilityList({ availability, tab, onEdit, onRemove }) {
             className={`flex items-start gap-1.5 p-2.5 rounded-md transition-shadow transition-opacity ${isActive ? "ring-1" : "opacity-60"}`}
             style={{
               backgroundColor: isActive ? "var(--color-surface2)" : "var(--color-surface)",
-              border: isActive ? `1px solid ${color}44` : "1px solid var(--color-border)",
+              border: isActive ? `1px solid color-mix(in srgb, ${color} 26.7%, transparent)` : "1px solid var(--color-border)",
               boxShadow: isActive ? `0 0 0 1px ${color}` : "none",
             }}
           >
@@ -52,7 +52,7 @@ export function AvailabilityList({ availability, tab, onEdit, onRemove }) {
                 {isActive && (
                   <span
                     className="pill-compact font-bold"
-                    style={{ backgroundColor: `${color}22`, color }}
+                    style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, color }}
                   >
                     {itemStatusPill(tab)}
                   </span>

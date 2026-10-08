@@ -310,7 +310,7 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
                     <span
                       className="pill-sm font-bold flex-shrink-0"
                       style={{
-                        backgroundColor: "var(--color-danger)22",
+                        backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)",
                         color: "var(--color-danger)",
                       }}
                       title={errores.join(" · ")}
@@ -589,7 +589,7 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
                     <span
                       className="pill-sm font-bold flex-shrink-0"
                       style={{
-                        backgroundColor: `${chip.color}22`,
+                        backgroundColor: `color-mix(in srgb, ${chip.color} 13.3%, transparent)`,
                         color: chip.color,
                       }}
                     >

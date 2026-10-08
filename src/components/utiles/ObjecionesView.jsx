@@ -246,7 +246,7 @@ export function ObjecionesView({ objeciones, setObjeciones, showToast }) {
               <span
                 className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0 mt-0.5"
                 style={{
-                  backgroundColor: "var(--color-accent)22",
+                  backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                   color: "var(--color-accent)",
                 }}
               >

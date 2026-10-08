@@ -41,7 +41,7 @@ function PriorityBadge({ priority }) {
   return (
     <span
       className="pill-compact flex-shrink-0 font-semibold"
-      style={{ backgroundColor: color + "22", color }}
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, color }}
     >
       {label}
     </span>
@@ -113,7 +113,7 @@ export function PendientesCard({ cases, events, notes, todayISO, goals, onVerCas
             >
               <span
                 className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ backgroundColor: meta.color + "22", width: "28px", height: "28px" }}
+                style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13.3%, transparent)`, width: "28px", height: "28px" }}
                 aria-hidden="true"
               >
                 <Icon size={13} style={{ color: meta.color }} />

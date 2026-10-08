@@ -9,7 +9,7 @@ import {
   LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sun,
   CalendarDays, ListTodo, Zap, Lock, Columns, MoreHorizontal, GitBranch,
   ListOrdered, MessageSquare, MessagesSquare, ShieldAlert, HeartPulse, Scale, Car, FileSearch,
-  BarChart3, Building2, Filter, ClipboardPaste,
+  BarChart3, Building2, Filter, ClipboardPaste, Info, Sparkles,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -76,6 +76,11 @@ import {
   BACKUP_FREQUENCY_OPTIONS, getJornadaBackupSchedule,
 } from "../../services/autoBackup";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+// v1.10.0 (feature B): permiso de notificaciones del navegador (se pide solo
+// desde el toggle de esta vista, nunca al arrancar).
+import { requestBrowserPermission } from "../../core/notifications/notificationManager";
+// v1.10.0 (feature D): listar las reglas del motor en la sección de alertas.
+import { getRules } from "../../features/rules/rulesEngine";
 
 function formatUtilesValue(value) {
   if (value === null || value === undefined) return "";
@@ -1496,10 +1501,37 @@ export function ConfiguracionView({
                 <div className="flex flex-wrap gap-4">
                   <Toggle checked={config.notifInApp !== false} onChange={(v) => actualizarConfig("notifInApp", v)} label="In-App (toasts)" />
                   <Toggle checked={config.notifSonido || false} onChange={(v) => actualizarConfig("notifSonido", v)} label="Sonido" />
+                  {/* v1.10.0 (feature B): notificaciones del navegador.
+                      Default OFF; al activarlo se pide el permiso del
+                      navegador y si se deniega no se persiste. Solo prioridad
+                      alta/crítica y con la pestaña oculta (ver
+                      notificationManager._browserNotify). */}
+                  <Toggle
+                    checked={config.notifEscritorio === true}
+                    onChange={async (v) => {
+                      if (v) {
+                        const perm = await requestBrowserPermission();
+                        if (perm !== "granted") {
+                          if (showToast) {
+                            showToast(
+                              perm === "denied"
+                                ? "Permiso de notificaciones denegado en el navegador (bloquealo desde el candado de la barra de direcciones)"
+                                : "Este navegador no soporta notificaciones de escritorio",
+                              "warning"
+                            );
+                          }
+                          return;
+                        }
+                      }
+                      actualizarConfig("notifEscritorio", v);
+                    }}
+                    label="Navegador (escritorio)"
+                  />
                 </div>
                 <p className="text-[11px] mt-2" style={{ color: "var(--color-text-muted)" }}>
-                  Las notificaciones se muestran como toasts dentro de la aplicación.
-                  No se utilizan notificaciones del navegador.
+                  {config.notifEscritorio === true
+                    ? "Las notificaciones de prioridad alta y crítica también se envían como notificación del navegador cuando la pestaña está en segundo plano; si está visible se muestran como toasts."
+                    : "Las notificaciones se muestran como toasts dentro de la aplicación. Activá \"Navegador (escritorio)\" para recibirlas también fuera de la pestaña."}
                 </p>
               </div>
             <div className="config-section">
@@ -1584,6 +1616,12 @@ export function ConfiguracionView({
                 <p><strong>Baja:</strong> Solo se registra en el Centro de Notificaciones. No muestra toast ni sonido.</p>
               </div>
             </div>
+            {/* v1.10.0 (feature D): edición de reglas del motor. */}
+            <ReglasAutomaticasSection
+              config={config}
+              actualizarConfig={actualizarConfig}
+              showToast={showToast}
+            />
           </div>
         );
       case "dashboard-config":
@@ -1650,6 +1688,9 @@ export function ConfiguracionView({
                   { key: "widgetUltimosCasos", label: "Últimos casos" },
                   { key: "widgetMiDia", label: "Mi día" },
                   { key: "widgetLogroObjetivos", label: "Logro de Objetivos" },
+                  // 1.10.0 (features A y E): widgets nuevos de metas.
+                  { key: "widgetMetaFirmas", label: "Meta de firmas" },
+                  { key: "widgetHistorialMetas", label: "Historial de metas (30 días)" },
                   { key: "widgetVistaMapa", label: "Mapa de casos" },
                   { key: "insightEnJornada", label: "Insight destacado en el 'Hoy'" },
                 ].map(({ key, label }) => (
@@ -2247,7 +2288,7 @@ export function ConfiguracionView({
               {pendingRestore && (
                 <div
                   className="mt-3 rounded-lg p-3"
-                  style={{ backgroundColor: "var(--color-danger)22", border: "1px solid var(--color-danger)44" }}
+                  style={{ backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)", border: "1px solid color-mix(in srgb, var(--color-danger) 26.7%, transparent)" }}
                 >
                   <div className="text-xs font-semibold mb-1" style={{ color: "var(--color-danger)" }}>
                     ¿Restaurar backup?
@@ -2311,7 +2352,7 @@ export function ConfiguracionView({
                   {bloqueoVaciado && (
                     <div
                       className="mt-3 rounded-lg p-3"
-                      style={{ backgroundColor: "var(--color-danger)22", border: "1px solid var(--color-danger)66" }}
+                      style={{ backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)", border: "1px solid color-mix(in srgb, var(--color-danger) 40%, transparent)" }}
                       role="alert"
                     >
                       <div className="text-xs font-bold mb-1" style={{ color: "var(--color-danger)" }}>
@@ -2388,7 +2429,7 @@ export function ConfiguracionView({
                 const backupH = String(h).padStart(2, '0');
                 const backupM = String(Math.max(0, m - 15)).padStart(2, '0');
                 return (
-                  <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--color-accent)11", border: "1px solid var(--color-accent)33", color: "var(--color-text)" }}>
+                  <div className="flex items-center gap-2 text-xs mb-3 px-3 py-2 rounded-lg" style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)", color: "var(--color-text)" }}>
                     <Clock size={14} color="var(--color-accent)" />
                     <span>
                       Backup automático programado a las <b>{backupH}:{backupM}</b> (15 min antes del cierre de jornada a las {schedule.endTime}).
@@ -2425,7 +2466,7 @@ export function ConfiguracionView({
                         <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
                           {new Date(b.timestamp).toLocaleString()}
                           {b.kind === 'jornada' && (
-                            <span className="ml-2 pill-compact" style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}>
+                            <span className="ml-2 pill-compact" style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}>
                               Jornada
                             </span>
                           )}
@@ -3890,7 +3931,7 @@ export function ConfiguracionView({
               onClick={() => cambiarSubseccion(s.id)}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors hover:opacity-80 ${
                 seccion === s.id
-                  ? "border border-[var(--color-accent)] bg-[var(--color-accent)22] text-[var(--color-accent)]"
+                  ? "border border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_13.3%,_transparent)] text-[var(--color-accent)]"
                   : "border border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
               }`}
             >
@@ -4582,5 +4623,421 @@ function ViewSectionEditor({ items, setItems, labels, iconMap }) {
         );
       })}
     </div>
+  );
+}
+
+// ============================================================
+// Reglas automáticas (v1.10.0 · feature D; REVISIÓN 1.10.0: UI separada y
+// amable, pedida por el usuario porque la versión original era muy técnica).
+// La sección ahora son DOS bloques consecutivos:
+//  1) "Reglas automáticas": lista con toggles/borrado + botón "+ Nueva regla"
+//     que abre/cierra el form (antes el form estaba siempre a la vista,
+//     mezclado con la lista).
+//  2) "Crear una regla": form como frase natural ("Cuando [campo] [condición]
+//     [valor] → aviso"), SIN campo de nombre técnico (el nombre interno se
+//     autogenera: propia-1, propia-2...), chips de severidad con color y
+//     vista previa en vivo del aviso.
+// Los toggles y las reglas custom se persisten en config (rulesEnabled /
+// rulesCustom) y App.jsx los sincroniza con el motor en memoria; la
+// condición/acción NO se guardan como funciones.
+// ============================================================
+const REGLA_CAMPOS = [
+  { value: "estado", label: "Estado" },
+  { value: "nombre", label: "Nombre" },
+  { value: "telefono", label: "Teléfono" },
+  { value: "aseguradora", label: "Aseguradora" },
+  { value: "localidad", label: "Localidad" },
+  { value: "estudioJuridico", label: "Estudio jurídico" },
+  { value: "tipoIngreso", label: "Tipo de ingreso" },
+  { value: "fecha", label: "Fecha de alta" },
+];
+
+// Etiquetas pensadas para leerse DENTRO de la frase del form ("Cuando el
+// Estado es mayor que 5"); por eso gt/lt llevan "es ..." (antes "mayor que").
+const REGLA_OPERADORES = [
+  { value: "equals", label: "es igual a" },
+  { value: "notEquals", label: "es distinto de" },
+  { value: "contains", label: "contiene" },
+  { value: "startsWith", label: "empieza con" },
+  { value: "gt", label: "es mayor que" },
+  { value: "lt", label: "es menor que" },
+  { value: "exists", label: "tiene valor" },
+  { value: "notExists", label: "está vacío" },
+];
+
+// Colores fijos por severidad (mismo criterio visual que alertsSystem) para
+// los chips del form y los puntos de la lista/vista previa.
+const REGLA_SEVERIDADES = [
+  { value: "info", label: "Info", color: "#3b82f6", Icon: Info },
+  { value: "warning", label: "Aviso", color: "#f59e0b", Icon: AlertTriangle },
+  { value: "error", label: "Error", color: "var(--color-danger)", Icon: XCircle },
+];
+
+// Frase en lenguaje llano de una condición declarativa: se usa para listar
+// reglas propias y en la vista previa del form.
+// Ej: `Estado es igual a "Pendiente"` · `Teléfono tiene valor`.
+function fraseCondicion({ field, operator, value }) {
+  const campo = REGLA_CAMPOS.find((c) => c.value === field)?.label || field;
+  const op = REGLA_OPERADORES.find((o) => o.value === operator)?.label || operator;
+  const sinValor = operator === "exists" || operator === "notExists";
+  // Sin valor cargado (vista previa en vivo) se muestra "…" en vez de "".
+  const mostrado = value === "" || value === null || value === undefined ? "…" : value;
+  return sinValor ? `${campo} ${op}` : `${campo} ${op} "${mostrado}"`;
+}
+
+// Nombre interno autogenerado para reglas propias (unicidad contra el motor).
+// El usuario ya no escribe nombres técnicos; solo se guarda en config.
+function generarNombreRegla(existentes) {
+  let i = 1;
+  let n = `propia-${i}`;
+  while (existentes.some((r) => r.name === n)) {
+    i += 1;
+    n = `propia-${i}`;
+  }
+  return n;
+}
+
+function ReglasAutomaticasSection({ config, actualizarConfig, showToast }) {
+  // Solo el setter: cambia el estado para forzar el re-render tras
+  // crear/borrar (el registro real lo hace el effect de App.jsx).
+  const [, setVersion] = useState(0);
+  // Revisión 1.10.0: el form vive en su propio bloque y solo se muestra cuando
+  // el usuario pide crear una regla (antes estaba siempre a la vista).
+  const [abierto, setAbierto] = useState(false);
+  const [campo, setCampo] = useState("estado");
+  const [operador, setOperador] = useState("equals");
+  const [valor, setValor] = useState("");
+  const [mensaje, setMensaje] = useState("");
+  const [severidad, setSeveridad] = useState("warning");
+  const [errorForm, setErrorForm] = useState("");
+
+  const rulesEnabled = config.rulesEnabled || {};
+  const custom = Array.isArray(config.rulesCustom) ? config.rulesCustom : [];
+  // Lectura barata del módulo en cada render (refresco vía setVersion).
+  // Revisión 1.10.0: la lista es motor ∪ config para que una regla propia
+  // recién creada/borrada se refleje YA: App.jsx la registra (o da de baja)
+  // en un effect, y si no hubiera ningún re-render posterior quedaría invisible
+  // hasta el próximo render. Reglas:
+  //  - se prioriza la entrada del motor (cuando ya está sincronizada no hay
+  //    duplicados, porque se filtra por nombre);
+  //  - las propias de config que aún no están en el motor se muestran igual
+  //    (usan la data de config para el título/mensaje/severidad);
+  //  - las propias huérfanas del motor (ya borradas de config) se ocultan.
+  const reglasMotor = getRules();
+  const propiasPendientes = custom
+    .filter((c) => c && c.name && !reglasMotor.some((r) => r.name === c.name))
+    .map((c) => ({ name: c.name, custom: true }));
+  const reglas = [
+    ...reglasMotor.filter(
+      (r) => !r.custom || custom.some((c) => c && c.name === r.name)
+    ),
+    ...propiasPendientes,
+  ];
+  const necesitaValor = operador !== "exists" && operador !== "notExists";
+  const sevActual = REGLA_SEVERIDADES.find((s) => s.value === severidad);
+
+  const setEnabled = (name, v) => {
+    actualizarConfig("rulesEnabled", { ...rulesEnabled, [name]: v });
+  };
+
+  const agregarRegla = () => {
+    if (necesitaValor && !valor.trim()) return setErrorForm("Falta el valor a comparar.");
+    // v1.10.0 (auditoría H2): validar el número ANTES de guardarlo; Number("abc")
+    // → NaN se persistía y la regla nunca matcheaba (falla silenciosa). Se
+    // acepta coma decimal (se normaliza a punto) como hace el resto de la app.
+    const esNumerico = operador === "gt" || operador === "lt";
+    const valorNumerico = esNumerico ? Number(valor.trim().replace(",", ".")) : NaN;
+    if (esNumerico && !Number.isFinite(valorNumerico)) {
+      return setErrorForm("Ingresá un número válido.");
+    }
+    if (!mensaje.trim()) return setErrorForm("Falta el mensaje de la alerta.");
+    // Revisión 1.10.0: sin campo de nombre (era lo más técnico del form);
+    // el nombre interno único se autogenera.
+    const name = generarNombreRegla(reglas);
+    const nueva = {
+      name,
+      field: campo,
+      operator: operador,
+      value: esNumerico ? valorNumerico : valor.trim(),
+      message: mensaje.trim(),
+      severity: severidad,
+    };
+    actualizarConfig("rulesCustom", [...custom, nueva]);
+    setValor("");
+    setMensaje("");
+    setErrorForm("");
+    // El form se cierra y la regla nueva queda visible en la lista (bloque 1).
+    setAbierto(false);
+    setVersion((v) => v + 1);
+    if (showToast) showToast(`Regla creada: ${fraseCondicion(nueva)}`, "success");
+  };
+
+  const borrarRegla = (name) => {
+    // v1.10.0 (auditoría H3): guard ante entradas corruptas en rulesCustom
+    // (config editada a mano / storage viejo); sin él, r.name en null crasheaba
+    // toda la vista de Configuración.
+    actualizarConfig("rulesCustom", custom.filter((r) => r && r.name !== name));
+    setVersion((v) => v + 1);
+    if (showToast) showToast("Regla eliminada", "info");
+  };
+
+  return (
+    <>
+      {/* Bloque 1: la lista de reglas (del motor + propias). */}
+      <div className="config-section">
+        <div className="config-section-title flex items-center gap-2">
+          <Zap size={14} color="var(--color-accent)" />
+          Reglas automáticas
+        </div>
+        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          Qué pasa cuando un caso cumple algo: se evalúan solas al crear un caso
+          o al cambiar su estado y no se repiten cada minuto.
+        </p>
+
+        <div className="space-y-2 mt-2">
+          {reglas.map((rule) => {
+            // Los datos "bonitos" de las propias viven en config; el motor solo
+            // guarda la condición declarativa y la acción.
+            // v1.10.0 (auditoría H3): guard ante entries corruptas en rulesCustom
+            // (si una es null, c.name rompía el render de toda la sección).
+            const propia = custom.find((c) => c && c.name === rule.name);
+            const esPropia = !!rule.custom && !!propia;
+            const sev = REGLA_SEVERIDADES.find(
+              (s) => s.value === (propia?.severity || "warning")
+            );
+            const titulo = esPropia
+              ? `Cuando ${fraseCondicion(propia)}`
+              : rule.description || "Regla sin descripción";
+            return (
+              <div
+                key={rule.name}
+                className="flex items-center gap-3 p-2 rounded-lg"
+                style={{ backgroundColor: "var(--color-surface2)" }}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    {esPropia && (
+                      // Punto de severidad (solo propias: las del motor ya
+                      // explican su impacto en la descripción).
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          backgroundColor: sev.color,
+                        }}
+                      />
+                    )}
+                    <span
+                      className="text-xs font-semibold truncate"
+                      style={{ color: "var(--color-text)" }}
+                    >
+                      {titulo}
+                    </span>
+                    {esPropia && (
+                      // Badge propio (Pill no sirve: es de estados de casos).
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
+                        style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
+                      >
+                        Propia
+                      </span>
+                    )}
+                  </div>
+                  {esPropia && (
+                    <div className="text-[10px] truncate" style={{ color: "var(--color-text-muted)" }}>
+                      Aviso: "{propia.message}"
+                    </div>
+                  )}
+                </div>
+                <Toggle
+                  checked={rulesEnabled[rule.name] !== false}
+                  onChange={(v) => setEnabled(rule.name, v)}
+                  label="Activa"
+                  // v1.10.0 (auditoría H5): para las reglas del motor se usa la
+                  // descripción (legible) en vez del name interno tipo slug.
+                  aria-label={`Activar regla: ${esPropia ? titulo : rule.description || rule.name}`}
+                />
+                {esPropia && (
+                  <button
+                    type="button"
+                    onClick={() => borrarRegla(rule.name)}
+                    // v1.10.0 (auditoría H5): la frase legible de la regla en
+                    // vez del name interno autogenerado (slug técnico).
+                    title={`Eliminar regla "${titulo}"`}
+                    className="p-1 rounded transition-opacity hover:opacity-70"
+                    style={{ color: "var(--color-danger)" }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {reglas.length === 0 && (
+            <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+              Todavía no hay reglas cargadas.
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 mt-3 flex-wrap">
+          <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+            Apagá las que no quieras que se evalúen; las propias quedan guardadas en Configuración.
+          </span>
+          {!abierto && (
+            <Btn
+              size="sm"
+              variant="outline"
+              icon={Plus}
+              onClick={() => setAbierto(true)}
+              data-tour="nueva-regla"
+            >
+              Nueva regla
+            </Btn>
+          )}
+        </div>
+      </div>
+
+      {/* Bloque 2: "Crear una regla", solo cuando se lo pidió. */}
+      {abierto && (
+        <div className="config-section" data-tour="crear-regla">
+          <div className="config-section-title flex items-center gap-2">
+            <Sparkles size={14} color="var(--color-accent)" />
+            Crear una regla
+          </div>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+            Armá la regla como una frase: no hace falta escribir nombres ni códigos.
+          </p>
+
+          {/* La frase: "Cuando [campo] [condición] [valor]" */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Cuando</span>
+            <Select
+              value={campo}
+              onChange={(e) => setCampo(e.target.value)}
+              options={REGLA_CAMPOS}
+              aria-label="Campo de la regla"
+              style={{ width: "auto" }}
+            />
+            <Select
+              value={operador}
+              onChange={(e) => setOperador(e.target.value)}
+              options={REGLA_OPERADORES}
+              aria-label="Condición de la regla"
+              style={{ width: "auto" }}
+            />
+            {necesitaValor && (
+              <TextInput
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder={operador === "gt" || operador === "lt" ? "Número" : "Valor (ej: Pendiente)"}
+                aria-label="Valor a comparar"
+                style={{ flex: "1 1 140px", minWidth: 0 }}
+              />
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Mostrar el aviso:</span>
+            <TextInput
+              value={mensaje}
+              onChange={(e) => setMensaje(e.target.value)}
+              placeholder="Ej: Falta el teléfono de {nombre}"
+              aria-label="Mensaje del aviso"
+              style={{ flex: "1 1 220px", minWidth: 0 }}
+            />
+          </div>
+
+          {/* Severidad como chips clicables con color (antes: Select técnico). */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>Aviso de tipo:</span>
+            {REGLA_SEVERIDADES.map((s) => {
+              const SIcon = s.Icon;
+              const activo = severidad === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setSeveridad(s.value)}
+                  aria-pressed={activo}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                  style={{
+                    border: `1px solid ${activo ? s.color : "var(--color-border)"}`,
+                    // v1.10.0 (auditoría H1): el sufijo "22" pegado a var()
+                    // es sintaxis inválida → el chip activo quedaba sin fondo;
+                    // color-mix conserva la alfa (13.3% = lo que se buscaba
+                    // con "22").
+                    backgroundColor: activo ? `color-mix(in srgb, ${s.color} 13.3%, transparent)` : "transparent",
+                    color: activo ? s.color : "var(--color-text-muted)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <SIcon size={12} />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Vista previa en vivo: cómo se va a ver el aviso. */}
+          <div className="mt-3 p-2.5 rounded-lg" style={{ backgroundColor: "var(--color-surface2)" }}>
+            <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+              Así se va a ver
+            </div>
+            <div className="flex items-start gap-2 mt-1">
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  marginTop: 5,
+                  backgroundColor: sevActual.color,
+                }}
+              />
+              <div className="min-w-0">
+                <div className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
+                  {fraseCondicion({ field: campo, operator: operador, value: valor })}
+                </div>
+                <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                  {mensaje.trim()
+                    ? `Aviso: "${mensaje.trim()}"`
+                    : "Escribí el mensaje del aviso para verlo acá…"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {errorForm && (
+            <div className="text-[11px] mt-2" style={{ color: "var(--color-danger)" }}>
+              {errorForm}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <Btn size="sm" icon={Plus} onClick={agregarRegla}>
+              Agregar regla
+            </Btn>
+            <Btn
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAbierto(false);
+                setErrorForm("");
+              }}
+            >
+              Cancelar
+            </Btn>
+            <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+              En el mensaje podés usar {"{nombre}"}, {"{estado}"}, etc. para completarlo con datos del caso.
+            </span>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

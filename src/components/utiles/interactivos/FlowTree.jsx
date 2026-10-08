@@ -46,7 +46,7 @@ export function FlowTree({ speech, pasoId, onSelectPaso, onNuevoPaso, onMoverPas
             }}
             className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs text-left transition-colors cursor-pointer"
             style={{
-              backgroundColor: seleccionado ? "var(--color-accent)22" : "transparent",
+              backgroundColor: seleccionado ? "color-mix(in srgb, var(--color-accent) 13.3%, transparent)" : "transparent",
               color: seleccionado ? "var(--color-accent)" : "var(--color-text)",
               border: seleccionado
                 ? "1px solid var(--color-accent)"
@@ -57,7 +57,7 @@ export function FlowTree({ speech, pasoId, onSelectPaso, onNuevoPaso, onMoverPas
               <span
                 className="pill-sm font-bold flex-shrink-0"
                 style={{
-                  backgroundColor: "var(--color-success)22",
+                  backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)",
                   color: "var(--color-success)",
                 }}
               >

@@ -190,7 +190,7 @@ export function NotificationCenter() {
               style={{
                 color: filter === opt.value ? "var(--color-accent)" : "var(--color-text-muted)",
                 borderColor: filter === opt.value ? "var(--color-accent)" : "var(--color-border)",
-                backgroundColor: filter === opt.value ? "var(--color-accent)11" : "transparent",
+                backgroundColor: filter === opt.value ? "color-mix(in srgb, var(--color-accent) 6.7%, transparent)" : "transparent",
               }}
             >
               {opt.label}

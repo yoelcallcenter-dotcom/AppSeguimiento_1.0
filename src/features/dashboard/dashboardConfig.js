@@ -56,11 +56,16 @@ export const DASH_WIDGET_REGISTRY = {
     resumen: { label: 'Resumen rapido', defaultOrder: 13, icon: Clock },
     ultimosCasos: { label: 'Ultimos casos', defaultOrder: 14, icon: FileText },
     miDia: { label: 'Mi dia', defaultOrder: 15, icon: Target },
+    // v1.10.0 (feature A): meta de firmas (día + mes) en Resumen.
+    metaFirmas: { label: 'Meta de firmas', defaultOrder: 16, icon: Target },
   },
   rendimiento: {
     perfMetrics: { label: 'Métricas de performance', defaultOrder: 0, icon: BarChart3 },
     timeMetrics: { label: 'Métricas de tiempo', defaultOrder: 1, icon: Clock },
     logroObjetivos: { label: 'Logro de Objetivos', defaultOrder: 2, icon: Target },
+    // v1.10.0 (feature E): historial de cumplimiento de metas de los últimos
+    // 30 días hábiles (derivado, sin estado nuevo).
+    historialMetas: { label: 'Historial de metas (30 días)', defaultOrder: 3, icon: TrendingUp },
   },
   geografia: {
     provinciasTable: { label: 'Tabla de provincias', defaultOrder: 0, icon: MapPin },

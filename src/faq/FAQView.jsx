@@ -35,7 +35,7 @@ export function FAQView({ showToast }) {
         </span>
         <span
           className="pill-sm"
-          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
         >
           {FAQ_CATEGORIES.reduce((a, c) => a + c.items.length, 0)} preguntas
         </span>

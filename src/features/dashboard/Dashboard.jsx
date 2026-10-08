@@ -52,6 +52,10 @@ import ProximasAcciones from './widgets/ProximasAcciones';
 import { CitasWidget } from './widgets/CitasWidget';
 import { ReprogramacionesWidget } from './widgets/ReprogramacionesWidget';
 import { AseguradorasWidget } from './widgets/AseguradorasWidget';
+// v1.10.0 (feature A): meta de firmas (día + mes) en el tab Resumen.
+import { MetaFirmasWidget } from './widgets/MetaFirmasWidget';
+// v1.10.0 (feature E): historial de metas de los últimos 30 días hábiles.
+import { HistorialMetas30 } from './widgets/HistorialMetas30';
 import DashboardFilters from './widgets/DashboardFilters';
 import { useAnalytics } from '../analytics/useAnalytics';
 import { PERIODO_DEFAULT } from '../analytics/periodUtils';
@@ -691,6 +695,18 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         return showWidget('widgetAseguradoras') ? (
           <AseguradorasWidget key="aseguradoras" period={filterLabel} onFilter={handleFilter} />
         ) : null;
+      // v1.10.0 (feature A): meta de firmas; lee goals/cases internamente,
+      // sin props nuevas (las deps del useCallback no cambian).
+      case 'metaFirmas':
+        return showWidget('widgetMetaFirmas') ? (
+          <MetaFirmasWidget key="metaFirmas" />
+        ) : null;
+      // v1.10.0 (feature E): historial derivado de 30 días hábiles; mismas
+      // deps (sin props nuevas).
+      case 'historialMetas':
+        return showWidget('widgetHistorialMetas') ? (
+          <HistorialMetas30 key="historialMetas" />
+        ) : null;
       default:
         return null;
     }
@@ -830,7 +846,8 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
         <div className="space-y-4" key={tab}>
           {(() => {
             const order = activeWidgetOrder[tab];
-            const cardIds = ['alertsPanel', 'activityFeed', 'eventos', 'sinReporte', 'notas', 'resumen', 'ultimosCasos', 'miDia'];
+            // v1.10.0: 'metaFirmas' entra como tarjeta del grid de Resumen.
+            const cardIds = ['alertsPanel', 'activityFeed', 'eventos', 'sinReporte', 'notas', 'resumen', 'ultimosCasos', 'miDia', 'metaFirmas'];
             const rendered = [];
             let pendingCards = [];
             for (const widgetId of order) {

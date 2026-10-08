@@ -2,6 +2,23 @@ import { eventBus, AppEvents } from "../events/eventBus";
 import useNotificationStore from "./notificationStore";
 import { ruleEngine } from "./ruleEngine";
 import { soundSystem } from "./soundSystem";
+import { reportError } from "../error/reportError";
+
+/**
+ * Permiso de notificaciones del navegador (v1.10.0 · feature B).
+ * Se pide SOLO desde Configuración (nunca automáticamente al arrancar):
+ * devuelve 'granted' | 'denied' | 'default' | 'unsupported'.
+ */
+export async function requestBrowserPermission() {
+  if (typeof Notification === "undefined") return "unsupported";
+  try {
+    if (Notification.permission === "granted") return "granted";
+    if (Notification.permission === "denied") return "denied";
+    return await Notification.requestPermission();
+  } catch {
+    return "denied";
+  }
+}
 
 class NotificationManager {
   constructor() {
@@ -106,6 +123,8 @@ class NotificationManager {
     if (ruleEngine.shouldShowToast(event, this._config)) {
       store.addToast({ ...event, id: `toast-${id}`, duration: 6000 });
     }
+    // v1.10.0 (feature B): también para el lote agrupado.
+    this._browserNotify(event);
     this._queue = [];
   }
 
@@ -153,7 +172,48 @@ class NotificationManager {
       });
     }
 
+    // v1.10.0 (feature B): notificación del navegador (ver _browserNotify).
+    this._browserNotify(normalized);
+
     return id;
+  }
+
+  /**
+   * Notificación del navegador (Notification API) — v1.10.0 · feature B.
+   * Condiciones acumulativas (decisión de producto):
+   *  - config.notifEscritorio activo (default OFF, se enciende desde
+   *    Configuración → Notificaciones y ahí se pide el permiso);
+   *  - solo prioridad high/critical (evita ruido);
+   *  - permiso concedido;
+   *  - pestaña OCULTA: si está visible ya están los toasts y el Centro.
+   * `tag` evita apilamiento (el navegador reemplaza la notificación con el
+   * mismo tag); click → foco en la pestaña.
+   */
+  _browserNotify(event) {
+    try {
+      if (!this._config.notifEscritorio) return;
+      if (typeof Notification === "undefined") return;
+      if (Notification.permission !== "granted") return;
+      if (event.priority !== "high" && event.priority !== "critical") return;
+      if (typeof document !== "undefined" && !document.hidden) return;
+      const tag = `app-${event.type || "notif"}-${event.id || event.timestamp}`;
+      const notif = new Notification(event.title || "AppSeguimiento", {
+        body: event.message || "",
+        tag,
+      });
+      notif.onclick = () => {
+        try {
+          window.focus();
+          notif.close();
+        } catch {}
+      };
+    } catch (err) {
+      // v1.10.0 (auditoría H6): la firma es reportError(error, metadata); el
+      // call anterior pasaba un objeto literal tipo "notification" y perdía
+      // el stack real del error (solo se persistían type/message). Ahora va el
+      // error original con su contexto.
+      reportError(err, { context: "browserNotification" });
+    }
   }
 
   _aggregateNotification(event) {

@@ -364,7 +364,7 @@ export function CondicionalesView({
         <span
           key={v}
           className="inline-flex items-center gap-1 pill-sm font-semibold"
-          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
         >
           {v}
           <button
@@ -400,7 +400,7 @@ export function CondicionalesView({
             : `${total} registradas`}
         </span>
         {noToma > 0 && (
-          <span className="pill-sm" style={{ backgroundColor: "var(--color-danger)22", color: "var(--color-danger)" }}>
+          <span className="pill-sm" style={{ backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)", color: "var(--color-danger)" }}>
             {noToma} no toman
           </span>
         )}
@@ -462,7 +462,7 @@ export function CondicionalesView({
 
       {/* Formulario agregar/editar */}
       {(borrador || editando) && (
-        <div className="mb-4 rounded-xl p-4" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-accent)44" }}>
+        <div className="mb-4 rounded-xl p-4" style={{ backgroundColor: "var(--color-surface)", border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)" }}>
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck size={14} color="var(--color-accent)" />
             <span className="text-xs font-semibold" style={{ color: "var(--color-text)" }}>
@@ -781,7 +781,7 @@ export function CondicionalesView({
                         <td className="px-4 py-2 align-middle">
                           <span
                             className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md whitespace-nowrap"
-                            style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+                            style={{ backgroundColor: `color-mix(in srgb, ${meta.color} 13.3%, transparent)`, color: meta.color }}
                           >
                             <Icon size={10} /> {meta.value === "no-toma" ? "No toma" : "Con condiciones"}
                           </span>

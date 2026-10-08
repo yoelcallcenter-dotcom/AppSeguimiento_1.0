@@ -5,6 +5,8 @@ import React from "react";
  * Píldora/botón estándar de filtros compactos (día, período, toggle).
  * Estado seleccionado vs. no seleccionado con los tokens de color de la app.
  */
+// v1.10.0: se aceptan props extra (ej. data-tour) y se propagan al <button>,
+// para poder usar el chip en los tours guiados sin envolverlo.
 export function FilterChip({
   active = false,
   disabled = false,
@@ -13,6 +15,7 @@ export function FilterChip({
   children,
   className = "",
   style = {},
+  ...props
 }) {
   return (
     <button
@@ -21,6 +24,7 @@ export function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       title={title}
+      {...props}
       className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full transition-all hover:opacity-80 whitespace-nowrap ${className}`}
       style={{
         backgroundColor: active ? "var(--color-accent)" : "var(--color-surface2)",

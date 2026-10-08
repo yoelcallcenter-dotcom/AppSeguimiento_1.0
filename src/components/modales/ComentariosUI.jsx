@@ -121,7 +121,7 @@ export function ComentariosUI({
                         <span
                           className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
                           style={{
-                            backgroundColor: "var(--color-accent)22",
+                            backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                             color: "var(--color-accent)",
                           }}
                         >

@@ -261,7 +261,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
           {query.trim() && totalItems > 0 && (
             <span
               className="hidden sm:inline-flex items-center text-[10px] font-semibold rounded-full px-2 py-0.5 whitespace-nowrap"
-              style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
             >
               {totalItems} resultado{totalItems !== 1 ? 's' : ''}
             </span>

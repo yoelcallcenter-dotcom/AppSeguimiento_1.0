@@ -375,6 +375,80 @@ export function getMonthlyGoalProgress(goals = {}, cases = [], year, month) {
   };
 }
 
+/**
+ * Historial de metas de los últimos `days` días hábiles (v1.10.0 · feature E).
+ * DERIVADO: no persiste nada nuevo (regla del repo "lo derivado no se
+ * persiste"); aplica la meta VIGENTE de cada día → si el usuario cambia la
+ * meta el histórico se recalcula (se rotula en la UI).
+ *
+ * - Días hábiles = workingDays del operador menos vacaciones/feriados/
+ *   ausencias/días libres (isUnavailableOn): esos días quedan FUERA del
+ *   conjunto y NO penalizan el % de cumplimiento (se cuentan en `excluidos`).
+ * - Métrica: la primera meta diaria habilitada con prioridad
+ *   casos → reportes → firmas (si ninguna está habilitada, `metrica: null`).
+ * - Fechas en hora local vía isoFromDate (nunca toISOString).
+ */
+export function getGoalsHistory(goals = {}, cases = [], days = 30, options = {}) {
+  const { availability = {}, workingDays = [1, 2, 3, 4, 5] } = options;
+  const daily = goals.daily || {};
+  const metrica =
+    ["cases", "reports", "firmas"].find((k) => daily[k] && daily[k].enabled) || null;
+
+  if (!metrica) {
+    return {
+      metrica: null,
+      dias: [],
+      diasHabiles: 0,
+      diasCumplidos: 0,
+      pctCumplimiento: 0,
+      promedio: 0,
+      excluidos: 0,
+    };
+  }
+
+  const dias = [];
+  let excluidos = 0;
+  const cursor = new Date();
+  let safety = 0;
+  // Retrocede desde hoy hasta reunir `days` días hábiles; safety por si la
+  // configuración dejara todos los días como no laborables.
+  while (dias.length < days && safety < days * 4) {
+    const iso = isoFromDate(cursor);
+    safety += 1;
+    const habil =
+      isWorkingDay(iso, workingDays) && !isUnavailableOn(availability, iso);
+    if (habil) {
+      const p = getDailyGoalProgress(goals, cases, iso)[metrica];
+      dias.push({
+        fecha: iso,
+        current: p.current,
+        target: p.target,
+        percent: p.percent,
+        met: p.met,
+      });
+    } else {
+      excluidos += 1;
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  dias.reverse();
+
+  const diasCumplidos = dias.filter((d) => d.met).length;
+  const suma = dias.reduce((acc, d) => acc + d.current, 0);
+
+  return {
+    metrica,
+    dias,
+    diasHabiles: dias.length,
+    diasCumplidos,
+    pctCumplimiento: dias.length
+      ? Math.round((diasCumplidos / dias.length) * 100)
+      : 0,
+    promedio: dias.length ? Number((suma / dias.length).toFixed(1)) : 0,
+    excluidos,
+  };
+}
+
 // ============================================================
 // RITMO REQUERIDO
 // ============================================================

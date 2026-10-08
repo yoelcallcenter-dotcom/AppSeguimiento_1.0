@@ -448,8 +448,8 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                 <div
                   className="mt-3 rounded-lg p-3 space-y-3"
                   style={{
-                    backgroundColor: "var(--color-accent)11",
-                    border: "1px solid var(--color-accent)55",
+                    backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--color-accent) 33.3%, transparent)",
                   }}
                 >
                   <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--color-accent)" }}>

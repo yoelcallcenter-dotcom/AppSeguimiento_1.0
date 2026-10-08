@@ -386,7 +386,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
           className="rounded-md p-1 min-h-[80px] cursor-pointer transition-colors hover:bg-white/5"
           style={{
             backgroundColor: isToday
-              ? 'var(--color-accent)11'
+              ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)'
               : availState
                 ? AVAILABILITY_COLORS[availState.key] + '11'
                 : 'var(--color-surface)',
@@ -494,7 +494,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
               key={idx}
               className="flex flex-col rounded-md p-1"
               style={{
-                backgroundColor: isToday ? 'var(--color-accent)11' : 'var(--color-surface2)',
+                backgroundColor: isToday ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)' : 'var(--color-surface2)',
                 border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-border)'}`,
               }}
               onDragOver={e => e.preventDefault()}
@@ -636,7 +636,7 @@ return (
       <div
         className="rounded-md p-3 overflow-y-auto"
         style={{
-          backgroundColor: isToday ? 'var(--color-accent)11' : 'var(--color-surface)',
+          backgroundColor: isToday ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)' : 'var(--color-surface)',
           border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-border)'}`,
         }}
       >

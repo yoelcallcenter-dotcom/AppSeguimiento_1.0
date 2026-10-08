@@ -329,6 +329,70 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.0] - Reglas automáticas, navegador y metas del Resumen
+
+Versión de funciones nuevas: el motor de reglas pasa a estar cableado de verdad con los cambios de estado de casos y con una UI amable para crear reglas propias desde Configuración; las alertas dejan de repetirse cada minuto (dedup de 10 min); notificaciones del navegador (escritorio), opcionales y solo para prioridad alta con la pestaña oculta; nuevo widget "Meta de firmas" en el tab Resumen; nuevo "Historial de metas (30 días hábiles)" en el tab Rendimiento; el filtro "Solo de hoy" queda como marcador discreto del día de HOY en el filtro de Día (arriba de la Pipeline Bar); y una pasada de auditoría interna reparó el patrón de color inválido \`var(--token)NN\` en toda la app (verificado en Chrome) más varios fallos silenciosos/crashes de Configuración.
+
+### Reglas automáticas cableadas al guardado de casos
+
+- **\`runCaseRules\` en los 4 puntos de transición** (\`App.jsx\`): alta de caso, edición con cambio de estado, cambiarEstado y reporte rápido. Fire-and-forget: un error de regla nunca frena el guardado.
+- **\`context.prev\` en las condiciones**: las condiciones-función reciben el caso anterior además de la entidad. Fix de la regla de citas: \`case-estado-nuevo-create-event\` comparaba contra \`entity._prevEstado\`, un campo que nadie escribía, y se disparaba en **cada revisión** de un caso que ya estaba en Cita; ahora solo crea el evento al **entrar** en Cita virtual/presencial (altas sin prev también cuentan).
+- **Dedup de toasts (10 min por clave)** en \`alertsSystem\`: \`checkUpcomingEvents\`, \`checkIncompleteData\` y \`checkRepeatedErrors\` sonaban en cada tick de 60 s; ahora cada condición suena una sola vez por ventana y vuelve a sonar si cambia (p. ej. la cantidad de casos incompletos). Las alertas de reglas se deduplican por regla + entidad.
+- **\`runRules\` dejó de ser un import muerto** en \`alertsSystem\` (se importaba sin usarse).
+
+### Configuración → Notificaciones → Reglas automáticas (sección rediseñada en revisión)
+
+- **Dos bloques separados** (pedido del usuario: "separar Reglas Automáticas y volverla más interactiva/menos técnica"): **"Reglas automáticas"** —la lista con sus interruptores y el botón **"+ Nueva regla"**— y **"Crear una regla"** —el form, que solo se abre al pedirlo (antes estaba siempre a la vista, mezclado con la lista)—.
+- **Lista en lenguaje llano**: las del motor muestran su descripción ("Alertar si un caso no tiene telefono") y las propias la frase construida + \`Aviso: "mensaje"\`, con punto de severidad, badge "Propia" y toggle por regla (persistido en \`config.rulesEnabled\`; una regla apagada no se evalúa). La lista es motor ∪ \`config.rulesCustom\`: una regla recién creada/borrada se refleja al instante, sin esperar al effect de sincronización de \`App.jsx\`.
+- **Form como frase, sin campos técnicos**: "Cuando [campo] [condición] [valor] → Mostrar el aviso: [mensaje]". **No hay campo de nombre** (lo más técnico del form original): el nombre interno único se autogenera (\`propia-1\`, \`propia-2\`…). La severidad se elige con **chips con color** (Info / Aviso / Error, antes un \`Select\`) y hay **vista previa en vivo** ("Así se va a ver") del aviso tal como se mostrará.
+- **Validación en criollo**: "Falta el valor a comparar." / "Falta el mensaje de la alerta." (antes: "Falta el nombre de la regla."). "Cancelar" cierra el form sin tocar la config.
+- **Reglas propias declarativas**: campo, operador (igual/distinto/contiene/empieza con/es mayor que/es menor que/vacío), valor, mensaje (con placeholders del caso) y severidad. Se guardan en \`config.rulesCustom\`; \`App.jsx\` las sincroniza con el motor en memoria (baja de custom huérfanas, re-registro y toggles). Se pueden eliminar desde la lista.
+- Las reglas propias se evalúan al crear o cambiar el estado de un caso; \`gt\`/\`lt\` comparan números.
+
+### Notificaciones del navegador (escritorio)
+
+- **Nuevo toggle "Navegador (escritorio)"** en Configuración → Notificaciones, **default OFF**; el permiso de \`Notification\` solo se pide al activarlo desde Configuración (nunca automáticamente al arrancar) y si se deniega el toggle no persiste.
+- **\`_browserNotify\` con gates acumulativos**: opción activa + permiso \`granted\` + prioridad \`high\`/\`critical\` + pestaña **oculta** (si está visible ya están los toasts y el Centro). \`tag\` estable evita apilamiento y el click enfoca la pestaña.
+
+### Filtro "Solo de hoy" discreto en el filtro de Día (revisión sobre el chip del header)
+
+- **Marcador de HOY en \`DayFilter\`** (tira de días arriba de la Pipeline Bar): cuando el mes mostrado es el actual, el día de hoy se resalta con un estilo **propio** —punto debajo del número + negrita + título accesible \`Día N (hoy) — clic para ver solo los casos de hoy\`—, distinto al de los días seleccionados (fondo tintado + borde accent). El clic es el toggle de día habitual y ahí queda el filtro "Solo de hoy" (hoy queda marcado con \`aria-pressed\`). Si hoy no tiene casos en el mes no se muestra ningún marcador (mismo contrato de "solo días con casos" de 1.9.6).
+- **Se quitó el chip "Solo de hoy" del header** (decisión del usuario en revisión de 1.10.0: resultó muy llamatorio). Desaparecieron el estado \`soloHoy\`, su capa AND en \`casosFiltradosPorMes\` y su reset en "Limpiar todo". A diferencia del chip (efímero, solo sesión), el marcador vive en \`selectedDays\` y **se persiste en \`app-filters\`** como cualquier filtro de día; se quita con "Todos" del filtro de Día o al cambiar de mes.
+- \`FilterChip\` sigue propagando props extra al \`<button>\` (p. ej. \`data-tour\` para tours); el ejemplo del test quedó genérico tras quitar el chip.
+
+### Meta de firmas (tab Resumen)
+
+- **Nuevo widget "Meta de firmas"**: progreso de **hoy** (\`daily.firmas\`) y del **mes en curso** (\`monthly.signed\`), con la misma fuente de verdad que Mi Espacio (\`userOperatorGoals\` + \`subscribeOperatorGoals\` para refrescar en la misma pestaña) y fechas en hora local (\`hoyISO\`, fix 1.9.7). Si la meta está deshabilitada informa "Meta deshabilitada — activarla en Mi Espacio → Metas".
+- Toggle en Configuración → Widgets (\`widgetMetaFirmas\`).
+
+### Historial de metas: 30 días hábiles (tab Rendimiento)
+
+- **Nuevo widget "Historial de metas (30 días)"**: serie diaria de la **meta vigente** (primera habilitada: casos → reportes → firmas) con KPIs (días hábiles, días cumplidos, % de cumplimiento y promedio) y periodo rotulado "Meta vigente".
+- **100% derivado** (\`getGoalsHistory\` en \`operatorMetrics\`): sin estado nuevo en localStorage. Días no laborables, vacaciones, feriados e inasistencias quedan **fuera del conjunto y no penalizan el %** (se informan como "excluidos"); respeta \`workingDays\` del operador y aplica la meta vigente a toda la ventana.
+- Toggle en Configuración → Widgets (\`widgetHistorialMetas\`).
+
+### Ayuda y guías
+
+- **Guías (\`GuideView\`, manual cap. 1–16)**: cap. 4 con la nueva sección "Búsqueda y filtros del header" (marcador de **Solo de hoy** en el filtro de Día) y los widgets nuevos en Resumen/Rendimiento; cap. 7 con **Meta de firmas** (Resumen) e **Historial de metas (30 días hábiles)** (Rendimiento); cap. 8 con el canal **Navegador (escritorio)** y la sección **Reglas automáticas** (los dos bloques, frase y chips + dedup de 10 min).
+- **Panel de Ayuda (Ctrl+H)**: acordeones Dashboard (las 2 pestañas con los widgets nuevos), Notificaciones (canal del navegador, los dos bloques de reglas automáticas y "sin repetirse"), Configuración → Notificaciones (canales y reglas) y Tablero/Tabla (marcador de "Solo de hoy" en el filtro de Día).
+
+### Auditoría interna: errores y estilos rotos (H1–H6)
+
+- **Color inválido \`var(--token)NN\` reparado en 166 apariciones de 66 archivos (H1)**: \`var()\` no concatena tokens — \`var(--color-accent)22\` deja la declaración vacía (fondo \`rgba(0,0,0,0)\` y \`border\` descartado, verificado en Chrome). Se reescribió todo con \`color-mix(in srgb, var(--token) NN%, transparent)\` conservando la alfa (0d→5.1%, 11→6.7%, 22→13.3%, 33→20%, 44→26.7%, 55→33.3%, 66→40%): literales, templates \`\${base}NN\`, concatenaciones \`base + "NN"\` y la forma con fallback \`var(--x, #hex)NN\` (Pill de estados —presente en toda la app— y badge de CitasWidget), más el chip de severidad del form de reglas y el badge "Propia". Los hex literales (\`#3b82f622\`) sí aceptan sufijo y no se tocaron. **Antecedente**: la entrada de 1.7.x que "corregía" \`var(--color-accent11)\` → \`var(--color-accent)11\` seguía dejando el fondo vacío; se cierra con este release. La convención queda documentada como comentario ancla en \`globals.css\` (cerca de los tokens).
+- **Reglas numéricas sin NaN (H2)**: \`agregarRegla\` validaba el vacío pero no la numéricidad — \`Number("abc")\` → \`NaN\` se persistía y la regla \`gt\`/\`lt\` nunca matcheaba (falla silenciosa). Ahora informa "Ingresá un número válido." y guarda un \`Number\` finito (acepta coma decimal, se normaliza a punto).
+- **Guards ante \`rulesCustom\` corrupto (H3)**: entradas \`null\` (config editada a mano o storage viejo) crasheaban el \`find\`/\`filter\` de la sección de reglas (panel de Configuración completo) y el \`some\` del sync en \`App.jsx\` (abortaba toda la sincronización dentro de su \`try/catch\`).
+- **Copy y accesibilidad (H4/H5)**: guía "Solo de hoy" — "hace clic en el" → "hace clic sobre ese dia"; el \`aria-label\` del interruptor de reglas y el \`title\` del botón de eliminar usan la frase legible (descripción del motor o "Cuando …") en vez del name slug interno (\`case-sin-telefono-alert\`).
+- **\`reportError\` con el error real (H6)**: \`notificationManager\` pasaba un objeto literal \`type/message\` y perdía el stack; ahora \`reportError(err, { context: "browserNotification" })\`.
+
+### Tests
+
+- De la auditoría: \`ConfiguracionView.test.jsx\` +2 — regla \`gt\` con valor no numérico muestra el error y no persiste \`NaN\` (y \`10,5\` → \`10.5\`), y \`rulesCustom: [null]\` no rompe la sección (helper \`VistaConfig\` con \`initialCfg\`).
+- Nuevos: \`rulesEngine.test.js\` (5: contexto \`prev\`, transición de citas, conditions declarativas, toggles y copia en \`getRules\`), \`alertsSystem.test.js\` (4: ventana de dedup de 10 min y \`runCaseRules\` → toast con dedup por entidad), \`notificationManager.browser.test.js\` (5: gates de \`_browserNotify\` y \`requestBrowserPermission\`), \`MetaFirmasWidget.test.jsx\` (3), \`HistorialMetas30.test.jsx\` (2), \`FilterChip.test.jsx\` (4: propagación \`data-tour\`, \`aria-pressed\`, click y disabled) y \`guideData.test.js\` (2: estructura del manual y cobertura de 1.10.0).
+- De la revisión: \`ConfiguracionView.test.jsx\` +4 (bloques separados con el form a demanda, creación con nombre autogenerado y frase en la lista, validación sin tocar config, interruptor → \`rulesEnabled\`), \`MonthDayFilterBar.test.jsx\` +2 (marcador de HOY con \`data-tour="dia-hoy"\` en el mes actual / ausente en otro mes; \`renderBar\` parametriza \`mesesDisponibles\`), \`guideData.test.js\` +1 aserción (\`filtro de Dia\`) y el ejemplo de \`FilterChip.test.jsx\` quedó genérico (\`chip-demo\`).
+- Ampliados: \`operatorMetrics.test.js\` (+6 de \`getGoalsHistory\`: métrica nula, prioridad casos→reportes→firmas, ventana hábil cronológica, vacación excluida sin penalizar, cálculo por día y \`workingDays\` personalizados), \`dashboardConfig.test.js\` (17 widgets) y \`HelpPanel.test.jsx\` (+1: cobertura de las guías de 1.10.0).
+- **Suite: 1056 tests en verde (101 archivos); \`npm run build\` compila sin errores.** Nota ajena a 1.10.0: \`caseHistory.test.js\` es intermitente si dos llamadas a \`recordCaseChanges\` caen en el mismo milisegundo de \`nowISO()\` (verificado en verde aislado y en la corrida completa).
+- Bump a **1.10.0** en \`version.js\`, \`package.json\`, \`package-lock.json\`; CHANGELOG unificado byte-idéntico en \`CHANGELOG.md\`, \`src/docs/CHANGELOG.md\` y \`public/docs/CHANGELOG.md\`.
+
 ## [1.9.7] - Fechas consistentes en hora local y limpieza de código
 
 Versión menor de correcciones: el "hoy" de la app se calculaba con \`toISOString()\` (UTC), por lo que en Argentina (UTC-3) entre las 21:00 y medianoche el "hoy" ya era el día siguiente (Mi Espacio mostraba 0 avance de meta); varias comparaciones no entendían fechas legadas \`DD/MM/YYYY\` (listas vacías y cierres en 0 con datos migrados); el Dashboard no se enteraba de cambios de perfil/disponibilidad en la misma pestaña; se resuelve la nota conocida de 1.9.6 (claves \`conversaciones_*\` huérfanas) y se elimina código sin uso.

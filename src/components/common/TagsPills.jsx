@@ -15,9 +15,9 @@ export function TagsPills({ tags = [], size = "sm", showHash = true, onRemove, m
           key={t}
           className={`inline-flex items-center gap-0.5 rounded-full ${sizeClass}`}
           style={{
-            backgroundColor: "var(--color-accent)22",
+            backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
             color: "var(--color-accent)",
-            border: "1px solid var(--color-accent)44",
+            border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)",
           }}
         >
           {showHash && <span className="opacity-70">#</span>}

@@ -46,7 +46,7 @@ function InsightCard({ insight, expandido, onToggle }) {
       className="rounded-xl overflow-hidden"
       style={{
         backgroundColor: 'var(--color-surface)',
-        border: `1px solid ${sev.color}44`,
+        border: `1px solid color-mix(in srgb, ${sev.color} 26.7%, transparent)`,
         borderLeft: `3px solid ${sev.color}`,
       }}
     >
@@ -64,7 +64,7 @@ function InsightCard({ insight, expandido, onToggle }) {
           {insight.prioridad === 1 && (
             <span
               className="pill-compact font-bold uppercase tracking-wide"
-              style={{ backgroundColor: `${sev.color}22`, color: sev.color }}
+              style={{ backgroundColor: `color-mix(in srgb, ${sev.color} 13.3%, transparent)`, color: sev.color }}
             >
               Prioritario
             </span>

@@ -95,7 +95,7 @@ export default function CalendarToolbar({
           onClick={onToggleAvailability}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors"
           style={{
-            backgroundColor: showAvailability ? 'var(--color-accent)22' : 'var(--color-surface)',
+            backgroundColor: showAvailability ? 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)' : 'var(--color-surface)',
             color: showAvailability ? 'var(--color-accent)' : 'var(--color-text-muted)',
             border: '1px solid var(--color-border)',
           }}

@@ -42,8 +42,8 @@ export function AvailabilityMonthStrip({ availability, count = 6 }) {
             cell.isCurrent ? "" : "hover:opacity-80"
           }`}
           style={{
-            backgroundColor: cell.isCurrent ? "var(--color-accent)22" : "var(--color-surface2)",
-            border: `1px solid ${cell.isCurrent ? "var(--color-accent)55" : "var(--color-border)"}`,
+            backgroundColor: cell.isCurrent ? "color-mix(in srgb, var(--color-accent) 13.3%, transparent)" : "var(--color-surface2)",
+            border: `1px solid ${cell.isCurrent ? "color-mix(in srgb, var(--color-accent) 33.3%, transparent)" : "var(--color-border)"}`,
           }}
           title={`${cell.key}${cell.has ? " — hay registros" : ""}`}
           aria-label={`${cell.label} ${cell.year}${cell.has ? " con registros" : ""}`}

@@ -170,9 +170,9 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
             <span
               className="inline-flex items-center gap-1.5 pill-lg"
               style={{
-                backgroundColor: dayStateColor(dayState.key) + "22",
+                backgroundColor: `color-mix(in srgb, ${dayStateColor(dayState.key)} 13.3%, transparent)`,
                 color: dayStateColor(dayState.key),
-                border: `1px solid ${dayStateColor(dayState.key)}44`,
+                border: `1px solid color-mix(in srgb, ${dayStateColor(dayState.key)} 26.7%, transparent)`,
               }}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dayStateColor(dayState.key) }} />

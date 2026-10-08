@@ -6,19 +6,19 @@ import { soundSystem } from "../../core/notifications/soundSystem";
 const ALERT_STYLES = {
   warning: {
     icon: AlertTriangle,
-    bg: "var(--color-warning)11",
+    bg: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)",
     border: "var(--color-warning)",
     text: "var(--color-warning)",
   },
   error: {
     icon: AlertCircle,
-    bg: "var(--color-danger)11",
+    bg: "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
     border: "var(--color-danger)",
     text: "var(--color-danger)",
   },
   info: {
     icon: Info,
-    bg: "var(--color-primary)11",
+    bg: "color-mix(in srgb, var(--color-primary) 6.7%, transparent)",
     border: "var(--color-primary)",
     text: "var(--color-primary)",
   },

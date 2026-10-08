@@ -15,6 +15,8 @@ import {
   isWorkingDay,
   normalizeRange,
   isInRange,
+  // 1.10.0 (feature E):
+  getGoalsHistory,
 } from './operatorMetrics';
 import { DAY_STATES } from './operatorDefaults';
 import { initialsFromName } from './operatorStore';
@@ -358,5 +360,93 @@ describe('isWorkingDay', () => {
     expect(isWorkingDay('2026-09-07', [1, 2, 3, 4, 5])).toBe(true); // lunes
     expect(isWorkingDay('2026-09-12', [1, 2, 3, 4, 5])).toBe(false); // sábado
     expect(isWorkingDay('2026-09-13', [1, 2, 3, 4, 5])).toBe(false); // domingo
+  });
+});
+
+describe('getGoalsHistory (1.10.0 · feature E)', () => {
+  const SIN_METAS = {
+    daily: { cases: { enabled: false }, reports: { enabled: false }, firmas: { enabled: false } },
+  };
+
+  it('devuelve metrica null si no hay ninguna meta diaria habilitada', () => {
+    const h = getGoalsHistory(SIN_METAS, [], 5);
+    expect(h.metrica).toBeNull();
+    expect(h.dias).toEqual([]);
+    expect(h.diasHabiles).toBe(0);
+    expect(h.pctCumplimiento).toBe(0);
+  });
+
+  it('elige la métrica con prioridad casos → reportes → firmas', () => {
+    const todas = {
+      daily: {
+        cases: { enabled: true, target: 5 },
+        reports: { enabled: true, target: 5 },
+        firmas: { enabled: true, target: 1 },
+      },
+    };
+    expect(getGoalsHistory(todas, [], 1).metrica).toBe('cases');
+    expect(
+      getGoalsHistory(
+        { daily: { cases: { enabled: false }, reports: { enabled: true, target: 5 }, firmas: { enabled: true, target: 1 } } },
+        [], 1
+      ).metrica
+    ).toBe('reports');
+    expect(
+      getGoalsHistory(
+        { daily: { cases: { enabled: false }, reports: { enabled: false }, firmas: { enabled: true, target: 1 } } },
+        [], 1
+      ).metrica
+    ).toBe('firmas');
+  });
+
+  it('recorre N días hábiles (lun-vie) en orden cronológico', () => {
+    const h = getGoalsHistory({ daily: { cases: { enabled: true, target: 5 } } }, [], 30);
+    expect(h.diasHabiles).toBe(30);
+    h.dias.forEach((d) => {
+      expect([1, 2, 3, 4, 5]).toContain(new Date(d.fecha + 'T00:00:00').getDay());
+    });
+    for (let i = 1; i < h.dias.length; i++) {
+      expect(h.dias[i].fecha > h.dias[i - 1].fecha).toBe(true);
+    }
+    // La ventana de ~42 días naturales siempre incluye fines de semana
+    // excluidos (no penalizan).
+    expect(h.excluidos).toBeGreaterThan(0);
+  });
+
+  it('una vacación sobre el primer día lo excluye sin penalizar', () => {
+    const goals = { daily: { cases: { enabled: true, target: 5 } } };
+    const base = getGoalsHistory(goals, [], 1, {});
+    const primerDia = base.dias[0].fecha;
+    const h = getGoalsHistory(goals, [], 1, {
+      availability: { vacations: [{ id: 'v', start: primerDia, end: primerDia }] },
+    });
+    expect(h.dias).toHaveLength(1);
+    expect(h.dias[0].fecha).not.toBe(primerDia);
+    expect(h.dias[0].fecha < primerDia).toBe(true);
+    expect(h.excluidos).toBeGreaterThanOrEqual(1);
+  });
+
+  it('calcula percent/met por día con la meta vigente (casos)', () => {
+    const goals = { daily: { cases: { enabled: true, target: 2 } } };
+    // Primer día hábil de la ventana (hoy o el anterior hábil).
+    const iso = getGoalsHistory(goals, [], 1).dias[0].fecha;
+    const casos = [{ id: 'a', fecha: iso }, { id: 'b', fecha: iso }];
+    const h = getGoalsHistory(goals, casos, 1);
+    expect(h.dias[0].current).toBe(2);
+    expect(h.dias[0].percent).toBe(100);
+    expect(h.dias[0].met).toBe(true);
+    expect(h.diasCumplidos).toBe(1);
+    expect(h.pctCumplimiento).toBe(100);
+    expect(h.promedio).toBe(2);
+  });
+
+  it('aplica workingDays personalizados (mar-sáb)', () => {
+    const h = getGoalsHistory({ daily: { cases: { enabled: true, target: 1 } } }, [], 10, {
+      workingDays: [2, 3, 4, 5, 6],
+    });
+    expect(h.diasHabiles).toBe(10);
+    h.dias.forEach((d) => {
+      expect([2, 3, 4, 5, 6]).toContain(new Date(d.fecha + 'T00:00:00').getDay());
+    });
   });
 });

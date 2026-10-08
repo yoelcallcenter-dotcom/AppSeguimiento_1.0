@@ -16,7 +16,7 @@ const Bar = React.memo(({ count, max, diaSemana, date, isFirstOfWeek, isSelected
       <button
         onClick={onClick}
         className="flex flex-col items-center gap-1 flex-1 rounded transition-opacity hover:opacity-80 py-1"
-        style={{ backgroundColor: isSelected ? 'var(--color-accent)11' : 'transparent' }}
+        style={{ backgroundColor: isSelected ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)' : 'transparent' }}
       >
         <div className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>{count}</div>
         <div className="w-full flex-1 flex items-end" style={{ minHeight: '2rem' }}>

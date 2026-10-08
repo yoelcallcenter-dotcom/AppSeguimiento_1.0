@@ -68,7 +68,7 @@ export function AtajosTeclado() {
         <span
           className="text-xs px-2 py-0.5 rounded-full"
           style={{
-            backgroundColor: "var(--color-accent)22",
+            backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
             color: "var(--color-accent)",
           }}
         >
@@ -89,7 +89,7 @@ export function AtajosTeclado() {
             <span
               className="text-sm font-bold px-3 py-1 rounded"
               style={{
-                backgroundColor: "var(--color-accent)22",
+                backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
                 color: "var(--color-accent)",
                 fontFamily: "monospace",
               }}
@@ -117,8 +117,8 @@ export function AtajosTeclado() {
       <div
         className="rounded-lg p-3"
         style={{
-          backgroundColor: "var(--color-accent)11",
-          border: "1px solid var(--color-accent)33",
+          backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)",
         }}
       >
         <div className="flex items-center gap-2">

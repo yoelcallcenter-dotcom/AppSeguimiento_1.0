@@ -34,9 +34,9 @@ export function CaseLinker({ casos = [], selectedIds = [], onChange }) {
             <span key={c.id}
               className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
               style={{
-                backgroundColor: 'var(--color-accent)22',
+                backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)',
                 color: 'var(--color-accent)',
-                border: '1px solid var(--color-accent)44',
+                border: '1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)',
               }}
             >
               <User size={10} />

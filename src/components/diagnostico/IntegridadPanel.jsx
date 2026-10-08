@@ -101,7 +101,7 @@ export function IntegridadPanel() {
           {informe.problemas.length === 0 ? (
             <div
               className="rounded-lg p-3 flex items-center gap-2"
-              style={{ backgroundColor: "var(--color-success)22", border: "1px solid var(--color-success)44" }}
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-success) 13.3%, transparent)", border: "1px solid color-mix(in srgb, var(--color-success) 26.7%, transparent)" }}
             >
               <CheckCircle2 size={14} style={{ color: "var(--color-success)" }} />
               <span className="text-xs font-semibold" style={{ color: "var(--color-success)" }}>

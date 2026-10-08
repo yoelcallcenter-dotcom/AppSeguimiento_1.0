@@ -287,7 +287,7 @@ export function TourProvider({ children }) {
               <div className="flex items-center gap-2">
                 <span
                   className="text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+                  style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
                 >
                   {state.currentStep + 1}/{state.steps.length}
                 </span>
@@ -327,7 +327,7 @@ export function TourProvider({ children }) {
             {step.tips && (
               <div
                 className="rounded-md p-3 mb-3 flex items-start gap-2"
-                style={{ backgroundColor: "var(--color-accent)11", border: "1px solid var(--color-accent)33" }}
+                style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)" }}
               >
                 <Zap size={16} color="var(--color-accent)" className="flex-shrink-0 mt-0.5" />
                 <div>

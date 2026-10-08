@@ -26,7 +26,7 @@ export function ProximaActividad({ events, now, onVerCaso, onNavigateToEvent }) 
       className="rounded-lg px-4 py-3"
       style={{
         backgroundColor: "var(--color-surface)",
-        border: `1px solid ${accentColor}44`,
+        border: `1px solid color-mix(in srgb, ${accentColor} 26.7%, transparent)`,
         borderTop: `3px solid ${accentColor}`,
       }}
     >
@@ -37,7 +37,7 @@ export function ProximaActividad({ events, now, onVerCaso, onNavigateToEvent }) 
         </span>
         <span
           className="pill-compact ml-auto font-semibold"
-          style={{ backgroundColor: accentColor + "22", color: accentColor }}
+          style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 13.3%, transparent)`, color: accentColor }}
         >
           {dayLabel} · {timeLabel}
         </span>
@@ -59,7 +59,7 @@ export function ProximaActividad({ events, now, onVerCaso, onNavigateToEvent }) 
       >
         <div
           className="flex items-center justify-center rounded-lg flex-shrink-0"
-          style={{ backgroundColor: accentColor + "22", width: "40px", height: "40px" }}
+          style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 13.3%, transparent)`, width: "40px", height: "40px" }}
         >
           {isCita || isReprogramacion ? (
             <CalendarClock size={18} style={{ color: accentColor }} />

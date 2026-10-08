@@ -76,7 +76,7 @@ export default function NotesList({
               aria-label={`Abrir nota ${note.title || 'Sin titulo'}`}
               className="rounded-md p-2.5 cursor-pointer transition-colors hover:bg-white/5"
               style={{
-                backgroundColor: isSelected ? 'var(--color-accent)11' : 'var(--color-surface)',
+                backgroundColor: isSelected ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)' : 'var(--color-surface)',
                 border: `1px solid ${isSelected ? 'var(--color-accent)' : 'var(--color-border)'}`,
               }}
               onClick={() => onSelect(note.id)}
@@ -105,7 +105,7 @@ export default function NotesList({
                           <span
                             key={t}
                             className="text-[10px] px-1 py-0.5 rounded"
-                            style={{ backgroundColor: 'var(--color-accent)22', color: 'var(--color-accent)' }}
+                            style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
                           >
                             {t}
                           </span>

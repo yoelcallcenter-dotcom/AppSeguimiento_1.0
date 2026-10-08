@@ -69,7 +69,7 @@ function MenuBar({ editor }) {
             className="p-1 rounded transition-colors hover:bg-white/5"
             style={{
               color: btn.active ? 'var(--color-accent)' : 'var(--color-text-muted)',
-              backgroundColor: btn.active ? 'var(--color-accent)11' : 'transparent',
+              backgroundColor: btn.active ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)' : 'transparent',
             }}
             title={btn.label}
           >

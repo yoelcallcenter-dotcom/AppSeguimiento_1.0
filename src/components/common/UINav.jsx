@@ -93,7 +93,7 @@ export function SubPills({ items, active, onSelect, className = "", style, ariaL
               onClick={() => onSelect(item.id)}
               className={`flex items-center gap-1.5 rounded-full px-3 h-[30px] text-xs font-semibold transition-colors hover:opacity-80 border ${
                 isActive
-                  ? "bg-[var(--color-accent)22] text-[var(--color-accent)] border-[var(--color-accent)]"
+                  ? "bg-[color-mix(in_srgb,var(--color-accent)_13.3%,_transparent)] text-[var(--color-accent)] border-[var(--color-accent)]"
                   : "text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)] hover:bg-[var(--color-surface2)]"
               } ${itemClassName}`.trim()}
             >
@@ -102,7 +102,7 @@ export function SubPills({ items, active, onSelect, className = "", style, ariaL
               {item.badge != null && (
                 <span
                   className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold ${
-                    isActive ? "bg-[var(--color-accent)22]" : "bg-[var(--color-surface2)]"
+                    isActive ? "bg-[color-mix(in_srgb,var(--color-accent)_13.3%,_transparent)]" : "bg-[var(--color-surface2)]"
                   }`}
                 >
                   {item.badge}

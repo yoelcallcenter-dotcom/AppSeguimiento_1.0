@@ -43,7 +43,7 @@ export function ProximosEventos({ events, now, limit = 5, onNavigateToEvent }) {
             >
               <span
                 className="flex items-center justify-center rounded-full flex-shrink-0"
-                style={{ backgroundColor: color + "22", width: "28px", height: "28px" }}
+                style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, width: "28px", height: "28px" }}
                 aria-hidden="true"
               >
                 {isRepro ? <RefreshCcw size={13} style={{ color }} /> : <Icon size={13} style={{ color }} />}
@@ -53,7 +53,7 @@ export function ProximosEventos({ events, now, limit = 5, onNavigateToEvent }) {
               </span>
               <span
                 className="pill-compact font-semibold flex-shrink-0"
-                style={{ backgroundColor: color + "22", color }}
+                style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, color }}
               >
                 {dayLabel} · {timeLabel}
               </span>

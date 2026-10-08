@@ -13,7 +13,7 @@ export function HintCard({ hint, onDismiss, onAction }) {
       <div className="flex items-start gap-3">
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: "var(--color-accent)22" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)" }}
         >
           <Lightbulb size={16} color="var(--color-accent)" />
         </div>

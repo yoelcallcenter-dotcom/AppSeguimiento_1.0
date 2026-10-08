@@ -294,9 +294,9 @@ function JornadaCard({ profile, paceMetrics, dayState, now }) {
         <span
           className="inline-flex items-center gap-1.5 pill-lg"
           style={{
-            backgroundColor: dayStateColor(dayState.key) + "22",
+            backgroundColor: `color-mix(in srgb, ${dayStateColor(dayState.key)} 13.3%, transparent)`,
             color: dayStateColor(dayState.key),
-            border: `1px solid ${dayStateColor(dayState.key)}44`,
+            border: `1px solid color-mix(in srgb, ${dayStateColor(dayState.key)} 26.7%, transparent)`,
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dayStateColor(dayState.key) }} />
@@ -456,7 +456,7 @@ function BackupStatusCard({ backupStatus }) {
       <div
         className="flex items-center justify-center rounded-lg flex-shrink-0"
         style={{
-          backgroundColor: isOk ? "var(--color-success)22" : "var(--color-warning)22",
+          backgroundColor: isOk ? "color-mix(in srgb, var(--color-success) 13.3%, transparent)" : "color-mix(in srgb, var(--color-warning) 13.3%, transparent)",
           width: "36px",
           height: "36px",
         }}
@@ -471,7 +471,7 @@ function BackupStatusCard({ backupStatus }) {
           <span className="font-semibold" style={{ color: "var(--color-text)" }}>Backup automático</span>
           {warning && (
             <span className="pill-compact font-semibold"
-              style={{ backgroundColor: "var(--color-warning)22", color: "var(--color-warning)" }}>
+              style={{ backgroundColor: "color-mix(in srgb, var(--color-warning) 13.3%, transparent)", color: "var(--color-warning)" }}>
               {warning}
             </span>
           )}

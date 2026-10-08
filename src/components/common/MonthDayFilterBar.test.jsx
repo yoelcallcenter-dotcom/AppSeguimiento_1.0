@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FiltersProvider } from "../../context/FiltersContext";
 import { MonthDayFilterBar } from "./MonthDayFilterBar";
+import { hoyISO } from "../../utils/dateUtils";
 
 /**
  * 1.9.6 (fix bug: días sin casos en el filtro por día).
@@ -10,12 +11,15 @@ import { MonthDayFilterBar } from "./MonthDayFilterBar";
  * MonthDayFilterBar agregaba también los días no disponibles de Mi Espacio
  * (feriados/ausencias/vacaciones) y, al seleccionarlos, la lista quedaba vacía
  * porque no había casos en esa fecha.
+ *
+ * 1.10.0 (revisión): `meses` es parametrizable para poder testear el marcador
+ * de HOY con el mes real del sistema (el default sigue siendo 2026-09).
  */
-function renderBar(casos) {
+function renderBar(casos, meses = ["2026-09"]) {
   return render(
     <FiltersProvider>
       <MonthDayFilterBar
-        mesesDisponibles={["2026-09"]}
+        mesesDisponibles={meses}
         total={casos.length}
         casos={casos}
         casosMes={casos}
@@ -64,5 +68,42 @@ describe("MonthDayFilterBar", () => {
     });
 
     expect(screen.getByText("Sin casos en el mes")).toBeTruthy();
+  });
+
+  // 1.10.0 (revisión): "Solo de hoy" dejó de ser un chip en el header y ahora
+  // es el marcador del día de HOY en la tira de días (estilo propio: punto +
+  // negrita, distinto al de los días seleccionados).
+  it("marca el día de HOY con data-tour propio cuando el mes es el actual", () => {
+    const [y, m, d] = hoyISO().split("-").map(Number);
+    const mesActual = `${y}-${String(m).padStart(2, "0")}`;
+    const { container } = renderBar([{ id: "1", fecha: hoyISO() }], [mesActual]);
+
+    fireEvent.change(screen.getByLabelText("Filtrar por mes"), {
+      target: { value: mesActual },
+    });
+
+    const hoy = container.querySelector('[data-tour="dia-hoy"]');
+    expect(hoy).toBeTruthy();
+    expect(hoy.title).toContain("hoy");
+    expect(hoy.getAttribute("aria-label")).toBe(`Día ${d} (hoy)`);
+    // El clic sigue siendo el toggle de día habitual (atajo de "Solo de hoy").
+    expect(hoy.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(hoy);
+    expect(hoy.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("no marca HOY si el mes seleccionado no es el actual", () => {
+    // Mes anterior al actual: seguro que no es el de hoy en ninguna fecha.
+    const [y, m] = hoyISO().split("-").map(Number);
+    const ant = m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 };
+    const valor = `${ant.y}-${String(ant.m).padStart(2, "0")}`;
+    const { container } = renderBar([{ id: "1", fecha: `${valor}-15` }], [valor]);
+
+    fireEvent.change(screen.getByLabelText("Filtrar por mes"), {
+      target: { value: valor },
+    });
+
+    expect(screen.getByTitle("Día 15")).toBeTruthy();
+    expect(container.querySelector('[data-tour="dia-hoy"]')).toBeNull();
   });
 });

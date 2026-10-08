@@ -96,11 +96,16 @@ HISTORIAL DE CAMBIOS
 DASHBOARD
 Panel de control con 6 pestanas:
 - Analitica: KPIs, insights, distribucion por estado/categoria, tendencia 30 dias, barras apiladas, tipos de ingreso y evolucion
-- Resumen: KPIs con tendencia, insight vs 30 dias, funnel, actividad semanal, alertas, acciones rapidas, proximos eventos, notas y "Mi Dia"
-- Rendimiento: conversion, tiempo en gestion, tasa de perdida y Logro de Objetivos
+- Resumen: KPIs con tendencia, insight vs 30 dias, funnel, actividad semanal, alertas, acciones rapidas, proximos eventos, notas, "Mi Dia" y el widget "Meta de firmas"
+- Rendimiento: conversion, tiempo en gestion, tasa de perdida, Logro de Objetivos e "Historial de metas (30 dias habiles)"
 - Geografia: tabla por provincia/localidad y mapa interactivo
 - Estudios: desempeno por estudio juridico
 - Estados: distribucion por estado del pipeline
+
+BUSQUEDA Y FILTROS DEL HEADER
+- Barra de busqueda por nombre, telefono o localidad: filtra la lista en vivo
+- "Solo de hoy": en el filtro de Dia (arriba de la Pipeline Bar) el dia de HOY se marca con un punto y en negrita, con un estilo propio distinto al de los dias seleccionados; hace clic sobre ese dia para ver solo los casos de hoy. Se guarda como filtro de Dia y se quita con "Todos" o "Limpiar todo"
+- Los filtros rapidos se combinan con el filtro de mes
 
 KANBAN (TABLERO)
 - Columnas por estado del caso (11 estados)
@@ -238,11 +243,13 @@ PESTANA RESUMEN
 - Alertas automaticas cuando algo anda mal
 - Acciones rapidas para filtrar por estado
 - Proximos eventos, notas recientes, ultimos casos y "Mi Dia"
+- Widget "Meta de firmas": avance de las firmas de HOY y del MES EN CURSO (misma meta que Mi Espacio; se muestra/oculta en Configuracion → Apariencia → Dashboard)
 
 PESTANA RENDIMIENTO
 - Tasa de conversion, tiempo promedio en gestion y tasa de perdida
 - Dias en gestion y dias totales del caso
 - Funnel, actividad y Logro de Objetivos (14 firmas por mes)
+- Historial de metas (30 dias habiles): cumplimiento de la meta diaria dia a dia con dias habiles, dias cumplidos, porcentaje y promedio. Usa la meta VIGENTE (primera habilitada: casos, reportes o firmas); los dias no laborables y ausencias quedan fuera del calculo y no penalizan
 
 PESTANA GEOGRAFIA
 - Tabla de provincias y localidades con casos, firmas, conversion y perdida
@@ -276,6 +283,15 @@ Configuracion → Notificaciones:
 - Sonido por nivel: controla que niveles suenan (Grave, Media, Baja)
 - Eventos: selecciona que eventos generan notificaciones
 - Frecuencia: tiempo real o agrupada
+- Navegador (escritorio): ventanita del navegador. OFF por defecto; al activarlo se pide el permiso y SOLO avisa con prioridad alta/critica y con la pestana OCULTA (si la pestana esta visible ya estan los toasts y la campana)
+
+REGLAS AUTOMATICAS (Configuracion → Notificaciones)
+- La seccion tiene DOS bloques separados: "Reglas automaticas" (la lista, con su activacion individual — una regla apada no se evalua — y el boton "Nueva regla") y "Crear una regla"
+- En "Crear una regla" armas la regla como una frase: "Cuando [campo] [condicion] [valor] → mostrar el aviso". No hay nombres tecnicos: el nombre interno se autogenera (propia-1, propia-2...)
+- La severidad se elige con chips de color (Info, Aviso, Error) y abajo hay una vista previa en vivo de como se va a ver el aviso
+- Las reglas propias se guardan en la configuracion (viajan en el backup), se marcan con el distintivo "Propia" y se pueden eliminar
+- Se evaluan al crear un caso o al cambiar su estado
+- Las alertas no se repiten: cada condicion suena una sola vez cada 10 minutos
 
 MODOS
 - Modo No Molestar: silencia todas las notificaciones

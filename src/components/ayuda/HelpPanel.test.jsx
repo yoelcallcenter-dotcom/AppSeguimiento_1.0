@@ -94,6 +94,22 @@ describe('HelpPanel (rediseño grupos)', () => {
   }, 15000);
 });
 
+describe('HelpPanel (guías 1.10.0)', () => {
+  it('documenta las funciones nuevas en Acerca de Vistas', () => {
+    renderHelp();
+    fireEvent.click(screen.getByRole('button', { name: /^Acerca de Vistas/ }));
+    // Widgets nuevos (A/E), reglas + navegador (D/B) y marcador de
+    // "Solo de hoy" en el filtro de Día (C, revisión 1.10.0).
+    expect(screen.getAllByText(/Meta de firmas/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Historial de metas/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Reglas automáticas/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Solo de hoy/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/notificación del navegador|canal del navegador/).length
+    ).toBeGreaterThan(0);
+  });
+});
+
 describe('HelpPanel (alineación y resaltado de tabs, 1.9.2)', () => {
   it('aplica la alineación global por defecto (centro) a Grupos y Secciones', () => {
     renderHelp();

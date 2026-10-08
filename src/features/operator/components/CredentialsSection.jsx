@@ -59,7 +59,7 @@ export function CredentialsSection({ credentials, createCredential, editCredenti
 
       <div
         className="flex items-start gap-2 text-[11px] px-3 py-2 rounded-md mb-3"
-        style={{ backgroundColor: "var(--color-warning)11", border: "1px solid var(--color-warning)44", color: "var(--color-text)" }}
+        style={{ backgroundColor: "color-mix(in srgb, var(--color-warning) 6.7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-warning) 26.7%, transparent)", color: "var(--color-text)" }}
       >
         <ShieldCheck size={14} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-warning)" }} />
         <span>

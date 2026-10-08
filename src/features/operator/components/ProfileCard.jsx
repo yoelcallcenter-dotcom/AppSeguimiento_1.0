@@ -91,7 +91,7 @@ export function ProfileCard({ profile, updateProfile, showToast }) {
                     onClick={() => toggleDay(i)}
                     className="text-[11px] font-semibold px-2.5 py-1 rounded-md transition-colors"
                     style={{
-                      backgroundColor: active ? "var(--color-accent)22" : "var(--color-surface2)",
+                      backgroundColor: active ? "color-mix(in srgb, var(--color-accent) 13.3%, transparent)" : "var(--color-surface2)",
                       color: active ? "var(--color-accent)" : "var(--color-text-muted)",
                       border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border)"}`,
                     }}

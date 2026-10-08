@@ -57,7 +57,7 @@ export function TemplateSelector({ type, caso, config, onSelect, className = '' 
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1 text-[10px] font-medium rounded px-2 py-1 transition-colors"
         style={{
-          backgroundColor: 'var(--color-accent)11',
+          backgroundColor: 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)',
           color: 'var(--color-accent)',
         }}
         title={`${templates.length} plantilla(s) disponible(s)`}

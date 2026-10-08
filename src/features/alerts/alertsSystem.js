@@ -1,9 +1,33 @@
 import { reportError } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
+// v1.10.0 (feature D): runRules se ejecuta ahora de verdad desde
+// runCaseRules (antes era un import muerto).
 import { runRules } from '../rules/rulesEngine';
 
 const CHECK_INTERVAL = 60000;
 let intervalId = null;
+
+// ============================================================
+// DEDUP DE TOASTS (1.10.0 · feature D)
+// El sistema corre cada 60 s: sin dedup, la misma condición sonaba cada
+// minuto ("caso sin teléfono" o "evento próximo" repetidos indefinidamente).
+// Una clave solo vuelve a notificar pasada la ventana.
+// ============================================================
+const DEDUP_WINDOW = 10 * 60 * 1000;
+const lastToastAt = new Map();
+
+function dedupToast(key, message, severity = 'info', duration = 4000) {
+  const now = Date.now();
+  const last = lastToastAt.get(key) || 0;
+  if (now - last < DEDUP_WINDOW) return false;
+  lastToastAt.set(key, now);
+  try {
+    useAppStore.getState().addToast(message, severity, duration);
+  } catch (err) {
+    reportError({ type: 'alert', message: 'dedupToast failed', context: err });
+  }
+  return true;
+}
 
 async function checkUpcomingEvents() {
   try {
@@ -21,7 +45,9 @@ async function checkUpcomingEvents() {
     upcoming.forEach((evt) => {
       const timeLeft = new Date(evt.startDate) - now;
       const hoursLeft = Math.round(timeLeft / (1000 * 60 * 60));
-      store.addToast(
+      // 1.10.0 (D): un evento solo avisa una vez por ventana (antes cada 60 s).
+      dedupToast(
+        `evento:${evt.id}`,
         `Evento proximo: "${evt.title}" en ${hoursLeft}h`,
         'warning',
         5000
@@ -47,7 +73,14 @@ async function checkIncompleteData() {
     });
 
     if (incomplete.length > 0) {
-      store.addToast(`${incomplete.length} caso(s) con datos incompletos`, 'info', 4000);
+      // 1.10.0 (D): clave por cantidad — suena de nuevo si el total cambia,
+      // pero no repite el mismo aviso en cada tick de 60 s.
+      dedupToast(
+        `incompleta:${incomplete.length}`,
+        `${incomplete.length} caso(s) con datos incompletos`,
+        'info',
+        4000
+      );
     }
 
     return incomplete;
@@ -74,7 +107,13 @@ async function checkRepeatedErrors() {
 
     Object.entries(counts).forEach(([key, count]) => {
       if (count >= 3) {
-        store.addToast(`Error repetido (${count}x): ${key}`, 'error', 5000);
+        // 1.10.0 (D): por error, no por tick (evita repetir el mismo error 60x).
+        dedupToast(
+          `error:${key}`,
+          `Error repetido (${count}x): ${key}`,
+          'error',
+          5000
+        );
       }
     });
 
@@ -109,6 +148,47 @@ function triggerAlert({ type, message, severity = 'info', duration = 4000 }) {
   }
 }
 
+/**
+ * runCaseRules (v1.10.0 · feature D)
+ * Único cableado del motor de reglas con los cambios de estado de casos.
+ * Se llama desde App.jsx en los puntos de transición (alta, edición con cambio
+ * de estado, cambiarEstado y reporte rápido) con el caso nuevo y el previo.
+ * - `prev` llega en el context para que las reglas distingan la transición
+ *   (ej. case-estado-nuevo-create-event) de un estado permanente.
+ * - Es fire-and-forget: los errores no frenan el guardado del caso.
+ */
+function runCaseRules(entity, prev = null) {
+  if (!entity) return Promise.resolve([]);
+  try {
+    const pending = runRules(entity, { prev });
+    if (pending && typeof pending.catch === 'function') {
+      pending.catch((err) =>
+        reportError({ type: 'rule', message: 'runCaseRules failed', context: err })
+      );
+      // Las reglas que devuelven { action: 'alert' } se materializan como
+      // toast con dedup (clave por regla + entidad): una regla "sin teléfono"
+      // avisa una sola vez por ventana en lugar de en cada transición.
+      pending.then((results = []) => {
+        results.forEach((r) => {
+          const res = r?.result;
+          if (res && res.action === 'alert') {
+            dedupToast(
+              `rule:${r.rule}:${entity.id}`,
+              res.message || `Regla "${r.rule}" detectada`,
+              res.severity === 'error' ? 'error' : res.severity === 'warning' ? 'warning' : 'info',
+              5000
+            );
+          }
+        });
+      });
+    }
+    return pending;
+  } catch (err) {
+    reportError({ type: 'rule', message: 'runCaseRules failed', context: err });
+    return Promise.resolve([]);
+  }
+}
+
 function startAlertSystem() {
   if (intervalId) return;
   checkAlerts();
@@ -135,4 +215,8 @@ export {
   checkUpcomingEvents,
   checkIncompleteData,
   checkRepeatedErrors,
+  // 1.10.0 (feature D):
+  runCaseRules,
+  // expuesto para tests del dedup:
+  dedupToast,
 };

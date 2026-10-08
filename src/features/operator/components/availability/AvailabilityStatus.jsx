@@ -25,7 +25,7 @@ export function AvailabilityStatus({ upcoming, onTabChange, startNew }) {
     return (
       <div
         className="p-3 rounded-md"
-        style={{ backgroundColor: "var(--color-surface2)", border: "1px solid var(--color-accent)44" }}
+        style={{ backgroundColor: "var(--color-surface2)", border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)" }}
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold mb-2" style={{ color: "var(--color-accent)" }}>
           <CalendarClock size={13} /> Tu estado próximo

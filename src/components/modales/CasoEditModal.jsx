@@ -313,8 +313,8 @@ export function CasoEditModal({
               aria-live="assertive"
               className="rounded-md p-3"
               style={{
-                backgroundColor: "var(--color-danger)22",
-                border: "1px solid var(--color-danger)55",
+                backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-danger) 33.3%, transparent)",
               }}
             >
               <div
@@ -381,9 +381,9 @@ COMENTARIOS:`}
             <div
               className="flex items-center gap-2 px-3 py-2 rounded-md text-xs"
               style={{
-                backgroundColor: "var(--color-danger)22",
+                backgroundColor: "color-mix(in srgb, var(--color-danger) 13.3%, transparent)",
                 color: "var(--color-danger)",
-                border: "1px solid var(--color-danger)55",
+                border: "1px solid color-mix(in srgb, var(--color-danger) 33.3%, transparent)",
               }}
             >
               <AlertTriangle size={14} /> Ya existe otro caso con este teléfono

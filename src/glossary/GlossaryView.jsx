@@ -27,7 +27,7 @@ export function GlossaryView() {
         </span>
         <span
           className="pill-sm"
-          style={{ backgroundColor: "var(--color-accent)22", color: "var(--color-accent)" }}
+          style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
         >
           {GLOSSARY_TERMS.length} terminos
         </span>
@@ -70,7 +70,7 @@ export function GlossaryView() {
                     <span
                       key={r}
                       className="pill-compact"
-                      style={{ backgroundColor: "var(--color-accent)11", color: "var(--color-accent)" }}
+                      style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 6.7%, transparent)", color: "var(--color-accent)" }}
                     >
                       {r}
                     </span>

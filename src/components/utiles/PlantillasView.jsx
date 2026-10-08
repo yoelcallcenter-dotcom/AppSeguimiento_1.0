@@ -239,7 +239,7 @@ export function PlantillasView({ showToast, config = {} }) {
                   </div>
                 </div>
                 {tpl.category && (
-                  <span className="text-[10px] rounded px-1.5 py-0.5 mb-2 inline-block" style={{ backgroundColor: 'var(--color-accent)11', color: 'var(--color-accent)' }}>
+                  <span className="text-[10px] rounded px-1.5 py-0.5 mb-2 inline-block" style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)', color: 'var(--color-accent)' }}>
                     {tpl.category}
                   </span>
                 )}

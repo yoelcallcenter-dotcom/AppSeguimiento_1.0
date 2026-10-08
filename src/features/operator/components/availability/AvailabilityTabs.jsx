@@ -17,7 +17,7 @@ export function AvailabilityTabs({ availability, tab, onTabChange }) {
             onClick={() => onTabChange(key)}
             className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-md transition-colors ${
               active
-                ? "bg-[var(--color-accent)22] text-[var(--color-accent)] border border-[var(--color-accent)]"
+                ? "bg-[color-mix(in_srgb,var(--color-accent)_13.3%,_transparent)] text-[var(--color-accent)] border border-[var(--color-accent)]"
                 : "text-[var(--color-text-muted)] border border-[var(--color-border)] hover:opacity-80"
             }`}
             aria-pressed={active}
