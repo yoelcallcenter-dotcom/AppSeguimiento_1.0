@@ -26,23 +26,8 @@ export const setupAutoSave = (data, keys, intervalMs = 30000) => {
   }, intervalMs);
 };
 
-export const importRawData = (rawData) => {
-  try {
-    if (typeof rawData !== "string") return rawData;
-    return JSON.parse(rawData);
-  } catch {
-    return null;
-  }
-};
-
-export const isValidJSON = (str) => {
-  try {
-    JSON.parse(str);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-// Funciones deprecadas - usar storageManager directamente
-export const isEncryptedData = () => false;
+// 1.10.1 — Higiene P3 (código muerto): se eliminaron importRawData, isValidJSON e
+// isEncryptedData (cluster StorageService ×3, AUDITORIA_RELEASE_1.10.1 §8).
+// Verificación: grep de cada nombre en src/ incl. *.test.* = 0 usos (ni internos ni
+// externos). Se conservan saveKey (App.jsx:193, useStorage.js), loadKey (useStorage.js)
+// y setupAutoSave (App.jsx:193/832), que sí tienen importadores.

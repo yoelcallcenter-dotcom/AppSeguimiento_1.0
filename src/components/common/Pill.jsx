@@ -1,10 +1,20 @@
 import React from "react";
-import { ESTADOS } from "../../utils/constants";
+import { getEstados } from "../../utils/catalogos";
+import useAppStore from "../../core/store/useAppStore";
 import { useFontSize } from "../../context/FontSizeContext";
 
 export function Pill({ estado, small, estados }) {
   const { fontSize } = useFontSize();
-  const catalogo = estados && estados.length > 0 ? estados : ESTADOS;
+  // C03 (1.10.1): antes el catálogo por defecto era la constante ESTADOS
+  // (14 nombres fijos), así que un estado creado/renombrado en Configuración
+  // no se encontraba y el pill tomaba el accent de la última entrada del
+  // default (o gris). Solo TablaView pasaba `estados`. Ahora, si el caller
+  // no inyecta catálogo, se resuelve desde `config` sincronizado en la store
+  // (App.jsx lo empuja en el mismo effect que configure() de notificaciones);
+  // sin config cargada (tests/config por defecto) getEstados devuelve los
+  // defaults de siempre, o sea comportamiento idéntico al anterior.
+  const config = useAppStore((s) => s && s.config);
+  const catalogo = estados && estados.length > 0 ? estados : getEstados(config || {});
   const info =
     catalogo.find((e) => e.v === estado) || catalogo[catalogo.length - 1];
 

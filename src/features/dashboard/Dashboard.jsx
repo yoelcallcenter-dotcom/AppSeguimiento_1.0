@@ -17,6 +17,9 @@ import { VistaMapa } from '../../components/estadisticas/VistaMapa';
 import useAppStore from '../../core/store/useAppStore';
 import { useFilters, opcionesFiltroGlobal } from '../../context/FiltersContext';
 import { trackEvent } from '../../utils/behaviorEngine';
+// v1.10.1 (fix M24): normalizador de fechas del repo para el período
+// anterior del insight (antes new Date(c.fecha) perdía las legadas DD/MM).
+import { normalizeDate } from '../../utils/dateFilters';
 import {
   accionToQuickFilter,
   quickFilterToAccion,
@@ -240,6 +243,9 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
       tasaContacto: { tipo: 'grupo', valor: 'pendientes' },
       tasaPerdida: { tipo: 'grupo', valor: 'perdidos' },
       tasaCierre: { tipo: 'grupo', valor: 'firmas' },
+      // v1.10.1 (fix M21): métrica nueva derivada de la fórmula vieja de
+      // "Tasa de cierre"; drill igual que tasaConversion.
+      tasaContactados: { tipo: 'grupo', valor: 'firmas' },
       tiempoPromedioFirma: { tipo: 'grupo', valor: 'firmas' },
     };
     const drill = mapa[m?.id];
@@ -294,7 +300,13 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     }),
     [mesAnalitica, selectedDays, filtroGlobal]
   );
-  const { metrics: analyticsMetrics, insights: analyticsInsights, activity } = useDashboardData(filtrosAnalitica, config);
+  // v1.10.1 (fix M01): se pasa la MISMA población que alimenta el widget de
+  // métricas (`casos` = casosGlobales de App, ya filtrado por mes con
+  // casoEnMes = creación O último reporte, + días + búsqueda + filtro global
+  // + quickFilter). Antes el hook leía useAppStore.cases y re-filtraba por
+  // isSameMonth(c.fecha) → el widget y los KPICards/CSV mostraban dos totales
+  // distintos para el mismo mes.
+  const { metrics: analyticsMetrics, insights: analyticsInsights, activity } = useDashboardData(filtrosAnalitica, config, casos);
 
   const resetAnaliticaFiltros = useCallback(() => {
     setFiltroGlobal({
@@ -425,8 +437,13 @@ function Dashboard({ config, casos = [], casosMes, mesesDisponibles = [], onVerC
     const prevStart = new Date(prevEnd);
     prevStart.setDate(prevStart.getDate() - 30);
     const prev = allCases.filter((c) => {
-      if (!c.fecha) return false;
-      const d = new Date(c.fecha);
+      // v1.10.1 (fix M24): normalizeDate soporta fechas legadas DD/MM/YYYY y
+      // evita Invalid Date (casos excluidos en silencio del insight) además
+      // del parseo UTC de new Date("YYYY-MM-DD"). Se arma con T00:00:00 local
+      // para no correr el corte por huso horario.
+      const iso = normalizeDate(c.fecha);
+      if (!iso) return false;
+      const d = new Date(iso + 'T00:00:00');
       return d >= prevStart && d <= prevEnd;
     });
     return { filtered: prev, cats };

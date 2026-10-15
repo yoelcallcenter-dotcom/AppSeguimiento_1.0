@@ -1,4 +1,7 @@
-import { reportError } from '../../core/error/reportError';
+// getErrors (1.10.1 · T17): checkRepeatedErrors ahora lee el log real de
+// errores (AppDiagnostics.errors, que llena reportError) en vez del
+// store.errorLog, que quedaba siempre vacío (ver comentario en la función).
+import { reportError, getErrors } from '../../core/error/reportError';
 import useAppStore from '../../core/store/useAppStore';
 // v1.10.0 (feature D): runRules se ejecuta ahora de verdad desde
 // runCaseRules (antes era un import muerto).
@@ -92,8 +95,22 @@ async function checkIncompleteData() {
 
 async function checkRepeatedErrors() {
   try {
+    // T17 (1.10.1): antes leía SOLO store.errorLog, que escribe logError y
+    // logError lo llamaba únicamente triggerAlert — que nadie invocaba—, así
+    // que el chequeo de 60 s siempre veía [] y jamás avisaba. El log real de
+    // errores es AppDiagnostics.errors (db.errors), que llena reportError
+    // (es el mismo origen que ve Configuración > Diagnóstico): ahora se
+    // consulta ese con limit 100 (los más recientes) y se suma el errorLog
+    // en memoria como fuente secundaria por si triggerAlert vuelve a usarse.
+    // Riesgo aceptado: una lectura Dexie cada 60 s sobre ≤100 filas.
     const store = useAppStore.getState();
-    const log = store.errorLog || [];
+    let stored = [];
+    try {
+      stored = (await getErrors(100, 0)) || [];
+    } catch (err) {
+      reportError({ type: 'alert', message: 'Error reading diagnostics log', context: err });
+    }
+    const log = [...(store.errorLog || []), ...stored];
     const recent = log.filter((e) => {
       const age = Date.now() - new Date(e.timestamp || 0).getTime();
       return age < 3600000;

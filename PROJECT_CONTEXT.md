@@ -6,7 +6,7 @@ Léelo primero en cada sesión. Evita re-explorar la arquitectura en cada tarea.
 ## 1. Identidad del proyecto
 
 - Nombre: **AppSeguimiento** (antes "Seguimiento de Derivaciones" / "Seg. ART"; entradas históricas del CHANGELOG conservan el nombre viejo).
-- Versión actual: **1.8.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión actual: **1.10.1** (verificada en `package.json` y `src/core/version.js`).
 - Framework: React 18 (Create React App, react-scripts 5).
 - Build: `react-scripts build` (webpack). Pre-build genera docs (`scripts/build-docs.js` → `src/docs/docsContent.js`, se regenera solo).
 - Gestor de paquetes: npm.
@@ -420,7 +420,7 @@ real de la tarea lo justifique.
 
 ## 11. Contexto de versión estable
 
-- Versión baseline: **1.8.8** (verificada en `package.json` y `src/core/version.js`).
+- Versión baseline: **1.10.1** (verificada en `package.json` y `src/core/version.js`).
 - Esta versión es la línea base estable de trabajo. No incrementarla ni renombrar la app
   salvo solicitud explícita del usuario.
 - Cambios de versión requieren actualizar como mínimo `package.json`,

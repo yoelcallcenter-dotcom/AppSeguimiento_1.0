@@ -45,6 +45,15 @@ describe('rulesEngine (1.10.0 · feature D)', () => {
       { prev: { estado: 'Activo' } }
     );
     expect(createEvent).toHaveBeenCalledTimes(1);
+    // 1.10.1: el evento automático lleva el tag de procedencia 'regla-cita'
+    // (lo usa completarCitasDeCaso para distinguirlo de eventos manuales).
+    expect(createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relatedCaseIds: ['c1'],
+        tags: ['regla-cita'],
+        status: 'pending',
+      })
+    );
 
     // Ya estaba en Cita → sin transición → no vuelve a crear (fix 1.10.0 D:
     // antes disparaba en cada revisión del caso).

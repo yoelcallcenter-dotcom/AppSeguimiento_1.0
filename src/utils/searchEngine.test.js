@@ -4,6 +4,8 @@ import {
   casoCoincide,
   crearIndicesGlobal,
   buscarGlobal,
+  buscarEntidades,
+  condicionalSubtitle,
   flattenReportes,
   flattenHistorial,
 } from './searchEngine';
@@ -229,5 +231,103 @@ describe('parseFicha', () => {
     expect(f.nombre).toBe('JUAN PEREZ');
     expect(f.tags).toEqual([]);
     expect(f.comentarios).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S11 / S11b (1.10.1): regressiones del grupo de entidades.
+// Antes se leía m.nombre (el mapeo real usa .estudio, ver MAPEO_EJEMPLO en
+// constants.js) y c.estudioJuridico en condicionales (el modelo real usa
+// .estudio + .condicion, ver entityRelations/CondicionalesView): por eso los
+// grupos "Estudios Jurídicos" y "Condicionales" NUNCA aparecían y el
+// subtítulo de condicionales salía "condición — " vacío.
+// ---------------------------------------------------------------------------
+describe('buscarEntidades (S11/S11b, 1.10.1)', () => {
+  // Mismo shape que MAPEO_EJEMPLO: filas por provincia del MISMO estudio.
+  const mapeo = [
+    { id: 'm1', estudio: 'Estudio Ejemplo & Asoc.', provincia: 'Buenos Aires' },
+    { id: 'm2', estudio: 'Estudio Ejemplo & Asoc.', provincia: 'CABA' },
+    { id: 'm3', estudio: 'Gurevich & Asoc.', provincia: 'CABA' },
+  ];
+  // Shape real de condicionales: .aseguradora + .estudio + .condicion.
+  const condicionales = [
+    { aseguradora: 'SANCOR', estudio: 'Estudio Ejemplo & Asoc.', condicion: 'no-toma' },
+    { aseguradora: 'GALENO', estudio: 'Gurevich & Asoc.', condicion: 'condicion' },
+  ];
+  const cases = [
+    { id: 'c1', aseguradora: 'SANCOR', estudioJuridico: 'Estudio Ejemplo & Asoc.' },
+    { id: 'c2', aseguradora: 'SANCOR', estudioJuridico: 'Estudio Ejemplo & Asoc.' },
+    { id: 'c3', aseguradora: 'GALENO', estudioJuridico: 'GL CABA' },
+  ];
+  const aseguradoras = ['SANCOR', 'GALENO', 'OSDE'];
+  const indices = { aseguradoras, mapeo, condicionales, cases };
+
+  it('encuentra estudios usando .estudio (campo real del mapeo)', () => {
+    const r = buscarEntidades(indices, 'gurevich');
+    expect(r.lawFirms.map((lf) => lf.nombre)).toEqual(['Gurevich & Asoc.']);
+  });
+
+  it('deduplica el mapeo por nombre: varias filas del mismo estudio = 1 resultado', () => {
+    const r = buscarEntidades(indices, 'ejemplo');
+    expect(r.lawFirms).toHaveLength(1);
+    expect(r.lawFirms[0].nombre).toBe('Estudio Ejemplo & Asoc.');
+  });
+
+  it('encuentra condicionales por .aseguradora o .estudio (nunca .estudioJuridico)', () => {
+    const porEstudio = buscarEntidades(indices, 'gurevich');
+    expect(porEstudio.condicionales).toHaveLength(1);
+    expect(porEstudio.condicionales[0]).toMatchObject({
+      estudio: 'Gurevich & Asoc.',
+      condicion: 'condicion',
+    });
+
+    const porAseguradora = buscarEntidades(indices, 'sancor');
+    expect(porAseguradora.condicionales).toHaveLength(1);
+    expect(porAseguradora.condicionales[0]).toMatchObject({ aseguradora: 'SANCOR' });
+  });
+
+  it('calcula casesCount real de aseguradoras y estudios (S11b)', () => {
+    const r = buscarEntidades(indices, 'sancor');
+    expect(r.insurers).toEqual([{ nombre: 'SANCOR', casesCount: 2 }]);
+
+    // El estudio deduplicado debe contar una sola vez (no 2 filas x 2 casos).
+    const r2 = buscarEntidades(indices, 'ejemplo');
+    expect(r2.lawFirms[0].casesCount).toBe(2);
+
+    const r3 = buscarEntidades(indices, 'galeno');
+    expect(r3.insurers[0].casesCount).toBe(1);
+  });
+
+  it('sin casos en entityIndices devuelve casesCount 0 sin romper (retrocompat)', () => {
+    const r = buscarEntidades({ aseguradoras, mapeo, condicionales }, 'sancor');
+    expect(r.insurers[0]).toEqual({ nombre: 'SANCOR', casesCount: 0 });
+    expect(r.lawFirms).toEqual([]);
+  });
+
+  it('consulta vacía devuelve los tres grupos vacíos', () => {
+    expect(buscarEntidades(indices, '')).toEqual({ insurers: [], lawFirms: [], condicionales: [] });
+    expect(buscarEntidades(indices, '   ')).toEqual({ insurers: [], lawFirms: [], condicionales: [] });
+  });
+
+  it('limita cada grupo a 5 resultados', () => {
+    const muchos = Array.from({ length: 8 }, (_, i) => ({ estudio: `Estudio ${i}` }));
+    const r = buscarEntidades({ aseguradoras, mapeo: muchos, condicionales, cases }, 'estudio');
+    expect(r.lawFirms).toHaveLength(5);
+  });
+});
+
+// S11b: subtítulo de condicionales con el modelo real (.estudio + .condicion).
+describe('condicionalSubtitle / condicionalEtiqueta (S11b, 1.10.1)', () => {
+  it('compone "<etiqueta> — <estudio>" con .estudio real', () => {
+    expect(condicionalSubtitle({ aseguradora: 'SANCOR', estudio: 'GL CABA', condicion: 'no-toma' }))
+      .toBe('No toma — GL CABA');
+    expect(condicionalSubtitle({ aseguradora: 'SANCOR', estudio: 'GL CABA', condicion: 'condicion' }))
+      .toBe('Con condiciones — GL CABA');
+  });
+
+  it('usa fallbacks razonables si faltan estudio o condición', () => {
+    expect(condicionalSubtitle({})).toBe('Con condiciones — Sin estudio');
+    expect(condicionalSubtitle(null)).toBe('Con condiciones — Sin estudio');
+    expect(condicionalSubtitle({ estudio: 'GL MdP', condicion: 'no-toma' })).toBe('No toma — GL MdP');
   });
 });

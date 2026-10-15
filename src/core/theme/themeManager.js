@@ -92,7 +92,32 @@ const themeManager = {
   },
 
   getEstadoColor(estado) {
-    return estadoColors[estado] || defaultEstadoColors[estado] || '#6B7280';
+    // F2.1 / C03 (1.10.1): antes terminaba en `|| '#6B7280'`, que como el
+    // mapa SIEMPRE tiene el color (defaults incluidos) hacía que la función
+    // nunca devolviera falsy — los fallbacks `theme.getEstadoColor(x) ||
+    // e.accent` de CasoCard/PipelineBar/PersonalizacionColores eran código
+    // muerto y un estado nuevo/renombrado salía gris pese a tener accent en
+    // config. Ahora devuelve undefined cuando no hay color guardado ni
+    // default y cada caller cae en su `accent` del catálogo.
+    return estadoColors[estado] || defaultEstadoColors[estado] || undefined;
+  },
+
+  /**
+   * C03 (1.10.1): renombra la clave de un estado en el mapa persistido de
+   * colores (`app-estado-colors`) y en las variables CSS inline. Sin esto,
+   * renombrar un estado dejaba el color viejo huérfano (var sin uso) y el
+   * nombre nuevo caía a gris hasta que el usuario lo pintara a mano.
+   */
+  renameEstadoColor(prev, next) {
+    if (!prev || !next || prev === next) return;
+    const color = estadoColors[prev];
+    delete estadoColors[prev];
+    if (color) estadoColors[next] = color;
+    document.documentElement.style.removeProperty(cssVarName(prev));
+    applyEstadoColors();
+    try {
+      localStorage.setItem(STORAGE_ESTADO_COLORS_KEY, JSON.stringify(estadoColors));
+    } catch {}
   },
 
   resetToDefaults() {
@@ -130,29 +155,13 @@ const initTheme = () => {
   return currentTheme;
 };
 
-const applyTheme = (theme) => {
-  themeManager.setTheme(theme);
-};
-
-const loadTheme = () => {
-  try { return localStorage.getItem(STORAGE_THEME_KEY) || 'dark'; } catch { return 'dark'; }
-};
-
-const saveTheme = (theme) => {
-  try { localStorage.setItem(STORAGE_THEME_KEY, theme); } catch {}
-};
-
-const setTheme = (theme) => {
-  themeManager.setTheme(theme);
-};
-
-const toggleTheme = () => {
-  const next = currentTheme === 'dark' ? 'light' : 'dark';
-  themeManager.setTheme(next);
-  return next;
-};
-
+// 1.10.1 — Higiene P3 (código muerto; AUDITORIA_RELEASE_1.10.1 §8, cluster
+// themeManager wrappers ×5): se eliminaron applyTheme, loadTheme, saveTheme,
+// setTheme y toggleTheme. Verificación: grep de cada nombre en src/ incl.
+// *.test.* = 0 importadores reales (el `setTheme` de core/store/useAppStore.js:305
+// es la acción del store de Zustand, no este wrapper; themeManager.setTheme es
+// el método de la clase, que sigue vivo). El wrapper setTheme de este módulo solo
+// redirigía a themeManager.setTheme y nadie lo importaba.
 export {
-  themeManager, initTheme, applyTheme, loadTheme, saveTheme,
-  setTheme, toggleTheme,
+  themeManager, initTheme,
 };

@@ -10,7 +10,9 @@ function caso(overrides = {}) {
     telefono: "1155550001",
     fecha: "2026-09-07",
     estudioJuridico: "Estudio A",
-    estado: "Activo",
+    // D03 (1.10.1): 'Activo' no existe en el catálogo ESTADOS (era el valor
+    // muerto del bug). Se usa 'Lo piensa', que sí califica como activo.
+    estado: "Lo piensa",
     ...overrides,
   };
 }

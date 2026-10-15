@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Filter, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
+import { Btn } from '../../components/common/Btn';
 import { MultiSelect } from '../../components/common/MultiSelect';
 import { FilterBar, FilterGroup, FilterCounter } from '../../components/common/filters';
 import { getEstados } from '../../utils/catalogos';
@@ -79,7 +80,21 @@ export function CalendarFilters({ events = [], config, filtros, onFiltrosChange 
   ];
 
   return (
+    // T4c/C03 (1.10.1): panel COMPACTO y con identidad propia.
+    // - Se elimina la cabecera "FILTROS" con icono: ya la tiene el chip de la
+    //   toolbar que abre este panel (ahí vive la etiqueta, no acá).
+    // - role="group" + nombre propio: el panel es referenciable por
+    //   aria-controls (chip "Filtros") y por los tests.
+    // - Fila única: cada grupo baja a flex-basis 118px (MultiSelect acepta
+    //   minWidth configurable) para que los 5 grupos + Limpiar + Total quepan
+    //   sin cortar palabras; el gap sigue siendo el gap-3 del FilterBar
+    //   compartido (mismo espaciado que el resto de las barras de la app, sin
+    //   superposiciones). Si el ancho físico no alcanza, el wrap del
+    //   FilterBar mueve grupos ENTEROS a la segunda fila (nunca parten
+    //   controles ni texto).
     <FilterBar
+      role="group"
+      aria-label="Filtros del calendario"
       className="px-3 py-2 rounded-md"
       style={{
         backgroundColor: 'var(--color-surface)',
@@ -87,19 +102,11 @@ export function CalendarFilters({ events = [], config, filtros, onFiltrosChange 
         marginBottom: 0,
       }}
     >
-      <span
-        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider pb-2.5"
-        style={{ color: 'var(--color-text-muted)' }}
-      >
-        <Filter size={12} />
-        Filtros
-      </span>
-
       {fields.map((field) => (
         <FilterGroup
           key={field.key}
           label={field.label}
-          style={{ flex: '1 1 150px' }}
+          style={{ flex: '1 1 118px', minWidth: 118 }}
         >
           <MultiSelect
             id={`cal-${field.key}`}
@@ -107,24 +114,28 @@ export function CalendarFilters({ events = [], config, filtros, onFiltrosChange 
             value={filtros[field.key]}
             onChange={(v) => update(field.key, v)}
             placeholder={field.all}
+            minWidth={118}
           />
         </FilterGroup>
       ))}
 
-      <button
+      {/* T4a/C03 (1.10.1): "Limpiar filtros" pasa de <button> crudo a Btn
+          (componente común, animate-press + variant outline = mismo aspecto
+          neutral que antes: fondo transparente/borde --color-border).
+          T4c (1.10.1): pasa a SOLO icono (igual que Anterior/Siguiente de la
+          misma toolbar) para que la fila sea de un solo nivel; el nombre
+          accesible "Limpiar filtros" (aria-label) y el title se conservan —
+          los cubre CalendarFilters.test.jsx. */}
+      <Btn
         type="button"
         onClick={limpiar}
         disabled={activeCount === 0}
-        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{
-          color: 'var(--color-text-muted)',
-          border: '1px solid var(--color-border)',
-          backgroundColor: 'var(--color-surface2)',
-        }}
-      >
-        <RotateCcw size={12} />
-        Limpiar filtros
-      </button>
+        size="sm"
+        variant="outline"
+        icon={RotateCcw}
+        ariaLabel="Limpiar filtros"
+        title="Limpiar filtros"
+      />
 
       <FilterCounter total={total} label="evento" />
     </FilterBar>

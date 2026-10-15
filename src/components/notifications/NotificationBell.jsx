@@ -108,22 +108,36 @@ export function NotificationBell() {
                     opacity: n.read ? 0.6 : 1,
                   }}
                 >
+                  {/* 1.10.1-fix: alertsSystem emite toasts con title vacío y el
+                      texto en `message`. Antes se renderizaba un div de título
+                      vacío (con el punto de no leído suelto encima) y el mensaje
+                      quedaba desalineado en la segunda línea. Ahora el div de
+                      título solo se pinta si hay título; si no, el punto no
+                      leído se pinta inline con el mensaje. */}
+                  {n.title ? (
+                    <div
+                      className="text-xs font-medium truncate"
+                      style={{ color: "var(--color-text)" }}
+                    >
+                      {!n.read && (
+                        <span
+                          className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
+                          style={{ backgroundColor: "var(--color-accent)" }}
+                        />
+                      )}
+                      {n.title}
+                    </div>
+                  ) : null}
                   <div
-                    className="text-xs font-medium truncate"
-                    style={{ color: "var(--color-text)" }}
+                    className={`text-[11px] truncate ${n.title ? "mt-0.5" : ""}`}
+                    style={{ color: "var(--color-text-muted)" }}
                   >
-                    {!n.read && (
+                    {!n.read && !n.title && (
                       <span
                         className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
                         style={{ backgroundColor: "var(--color-accent)" }}
                       />
                     )}
-                    {n.title}
-                  </div>
-                  <div
-                    className="text-[11px] truncate mt-0.5"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
                     {n.message}
                   </div>
                 </button>

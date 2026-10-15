@@ -9,12 +9,24 @@
 // en el cierre de jornada para no comparar strings crudos contra todayISO.
 import { normalizeDate } from '../../utils/dateFilters';
 
+// D03 (1.10.1): los defaults de activeStates/PendingStates hardcodeaban
+// 'Activo', 'En proceso' y 'Contacto', que NO existen en el catálogo ESTADOS
+// (constants.js) → getStaleCases / getPendientesDelDia filtraban sobre estados
+// imposibles y esas reglas NUNCA disparaban (dead code silencioso). Se
+// reemplazan por los estados default que sí existen y representan "trabajo
+// abierto / pendiente de seguimiento". RIESGO: si el usuario renombra estos
+// estados en Configuración, esta lista no se sigue sola (queda documentado en
+// el CHANGELOG 1.10.1 como limitación D13/D14 a resolver con catálogo único).
 const DEFAULT_CONFIG = {
   staleDays: 15,
   upcomingDays: 3,
   maxProximasAcciones: 8,
-  pendingStates: ['Cita virtual', 'Cita presencial', 'Lo piensa', 'Pendiente'],
-  activeStates: ['Activo', 'En proceso', 'Contacto', 'Cita virtual', 'Cita presencial', 'Lo piensa', 'Pendiente'],
+  // "Pendiente de seguimiento": estados que aún requieren acción.
+  pendingStates: ['Cita virtual', 'Cita presencial', 'Lo piensa', 'Pendiente', 'No responde', '2do Llamado'],
+  // "Siguen abiertos": todo lo que no es cierre terminal (Firmo/Baja/No viable/
+  // No le interesa/Incontactable). Se listan explícitos para que stale-detection
+  // solo marque casos que vale la pena perseguir.
+  activeStates: ['Cita virtual', 'Cita presencial', 'No responde', 'Lo piensa', 'Reprogramado', '2do Llamado', 'Tiene Abogado', 'Pendiente', 'Sin reporte'],
 };
 
 function resolveConfig(overrides) {

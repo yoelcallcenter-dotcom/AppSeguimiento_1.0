@@ -138,6 +138,58 @@
 }
 
 /* =============================================================================
+ * FIX X07 (v1.10.1): --accent REDEFINIDO POR TEMA CLARO
+ * -----------------------------------------------------------------------------
+ * X07 (ALTO): --accent solo se definía por paleta (:root / [data-palette="*"]),
+ * sin variante clara. En tema claro (bg #FFF / surface #F9FAFB) los valores
+ * claros de la paleta fallaban WCAG 1.4.3 (texto) y 1.4.11 (indicadores):
+ *   #60A5FA (default): 2.54:1 sobre #FFF | 2.43:1 sobre #F9FAFB  (ANTES)
+ *   #9CA3AF (mono):    2.54:1 sobre #FFF | 2.43:1 sobre #F9FAFB  (ANTES)
+ * El tema oscuro estaba bien (#60A5FA sobre #111827 = 6.98:1) y NO se toca.
+ *
+ * Valores nuevos ya verificados (fórmula WCAG, luminancia relativa):
+ *   #2563EB (default): 5.17:1 sobre #FFF | 4.95:1 sobre #F9FAFB | texto #FFF
+ *                      encima (fondo de btn-accent/tab) = 5.17:1  (DESPUÉS)
+ *   #6B7280 (mono):    4.83:1 sobre #FFF | 4.63:1 sobre #F9FAFB | texto #FFF
+ *                      encima = 4.83:1                             (DESPUÉS)
+ * Se elige text-on-accent BLANCO sobre el accent en claro porque un accent
+ * oscuro con texto #14181F no puede cumplir 4.5:1 en ambos roles (es la
+ * misma fórmula de contraste en direcciones opuestas); el override por clase
+ * va más abajo, scope light + default/mono, para no afectar a otros paletas
+ * ni al dark (p.ej. violeta #A78BFA conserva texto oscuro, 6.75:1).
+ *
+ * Especificidad: selectores combinados (0,2,0) gananle a [data-palette="*"]
+ * (0,1,0) pese a venir después el atributo de paleta en el cascada.
+ *
+ * RIESGOS CONOCIDOS: (1) usos EN LÍNEA de --color-accent como FONDO con texto
+ * #14181F hardcodeado fuera de este archivo (App.jsx tabs, TourContext,
+ * chips de Configuración) quedan en 3.44:1 sobre #2563EB: sigue cumpliendo
+ * 1.4.11 (no-textual ≥3:1) pero no 4.5:1 para texto normal — corregirlos
+ * exige editar esos archivos (fuera del alcance de este fix). (2) El resto de
+ * paletas (violet/emerald/sunset/rose/cyan) mantiene su accent claro sin
+ * variante por tema: mismo patrón estructural pero no citado en X07.
+ * ========================================================================== */
+[data-theme="light"][data-palette="default"] {
+  --accent: #2563EB;
+}
+[data-theme="light"][data-palette="mono"] {
+  --accent: #6B7280;
+}
+
+/* Overrides de color de TEXTO sobre fondos accent en claro (solo donde el
+   background es --color-accent vía clases de este archivo). Blanca para que
+   el accent oscuro cumpla 4.5:1 como texto sobre dichos fondos (5.17:1 en
+   default, 4.83:1 en mono). Sin alcance en dark ni en otras paletas. */
+[data-theme="light"][data-palette="default"] .btn-accent,
+[data-theme="light"][data-palette="default"] .btn-outline-accent:hover,
+[data-theme="light"][data-palette="default"] .category-tab.active,
+[data-theme="light"][data-palette="mono"] .btn-accent,
+[data-theme="light"][data-palette="mono"] .btn-outline-accent:hover,
+[data-theme="light"][data-palette="mono"] .category-tab.active {
+  color: #ffffff;
+}
+
+/* =============================================================================
  * CONVENCIÓN DE ALFA SOBRE TOKENS (v1.10.0, auditoría H1)
  * -----------------------------------------------------------------------------
  * `var(--token)NN` NO es válido: var() no concatena tokens, el sufijo hex-alpha
@@ -824,26 +876,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: scale(0.97);
 }
 
-/* Button loading state */
+/* Button loading state
+   C02c (1.10.1): el bloque anterior ponía `color: transparent !important` y
+   dibujaba el spinner con `::after { border: currentColor }`, así que el
+   spinner salía TRANSPARENTE en todo botón que no fuera btn-primary/
+   btn-danger/btn-accent (los Btn con prop `color` — p.ej. "Exportar CSV" —
+   ni siquiera tienen variantClass y quedaban sin spinner visible), y el
+   texto desaparecía sin dejar rastro. El icono además se desmontaba
+   (Btn.jsx `!loading`) y el ancho del botón saltaba ~20px. Ahora: el
+   color del botón NO se toca (el spinner hereda el color real vía
+   currentColor), el label solo se oculta con `visibility` (conserva el
+   ancho para que no salte nada) y el spinner va centrado como overlay
+   absoluto (no afecta el flujo). */
 .btn-base.btn-loading {
-  color: transparent !important;
   pointer-events: none;
 }
-.btn-base.btn-loading::after {
-  content: "";
+.btn-base.btn-loading .btn-loading-label {
+  visibility: hidden;
+}
+.btn-spinner {
   position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
+  inset: 0;
+  margin: auto;
+  width: 15px;
+  height: 15px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-right-color: currentColor;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-}
-.btn-primary.btn-loading::after,
-.btn-danger.btn-loading::after,
-.btn-accent.btn-loading::after {
-  border-color: rgba(255,255,255,0.3);
-  border-right-color: rgba(255,255,255,0.8);
 }
 
 /* Button success flash */

@@ -1,6 +1,12 @@
 import useNotificationStore from "../core/notifications/notificationStore";
 import { isEasterEggsEnabled } from "./uiSettings";
 
+// 1.10.1 — Higiene P3 (código muerto; AUDITORIA_RELEASE_1.10.1 §8, cluster
+// "easterEggs internals"): showEasterEgg, consoleMessage, flashRoot,
+// highlightWidget, pulseElement y subtleBorderGlow perdieron el `export` porque
+// 0 importadores en src/ (incl. *.test.*); siguen existiendo porque fireEgg y
+// EFFECTS los usan internamente. Único export vivo: fireEgg (behaviorEngine.js:6).
+
 const EGG_DURATION = 4000;
 const EFFECT_DURATION = 280;
 
@@ -17,7 +23,7 @@ function applyClass(el, cls) {
  * (ToastContainer), sin alert() y sin tocar el centro de notificaciones.
  * `opts.icon` es un componente React (lucide) que reemplaza el icono por tipo.
  */
-export function showEasterEgg(message, opts = {}) {
+function showEasterEgg(message, opts = {}) {
   if (!isEasterEggsEnabled()) return;
   const store = useNotificationStore.getState();
   store.addToast({
@@ -29,7 +35,7 @@ export function showEasterEgg(message, opts = {}) {
 }
 
 /** Log contextual en consola, legible, sin emojis. */
-export function consoleMessage(text) {
+function consoleMessage(text) {
   if (!isEasterEggsEnabled()) return;
   console.log(
     `%c[EasterEgg] ${text}`,
@@ -38,22 +44,22 @@ export function consoleMessage(text) {
 }
 
 /** Flash sutil sobre toda la app (solo para hiperactividad). */
-export function flashRoot() {
+function flashRoot() {
   applyClass(document.getElementById("root") || document.body, "ee-flash");
 }
 
 /** Resalta un widget puntual por su id (si existe). */
-export function highlightWidget(id) {
+function highlightWidget(id) {
   applyClass(document.getElementById(id), "ee-highlight");
 }
 
 /** Pulso breve sobre un elemento por selector CSS (si existe). */
-export function pulseElement(selector) {
+function pulseElement(selector) {
   applyClass(document.querySelector(selector), "ee-pulse");
 }
 
 /** Glow de borde sutil sobre un elemento por selector CSS (si existe). */
-export function subtleBorderGlow(selector) {
+function subtleBorderGlow(selector) {
   applyClass(document.querySelector(selector), "ee-glow");
 }
 

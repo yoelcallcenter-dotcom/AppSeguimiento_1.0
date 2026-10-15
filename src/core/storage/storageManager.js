@@ -7,6 +7,28 @@
 import { localStorageAdapter } from "./localStorageAdapter";
 import { parseCSV } from "../../utils/csvParse";
 
+// D08 (1.10.1): helpers de fusión de defaults para get().
+const isPlainObject = (v) =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Fusiona defaults con lo guardado: lo guardado gana; los objetos anidados
+ * (plain objects en ambos lados) se fusionan un nivel, como
+ * backupManager.mergeConfigWithDefaults. Arrays/escalares guardados reemplazan
+ * el default completo (mismo contrato de "lo guardado siempre gana").
+ */
+function mergeFlatWithNestedDefaults(defaults, saved) {
+  const merged = { ...defaults, ...saved };
+  for (const key of Object.keys(defaults)) {
+    const base = defaults[key];
+    const value = saved[key];
+    if (isPlainObject(base) && isPlainObject(value)) {
+      merged[key] = { ...base, ...value };
+    }
+  }
+  return merged;
+}
+
 class StorageManager {
   constructor() {
     this.adapters = {
@@ -48,7 +70,20 @@ class StorageManager {
   async get(key, defaultValue = null, options = {}) {
     try {
       const localValue = localStorageAdapter.get(key);
-      if (localValue !== null) return localValue;
+      if (localValue !== null) {
+        // D08 (1.10.1): antes devolvía el valor guardado tal cual: en
+        // instalaciones viejas, claves nuevas de CONFIG_DEFAULT (p. ej.
+        // volumenNotificaciones) quedaban `undefined` hasta reescribir el
+        // objeto completo (mergeConfigWithDefaults solo corría en import de
+        // backup). Ahora, si el default es un objeto plano, se fusiona un
+        // nivel (los guardados ganan; los objetos anidados como
+        // columnasVisibles se fusionan sub-clave a sub-clave, igual que en
+        // el merge de backup). Arrays y primitivos siguen sin fusión.
+        if (isPlainObject(localValue) && isPlainObject(defaultValue)) {
+          return mergeFlatWithNestedDefaults(defaultValue, localValue);
+        }
+        return localValue;
+      }
       return defaultValue;
     } catch (error) {
       console.error("[StorageManager] Error en get:", error);

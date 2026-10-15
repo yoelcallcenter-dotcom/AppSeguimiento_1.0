@@ -96,11 +96,17 @@ export async function getEventsByDateRange(start, end) {
 export async function getEventsByMonth(year, month) {
   try {
     const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const end = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    // 1.10.1 (E02): el límite superior era "YYYY-MM-31" (solo día, lexicográfico),
+    // lo que EXCLUÍA eventos con hora del último día del mes ("…-31T09:30" >
+    // "…-31"). Ahora el límite es el primer día del mes SIGUIENTE y el upper
+    // bound es EXCLUSIVO: cubre cualquier hora del último día ("…-31T23:59…"
+    // < "…-01") sin incluir all-day del mes entrante ("YYYY-MM+1-01" queda
+    // fuera por ser igual al límite excluido).
+    const nextMonth = new Date(year, month + 1, 1);
+    const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
     return await appDB.events
       .where('startDate')
-      .between(start, end, true, true)
+      .between(start, end, true, false)
       .toArray();
   } catch (error) {
     reportError(error, { operation: 'getEventsByMonth', year, month });
@@ -123,5 +129,36 @@ export async function getEventsByNoteId(noteId) {
   } catch (error) {
     reportError(error, { operation: 'getEventsByNoteId', noteId });
     return [];
+  }
+}
+
+// 1.10.1: completar el evento automático de cita de un caso cuando este
+// recibe un reporte. La regla case-estado-nuevo-create-event (features/rules)
+// taga sus eventos con el tag 'regla-cita': sin ese tag no había forma de
+// distinguirlos de eventos creados a mano ni de los del sistema de citas por
+// campo (citaAutoEvents, que este helper NO debe tocar). Idempotente — un
+// reporte posterior no vuelve a tocar eventos ya completados/cancelados —
+// porque App.jsx la dispara fire-and-forget y puede correr más de una vez.
+// 'completed' es el valor canónico de status (lo entienden attentionRules,
+// alertsSystem, operatorMetrics y EventModal); lectores legacy que solo
+// buscan 'completado' son un desajuste preexistente, no se tocan acá.
+export async function completarCitasDeCaso(caseId) {
+  if (!caseId) return 0;
+  try {
+    const eventos = await appDB.events
+      .filter(
+        (e) =>
+          ['pending', 'confirmed'].includes(e.status) &&
+          (e.tags || []).includes('regla-cita') &&
+          (e.relatedCaseIds || []).some((cid) => String(cid) === String(caseId))
+      )
+      .toArray();
+    for (const evento of eventos) {
+      await updateEvent(evento.id, { status: 'completed' });
+    }
+    return eventos.length;
+  } catch (error) {
+    reportError(error, { operation: 'completarCitasDeCaso', caseId });
+    return 0;
   }
 }

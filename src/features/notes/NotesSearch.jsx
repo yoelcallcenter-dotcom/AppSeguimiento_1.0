@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { Search, FileText, Plus, CalendarPlus, X } from 'lucide-react';
+// T4c (1.10.1): se quitó CalendarPlus del import — nunca se usaba en este
+// archivo (código muerto).
+import { Search, FileText, Plus, X } from 'lucide-react';
+// T4c (1.10.1): Btn para la acción "Nueva" de la paleta de comandos.
+import { Btn } from '../../components/common/Btn';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
 
 export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCreateNote }) {
@@ -78,16 +82,21 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
               <X size={14} />
             </button>
           )}
-          <button
+          {/* T4c/C03 (1.10.1): pasa de <button> crudo con bg accent propio a
+              Btn accent sm (misma forma/altura que los botones del resto de la
+              app) — el name accesible "Nueva nota" va por aria-label. */}
+          <Btn
+            size="sm"
+            variant="accent"
+            icon={Plus}
+            ariaLabel="Nueva nota"
             onClick={() => {
               onCreateNote(query);
               onClose();
             }}
-            className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded"
-            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-on-accent)' }}
           >
-            <Plus size={12} /> Nueva
-          </button>
+            Nueva
+          </Btn>
         </div>
 
         <div className="max-h-[300px] overflow-y-auto p-2 space-y-0.5">

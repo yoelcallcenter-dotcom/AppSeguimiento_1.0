@@ -76,20 +76,27 @@ const NotificationItem = React.memo(function NotificationItem({ n, onMarkAsRead,
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 min-w-0">
-            {!n.read && (
+          {/* 1.10.1-fix: alertsSystem emite notificaciones con title vacío y
+              el texto en `message`. Antes se renderizaba un span de título
+              vacío (con el punto de no leído suelto antes del timestamp).
+              Ahora el span del título solo se pinta si hay título; si no, el
+              punto no leído se pinta inline con el mensaje. */}
+          {n.title ? (
+            <span className="flex items-center gap-1.5 min-w-0">
+              {!n.read && (
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: "var(--color-accent)" }}
+                />
+              )}
               <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "var(--color-accent)" }}
-              />
-            )}
-            <span
-              className="text-xs font-semibold truncate"
-              style={{ color: "var(--color-text)" }}
-            >
-              {n.title}
+                className="text-xs font-semibold truncate"
+                style={{ color: "var(--color-text)" }}
+              >
+                {n.title}
+              </span>
             </span>
-          </span>
+          ) : null}
           <span
             className="text-[10px] flex-shrink-0"
             style={{ color: "var(--color-text-muted)" }}
@@ -119,6 +126,14 @@ const NotificationItem = React.memo(function NotificationItem({ n, onMarkAsRead,
           className="text-[11px] mt-0 line-clamp-2"
           style={{ color: "var(--color-text-muted)" }}
         >
+          {/* 1.10.1-fix: si no hay título, el punto de no leído va inline con
+              el mensaje (antes quedaba suelto en la fila del título vacío). */}
+          {!n.read && !n.title && (
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
+              style={{ backgroundColor: "var(--color-accent)" }}
+            />
+          )}
           {n.message}
         </p>
       </div>

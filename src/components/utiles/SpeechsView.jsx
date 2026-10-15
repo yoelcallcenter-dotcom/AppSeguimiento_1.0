@@ -365,6 +365,8 @@ export function SpeechsView({
                       #{idx + 1}
                     </span>
                   </div>
+                  {/* X11 (1.10.1): p-1 → p-1.5 en los 3 botones de acción
+                      (icono 14px: 22px → 26px, WCAG 2.5.8 mínimo 24px). */}
                   <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
@@ -373,7 +375,7 @@ export function SpeechsView({
                         e.stopPropagation();
                         copiar(s, idx);
                       }}
-                      className="p-1 rounded hover:bg-white/5 transition-colors"
+                      className="p-1.5 rounded hover:bg-white/5 transition-colors"
                       style={{
                         color: isCopied
                           ? "var(--color-success)"
@@ -389,7 +391,7 @@ export function SpeechsView({
                         e.stopPropagation();
                         setConfirmEliminar(idx);
                       }}
-                      className="p-1 rounded hover:bg-white/5 transition-colors"
+                      className="p-1.5 rounded hover:bg-white/5 transition-colors"
                       style={{ color: "var(--color-danger)" }}
                     >
                       <Trash2 size={14} />
@@ -401,7 +403,7 @@ export function SpeechsView({
                         e.stopPropagation();
                         setSpeechSeleccionado({ speech: s, index: idx });
                       }}
-                      className="p-1 rounded hover:bg-white/5 transition-colors"
+                      className="p-1.5 rounded hover:bg-white/5 transition-colors"
                       style={{ color: "var(--color-text-muted)" }}
                     >
                       <Maximize2 size={14} />
@@ -495,6 +497,8 @@ export function SpeechsView({
                       {info.contenido || s}
                     </td>
                     <td className="px-3 py-2">
+                      {/* X11 (1.10.1): p-1 → p-1.5 también en la vista tabla
+                          (mismo target 22px → 26px, WCAG 2.5.8). */}
                       <div
                         className="flex items-center gap-1"
                         onClick={(e) => e.stopPropagation()}
@@ -503,7 +507,7 @@ export function SpeechsView({
                           type="button"
                           aria-label="Copiar guion"
                           onClick={() => copiar(s, idx)}
-                          className="p-1 rounded hover:bg-white/5 transition-colors"
+                          className="p-1.5 rounded hover:bg-white/5 transition-colors"
                           style={{
                             color:
                               copiadoIdx === idx
@@ -521,7 +525,7 @@ export function SpeechsView({
                           type="button"
                           aria-label="Eliminar guion"
                           onClick={() => setConfirmEliminar(idx)}
-                          className="p-1 rounded hover:bg-white/5 transition-colors"
+                          className="p-1.5 rounded hover:bg-white/5 transition-colors"
                           style={{ color: "var(--color-danger)" }}
                         >
                           <Trash2 size={14} />
@@ -530,7 +534,7 @@ export function SpeechsView({
                           onClick={() =>
                             setSpeechSeleccionado({ speech: s, index: idx })
                           }
-                          className="p-1 rounded hover:bg-white/5 transition-colors"
+                          className="p-1.5 rounded hover:bg-white/5 transition-colors"
                           style={{ color: "var(--color-text-muted)" }}
                         >
                           <Maximize2 size={14} />

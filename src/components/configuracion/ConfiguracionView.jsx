@@ -65,8 +65,15 @@ import { SystemLogs } from "../../pages/SystemLogs";
 import useAppStore from "../../core/store/useAppStore";
 import appDB from "../../core/db/appDB";
 import casesDB from "../../core/db/casesDB";
+// C03 (1.10.1): el CRUD de estados escribe/borra/renombra las variables CSS
+// de color de estado (--color-estado-*) vía el singleton themeManager.
+import { themeManager } from "../../core/theme/themeManager";
 import { useHelp } from "../../help";
 import { useDelayedClose } from "../../hooks/useAnimatedPresence";
+// X10 (1.10.1): las 3 vistas previas (importación, útiles y nuevo caso) son
+// role=dialog + aria-modal pero no tenían trampa de Tab ni gestor de foco;
+// ahora usan el hook estándar igual que ConfirmDialog/Modal/GlobalSearch.
+import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { HelpSection } from "./HelpSection";
 import * as backupService from "../../services/backupService";
 import { localStorageAdapter } from "../../core/storage/localStorageAdapter";
@@ -190,7 +197,10 @@ export function ConfiguracionView({
   showToast,
   casos,
   onEliminarTodos,
-  setCasos,
+  // F19 (1.10.1): borrado masivo por mes con cascade y undo (lo resuelve App;
+  // antes había un bulkDelete directo que dejaba historial/referencias huérfanos).
+  // setCasos ya no se usa acá: App filtra el estado tras el cascade.
+  onEliminarCasos,
 }) {
   const { updateContext } = useHelp();
   const [loading, setLoading] = useState(false);
@@ -209,6 +219,14 @@ export function ConfiguracionView({
   }, []);
 
   const [confirmFinal, setConfirmFinal] = useState(false);
+  // C03 (1.10.1): renombrado de estados de caso con migración.
+  // - estadoDraft: nombre mientras se tipea en el input de la fila (el
+  //   TextInput es controlado por letra; si el commit se hiciera por cada
+  //   keystroke, "Firmo" → tipear "a" ya migraría los casos a "Firmoa").
+  // - estadoRenombrar: pendiente de confirmación { idx, prev, next, afectados }
+  //   con el conteo de casos que se actualizarían.
+  const [estadoDraft, setEstadoDraft] = useState(null);
+  const [estadoRenombrar, setEstadoRenombrar] = useState(null);
   const [confirmDeleteNotes, setConfirmDeleteNotes] = useState(false);
   const [confirmDeleteEvents, setConfirmDeleteEvents] = useState(false);
   const [confirmDeleteCases, setConfirmDeleteCases] = useState(false);
@@ -262,18 +280,19 @@ export function ConfiguracionView({
     startClose: ncClose,
   } = useDelayedClose(() => setShowNcPreview(false));
 
-  useEffect(() => {
-    if (!previewAbierto) return undefined;
-    const onKey = (e) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      if (showImportPreview) importClose();
-      else if (showUtilesPreview) utilesClose();
-      else if (showNcPreview) ncClose();
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [showImportPreview, showUtilesPreview, showNcPreview, previewAbierto, importClose, utilesClose, ncClose]);
+  // X10 (1.10.1): un único ref para las 3 vistas previas (solo una se monta a
+  // la vez) + hook de a11y: trampa de Tab, foco inicial/restauración y Escape
+  // vía la pila global de useDialogA11y (LIFO). Se eliminó el listener manual
+  // de Escape en capture, que duplicaba la lógica y luchaba con la pila N17.
+  const previewDialogRef = useRef(null);
+  const cerrarPreviewAbierto = () => {
+    if (showImportPreview) importClose();
+    else if (showUtilesPreview) utilesClose();
+    else if (showNcPreview) ncClose();
+  };
+  useDialogA11y(previewDialogRef, previewAbierto, {
+    onEscape: cerrarPreviewAbierto,
+  });
 
   const handleChangeBackupFrequency = (frequency) => {
     if (!setBackupFrequency(frequency)) return;
@@ -1057,9 +1076,10 @@ export function ConfiguracionView({
         monthObjects.some(({ year, month }) => isSameMonth(c.fecha, month, year))
       );
       const ids = toDelete.map((c) => c.id).filter(Boolean);
-      if (ids.length > 0) await casesDB.cases.bulkDelete(ids);
-      const remaining = allCases.filter((c) => !ids.includes(c.id));
-      setCasos(remaining);
+      // F19 (1.10.1): el borrado (cascade de historial/referencias + snapshot
+      // de undo) lo resuelve App vía onEliminarCasos; antes aquí había un
+      // bulkDelete directo que dejaba case_history y relatedCaseIds huérfanos.
+      if (ids.length > 0 && onEliminarCasos) await onEliminarCasos(ids);
       soundSystem.playAction("delete");
       showToast(`${ids.length} casos eliminados correctamente`, "info");
       window.dispatchEvent(new Event("storage-update"));
@@ -1067,7 +1087,7 @@ export function ConfiguracionView({
       showToast("Error al eliminar casos", "error");
     }
     setConfirmDeleteCases(false);
-  }, [selectedMonths, confirmDeleteCases, showToast, setCasos]);
+  }, [selectedMonths, confirmDeleteCases, showToast, onEliminarCasos]);
 
   // ============ ELIMINAR NOTAS ============
   const handleDeleteNotes = useCallback(async () => {
@@ -1533,6 +1553,55 @@ export function ConfiguracionView({
                     ? "Las notificaciones de prioridad alta y crítica también se envían como notificación del navegador cuando la pestaña está en segundo plano; si está visible se muestran como toasts."
                     : "Las notificaciones se muestran como toasts dentro de la aplicación. Activá \"Navegador (escritorio)\" para recibirlas también fuera de la pestaña."}
                 </p>
+                {/* C01 (1.10.1): volumen de los sonidos de notificación. Antes
+                    existía solo como `config.volumenNotificaciones ?? 0.5` en
+                    soundSystem.configure, sin default en CONFIG_DEFAULT ni UI →
+                    el usuario no podía ajustarlo. Slider 0..100% mapeado a 0..1. */}
+                <div className="mt-4">
+                  <label
+                    className="flex items-center gap-2 text-xs font-medium"
+                    style={{ color: "var(--color-text)" }}
+                    htmlFor="volumen-notificaciones"
+                  >
+                    Volumen de notificaciones
+                    <span
+                      id="volumen-notificaciones-valor"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      {Math.round((config.volumenNotificaciones ?? 0.5) * 100)}%
+                    </span>
+                  </label>
+                  <input
+                    id="volumen-notificaciones"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={Math.round((config.volumenNotificaciones ?? 0.5) * 100)}
+                    onChange={(e) =>
+                      actualizarConfig("volumenNotificaciones", Number(e.target.value) / 100)
+                    }
+                    className="w-full mt-1"
+                    style={{ accentColor: "var(--color-accent)" }}
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+                    Controla el volumen de los avisos sonoros (0% = silencio, 100% = máximo).
+                  </p>
+                </div>
+                {/* C02 (1.10.1): filtrar alertas de prioridad baja. Antes
+                    `config.ignorarLowPriority` se consumía en ruleEngine sin
+                    default en CONFIG_DEFAULT ni UI. */}
+                <div className="mt-4">
+                  <Toggle
+                    checked={config.ignorarLowPriority === true}
+                    onChange={(v) => actualizarConfig("ignorarLowPriority", v)}
+                    label="Omitir alertas de prioridad baja"
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: "var(--color-text-muted)" }}>
+                    Al activarlo, las alertas de prioridad baja no generan aviso visual/sonoro
+                    (siguen registrándose en el Centro de Notificaciones).
+                  </p>
+                </div>
               </div>
             <div className="config-section">
               <div className="config-section-title flex items-center gap-2">
@@ -3032,54 +3101,184 @@ export function ConfiguracionView({
           </div>
         );
 
-      case "estados-caso":
+      case "estados-caso": {
         const estadosList = getEstados(config);
 
+        // C03 (1.10.1): estos estados participan además en lógica con nombres
+        // fijos fuera de config (reglas de alertas attentionRules, PDF, reglas
+        // automáticas de citas). Se avisa al renombrarlos.
+        const ESTADOS_SEMANTICOS = [
+          "Firmo", "Baja", "Pendiente", "Reprogramado",
+          "Sin reporte", "Cita virtual", "Cita presencial",
+        ];
+
+        // Solo campos no-nombre (accent/peso): el nombre se edita vía
+        // estadoDraft + confirmación (ver commitEstado/confirmarRenombrado),
+        // porque migrar casos en cada keystroke sería destructivo.
         const actualizarEstado = (idx, campo, valor) => {
           const next = [...estadosList];
-          const prev = next[idx];
-          next[idx] = { ...prev, [campo]: valor };
+          next[idx] = { ...next[idx], [campo]: valor };
           actualizarConfig("estados", next);
-          // Si se renombró, actualizar también las categorías del dashboard.
-          if (campo === "v" && prev.v !== valor && config.metrics?.categorias) {
-            const categorias = { ...config.metrics.categorias };
-            for (const k of Object.keys(categorias)) {
-              categorias[k] = categorias[k].map((e) =>
-                e === prev.v ? valor : e
-              );
-            }
-            actualizarConfig("metrics", {
-              ...config.metrics,
-              categorias,
-            });
+        };
+
+        // Cierra el borrador del nombre de la fila `idx`. Si cambió, abre el
+        // diálogo de confirmación con el conteo de casos afectados.
+        const commitEstado = (idx) => {
+          const draft = estadoDraft && estadoDraft.idx === idx ? estadoDraft.value : null;
+          setEstadoDraft(null);
+          if (draft === null) return;
+          const prev = estadosList[idx]?.v ?? "";
+          const next = draft.trim();
+          if (!next || next === prev) return; // sin cambios → el input vuelve a e.v
+          const afectados = (casos || []).filter((c) => c.estado === prev).length;
+          setEstadoRenombrar({ idx, prev, next, afectados });
+        };
+
+        // Migración completa del renombrado (post-confirmación):
+        // catálogo + estadosDeleted + estadoDefault + categorías del dashboard
+        // + color (mapa y variable CSS) + casos en Dexie + filtros guardados.
+        const confirmarRenombrado = async () => {
+          const p = estadoRenombrar;
+          setEstadoRenombrar(null);
+          if (!p) return;
+          const { idx, prev, next, afectados } = p;
+
+          // 1) Catálogo. Si el nombre viejo era un default, se registra en
+          //    estadosDeleted para que getEstados no lo vuelva a re-agregar
+          //    al lado del nuevo (era el bug "no se aplican" de T3).
+          const nuevosEstados = estadosList.map((e, i) =>
+            i === idx ? { ...e, v: next } : e
+          );
+          const prevEsDefault = ESTADOS.some((d) => d.v === prev);
+          const estadosDeleted =
+            prevEsDefault && !(config.estadosDeleted || []).includes(prev)
+              ? [...(config.estadosDeleted || []), prev]
+              : config.estadosDeleted;
+
+          // 2) estadoDefault si apuntaba al nombre viejo.
+          const patch = { estados: nuevosEstados };
+          if (estadosDeleted) patch.estadosDeleted = estadosDeleted;
+          if (config.estadoDefault === prev) patch.estadoDefault = next;
+
+          // 3) Categorías del dashboard. Si la config nunca había guardado
+          //    metrics.categorias (defaults implícitos de computeMetrics), se
+          //    crea desde getDefaultCategories() y recién ahí se migra: si no,
+          //    esFirmaEstado del Dashboard seguiría mirando ["Firmo"] y el
+          //    estado nuevo no contaría como success hasta que el usuario
+          //    abriera Categorías.
+          const catsBase = config.metrics?.categorias || getDefaultCategories();
+          const categorias = {};
+          for (const k of Object.keys(catsBase)) {
+            categorias[k] = (catsBase[k] || []).map((e) =>
+              e === prev ? next : e
+            );
           }
+          patch.metrics = { ...config.metrics, categorias };
+          setConfig({ ...config, ...patch });
+
+          // 4) Color: mueve la clave en app-estado-colors y re-aplica las vars.
+          try {
+            themeManager.renameEstadoColor(prev, next);
+          } catch {}
+
+          // 5) Casos: Dexie modify masivo. useCases escucha con liveQuery y la
+          //    UI de App se refresca sola (los casos viven en casesDB.cases).
+          try {
+            await casesDB.cases.filter((c) => c.estado === prev).modify({ estado: next });
+          } catch (err) {
+            showToast(
+              "No se pudieron actualizar los casos: " + (err?.message || err),
+              "error"
+            );
+          }
+
+          // 6) Filtro global / filtro rápido guardados (FiltersContext se
+          //    suscribe al evento para no volver a guardar el nombre viejo).
+          try {
+            window.dispatchEvent(
+              new CustomEvent("app:estado-renombrado", { detail: { prev, next } })
+            );
+          } catch {}
+
+          showToast(
+            `Estado "${prev}" renombrado a "${next}"` +
+              (afectados > 0
+                ? ` · ${afectados} caso${afectados === 1 ? "" : "s"} actualizado${afectados === 1 ? "" : "s"}`
+                : ""),
+            "success"
+          );
         };
 
         const agregarEstado = () => {
-          actualizarConfig("estados", [
-            ...estadosList,
-            { v: "Nuevo estado", accent: "#6B7280", peso: 1 },
-          ]);
+          // Nombre único para no colisionar con un "Nuevo estado" previo.
+          const base = "Nuevo estado";
+          let nombre = base;
+          let n = 2;
+          const usados = new Set(estadosList.map((e) => e.v));
+          while (usados.has(nombre)) nombre = `${base} ${n++}`;
+          // C03: auto-inscripción en categorías. Sin esto un estado nuevo no es
+          // "activo" (activo = contact ∪ pending en metricsEngine) y no sumaba
+          // en el dashboard aunque estuviera en uso. Grupo contact por defecto;
+          // se puede mover en Configuración → Métricas → Categorías.
+          const catsBase = config.metrics?.categorias || getDefaultCategories();
+          const categorias = {
+            ...catsBase,
+            contact: [...new Set([...(catsBase.contact || []), nombre])],
+          };
+          setConfig({
+            ...config,
+            estados: [...estadosList, { v: nombre, accent: "#6B7280", peso: 1 }],
+            metrics: { ...config.metrics, categorias },
+          });
         };
 
         const eliminarEstado = (idx) => {
           const quitar = estadosList[idx];
-          const next = estadosList.filter((_, i) => i !== idx);
-          actualizarConfig("estados", next);
-          if (config.metrics?.categorias) {
-            const categorias = { ...config.metrics.categorias };
-            for (const k of Object.keys(categorias)) {
-              categorias[k] = categorias[k].filter((e) => e !== quitar.v);
-            }
-            actualizarConfig("metrics", {
-              ...config.metrics,
-              categorias,
-            });
+          // C03: no se borra un estado con casos (los casos quedarían sin
+          // columna en Kanban/pipelines y desaparecerían de la vista). Para
+          // retirarlo se lo renombra o se le pone peso 0.
+          const enUso = (casos || []).filter((c) => c.estado === quitar.v).length;
+          if (enUso > 0) {
+            showToast(
+              `No se puede eliminar "${quitar.v}": ${enUso} caso${enUso === 1 ? "" : "s"} en ese estado`,
+              "error"
+            );
+            return;
           }
+          const next = estadosList.filter((_, i) => i !== idx);
+          const patch = { estados: next };
+          // Si era un default, hay que registrarlo como borrado para que
+          // getEstados no lo re-agregue (mismo motivo que en el renombrado).
+          if (ESTADOS.some((d) => d.v === quitar.v)) {
+            patch.estadosDeleted = [
+              ...new Set([...(config.estadosDeleted || []), quitar.v]),
+            ];
+          }
+          // Categorías: se quita de todos los grupos; si la config aún no las
+          // guardaba, se crean desde los defaults (mismo criterio que en
+          // confirmarRenombrado) para dejar el estado fuera de success/contact.
+          const catsBaseDel = config.metrics?.categorias || getDefaultCategories();
+          const categoriasDel = {};
+          for (const k of Object.keys(catsBaseDel)) {
+            categoriasDel[k] = (catsBaseDel[k] || []).filter(
+              (e) => e !== quitar.v
+            );
+          }
+          patch.metrics = { ...config.metrics, categorias: categoriasDel };
+          setConfig({ ...config, ...patch });
+          // Filtro global/rápido guardado con ese nombre: sacarlo para no dejar
+          // un chip que no matchea ningún caso.
+          try {
+            window.dispatchEvent(
+              new CustomEvent("app:estado-eliminado", { detail: { nombre: quitar.v } })
+            );
+          } catch {}
         };
 
         const restaurarEstados = () => {
-          actualizarConfig("estados", ESTADOS);
+          // C03: hay que limpiar estadosDeleted; si no, "Restaurar" reponía la
+          // lista pero los nombres viejos seguían tachados y no volvían nunca.
+          setConfig({ ...config, estados: ESTADOS, estadosDeleted: [] });
           showToast("Estados restaurados a los valores por defecto", "info");
         };
 
@@ -3105,10 +3304,26 @@ export function ConfiguracionView({
                       aria-label={`Color de ${e.v}`}
                     />
                     <TextInput
-                      value={e.v || ""}
-                      onChange={(ev) => actualizarEstado(idx, "v", ev.target.value)}
+                      // C03: borrador local por fila; el commit (renombrado +
+                      // migración) recién ocurre en blur/Enter con diálogo.
+                      value={
+                        estadoDraft && estadoDraft.idx === idx
+                          ? estadoDraft.value
+                          : e.v || ""
+                      }
+                      onChange={(ev) =>
+                        setEstadoDraft({ idx, value: ev.target.value })
+                      }
+                      onBlur={() => commitEstado(idx)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter") {
+                          ev.preventDefault();
+                          ev.currentTarget.blur();
+                        }
+                      }}
                       className="flex-1 min-w-[150px]"
                       placeholder="Nombre del estado"
+                      aria-label={`Nombre del estado ${e.v}`}
                     />
                     <label className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
                       Peso:
@@ -3143,12 +3358,32 @@ export function ConfiguracionView({
               <div className="config-section-title flex items-center gap-1.5" style={{ color: "var(--color-accent)" }}><Lightbulb size={13} aria-hidden="true" /> Sugerencias</div>
               <div className="text-xs space-y-1" style={{ color: "var(--color-text-muted)" }}>
                 <p>• El peso se usa para corregir estadísticas como el resumen del dashboard (suma ponderada).</p>
-                <p>• Renombrar un estado actualiza automáticamente las categorías del dashboard.</p>
+                <p>• Renombrar un estado actualiza casos, categoría del dashboard, color y filtros guardados (te pide confirmación).</p>
                 <p>• Los cambios se guardan junto con la configuración y los backups.</p>
               </div>
             </div>
+
+            {/* C03: confirmación del renombrado con migración de casos. */}
+            <ConfirmDialog
+              open={!!estadoRenombrar}
+              title="Renombrar estado"
+              message={
+                estadoRenombrar
+                  ? (estadoRenombrar.afectados > 0
+                      ? `Se actualizarán ${estadoRenombrar.afectados} caso${estadoRenombrar.afectados === 1 ? "" : "s"} de "${estadoRenombrar.prev}" a "${estadoRenombrar.next}", además del estado por defecto, las categorías, el color y los filtros guardados.`
+                      : `Se renombrará "${estadoRenombrar.prev}" a "${estadoRenombrar.next}" (sin casos afectados), junto con sus categorías, colores y filtros.`) +
+                    (ESTADOS_SEMANTICOS.includes(estadoRenombrar.prev)
+                      ? ` Atención: "${estadoRenombrar.prev}" se usa en alertas, reportes y reglas con nombres fijos; revisá esas secciones si la usás.`
+                      : "")
+                  : ""
+              }
+              confirmLabel="Renombrar"
+              onCancel={() => setEstadoRenombrar(null)}
+              onConfirm={confirmarRenombrado}
+            />
           </div>
         );
+      }
 
       case "tipos-ingreso":
         const tiposList = getTiposIngreso(config);
@@ -3946,6 +4181,7 @@ export function ConfiguracionView({
 
       {showImportPreview && (
         <div
+          ref={previewDialogRef}
           className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
             importClosing ? "animate-fade-out" : "animate-fade-in"
           }`}
@@ -4108,6 +4344,7 @@ export function ConfiguracionView({
 
       {showUtilesPreview && utilesPreviewData && (
         <div
+          ref={previewDialogRef}
           className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
             utilesClosing ? "animate-fade-out" : "animate-fade-in"
           }`}
@@ -4216,6 +4453,7 @@ export function ConfiguracionView({
 
       {showNcPreview && ncPreviewData && (
         <div
+          ref={previewDialogRef}
           className={`fixed inset-0 z-submodal flex items-center justify-center p-4 ${
             ncClosing ? "animate-fade-out" : "animate-fade-in"
           }`}

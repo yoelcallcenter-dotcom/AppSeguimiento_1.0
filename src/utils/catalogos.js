@@ -17,18 +17,36 @@ import { normalizarTexto } from "./helpers";
 
 /**
  * Devuelve la lista de estados configurada. Cada entrada: { v, accent, peso }.
- * Si `config.estados` está vacío o no es un array con elementos válidos,
- * se usa la lista por defecto.
+ * Si `config.estados` no es un array, se usa la lista por defecto.
  * Si faltan estados del default (por actualizaciones), se agregan al final
- * manteniendo los que el usuario ya tiene.
+ * manteniendo los que el usuario ya tiene — SALVO los que consten en
+ * `config.estadosDeleted` (borrados o renombrados por el usuario).
+ *
+ * C03 (1.10.1): antes NO existía la lista `estadosDeleted`, así que borrar o
+ * renombrar un estado por defecto NO se sostenía: `missing` volvía a meter el
+ * default faltante y el usuario veía el estado viejo reaparecer al lado del
+ * nuevo (y "Eliminar" no tenía efecto persistente). Es el mismo patrón ya
+ * probado de `tiposIngresoDeleted`/`fichaFieldsDeleted`. Las configs viejas
+ * sin la clave tratan `undefined` como "nadie borró nada" → aditivo seguro.
  */
 export function getEstados(config) {
   const list = config?.estados;
-  if (!Array.isArray(list) || list.length === 0) {
+  if (!Array.isArray(list)) {
     return ESTADOS;
   }
+  const eliminados = new Set(
+    Array.isArray(config?.estadosDeleted) ? config.estadosDeleted : []
+  );
+  if (list.length === 0) {
+    // Lista vacía: si el usuario borró todo se respeta (queda sin estados y
+    // la UI lo muestra); si no hay borrados es una config corrupta/heredada
+    // y se sana con los defaults de siempre.
+    return eliminados.size > 0 ? [] : ESTADOS;
+  }
   const existing = new Set(list.map((e) => e.v));
-  const missing = ESTADOS.filter((e) => !existing.has(e.v));
+  const missing = ESTADOS.filter(
+    (e) => !existing.has(e.v) && !eliminados.has(e.v)
+  );
   if (missing.length === 0) return list;
   return [...list, ...missing];
 }

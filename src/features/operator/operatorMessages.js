@@ -5,7 +5,7 @@
  */
 
 // ---- MAÑANA (6–12hs) ----
-export const MORNING_GREETINGS = [
+const MORNING_GREETINGS = [
   { id: "gm1", text: (n) => `Buenos días{name}. Arrancá con buena energía que hoy hay cosas por hacer.` },
   { id: "gm2", text: (n) => `¡Hola{name}! ¿Lista la agenda? A comenzar el día.` },
   { id: "gm3", text: (n) => `Buen día{name}. El café listo y el primer caso también. ¡Vamos!` },
@@ -19,7 +19,7 @@ export const MORNING_GREETINGS = [
 ];
 
 // ---- TARDE (12–19hs) ----
-export const AFTERNOON_GREETINGS = [
+const AFTERNOON_GREETINGS = [
   { id: "gt1", text: (n) => `Hola{name}, ya estamos a mitad del día. ¿Cómo viene la cosa?` },
   { id: "gt2", text: (n) => `Buenas{name}. ¿Cómo va la tarde? Aprovechar lo que queda.` },
   { id: "gt3", text: (n) => `Hola{name}, ya estamos en la recta final del día. ¡Dale que se puede!` },
@@ -33,7 +33,7 @@ export const AFTERNOON_GREETINGS = [
 ];
 
 // ---- NOCHE (19–6hs) ----
-export const EVENING_GREETINGS = [
+const EVENING_GREETINGS = [
   { id: "gn1", text: (n) => `Buenas noches{name}. ¿Cómo te fue hoy? Espero que bien.` },
   { id: "gn2", text: (n) => `Hola{name}, ya es de noche. ¿Qué tal el {day}?` },
   { id: "gn3", text: (n) => `Buenas{name}. ¿Terminaste la jornada? ¿Cómo te fue?` },
@@ -46,9 +46,13 @@ export const EVENING_GREETINGS = [
   { id: "gn10", text: (n) => `Hola{name}, ya es hora de descansar. ¿Cómo te fue hoy?` },
 ];
 
-// Compatibilidad: exportar como GREETINGS (array combinado para retrocompatibilidad)
-export const GREETINGS = [...MORNING_GREETINGS, ...AFTERNOON_GREETINGS, ...EVENING_GREETINGS];
-
+// 1.10.1 — Higiene P3 (código muerto; AUDITORIA_RELEASE_1.10.1 §8, cluster
+// operatorMessages greetings): se eliminó el array combinado GREETINGS
+// ("retrocompatibilidad" sin ningún consumidor: grep en src/ incl. *.test.* = 0).
+// MORNING/AFTERNOON/EVENING_GREETINGS quedaron SIN `export`: solo los usa
+// internamente getTimePeriodGreetings → getDailyGreeting. Ningún test los importa.
+// ENCOURAGEMENTS, getEncouragement y shouldShowEncouragement NO se tocan: tienen
+// uso interno y quedan fuera del cluster "greetings" del informe.
 export const ENCOURAGEMENTS = [
   { id: "e1", text: (n) => `Falta poco para el cierre{name}. ¡Un esfuerzo más y llegás a tu meta!` },
   { id: "e2", text: (n) => `Quedan minutos de jornada{name}. Sumá un caso más, ¡vos podés!` },

@@ -8,6 +8,10 @@ import { caseRepository } from '../cases/caseRepository';
 import { touchVersion, assertNoConflict } from '../db/versioning';
 import { notifyChange, subscribeToChanges, SYNC_EVENTS } from '../sync/syncService';
 import { repararPreferenciasPersistidas } from '../integrity/referentialChecks';
+// C02b (1.10.1): import estático seguro — ruleEngine es un módulo hoja sin
+// imports propios, así que no reintroduce el ciclo que obliga al import
+// dinámico de notificationManager/soundSystem más abajo.
+import { ruleEngine } from '../notifications/ruleEngine';
 const savedTheme = (() => {
   try { return localStorage.getItem('app-theme') || 'dark'; } catch { return 'dark'; }
 })();
@@ -38,6 +42,14 @@ const useAppStore = create(
   notesLoaded: false,
   events: [],
   eventsLoaded: false,
+  // C03 (1.10.1): espejo (no persistido) de la config de usuario para que
+  // componentes profundos (Pill y futuros consumidores de catálogos) puedan
+  // resolver `getEstados(config)` por la store sin recibir config por props.
+  // La fuente de verdad sigue siendo `config-art-tracker` (useStorage en
+  // App.jsx), que la empuja aquí en el mismo effect que llama a
+  // notificationManager.configure().
+  config: null,
+  setConfig: (config) => set({ config }),
 
   // --- Config ---
   theme: savedTheme,
@@ -315,19 +327,60 @@ const useAppStore = create(
   // ==================== UI ====================
   setUIState: (ui) => set((s) => ({ ui: { ...s.ui, ...ui } })),
 
+  // T01 (1.10.1): antes iba directo a notificationStore.addToast y se saltaba
+  // TODOS los gates de config (notifInApp, notifMinToastPriority,
+  // notifFrecuencia, modoNoMolestar, sonido, escritorio y el Centro de
+  // notificaciones). Ahora delega en notificationManager.notify — el mismo
+  // canal que usa showToast de App—, por lo que esas preferencias por fin
+  // aplican a alertsSystem y CSVImporter. Se conserva la firma
+  // (message, type, duration) para no romper a los consumidores; solo cambia
+  // el destino. El import es dinámico (mismo patrón que antes con
+  // notificationStore) para no introducir un import cíclico estático
+  // useAppStore → notificationManager → soundSystem → productivityStore → …
   addToast: (message, type = 'info', duration = 3000) => {
-    // Enrutado al sistema central de notificaciones (única fuente).
-    // ui.toasts no se renderiza; el mensaje se muestra vía el notificationStore.
+    const payload = {
+      title: '',
+      message,
+      type,
+      // Sin `priority` explícita: ruleEngine.resolvePriority la deriva del
+      // type (error→high, warning→medium, info/success→low).
+      timestamp: Date.now(),
+      duration: duration || 3000,
+    };
     try {
-      import('../notifications/notificationStore').then(({ default: store }) => {
-        if (!store || !store.getState) return;
-        store.getState().addToast({
-          title: '',
-          message,
-          type,
-          timestamp: Date.now(),
-          duration: duration || 3000,
-        });
+      import('../notifications/notificationManager').then(({ notificationManager }) => {
+        const result = notificationManager.notify(payload);
+        // Fallback: si el manager aún no inicializó (init corre en App.jsx al
+        // montar; antes de eso, o en tests/unit, notify devuelve null) se
+        // mantiene el comportamiento viejo (toast directo) para no perder el
+        // mensaje. Si el manager SÍ está inicializado y devolvió null, fue
+        // filtrado por config (modoNoMolestar, toggle de tipo, duplicado…):
+        // se respeta el gate, que es justamente el objetivo del fix.
+        if (result === null && !notificationManager.isReady()) {
+          // C02b (1.10.1): el fallback escribía el toast sin NINGÚN gate de
+          // config, así que en esa ventana (arranque de React previo a
+          // notificationManager.init, o tests) `ignorarLowPriority` no se
+          // aplicaba y un aviso de prioridad baja se pintaba igual — el
+          // usuario veía "el toggle no funciona". Ahora se lee la config
+          // persistida y se aplica el mismo shouldShowToast del pipeline
+          // central (además notifInApp y notifMinToastPriority, que tampoco
+          // se respetaban). `priority` se deriva igual que en notify() para
+          // que info/success caigan en 'baja' y un error (high) no se
+          // silencie por accidente.
+          let savedCfg = {};
+          try {
+            const rawCfg = localStorage.getItem("config-art-tracker");
+            savedCfg = rawCfg ? JSON.parse(rawCfg) : {};
+          } catch {
+            savedCfg = {};
+          }
+          payload.priority = ruleEngine.resolvePriority(payload);
+          if (!ruleEngine.shouldShowToast(payload, savedCfg || {})) return;
+          import('../notifications/notificationStore').then(({ default: store }) => {
+            if (!store || !store.getState) return;
+            store.getState().addToast(payload);
+          });
+        }
       });
     } catch {}
   },

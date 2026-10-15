@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { Activity, X } from 'lucide-react';
 import { sanitizeString } from '../../utils/sanitize';
+// v1.10.1 (fix M23): normalizador de fechas del repo: acepta ISO y legado
+// DD/MM/YYYY (antes c.fecha.startsWith(ISO) nunca coincidía con las fechas
+// migradas → gráfico y drill marcaban 0).
+import { normalizeDate } from '../../utils/dateFilters';
 import ChartCard from './widgets/ChartCard';
 import { isWorkingDay, isUnavailableOn } from '../operator/operatorMetrics';
 
@@ -38,14 +42,26 @@ const Bar = React.memo(({ count, max, diaSemana, date, isFirstOfWeek, isSelected
 });
 
 export const ActivityChart = React.memo(({ cases, selectedDay, onSelectDay, desc, workingDays, availability }) => {
+  // v1.10.1 (fix M23): índice ISO → casos con la fecha normalizada (una sola
+  // pasada) en lugar de startsWith por cada clave (que ignoraba DD/MM/YYYY).
+  const casosPorFecha = useMemo(() => {
+    const map = new Map();
+    for (const c of cases || []) {
+      const iso = normalizeDate(c.fecha);
+      if (!iso) continue;
+      if (!map.has(iso)) map.set(iso, []);
+      map.get(iso).push(c);
+    }
+    return map;
+  }, [cases]);
+
   const { days, max, prevAvg, trend } = useMemo(() => {
     const today = new Date();
     const wd = workingDays || [1, 2, 3, 4, 5];
     const avail = availability || {};
     const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const esEfectivo = (d) => isWorkingDay(iso(d), wd) && !isUnavailableOn(avail, iso(d));
-    const cara = (c, key) => (c.fecha || '').startsWith(key);
-    const countOf = (key) => cases.filter((c) => cara(c, key)).length;
+    const countOf = (key) => casosPorFecha.get(key)?.length || 0;
 
     const efectivos = [];
     let i = 0;
@@ -73,12 +89,13 @@ export const ActivityChart = React.memo(({ cases, selectedDay, onSelectDay, desc
     const trend = prevAvg > 0 ? Math.round(((currentAvg - prevAvg) / prevAvg) * 100) : 0;
 
     return { days, max, prevAvg, trend };
-  }, [cases, workingDays, availability]);
+  }, [casosPorFecha, workingDays, availability]);
 
   const dayCases = useMemo(() => {
     if (!selectedDay) return [];
-    return cases.filter((c) => (c.fecha || '').startsWith(selectedDay));
-  }, [cases, selectedDay]);
+    // v1.10.1 (fix M23): drill por fecha normalizada (ISO o DD/MM/YYYY).
+    return casosPorFecha.get(selectedDay) || [];
+  }, [casosPorFecha, selectedDay]);
 
   const right = trend !== 0 ? (
     <span className="text-[10px]" style={{ color: trend > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>

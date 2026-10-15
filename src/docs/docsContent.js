@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.8.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.1** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -328,6 +328,125 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.10.1] - Correcciones de integridad de datos, accesibilidad y deuda técnica
+
+Versión de correcciones derivada de una auditoría interna completa del código (96 hallazgos). No agrega funciones nuevas: repara lo que podía corromper datos, romper accesibilidad o dejar trabajo perdido, alinea métricas que mostraban números incompatibles en la misma pantalla y hace una limpieza de código/dependencias muertas. Detalle por área:
+
+### Persistencia y borrado de datos (P0)
+
+- **"Borrar todos los datos" ahora borra de verdad todo** (\`App.eliminarTodosLosDatos\`): antes dejaba 8 supervivientes (\`templates\`, \`saved_reports\`, \`migration_snapshots\`, log de errores de \`AppDiagnostics\` y claves de \`localStorage\` como \`app-typography-preset\`, \`app.auto-backups-normalized\`, \`app.sh.*\` y \`seg-art:*\`). El usuario creía haber limpiado todo y quedaban copias. Ahora se limpian las 3 tablas \`appDB\` restantes, el log de errores y los prefijos/claves faltantes.
+- **Borrado con cascade** (\`borrarCasosConCascade\`): eliminar un caso —simple o masivo por mes— ahora limpia también \`case_history\` y las referencias \`relatedCaseIds\` de notas y eventos. Antes el borrado directo (\`casesDB.cases.bulkDelete\`) dejaba eventos huérfanos e históricos vacíos.
+- **Deshacer restaura el historial**: el snapshot de \`pushUndo\` ahora guarda las filas de \`case_history\` y las referencias de notas/eventos; al deshacer un borrado se restauran (antes el caso volvía pero su línea de tiempo quedaba vacía, perdiendo trazabilidad).
+- **Borrado masivo por mes con undo** (\`Configuración\`): el borrado por meses pasó a usar el mismo cascade + undo que el borrado simple, en lugar de un \`bulkDelete\` suelto sin historial ni deshacer.
+- **Lecturas con defaults (D08)**: \`storageManager.get()\` ahora fusiona los valores por defecto con lo guardado (mismo patrón de 2 niveles que \`mergeConfigWithDefaults\`); antes una clave nueva o un registro parcial devolvía campos faltantes y la UI tenía que poner \`||\` defensivos uno por uno.
+
+### Búsqueda y navegación
+
+- **Atajos PWA en arranque frío (RUN-01)**: los accesos \`#dashboard\`, \`#kanban\`, etc. no abrían nada al iniciar porque la vista persistida pisaba la del hash. Ahora, si la URL trae un hash de vista válido, gana el hash (solo afecta a la vista; el resto de los filtros se restaura igual). Con test de regresión (\`FiltersContext.RUN01.test.jsx\`).
+- **Búsqueda global con campos reales (S11/S11b)**: el buscador matcheaba contra campos inexistentes (\`.nombre\` en lugar de \`.estudio\`); los subtítulos ahora muestran conteos reales por categoría.
+- **Búsqueda del header cableada (X01/N18)**: el \`searchQuery\` del contexto estaba muerto (no lo escribía nadie) y obligaba a repintar todas las vistas en cada tecla. La búsqueda real vive en el header de \`App\` y viaja por props a Reportes (snapshots) y Dashboard (limpiar).
+- **Debounce de búsqueda (X04)**: la consulta del header se debouncea (300 ms) para no recorrer el historial completo en cada tecla.
+
+### Métricas alineadas (no unificadas)
+
+- **Tasa de cierre consistente (M21)**: "tasa de cierre" = (firmas + perdidos) / total, igual en ambos motores.
+- **Normalización de fechas (M23/M25/M26)**: \`ActivityChart\` y el conteo de firmas por mes normalizan fechas (incluye legadas \`DD/MM/YYYY\`) y usan \`fechaFirmaDe\` en lugar de restar "Baja" del total.
+- **Un solo helper de "activo" (M22)**, \`esActivo\`, compartido en lugar de comparadores duplicados.
+- **Rendimiento (X02/X03)**: métricas memorizadas (\`useMemo\`) con dependencias correctas.
+
+### Accesibilidad y UI
+
+- **Escape con pila global (N17)**: antes un solo Escape cerraba **todas** las capas a la vez (rompía el apilamiento de modales). Ahora solo se cierra la capa superior (LIFO), con test (\`useDialogA11y.test.jsx\`).
+- **Escape unificado en Configuración (X10)**: los 3 diálogos con vista previa (importar reporte, útiles y no conformidades) tenían su propio \`useEffect\` de Escape; pasan a la pila global de \`useDialogA11y\`, igual que el resto de los modales.
+- **Ver caso en portal (N01)**: \`VerCasoModal\` se monta en \`document.body\` vía portal; antes vivía dentro del subárbol de Dashboard y un \`filter\`/\`transform\` del ancestro rompía su \`position:fixed\` y el bloqueo de scroll.
+- **Contraste del acento en tema claro (X07)**: el accent pasa a \`#2563EB\` (light) / \`#6B7280\` (mono) para cumplir ratio AA (2.5:1 → 4.5:1), con overrides de texto blanco donde correspondía.
+- **Targets táctiles (X11)**: \`p-1\` → \`p-1.5\` en Plantillas/Speechs/Mapeo (20→24 px).
+- **Semántica de pestañas (X08/X09)**: \`ViewTabs\` expone \`role="tablist"\`/\`tab\` con \`aria-selected\` y \`aria-label\` accesible también bajo 480 px (donde la etiqueta visible se oculta).
+- **Landmark principal y skip-link (X13)**: el contenido se marca como \`role="main"\` con id y se agrega skip-link "Saltar al contenido principal".
+- **Toasts y sonido respetan la config (T01/T18)**: los avisos pasan por \`notificationManager\` y el gate de sonido se unifica (default sin sonido).
+
+### Configuración
+
+- **Volumen de notificaciones (C01)**: nuevo slider en Configuración → Notificaciones (default 0.5, antes inaccesible).
+- **Omitir alertas bajas (C02)**: nuevo toggle en Configuración (default apagado, antes sin UI ni default).
+- **Reglas de atención con estados reales (D03)**: \`attentionRules\` filtraba por estados hardcodeados (\`Activo\`, \`En proceso\`, \`Contacto\`) que no existen en el catálogo, por lo que esas reglas **nunca** se disparaban (código muerto). Ahora usan los estados reales del catálogo. *La limitación D02/D13/D14 (renombrar un estado no propagaba a casos, color, filtros, PDF ni metas) se resuelve en esta misma versión en «Estados de caso personalizados»; quedan literales fijos en reglas y validaciones, listados ahí.*
+
+### Higiene de código y dependencias
+
+- **Código muerto eliminado (F12)**: 11 archivos sin importadores y ~38 símbolos exportados sin uso.
+- **6 dependencias sin uso retiradas**: \`@dnd-kit/core\`, \`@dnd-kit/sortable\`, \`@dnd-kit/utilities\`, \`@tiptap/pm\`, \`@tiptap/suggestion\`, \`es-abstract\`.
+- **Poda del historial (F11)**: \`case_history\` ahora limita los eventos conservados por caso (antes crecía sin tope y lo leían \`GlobalSearch\` y el export CSV completo).
+- **R02**: restos de concatenación de estilos pasados a \`color-mix\`/clases consistentes.
+
+### Reportes
+
+- **"Reportes guardados" vuelve a la UI (R01)**: el CRUD completo de reportes guardados existía desde la 1.7.10 (guardar la vista actual con nombre, aplicarla, renombrar, duplicar, eliminar y exportar el CSV filtrado) pero ningún componente lo renderizaba — la feature era completa e inalcanzable. La vista Reportes ahora muestra la barra con esos controles, con confirmación para eliminar y selección visible del reporte aplicado.
+
+### Correcciones de UX y motor de reglas (amend)
+
+- **Cita automática taggeada y auto-completada**: la regla \`case-estado-nuevo-create-event\` ahora taggea el evento creado con \`'regla-cita'\`; al agregar un reporte a un caso existente, \`completarCitasDeCaso\` marca como \`completed\` los eventos pendientes/confirmados de ese caso (idempotente). Antes la cita quedaba pendiente aunque ya hubiera reporte cargado.
+- **Plantillas tipo reporte con estado opcional**: \`TEMPLATE_FIELDS_BY_TYPE\` acepta \`'estado'\` opcional en reportes; el formulario ofrece un select de estado (vacío = sin cambio) y \`ReporteRapidoModal\` lo aplica al seleccionar la plantilla.
+- **Plantillas: rediseño mayor de la vista**: badges de tipo y activo, contador "Mostrando N de M", empty state con CTA "Crear la primera plantilla", modal de vista previa con variables resueltas antes de editar, y botón de editar por fila/card.
+- **Día de hoy más visible (DayFilter)**: el día de hoy se marca con un borde de 2px en el color de acento cuando no está activo (antes solo punto+negrita, fácil de pasar por alto).
+- **Exportar CSV: sidebar al modo FilterModal de verdad**: Aseguradora, Estudio Jurídico y Localidad pasan a \`MultiSelect\` multi-valor (antes \`<select>\` single y texto libre: no se podían exportar dos aseguradoras a la vez); los chips de estado seleccionados usan el estilo Pill legible —fondo tintado + texto del color del estado— en lugar de fondo sólido con texto blanco (ilegible en estados claros como "Lo piensa") y van en grilla de 2 columnas con tamaño aumentado (antes flex-wrap con huecos vacíos y saltos irregulares entre filas); cuerpo en 1 columna (antes grillas de 2 columnas que desbordaban el panel angosto), ayuda bajo el tipo de export y pie con \`flex-wrap\` para paneles angostos.
+- **Formulario de plantillas mejorado (crear y editar)**: selector de tipo por chips con icono y color propio (antes un \`<select>\` sin identidad, deshabilitado sin explicación al editar); header con badge de tipo; vista previa siempre visible por defecto y sticky en desktop (antes oculta tras un toggle, la columna derecha quedaba vacía); guardia de cambios sin guardar (\`ConfirmDialog\` al cancelar); labels visibles en todos los campos (\`TextInput\`/\`TextArea\` ignoraban la prop \`label\` y solo se veían placeholders) y \`ref\` cableado para que la inserción de variables en la posición del cursor funcione (antes \`inputRef\` no estaba conectado y siempre se insertaba al final).
+- **Notificaciones con título vacío**: alertsSystem emite eventos con \`title: ''\` y el texto en \`message\`; antes la campana y el Centro renderizaban un título vacío con el punto de no leído suelto. Ahora el título solo se pinta si existe y el punto va inline con el mensaje.
+- **\`ignorarLowPriority\` ya no silencia el Centro**: el toggle ahora solo suprime toast y sonido (\`shouldShowToast\`/\`shouldPlaySound\`); antes filtraba \`shouldNotify\` y la notificación ni siquiera se registraba en el Centro, contradiciendo el texto de la UI. También se dejó de emitir \`CASE_UPDATED\` sin cambios reales (guardar sin editar ya no genera toast + entrada + sonido).
+
+### Estados de caso personalizados: ahora se aplican de verdad (revisión sobre D02/D13/D14)
+
+El selector de estados de Configuración dejaba crear, renombrar y eliminar estados, pero la app seguía leyendo el catálogo fijo de \`constants.js\` en decenas de puntos: los cambios no se reflejaban en las pill, los filtros, la fecha de firma ni el PDF. Ahora \`getEstados(config)\` es la fuente única y los cambios de catálogo migran los datos existentes (decisión del usuario: "Sí, migrar con confirmación").
+
+- **Catálogo único con defaults sanos**: \`getEstados(config)\` respeta \`config.estadosDeleted\` y solo regenera la lista por defecto si nadie borró nada; \`Pill\` lee los estados desde la config del store (la prop \`estados\` queda como override) y \`getEstadoColor\` cae al catálogo por defecto cuando el estado no tiene color propio (antes \`undefined\` y la pill perdía estilo).
+- **Renombrar migra todo, con confirmación**: \`ConfirmDialog\` informa "Se actualizarán N casos de «X» a «Y», además del estado por defecto, las categorías, el color y los filtros guardados" (y aclara cuando no hay casos). Al confirmar se migran: casos en Dexie, \`config.estadosDeleted\`, \`estadoDefault\`, las categorías de métricas (se crean desde los defaults si faltan), el color del tema (\`themeManager.renameEstadoColor\`, mapa re-clavado + variables CSS persistidas) y los filtros guardados —filtro global y filtros rápidos— vía los eventos \`app:estado-renombrado\` y \`app:estado-eliminado\` que escucha \`FiltersContext\`.
+- **Eliminar no rompe datos**: si hay casos con ese estado se bloquea con error; si no, el estado se archiva en \`estadosDeleted\` y se limpia de las categorías.
+- **Restaurar estados por defecto** repone \`ESTADOS\` **y** limpia \`estadosDeleted\` (los eliminados vuelven a aparecer).
+- **Crear** valida nombre único (auto "Nuevo estado 2…") y lo inscribe en las categorías de contacto, para que cuente como activo en métricas.
+- **Firma, confeti y PDF sin literal "Firmo"**: fecha de firma, celebración de firma y "firmados" del PDF usan \`esFirmaEstado(cats, estado)\` con \`config.metrics.categorias.success\` (sincronizado al cargar la config); \`exportarPDF\` acepta las categorías del filtro vigente.
+- **Limitaciones que siguen por nombre fijo** (el diálogo de renombrado lo advierte; no se migran): \`pendingStates\`/\`activeStates\` de \`attentionRules\`, la regla de cita automática (\`Cita virtual\`/\`Cita presencial\` en \`rulesEngine\`), validaciones de reporte rápido (\`Sin reporte\`, \`Reprogramado\`), \`ESTADOS_SIN_SEGUIMIENTO\` de \`caseHistory\` (\`Firmo\`, \`No le interesa\`, \`No viable\`, \`Baja\`), el confeti de \`Pendiente\` en \`App\` y los textos de tours, glosario y FAQ. Si se usan estados propios, revisar esas secciones.
+
+### Botones con estado de carga y exportación CSV
+
+- **\`Btn\` en loading estable**: mientras \`loading\` está activo el botón queda \`disabled\` con \`aria-busy\`, muestra su propio spinner (\`btn-spinner\`) y oculta el contenido original con \`btn-loading-label\` (nuevas clases en \`globals.css\`); antes el icono se desplazaba, el texto se duplicaba y el estado de carga no se distinguía en el resto de los botones de la app.
+- **"Exportar CSV" en dos filas**: el pie del modal separa el resumen de registros (\`FilterCounter\`, con \`pb-2.5\` por defecto para no pegarse al botón) de las acciones, que van en su propia fila (antes un solo renglón que se desordenaba en paneles angostos).
+
+### Rediseño visual: Calendario y Notas (mejoras chicas)
+
+Decisión del usuario: "Visual + mejoras chicas" — tokens y \`color-mix\`, toolbar, chips, empty states, línea de hora actual, confirmación de restaurar versión y código muerto, sin funciones nuevas mayores.
+
+- **Calendario**: prioridades con los tokens del tema y \`color-mix\` en lugar de hex/alfa sueltos, hover real en celdas, fines de semana tintados, chips compactos (8 px), \`EmptyState\` "Sin eventos para este día", línea de la hora actual que se actualiza cada 60 s, leyenda como \`role="group"\` con \`aria-label\`; toolbar con \`Btn variant="ghost"\` y \`aria-label\` "Anterior"/"Siguiente"; se eliminó código muerto (\`resolveEventColor\`, \`DIAS_SEMANA_CORTO\`, \`isSameDay\`, \`operatorSettings\`).
+- **Notas**: restaurar una versión ahora pide confirmación con \`ConfirmDialog\` ("Se reemplazarán el título y el contenido actuales por los de esta versión") y desaparece la función huérfana que quedaba sin cablear; editor vacío con \`EmptyState\` y CTA "Crear primera nota"; orden con el \`Select\` común (\`aria-label="Ordenar notas"\`); "Guardar cambios" con \`Btn\` (variante \`accent\` cuando hay cambios pendientes); historial de versiones animado y cada versión como botón enfocable.
+
+### Filtros del Calendario: compactos y plegables (amend)
+
+- **Los filtros se ocultan por defecto** (decisión del usuario: "compacta, sin saltos ni superposiciones, no siempre visible"): \`CalendarView\` guarda \`filtersOpen\` (default apagado) y renderiza el panel solo al pedirlo. La toolbar estrena el chip **"Filtros (N)"** (icono \`Filter\`, contador de filtros activos con \`aria-expanded\` y \`aria-controls="cal-filtros-panel"\`, sin \`aria-label\` para que el nombre accesible anuncie el contador) entre Disponibilidad y "Nuevo evento".
+- **Panel sin cabecera "FILTROS"** y con semántica accesible: \`FilterBar\` acepta props extra y se marca como \`role="group"\` con \`aria-label="Filtros del calendario"\`; los grupos pasan a ancho base 118 px y los \`MultiSelect\` usan la nueva prop \`minWidth\` (default 150, comportamiento del resto de la app intacto) para que la fila no salte ni se superponga en paneles angostos.
+- **"Limpiar filtros" pasa a icon-only** (\`RotateCcw\` con \`ariaLabel\`/\`title\`), como el resto de las acciones de la toolbar.
+
+### Notas: sidebar y acciones a caja de herramientas (amend)
+
+- **Sidebar en 2 filas**: fila 1 con el contador "Notas (N)" y el botón "Nueva"; fila 2 con el \`Select\` de orden (\`aria-label="Ordenar notas"\`, ancho completo — antes quedaba apretado junto al título). El input de título pasa a \`flex-1 min-w-0\` para no empujar los botones.
+- **Acciones con \`Btn\` y nombre accesible**: "Historial de versiones" (\`aria-pressed\`), "Crear evento desde nota", "Agregar tag", "Eliminar nota" (en la lista) y "Nueva nota" (en la búsqueda) — antes eran botones sueltos cortados o sin aria-label.
+- **Chips de casos vinculados truncados** (\`max-w-[180px]\` con \`truncate\`, antes desbordaban) y metadata en \`flex-wrap\` (antes una sola línea que se cortaba); fecha de metadatos en formato corto \`dd/mm/aaaa hh:mm\`; historial de versiones con bordes redondeados y título/fecha truncados.
+
+### Plantillas: crear y editar con la misma interfaz (amend)
+
+Decisión del usuario: las vistas "Nueva plantilla" y "Editar plantilla" deben ser idénticas en consistencia visual y de funciones (en especial la asignación de estado de caso, que es la misma en ambos modos al ser el mismo form).
+
+- **Mismo \`PlantillaForm\` en ambos modos, sin bifurcaciones**: los chips de tipo están **activos también al editar** (antes: badge estático + candado "El tipo no se puede cambiar al editar" — se elimina, junto con su hint); el label "Tipo" usa \`FieldLabel\` como el resto de los campos (el de crear era uppercase 10 px, distinto al del resto del form) y la descripción del tipo se muestra en ambos modos. Al cambiar de tipo se conserva el contenido cargado (las claves de otros tipos quedan guardadas y se ignoran hasta que se vuelven a necesitar).
+- Las únicas diferencias que quedan entre modos son el título ("Nueva plantilla" / "Editar plantilla") y el texto del botón de envío ("Crear plantilla" / "Guardar cambios").
+
+### Documentación
+
+- **README (×3) y PROJECT_CONTEXT actualizados** de 1.8.8 a 1.10.1 (R10).
+
+### Pruebas y build
+
+- **Suite: 121 archivos y 1212 tests en verde**; \`npm run build\` compila sin errores ni warnings (el \`prebuild\` regenera \`docsContent.js\`).
+- Tests nuevos de regresión: RUN-01 (hash en arranque), Escape apilado, paridad de métricas y búsqueda de historial/estudio.
+- De esta revisión: \`useAppStore.addToast.test.js\` (5: el fallback respeta \`ignorarLowPriority\`), \`Btn.test.jsx\` (4), \`CsvExportModal.test.jsx\` (21, pie en dos filas), \`catalogosEstados.test.js\` (4), \`themeManager.test.js\` (3), \`FiltersContext.eventos.test.jsx\` (3), \`fechaFirmaSuccess.test.js\` (5), \`Pill.test.jsx\` (3), \`NotesView.test.jsx\` (5) y \`ConfiguracionView.test.jsx\` +5 (renombre con migración verificada en Dexie).
+- Del amend final: \`CalendarToolbar.test.jsx\` +1 (chip "Filtros (N)" con contador accesible), \`CalendarFilters.test.jsx\` (panel como \`role="group"\` "Filtros del calendario"), \`MultiSelect.test.jsx\` (prop \`minWidth\`) y \`PlantillaForm.test.jsx\` (chips de tipo activos al editar, sin candado).
 
 ## [1.10.0] - Reglas automáticas, navegador y metas del Resumen
 

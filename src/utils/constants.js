@@ -154,6 +154,18 @@ export const CONFIG_DEFAULT = {
   idxObservaciones: true,
   notifInApp: true,
   notifSonido: false,
+  // C01 (1.10.1): antes `volumenNotificaciones` solo se leía con `?? 0.5` en
+  // soundSystem.configure (sin default en CONFIG_DEFAULT ni UI) → el volumen
+  // era inaccesible. Ahora tiene default explícito 0.5 (rango 0..1) y UI en
+  // Configuración.
+  volumenNotificaciones: 0.5,
+  // C02 (1.10.1): antes `ignorarLowPriority` filtraba alertas bajas en
+  // ruleEngine.shouldPlaySound sin default ni UI. Ahora default false (no
+  // ignora) y toggle en Configuración. 1.10.1-fix: el toggle SOLO suprime
+  // toast y sonido (shouldShowToast / shouldPlaySound en ruleEngine.js); el
+  // registro en el Centro de Notificaciones no se filtra, coherente con el
+  // texto de la UI ("pero sí se registra en el Centro").
+  ignorarLowPriority: false,
   notifCambioEstado: true,
   notifReporte: true,
   notifEvento: true,

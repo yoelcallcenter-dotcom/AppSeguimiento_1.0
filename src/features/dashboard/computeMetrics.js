@@ -6,7 +6,9 @@
  * Todas las funciones son puras y se calculan en una sola pasada (O(n)).
  */
 
-import { CATEGORIAS_DEFAULT } from "./metricsEngine";
+// v1.10.1 (fix M22): además de las categorías default, se importan los
+// helpers únicos esActivo/esCerrado (definición canónica de "activo/cerrado").
+import { CATEGORIAS_DEFAULT, esActivo, esCerrado } from "./metricsEngine";
 import { isSameMonth, normalizeDate } from "../../utils/dateFilters";
 import { getEstados, getEstadoAccent, sumarPeso } from "../../utils/catalogos";
 import { normalizarUbicacion } from "../../utils/ubicacionUtils";
@@ -55,8 +57,20 @@ export function diasDesde(fechaStr) {
 // ============================================================
 // FILTRADO
 // ============================================================
-export function aplicarFiltros(cases, filters = {}) {
+/**
+ * v1.10.1 (fix M01): `opts.poblacionPreFiltrada` — cuando la lista ya viene
+ * filtrada por el pipeline global de App (mes vía casoEnMes = creación O
+ * último reporte, días, búsqueda, filtro global y quickFilter), NO se vuelve
+ * a filtrar acá. Antes el KPI "Casos totales" re-filtraba con
+ * isSameMonth(c.fecha) → un caso que entraba al mes solo por su último
+ * reporte quedaba fuera del KPI pero dentro del widget de métricas (2
+ * números distintos en la misma pantalla). `filters.mes` sigue usándose más
+ * abajo para armar la ventana de la serie (buildSeries), por eso el filtro
+ * no se elimina del objeto: se salta solo cuando la población es la misma.
+ */
+export function aplicarFiltros(cases, filters = {}, opts = {}) {
   if (!Array.isArray(cases)) return [];
+  if (opts.poblacionPreFiltrada) return cases;
   let result = cases;
 
   const mes = filters.mes;
@@ -265,16 +279,27 @@ export function computeMetrics(cases, filters = {}, config = {}, opts = {}) {
     ...CATEGORIAS_DEFAULT,
     ...(config?.metrics?.categorias || {}),
   };
-  const base = aplicarFiltros(cases, filters);
+  // v1.10.1 (fix M01): opts.poblacionPreFiltrada evita re-filtrar por mes un
+  // listado que App ya filtró con casoEnMes (creación o último reporte).
+  const base = aplicarFiltros(cases, filters, opts);
   const total = base.length;
 
-  const isActivo = (c) => [...cats.contact, ...cats.pending].includes(c.estado);
-  const isCerrado = (c) => [...cats.success, ...cats.lost].includes(c.estado);
+  // v1.10.1 (fix M22): helper único esActivo/esCerrado (metricsEngine) para
+  // que "Activos" coincida con el drill del quickFilter y con
+  // aplicarBusquedaFiltro (antes cada motor definía activo a su manera).
+  const isActivo = (c) => esActivo(c, cats);
+  const isCerrado = (c) => esCerrado(c, cats);
 
   const activos = base.filter(isActivo);
   const cerrados = base.filter(isCerrado);
   const firmas = base.filter((c) => cats.success.includes(c.estado));
   const perdidos = base.filter((c) => cats.lost.includes(c.estado));
+  // v1.10.1 (fix M22): "pendientes" = SOLO categorías contact (consistente con
+  // el widget del Dashboard y con el quickFilter PENDIENTES). Antes era el
+  // residual total−activos−cerrados, que con el catálogo default siempre era
+  // 0 (todos los estados están categorizados) → el CSV exportaba
+  // "Casos pendientes: 0" por más casos en contacto que hubiera.
+  const pendientes = base.filter((c) => cats.contact.includes(c.estado));
   const sinReporte = base.filter((c) => !c.reporteHistory || c.reporteHistory.length === 0);
   const unassigned = base.filter((c) => !(c.estudioJuridico || '').trim());
 
@@ -317,6 +342,9 @@ export function computeMetrics(cases, filters = {}, config = {}, opts = {}) {
   if (resolucionCount > 0) avgResolutionDays = Math.round(avgResolutionDays / resolucionCount);
 
   const tasaConversion = total > 0 ? Math.round((firmas.length / total) * 100) : 0;
+  // v1.10.1 (fix M21): "Tasa de cierre" CANÓNICA = (firmas + perdidos) / total.
+  // Es la fórmula que adopta también metricsEngine (widget de métricas); la
+  // razón vieja del widget (firmas/contactados) quedó como tasaContactados.
   const tasaCierre = total > 0 ? Math.round((cerrados.length / total) * 100) : 0;
 
   // Reprogramaciones (1.5.1): contar reportes con estado "Reprogramado".
@@ -390,7 +418,9 @@ export function computeMetrics(cases, filters = {}, config = {}, opts = {}) {
     cerrados: cerrados.length,
     firmas: firmas.length,
     perdidos: perdidos.length,
-    pendientes: base.length - activos.length - cerrados.length,
+    // v1.10.1 (fix M22): pendientes = contact (ver arriba); antes era el
+    // residual que siempre daba 0 con el catálogo default.
+    pendientes: pendientes.length,
     sinReporte: sinReporte.length,
     unassigned: unassigned.length,
     tasaConversion,

@@ -12,6 +12,25 @@ import { normalizeDate } from "../../utils/dateFilters";
 // pestaña (antes se leía dentro del useMemo y nunca se actualizaba).
 import { getOperatorGoals, subscribeOperatorGoals } from "../../features/operator/operatorStore";
 import { DEFAULT_GOALS } from "../../features/operator/operatorDefaults";
+// v1.10.1 (fix M25/M26): helper ÚNICO de "firma en el período" (operatorMetrics).
+// Antes el panel mostraba max(0, Firmo − Baja) contado por c.fecha (CREACIÓN):
+// un caso firmado en el mes pero creado en otro mes no sumaba a la meta, una
+// Baja del mes restaba firmas ajenas y el resultado podía clavarse en 0.
+// Riesgo asumido: casos Firmo sin fechaFirma ni reportes no cuentan en ninguna
+// meta (regla canónica: fechaFirma → fallback último reporte solo si estado
+// Firmo → si no, null); se alinea con las metas de Mi Espacio y MetaFirmasWidget.
+import { esFirmaEnPeriodo } from "../../features/operator/operatorMetrics";
+
+/**
+ * Firmas del período para el logro de objetivos.
+ * Regla canónica v1.10.1 (M25/M26): cuenta casos con fecha de firma DENTRO del
+ * período (no por fecha de creación). Sin year/month (undefined) cuenta todas
+ * las firmas con fecha de firma conocida — se usa cuando no hay mes seleccionado.
+ * Exportada para el test de paridad metricsParity.test.js.
+ */
+export function contarFirmasPeriodo(casos, year, month) {
+  return (casos || []).filter((c) => esFirmaEnPeriodo(c, year, month)).length;
+}
 
 export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
   const { selectedMonth, selectedYear } = useFilters();
@@ -32,7 +51,17 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
       const month = Number(iso.slice(5, 7));
       return year === selectedYear && month === selectedMonth + 1;
     });
-    const firmados = Math.max(0, casosMes.filter((c) => c.estado === "Firmo").length - casosMes.filter((c) => c.estado === "Baja").length);
+    // v1.10.1 (fix M25): firmas = casos con fecha de firma dentro del período
+    // (contarFirmasPeriodo/esFirmaEnPeriodo), sobre TODA la lista `casos` — no
+    // sobre los casos creados en el mes. Se elimina la resta Firmo − Baja.
+    // pendientes/noResponden/total siguen siendo estados instantáneos de los
+    // casos creados en el mes (casosMes): no forman parte del alcance M25.
+    const mesActivo = !(selectedMonth < 0 || selectedYear < 0);
+    const firmados = contarFirmasPeriodo(
+      casos,
+      mesActivo ? selectedYear : undefined,
+      mesActivo ? selectedMonth : undefined
+    );
     const pendientes = casosMes.filter(
       (c) =>
         c.estado === "Cita virtual" ||

@@ -34,7 +34,11 @@ export default React.memo(function InsightsPanel({ insights, onDrill }) {
             className="rounded-xl p-4 text-left transition-opacity hover:opacity-90"
             style={{
               backgroundColor: 'var(--color-surface)',
-              border: '1px solid ' + sev.color + '44',
+              // 1.10.1 (R02): sev.color es var(--chart-color-*); `+ '44'` daba
+              // "var(--chart-color-danger)44" → valor inválido y el border se
+              // descartaba. Se usa color-mix con el mismo alfa de '44' (26.7%),
+              // siguiendo la convención de color-mix de 1.10.0 (CHANGELOG H1).
+              border: `1px solid color-mix(in srgb, ${sev.color} 26.7%, transparent)`,
               borderLeft: '3px solid ' + sev.color,
               cursor: hasDrill ? 'pointer' : 'default',
             }}

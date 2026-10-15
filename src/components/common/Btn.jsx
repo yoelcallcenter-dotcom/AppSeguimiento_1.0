@@ -79,13 +79,24 @@ export function Btn({
       aria-busy={loading || undefined}
       {...props}
     >
-      {Icon && !loading && (
+      {/* C02c (1.10.1): antes el icono se DESMONTABA con `!loading` y el
+          spinner lo dibujaba el CSS ::after sobre `color: transparent` —
+          el ancho saltaba ~20px al empezar la carga y en los Btn con prop
+          `color` (sin variantClass) el spinner salía invisible (las únicas
+          reglas blancas eran para btn-primary/danger/accent). Ahora el
+          icono permanece, el label solo queda oculto con `visibility`
+          (conserva el ancho) y el spinner es un overlay centrado que
+          hereda el color real del botón. */}
+      {Icon && (
         <Icon
           size={size === "sm" ? 14 : size === "md" ? 16 : 18}
           className="flex-shrink-0"
         />
       )}
-      <span className="truncate">{children}</span>
+      <span className={loading ? "truncate btn-loading-label" : "truncate"}>
+        {children}
+      </span>
+      {loading && <span className="btn-spinner" aria-hidden="true" />}
     </button>
   );
 }

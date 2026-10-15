@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, CalendarPlus, History, Link, Save, ExternalLink, StickyNote } from 'lucide-react';
 import { Btn } from '../../components/common/Btn';
+// T4b/C03 (1.10.1): Select y EmptyState del set común — antes el orden era un
+// <select> crudo y el estado vacío del editor un div textual suelto.
+import { Select } from '../../components/common/Select';
+import { EmptyState } from '../../components/common/EmptyState';
 import { SectionHeader } from '../../components/configuracion/ui';
 import { Skeleton, SkeletonText } from '../../components/common/Skeleton';
 import { CaseLinker } from '../../components/common/CaseLinker';
@@ -41,7 +45,12 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
   const [showHistory, setShowHistory] = useState(false);
   const [versions, setVersions] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  // T4b/C03 (1.10.1): antes había un `confirmDelete` + ConfirmDialog que NUNCA
+  // se abría (nadie llamaba setConfirmDelete; el borrado real lo confirma
+  // NotesList con su propio estado) — código muerto. Se reemplaza por la
+  // confirmación que faltaba: restaurar una versión pisaba el contenido sin
+  // preguntar.
+  const [confirmRestore, setConfirmRestore] = useState(null);
   const [tagInput, setTagInput] = useState('');
   const [dirty, setDirty] = useState(false);
 
@@ -207,7 +216,12 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
 
   const formatDate = (iso) => {
     if (!iso) return '';
-    return new Date(iso).toLocaleString('es-AR');
+    // T4c (1.10.1): antes usaba toLocaleString completo (fecha+hora con
+    // segundos: "1/10/2026, 10:00:00") que desbordaba la fila de metadata y
+    // se cortaba. Ahora formato corto "dd/mm/aaaa hh:mm", el mismo criterio
+    // de la lista de notas (consistencia entre paneles de la misma vista).
+    const d = new Date(iso);
+    return `${d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
   useEffect(() => {
@@ -263,28 +277,31 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
       />
       <div className="flex flex-1 min-h-0 gap-4">
       {/* Sidebar - Lista de notas */}
+      {/* T4c/C03 (1.10.1): header del sidebar en DOS filas. Antes título +
+          Select (min-width 150) + botón "Nueva" competían en un w-80 (320px):
+          el select y las opciones se cortaban a la mitad. Ahora fila 1 =
+          contador + Nueva, fila 2 = orden a todo el ancho (todas las opciones
+          del select entran sin truncar). */}
       <div className="w-80 flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
             Notas ({notes.length})
           </span>
-          <div className="flex items-center gap-1">
-            <select
-              value={sortOrder}
-              onChange={(e) => { setSortOrder(e.target.value); localStorage.setItem('notas-sort-order', e.target.value); }}
-              className="text-[10px] rounded px-1.5 py-1 border-none cursor-pointer"
-              style={{ backgroundColor: 'var(--color-surface2)', color: 'var(--color-text-muted)' }}
-              aria-label="Ordenar notas"
-            >
-              {SORT_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <Btn onClick={() => handleCreate()} icon={Plus} size="sm">
-              Nueva
-            </Btn>
-          </div>
+          <Btn onClick={() => handleCreate()} icon={Plus} size="sm">
+            Nueva
+          </Btn>
         </div>
+        {/* T4b/C03 (1.10.1): componente Select común (input-optimized +
+            chevron propio) en vez de <select> con estilos inline; el
+            aria-label "Ordenar notas" y las opciones se conservan.
+            T4c: va en su propio renglón a todo el ancho del sidebar. */}
+        <Select
+          value={sortOrder}
+          onChange={(e) => { setSortOrder(e.target.value); localStorage.setItem('notas-sort-order', e.target.value); }}
+          options={SORT_OPTIONS}
+          aria-label="Ordenar notas"
+          className="w-full mb-3"
+        />
         <div className="flex-1 overflow-y-auto">
           <NotesList
             notes={notes}
@@ -299,14 +316,16 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
       <div className="flex-1 min-w-0 flex flex-col">
         {!selectedNote ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-lg mb-2" style={{ color: 'var(--color-text-muted)' }}>
-                Selecciona o crea una nota
-              </div>
-              <Btn onClick={() => handleCreate()} icon={Plus} size="sm">
-                Crear primera nota
-              </Btn>
-            </div>
+            {/* T4b/C03 (1.10.1): EmptyState del set común (icono + mensaje +
+                CTA built-in con btn-accent) en vez del div textual — mismo
+                patrón que NotesList/CalendarView. */}
+            <EmptyState
+              icon={StickyNote}
+              message="Selecciona o crea una nota"
+              ctaLabel="Crear primera nota"
+              onCta={() => handleCreate()}
+              size="md"
+            />
           </div>
         ) : (
           <div className="flex-1 flex flex-col space-y-3">
@@ -319,34 +338,49 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
                 onBlur={() => handleUpdate('title', selectedNote.title)}
                 onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
                 placeholder="Titulo de la nota..."
-                className="flex-1 text-lg font-bold bg-transparent border-none outline-none"
+                // T4c (1.10.1): min-w-0 para que el título nunca empuje ni
+                // corte los botones de la derecha en paneles angostos.
+                className="flex-1 min-w-0 text-lg font-bold bg-transparent border-none outline-none"
                 style={{ color: 'var(--color-text)' }}
               />
-              <div className="flex gap-1">
-                <button
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {/* T4b/C03 (1.10.1): Btn común en vez de <button> con styles
+                    inline — mismos estados (acento cuando hay cambios sin
+                    guardar / outline apagado) más animate-press y el flash
+                    de éxito de Btn si handleSave devuelve promesa. */}
+                <Btn
                   onClick={handleSave}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors hover:opacity-85"
-                  style={{ backgroundColor: dirty ? 'var(--color-accent)' : 'var(--color-surface2)', color: dirty ? 'var(--color-text-on-accent)' : 'var(--color-text-muted)', border: '1px solid ' + (dirty ? 'var(--color-accent)' : 'var(--color-border)') }}
+                  icon={Save}
+                  size="sm"
+                  variant={dirty ? 'accent' : 'outline'}
                   title="Guardar cambios"
                 >
-                  <Save size={14} /> Guardar
-                </button>
-                <button
+                  Guardar
+                </Btn>
+                {/* T4c/C03 (1.10.1): Historial y Crear evento pasan de
+                    <button> crudos (p-1.5 rounded hover:bg-white/5 — forma y
+                    hover distintos de Btn, e invisible en tema claro) a Btn
+                    ghost sm: mismo cuerpo/altura que Guardar, animate-press y
+                    hover del set común. Se conservan TITLES, aria-labels y
+                    aria-pressed del historial (los usa NotesView.test). */}
+                <Btn
                   onClick={handleShowHistory}
-                  className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                  style={{ color: showHistory ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
+                  icon={History}
+                  size="sm"
+                  variant="ghost"
                   title="Historial de versiones"
-                >
-                  <History size={16} />
-                </button>
-                <button
+                  ariaLabel="Historial de versiones"
+                  aria-pressed={showHistory}
+                  style={showHistory ? { color: 'var(--color-accent)' } : {}}
+                />
+                <Btn
                   onClick={handleCreateEvent}
-                  className="p-1.5 rounded hover:bg-white/5 transition-colors"
-                  style={{ color: 'var(--color-text-muted)' }}
+                  icon={CalendarPlus}
+                  size="sm"
+                  variant="ghost"
                   title="Crear evento desde nota"
-                >
-                  <CalendarPlus size={16} />
-                </button>
+                  ariaLabel="Crear evento desde nota"
+                />
               </div>
             </div>
 
@@ -383,13 +417,21 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); }}
                   placeholder="Agregar tag..."
-                  className="text-[10px] bg-transparent border-none outline-none w-20"
+                  // T4c (1.10.1): w-20 → w-28: con "Agregar tag..." a text-[10px]
+                  // el placeholder se cortaba a la mitad.
+                  className="text-[10px] bg-transparent border-none outline-none w-28"
                   style={{ color: 'var(--color-text-muted)' }}
                 />
                 {tagInput && (
-                  <button onClick={handleAddTag} className="text-[10px]" style={{ color: 'var(--color-accent)' }}>
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleAddTag}
+                    ariaLabel="Agregar tag"
+                    title="Agregar tag"
+                  >
                     +
-                  </button>
+                  </Btn>
                 )}
               </div>
             </div>
@@ -409,15 +451,19 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
                       <button
                         key={caseId}
                         onClick={() => onVerCaso && onVerCaso(linkedCase)}
-                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md hover:opacity-70 transition-opacity"
+                        // T4c (1.10.1): rounded-md (misma forma que los pills
+                        // del repo; era rounded=4px) y nombre truncado con tope
+                        // de ancho: un nombre largo ya no estira el chip y lo
+                        // corta contra el borde del panel.
+                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md max-w-[180px] hover:opacity-70 transition-opacity"
                         style={{
                           backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)',
                           color: 'var(--color-accent)',
                           border: '1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)',
                         }}
                       >
-                        <ExternalLink size={9} />
-                        {linkedCase.nombre || 'Sin nombre'}
+                        <ExternalLink size={9} className="flex-shrink-0" />
+                        <span className="truncate">{linkedCase.nombre || 'Sin nombre'}</span>
                       </button>
                     );
                   })}
@@ -439,7 +485,13 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
             </div>
 
             {/* Metadata */}
-            <div className="flex items-center gap-4 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+            {/* T4c (1.10.1): separada con borde superior y con wrap: antes una
+                fila inline (gap-4, sin borde) con fechas largas desbordaba y
+                se cortaba contra el borde del panel. */}
+            <div
+              className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-[10px]"
+              style={{ color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)' }}
+            >
               <span>Creada: {formatDate(selectedNote.createdAt)}</span>
               <span>Actualizada: {formatDate(selectedNote.updatedAt)}</span>
             </div>
@@ -450,7 +502,9 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
       {/* History sidebar */}
       {showHistory && selectedNote && (
         <div
-          className="w-60 flex-shrink-0 rounded-lg p-3 overflow-y-auto"
+          // T4b/C03 (1.10.1): entra con slide del set de animaciones de
+          // globals.css (antes aparecía de golpe).
+          className="w-60 flex-shrink-0 rounded-lg p-3 overflow-y-auto animate-slide-in-right"
           style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
         >
           <div className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
@@ -461,21 +515,33 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
               Sin versiones anteriores
             </div>
           )}
-          {versions.map(v => (
-            <div
-              key={v.id}
-              className="rounded p-2 mb-1 cursor-pointer hover:bg-white/5 transition-colors"
-              style={{ backgroundColor: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
-              onClick={() => handleRestore(v.id)}
-            >
-              <div className="text-[10px] font-medium" style={{ color: 'var(--color-text)' }}>
-                {v.title}
-              </div>
-              <div className="text-ds-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {formatDate(v.createdAt)}
-              </div>
-            </div>
-          ))}
+          {/* T4b/C03 (1.10.1): animate-stagger = fade-in escalonado por ítem
+              (globals.css .animate-stagger > *). */}
+          <div className="animate-stagger">
+            {versions.map(v => (
+              // T4b/C03 (1.10.1): era un div con onClick (no accesible y
+              // restauraba de inmediato). Ahora es <button> que solo ABRE la
+              // confirmación (restoreVersion pisaba título/contenido sin
+              // preguntar y sin forma de cancelar).
+              <button
+                key={v.id}
+                type="button"
+                // T4c (1.10.1): rounded-md (forma estándar del repo) y título
+                // con truncate: una versión con título largo ya no desbordaba
+                // el ancho fijo del panel (w-60) y se cortaba a la mitad.
+                className="w-full text-left rounded-md p-2 mb-1 cursor-pointer hover:opacity-80 transition-opacity"
+                style={{ backgroundColor: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+                onClick={() => setConfirmRestore(v.id)}
+              >
+                <div className="text-[10px] font-medium truncate" style={{ color: 'var(--color-text)' }}>
+                  {v.title}
+                </div>
+                <div className="text-ds-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
+                  {formatDate(v.createdAt)}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -488,16 +554,21 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
         onCreateNote={handleCreate}
       />
 
+      {/* T4b/C03 (1.10.1): este ConfirmDialog era huérfano (abriría el borrado
+          con confirmDelete, que nadie seteaba — el borrado real lo confirma
+          NotesList). Ahora confirma la restauración de versión, que antes
+          ejecutaba handleRestore directo desde el clic en el historial. */}
       <ConfirmDialog
-        open={!!confirmDelete}
-        title="Eliminar nota"
-        message="Seguro que quieres eliminar esta nota?"
-        confirmLabel="Eliminar"
-        confirmColor="var(--color-danger)"
-        onCancel={() => setConfirmDelete(null)}
+        open={!!confirmRestore}
+        title="Restaurar versión"
+        message="Se reemplazarán el título y el contenido actuales por los de esta versión."
+        confirmLabel="Restaurar"
+        confirmColor="var(--color-accent)"
+        onCancel={() => setConfirmRestore(null)}
         onConfirm={() => {
-          if (confirmDelete) handleDelete(confirmDelete);
-          setConfirmDelete(null);
+          const versionId = confirmRestore;
+          setConfirmRestore(null);
+          if (versionId) handleRestore(versionId);
         }}
       />
       </div>

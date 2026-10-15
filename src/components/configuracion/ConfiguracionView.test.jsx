@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, within, act, waitFor } from "@testing-library/react";
 import { HelpProvider } from "../../help";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { UXProvider } from "../../context/UXContext";
 import { ConfiguracionView } from "./ConfiguracionView";
-import { CONFIG_DEFAULT } from "../../utils/constants";
+import { CONFIG_DEFAULT, ESTADOS } from "../../utils/constants";
+import casesDB from "../../core/db/casesDB";
 
 const noop = () => {};
 
@@ -32,7 +33,9 @@ window.ResizeObserver =
 // validación del editor de Conversación Sugerida.
 // 1.10.0 (auditoría): initialCfg permite inyectar config corrupta (p. ej.
 // rulesCustom: [null]) para verificar que los guards no crashean la vista.
-function VistaConfig({ onCfg, showToast = noop, initialCfg }) {
+// 1.10.1 (C03): casos parametrizable para probar el bloqueo de borrado de
+// estados en uso y el conteo de la migración de renombrado.
+function VistaConfig({ onCfg, showToast = noop, initialCfg, casos = [] }) {
   const [cfg, setCfg] = useState({ ...CONFIG_DEFAULT, ...initialCfg });
   const setConfig = (next) => {
     setCfg(next);
@@ -69,9 +72,9 @@ function VistaConfig({ onCfg, showToast = noop, initialCfg }) {
           condicionales={[]}
           setCondicionales={noop}
           showToast={showToast}
-          casos={[]}
+          casos={casos}
           onEliminarTodos={noop}
-          setCasos={noop}
+          onEliminarCasos={noop}
         />
       </HelpProvider>
     </ThemeProvider>
@@ -105,6 +108,14 @@ const abrirNotificaciones = () => {
   fireEvent.click(within(grupos).getByText("Notificaciones"));
   const secciones = screen.getByLabelText("Secciones de Configuración");
   fireEvent.click(within(secciones).getByText("Notificaciones"));
+};
+
+// 1.10.1 (C03): sección Estados de Caso, dentro del grupo Avanzado.
+const abrirEstadosCaso = () => {
+  const grupos = screen.getByLabelText("Grupos de Configuración");
+  fireEvent.click(within(grupos).getByText("Avanzado"));
+  const secciones = screen.getByLabelText("Secciones de Configuración");
+  fireEvent.click(within(secciones).getByText("Estados de Caso"));
 };
 
 const tipear = (input, texto) => {
@@ -574,5 +585,143 @@ describe("ConfiguracionView · Reglas automáticas (revisión 1.10.0)", () => {
 
     expect(screen.getByText(/Alertar si un caso no tiene telefono/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Nueva regla" })).toBeTruthy();
+  });
+
+  // ============ C03 (1.10.1) · Estados de caso ============
+  // Antes el nombre se migraba por cada keystroke (sin confirmación), borrar
+  // o renombrar no se sostenía (getEstados re-agregaba defaults) y no había
+  // migración de casos/estadoDefault/colores/filtros. Ahora: borrador local +
+  // ConfirmDialog con conteo + migración completa.
+
+  it("C03: renombrar pide confirmación con casos afectados y recién ahí migra todo", async () => {
+    await casesDB.cases.clear();
+    const casos = [
+      { id: "c03-1", nombre: "Ana", estado: "Firmo" },
+      { id: "c03-2", nombre: "Beto", estado: "Firmo" },
+      { id: "c03-3", nombre: "Caro", estado: "Baja" },
+    ];
+    await casesDB.cases.bulkPut(casos);
+    try {
+      let visto = null;
+      const toasts = [];
+      render(
+        <VistaConfig
+          onCfg={(c) => (visto = c)}
+          showToast={(m, t) => toasts.push({ m, t })}
+          casos={casos}
+        />
+      );
+      abrirEstadosCaso();
+
+      const input = screen.getByLabelText("Nombre del estado Firmo");
+      tipear(input, "Firmado");
+      // El commit NO ocurre por keystroke (solo hay borrador en memoria)…
+      expect(visto).toBeNull();
+
+      // …sino al salir del campo, y con diálogo de confirmación.
+      fireEvent.blur(input);
+      expect(
+        screen.getByText(/Se actualizarán 2 casos de "Firmo" a "Firmado"/)
+      ).toBeTruthy();
+      expect(visto).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Renombrar" }));
+
+      // Config (catálogo + estadosDeleted + categorías) sincrónica…
+      expect(visto).not.toBeNull();
+      expect((visto.estados || []).some((e) => e.v === "Firmado")).toBe(true);
+      expect((visto.estados || []).some((e) => e.v === "Firmo")).toBe(false);
+      expect(visto.estadosDeleted || []).toContain("Firmo");
+      expect(visto.metrics.categorias.success).toEqual(["Firmado"]);
+
+      // …y la migración de casos en Dexie + toast, de forma asíncrona.
+      await waitFor(async () => {
+        const firmado = await casesDB.cases.get("c03-1");
+        expect(firmado && firmado.estado).toBe("Firmado");
+      });
+      await waitFor(() => {
+        expect(toasts.some((t) => /renombrado a "Firmado"/i.test(t.m))).toBe(true);
+      });
+      const sinCambiar = await casesDB.cases.get("c03-3");
+      expect(sinCambiar.estado).toBe("Baja");
+      // ConfirmDialog cierra con animación diferida (useDelayedClose).
+      await waitFor(() => expect(screen.queryByText(/Se actualizarán/)).toBeNull());
+    } finally {
+      await casesDB.cases.clear();
+    }
+  });
+
+  it("C03: cancelar el renombrado no toca la config y devuelve el nombre original", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirEstadosCaso();
+
+    const input = screen.getByLabelText("Nombre del estado Firmo");
+    fireEvent.change(input, { target: { value: "Firmado" } });
+    fireEvent.blur(input);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/sin casos afectados/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByLabelText("Cancelar"));
+
+    expect(visto).toBeNull();
+    expect(screen.queryByText(/Se actualizarán/)).toBeNull();
+    expect(screen.getByLabelText("Nombre del estado Firmo")).toBeTruthy();
+  });
+
+  it("C03: no se puede eliminar un estado con casos en uso (queda aviso)", () => {
+    let visto = null;
+    const toasts = [];
+    render(
+      <VistaConfig
+        onCfg={(c) => (visto = c)}
+        showToast={(m, t) => toasts.push({ m, t })}
+        casos={[{ id: "c1", nombre: "Ana", estado: "Firmo" }]}
+      />
+    );
+    abrirEstadosCaso();
+
+    fireEvent.click(screen.getByLabelText("Eliminar Firmo"));
+    expect(
+      toasts.some((t) => /No se puede eliminar "Firmo": 1 caso/.test(t.m))
+    ).toBe(true);
+    expect(visto).toBeNull();
+    expect(screen.getByLabelText("Nombre del estado Firmo")).toBeTruthy();
+  });
+
+  it("C03: agregar estado genera nombre único y lo inscribe en contact (activo)", () => {
+    let visto = null;
+    render(<VistaConfig onCfg={(c) => (visto = c)} />);
+    abrirEstadosCaso();
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar estado" }));
+    expect(visto.estados[visto.estados.length - 1].v).toBe("Nuevo estado");
+    expect(visto.metrics.categorias.contact).toContain("Nuevo estado");
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar estado" }));
+    expect(visto.estados[visto.estados.length - 1].v).toBe("Nuevo estado 2");
+  });
+
+  it("C03: getEstados no repite el default tachado y Restaurar limpia estadosDeleted", () => {
+    let visto = null;
+    render(
+      <VistaConfig
+        onCfg={(c) => (visto = c)}
+        initialCfg={{
+          estados: [{ v: "Firmado", accent: "#10B981", peso: 1 }],
+          estadosDeleted: ["Firmo"],
+        }}
+      />
+    );
+    abrirEstadosCaso();
+
+    // El default "Firmo" NO reaparece al lado de "Firmado" (bug pre-C03)…
+    expect(screen.queryByLabelText("Nombre del estado Firmo")).toBeNull();
+    expect(screen.getByLabelText("Nombre del estado Firmado")).toBeTruthy();
+
+    // …y Restaurar repone la lista completa y limpia la lista de borrados.
+    fireEvent.click(screen.getByRole("button", { name: "Restaurar por defecto" }));
+    expect(visto.estados.map((e) => e.v)).toEqual(ESTADOS.map((e) => e.v));
+    expect(visto.estadosDeleted).toEqual([]);
+    expect(screen.getByLabelText("Nombre del estado Firmo")).toBeTruthy();
   });
 });

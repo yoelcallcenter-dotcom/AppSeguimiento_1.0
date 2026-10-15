@@ -17,6 +17,37 @@ export function getDefaultCategories() {
 }
 
 // ============================================================
+// DEFINICIONES ÚNICAS DE ESTADO (v1.10.1 · fix M22)
+// ============================================================
+// Antes convivían 3 definiciones de "activos":
+//   1) filtrarQuickFilter ACTIVOS  → !perdido && !firmado (incluía estados
+//      fuera de todo catálogo);
+//   2) aplicarBusquedaFiltro       → !perdido (INCLUÍA firmados);
+//   3) computeMetrics              → contact ∪ pending.
+// Resultado: el drill de la métrica no mostraba la misma lista que el KPI.
+// Ahora un SOLO helper canónico: activo = estado ∈ categorías
+// contact ∪ pending (los estados "firmado/perdido" ya no son activos y un
+// estado desconocido de un catálogo custom tampoco lo es — riesgo asumido:
+// al renombrar/agregar estados sin categorizarlos dejan de contar como
+// activos, pero al menos todas las vistas dicen lo mismo).
+// Riesgo 2: si config.metrics.categorias omite contact/pending, "activos"
+// queda en 0 (antes "todo lo demás"); los defaults siempre traen ambas.
+export function esActivo(caso, cats = CATEGORIAS_DEFAULT) {
+  // Si el llamador no trae contact/pending (objeto vacío o solo otras
+  // categorías), se usa el catálogo default en vez de responder 0 en falso:
+  // conserva el comportamiento previo de "sin categorías → catálogo estándar".
+  const c = !cats || (!cats.contact && !cats.pending) ? CATEGORIAS_DEFAULT : cats;
+  const estado = caso?.estado;
+  return (c.contact || []).includes(estado) || (c.pending || []).includes(estado);
+}
+
+/** Cerrado = éxito (firmó) o pérdida. Única definición (v1.10.1 · fix M22). */
+export function esCerrado(caso, cats = CATEGORIAS_DEFAULT) {
+  const estado = caso?.estado;
+  return (cats.success || []).includes(estado) || (cats.lost || []).includes(estado);
+}
+
+// ============================================================
 // MÉTRICAS — definiciones con fórmulas
 // ============================================================
 const METRIC_DEFS = {
@@ -82,7 +113,25 @@ const METRIC_DEFS = {
   },
   tasaCierre: {
     id: 'tasaCierre', label: 'Tasa de cierre', format: 'percentage', group: 'performance',
-    desc: '% de firmas sobre casos contactados',
+    // v1.10.1 (fix M21): antes era firmas/(contacto+firmas), mientras que
+    // computeMetrics (KPIs/CSV) usaba (firmas+perdidos)/total → mismo rótulo,
+    // valores incompatibles en la misma pantalla. Se adopta la fórmula
+    // canónica (firmas+perdidos)/total y la razón anterior queda como métrica
+    // secundaria separada "Conversión s/ contactados" (tasaContactados).
+    desc: '% de casos cerrados (firmas + perdidos) sobre el total',
+    formula: (ctx) => {
+      const total = ctx.filtered.length;
+      if (total === 0) return 0;
+      const cerrados = ctx.filtered.filter((c) => esCerrado(c, ctx.cats)).length;
+      return Math.round((cerrados / total) * 100);
+    },
+  },
+  tasaContactados: {
+    id: 'tasaContactados', label: 'Conversión s/ contactados', format: 'percentage', group: 'performance',
+    // v1.10.1 (fix M21): era la fórmula vieja de "Tasa de cierre"
+    // (firmas sobre casos contactados). Se conserva con rótulo propio para
+    // no perder la señal; NO debe volver a llamarse "Tasa de cierre".
+    desc: '% de firmas sobre casos contactados (contacto + firmas)',
     formula: (ctx) => {
       const contactados = ctx.filtered.filter((c) => [...ctx.cats.contact, ...ctx.cats.success].includes(c.estado)).length;
       if (contactados === 0) return 0;

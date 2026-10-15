@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from "react";
+// N01 (1.10.1): portal a document.body — el modal vivía en el subárbol de
+// Dashboard y cualquier transform/filter del ancestro (p. ej. hover zoom)
+// rompía position:fixed y su scroll-lock.
+import { createPortal } from "react-dom";
 import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, CalendarClock, Plus } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -320,7 +324,8 @@ export function VerCasoModal({
     window.open(url, "prolegal-busqueda", "noopener,noreferrer");
   };
 
-  return (
+  // N01 (1.10.1): el diálogo se monta en document.body vía portal.
+  return createPortal(
     <div
       ref={dialogRef}
       className={`fixed inset-0 z-modal flex items-start justify-center overflow-y-auto p-4 ${
@@ -974,6 +979,7 @@ export function VerCasoModal({
         onConfirm={() => eliminarReporte(confirmEliminarReporte)}
         onCancel={() => setConfirmEliminarReporte(null)}
       />
-    </div>
+    </div>,
+    document.body
   );
 }

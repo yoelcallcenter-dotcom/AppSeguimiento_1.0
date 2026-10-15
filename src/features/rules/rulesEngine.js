@@ -129,6 +129,11 @@ const defaultRules = [
         status: 'pending',
         priority: 'high',
         relatedCaseIds: [entity.id],
+        // 1.10.1: tag de procedencia. Sin él no había forma de distinguir
+        // este evento automático de los creados a mano ni de los del sistema
+        // de citas por campo (citaAutoEvents, que NO se debe tocar). Lo usa
+        // completarCitasDeCaso al recibir un reporte en el caso.
+        tags: ['regla-cita'],
       });
       return { action: 'createEvent', entityId: entity.id };
     },

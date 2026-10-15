@@ -21,6 +21,39 @@ const DUPLICATE_WINDOW_MS = 1500;
 /** Longitud máxima del texto visible de un evento. */
 const MAX_DESC_LENGTH = 220;
 
+/**
+ * F11 (1.10.1): tope de eventos de historial que se conservan POR CASO.
+ * `case_history` crecía sin límite (solo `add`); GlobalSearch y CsvExportModal
+ * leen con `toArray()` completo, así que un caso muy activo hinchaba la tabla y
+ * la búsqueda. La poda conserva los `HISTORY_MAX_PER_CASE` eventos más recientes
+ * (por timestamp descendente) tras cada registro. Es conservadora: no toca la
+ * creación ni eventos fuera de esa ventana y solo se ejecuta cuando se supera el
+ * tope (coste amortizado ~0 en el caso normal).
+ */
+const HISTORY_MAX_PER_CASE = 500;
+
+/** Elimina los eventos más antiguos de un caso por encima del tope. Poda best-effort. */
+async function pruneCaseHistory(caseId) {
+  try {
+    const key = String(caseId);
+    const total = await casesDB.case_history.where('caseId').equals(key).count();
+    if (total <= HISTORY_MAX_PER_CASE) return;
+    // Ordena por timestamp ascendente y elimina los más viejos de más.
+    const excedentes = await casesDB.case_history
+      .where('caseId')
+      .equals(key)
+      .sortBy('timestamp');
+    const aBorrar = excedentes
+      .slice(0, total - HISTORY_MAX_PER_CASE)
+      .map((e) => e.id)
+      .filter((id) => id !== undefined && id !== null);
+    if (aBorrar.length > 0) await casesDB.case_history.bulkDelete(aBorrar);
+  } catch (err) {
+    // Best-effort: un fallo de poda no debe romper el registro del evento.
+    reportError(err, { context: 'caseHistory:prune', silent: true });
+  }
+}
+
 /** Tipos de evento de historial. */
 export const HISTORY_TYPES = {
   CASE_CREATED: 'case_created',
@@ -353,6 +386,8 @@ export async function recordCaseEvent(event) {
   try {
     if (await existeDuplicado(normalized)) return false;
     await casesDB.case_history.add(normalized);
+    // F11 (1.10.1): poda best-effort tras registrar (no bloquea el resultado).
+    await pruneCaseHistory(normalized.caseId);
     return true;
   } catch (err) {
     reportError(err, { context: 'caseHistory:recordEvent' });

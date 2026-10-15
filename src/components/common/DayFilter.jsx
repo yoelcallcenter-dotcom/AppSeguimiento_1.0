@@ -6,13 +6,14 @@ import React from "react";
  * tienen casos en el mes seleccionado (los días vacíos no es útil filtrar).
  * Sin barra de desplazamiento y a la misma altura del filtro de mes.
  *
- * v1.10.0 (revisión del usuario): `hoyDia` (número de día o null) marca el día
- * de HOY con un estilo PROPIO y sutil (punto debajo del número + negrita),
- * distinto al de los días seleccionados (fondo tintado + borde accent). El
- * clic es el mismo toggle de siempre, así el atajo "Solo de hoy" queda
- * discreto dentro de la tira de días en vez de un chip llamativo en el header
- * (chip que se quitó en esta revisión). Si hoy no tiene casos en el mes, el
- * día no está en `diasDisponibles` y no se muestra ningún marcador.
+ * 1.10.1 (revisión del usuario): `hoyDia` (número de día o null) marca el día
+ * de HOY con un OUTLINE accent (borde 2px) — antes era un punto debajo del
+ * número + negrita, poco visible. El outline solo se aplica cuando el día NO
+ * está seleccionado; si además está activo manda el estilo de selección
+ * (fondo tintado + borde accent). El clic es el mismo toggle de siempre, así
+ * el atajo "Solo de hoy" queda discreto dentro de la tira de días. Si hoy no
+ * tiene casos en el mes, el día no está en `diasDisponibles` y no se muestra
+ * ningún marcador.
  */
 export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], hoyDia = null, style = {} }) {
   const dias = [...new Set(diasDisponibles)].sort((a, b) => a - b);
@@ -63,9 +64,12 @@ export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], hoy
         </button>
         {dias.map((d) => {
           const active = selectedDays.includes(d);
-          // v1.10.0 (revisión): resaltado de HOY, con estilo propio que no se
-          // confunde con la selección (ver JSDoc de la función).
+          // 1.10.1: resaltado de HOY con outline accent (borde 2px) en vez del
+          // punto+negrita de 1.10.0 — más visible y consistente con el resto.
+          // Con el día seleccionado manda el estilo de selección (sin outline
+          // doble); el title/aria-label siguen indicando "(hoy)".
           const esHoy = hoyDia === d;
+          const outlineHoy = esHoy && !active;
           return (
             <button
               key={d}
@@ -75,8 +79,8 @@ export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], hoy
                 ...btnStyle,
                 backgroundColor: active ? "color-mix(in srgb, var(--color-accent) 13.3%, transparent)" : "var(--color-surface2)",
                 color: active ? "var(--color-accent)" : "var(--color-text)",
-                borderColor: active ? "var(--color-accent)" : "var(--color-border)",
-                fontWeight: esHoy ? 700 : btnStyle.fontWeight,
+                borderColor: active || outlineHoy ? "var(--color-accent)" : "var(--color-border)",
+                border: outlineHoy ? "2px solid var(--color-accent)" : undefined,
               }}
               aria-pressed={active}
               title={
@@ -87,30 +91,7 @@ export function DayFilter({ selectedDays, onDayChange, diasDisponibles = [], hoy
               aria-label={esHoy ? `Día ${d} (hoy)` : `Día ${d}`}
               data-tour={esHoy ? "dia-hoy" : undefined}
             >
-              <span
-                style={{
-                  display: "inline-flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  lineHeight: 1,
-                }}
-              >
-                {d}
-                {esHoy && (
-                  // Punto indicador de "hoy": se apaga cuando el día está
-                  // seleccionado (usa currentColor = accent del chip activo).
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 4,
-                      height: 4,
-                      borderRadius: "50%",
-                      marginTop: 2,
-                      backgroundColor: active ? "currentColor" : "var(--color-accent)",
-                    }}
-                  />
-                )}
-              </span>
+              {d}
             </button>
           );
         })}

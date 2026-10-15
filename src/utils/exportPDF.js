@@ -46,7 +46,7 @@ function text(doc, parent, value) {
   parent.appendChild(doc.createTextNode(value == null ? "" : String(value)));
 }
 
-export function exportarPDF(casos, titulo = "Informe de casos") {
+export function exportarPDF(casos, titulo = "Informe de casos", opciones = {}) {
   if (!casos || casos.length === 0) {
     notificationManager.notify({
       type: "warning",
@@ -93,8 +93,27 @@ export function exportarPDF(casos, titulo = "Informe de casos") {
   doc.body.appendChild(header);
 
   const resumen = el(doc, "div", "resumen");
-  const firmados = casos.filter((c) => c.estado === "Firmo").length - casos.filter((c) => c.estado === "Baja").length;
-  const pendientes = casos.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).length;
+  // C03 (1.10.1): con `opciones.categorias` (config del Dashboard que pasa
+  // App), los "firmados" salen de la categoría success y los "pendientes" de
+  // los estados activos (contact ∪ pending, definición canónica de metricsEngine).
+  // Antes eran literales ("Firmo"−"Baja" y ESTADOS_PENDIENTES de 3 nombres
+  // fijos) que se desincronizaban al renombrar estados en Configuración; la
+  // resta de "Baja" además ya había sido eliminada en M26 del resto de metas.
+  // Sin `categorias` (tests / llamados externos) se conservan los literales.
+  const cats = opciones.categorias;
+  const firmados =
+    cats && Array.isArray(cats.success)
+      ? casos.filter((c) => cats.success.includes(c.estado)).length
+      : casos.filter((c) => c.estado === "Firmo").length -
+        casos.filter((c) => c.estado === "Baja").length;
+  const pendientes =
+    cats && (cats.contact || cats.pending)
+      ? casos.filter(
+          (c) =>
+            (Array.isArray(cats.contact) && cats.contact.includes(c.estado)) ||
+            (Array.isArray(cats.pending) && cats.pending.includes(c.estado))
+        ).length
+      : casos.filter((c) => ESTADOS_PENDIENTES.includes(c.estado)).length;
   [
     [casos.length, "casos"],
     [firmados, "firmados"],

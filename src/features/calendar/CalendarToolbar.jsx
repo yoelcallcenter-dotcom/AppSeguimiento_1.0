@@ -8,9 +8,26 @@ import {
   List,
   Plus,
   UserCircle2,
+  Filter,
 } from 'lucide-react';
+// T4a/C03 (1.10.1): toolbar rediseñada sobre componentes comunes.
+// - Se agrega BtnOutline (para "Hoy") y FilterChip (chips de vista /
+//   disponibilidad); se deja de usar <button> suelto con estilos propios.
+// - SubPills → FilterChip en los selectores de vista: mismos tokens y estado
+//   activo, pero además expone aria-pressed por chip y conserva el
+//   role="group" + aria-label="Vistas del calendario" que ya tenía (los tours
+//   y la a11y buscan ese nombre).
+// - Todos los controles quedan con animate-press vía Btn y con los mismos
+//   aria-label ("Anterior"/"Siguiente") que ya usaban los tests/guías.
+// T4c (1.10.1): nuevo chip "Filtros" en la toolbar — el panel de filtros deja
+// de estar siempre visible (va oculto por defecto en CalendarView) y se abre
+// desde acá. El chip es un FilterChip más (misma forma que Disponibilidad:
+// rounded-full, tokens, aria-pressed) con aria-controls hacia el panel y un
+// contador "(N)" de filtros activos SOLO cuando hay, para que ocultar el
+// panel no esconda que hay filtros aplicados.
 import { Btn } from '../../components/common/Btn';
-import { SubPills } from '../../components/common/UINav';
+import { BtnOutline } from '../../components/common/BtnOutline';
+import { FilterChip } from '../../components/common/filters';
 
 const VIEWS = [
   { id: 'day', label: 'Dia', icon: Calendar },
@@ -29,6 +46,11 @@ export default function CalendarToolbar({
   onAddEvent,
   showAvailability,
   onToggleAvailability,
+  // T4c (1.10.1): estado/contador del panel de filtros (default defensivo:
+  // callers viejos sin estas props siguen renderizando igual).
+  showFilters = false,
+  onToggleFilters,
+  filtersActive = 0,
 }) {
   const formatTitle = () => {
     const d = currentDate;
@@ -54,29 +76,23 @@ export default function CalendarToolbar({
   return (
     <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
       <div className="flex items-center gap-1">
-        <button
+        <Btn
+          variant="ghost"
+          size="sm"
+          icon={ChevronLeft}
+          ariaLabel="Anterior"
           onClick={onPrev}
-          className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
-          style={{ color: 'var(--color-text-muted)' }}
-          aria-label="Anterior"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <button
-          onClick={onToday}
-          className="px-2 py-1 text-xs font-semibold rounded-md hover:bg-white/5 transition-colors"
-          style={{ color: 'var(--color-accent)' }}
-        >
+        />
+        <BtnOutline size="sm" onClick={onToday}>
           Hoy
-        </button>
-        <button
+        </BtnOutline>
+        <Btn
+          variant="ghost"
+          size="sm"
+          icon={ChevronRight}
+          ariaLabel="Siguiente"
           onClick={onNext}
-          className="p-1.5 rounded-md hover:bg-white/5 transition-colors"
-          style={{ color: 'var(--color-text-muted)' }}
-          aria-label="Siguiente"
-        >
-          <ChevronRight size={18} />
-        </button>
+        />
         <span
           className="text-sm font-semibold ml-2 capitalize"
           style={{ color: 'var(--color-text)' }}
@@ -85,25 +101,56 @@ export default function CalendarToolbar({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <SubPills
-          items={VIEWS}
-          active={currentView}
-          onSelect={onViewChange}
-          ariaLabel="Vistas del calendario"
-        />
-        <button
-          onClick={onToggleAvailability}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors"
-          style={{
-            backgroundColor: showAvailability ? 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)' : 'var(--color-surface)',
-            color: showAvailability ? 'var(--color-accent)' : 'var(--color-text-muted)',
-            border: '1px solid var(--color-border)',
-          }}
-          title="Mostrar / ocultar disponibilidad personal"
+        {/* T4a/C03 (1.10.1): selectores de vista como FilterChip (chips con
+            aria-pressed). Se conserva role="group" y el aria-label exacto que
+            tenía SubPills: "Vistas del calendario". */}
+        <div
+          className="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Vistas del calendario"
         >
-          <UserCircle2 size={12} />
+          {VIEWS.map(({ id, label, icon: Icon }) => (
+            <FilterChip
+              key={id}
+              active={currentView === id}
+              onClick={() => onViewChange(id)}
+            >
+              <Icon size={12} aria-hidden="true" />
+              <span>{label}</span>
+            </FilterChip>
+          ))}
+        </div>
+        <FilterChip
+          active={showAvailability}
+          onClick={onToggleAvailability}
+          title="Mostrar / ocultar disponibilidad personal"
+          aria-label="Disponibilidad"
+        >
+          <UserCircle2 size={12} aria-hidden="true" />
           <span className="hidden sm:inline">Disponibilidad</span>
-        </button>
+        </FilterChip>
+        {/* T4c (1.10.1): apertura del panel de filtros. Mismo FilterChip que
+            los chips vecinos (misma forma, misma altura, aria-pressed) y
+            aria-controls/id hacia el panel para que la relación sea explícita.
+            SIN aria-label: el nombre accesible lo forma el texto visible
+            ("Filtros" / "Filtros (2)"), así el contador también se anuncia;
+            el title cubre la descripción. El "(N)" solo aparece con filtros
+            activos y va como texto (sin badges de formas nuevas, para no
+            romper la consistencia del grupo). */}
+        <FilterChip
+          active={showFilters}
+          onClick={onToggleFilters}
+          title="Mostrar u ocultar filtros"
+          aria-expanded={showFilters}
+          aria-controls="cal-filtros-panel"
+        >
+          <Filter size={12} aria-hidden="true" />
+          {/* Un ÚNICO nodo de texto: el nombre accesible del botón se arma
+              con el contenido y con dos spans adyacentes quedaba "Filtros(2)"
+              (sin espacio). Así el label visible y el accesible son
+              "Filtros" / "Filtros (2)". */}
+          <span>{filtersActive > 0 ? `Filtros (${filtersActive})` : 'Filtros'}</span>
+        </FilterChip>
         <Btn onClick={onAddEvent} icon={Plus} size="sm">
           Nuevo evento
         </Btn>

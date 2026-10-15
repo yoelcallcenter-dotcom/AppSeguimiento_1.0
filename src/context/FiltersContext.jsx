@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { useDebounce } from "../hooks/useDebounce";
 
 const FiltersContext = createContext(null);
 
@@ -137,7 +136,12 @@ export function FiltersProvider({ children }) {
   // Días seleccionados (multi-selección). Array vacío = todos los días.
   const [selectedDays, setSelectedDays] = useState([]);
   const [selectedView, setSelectedView] = useState("mi-espacio");
-  const [searchQuery, setSearchQuery] = useState("");
+  // X01/N18 (1.10.1): se eliminó `searchQuery` del contexto. La búsqueda real
+  // vive como estado local en App (el header) y viaja como props a quien la
+  // necesita (ReportesView para los snapshots, Dashboard la limpia con
+  // onClearSearch); antes este searchQuery nadie lo escribía con teclas (estaba
+  // muerto) y al entrar en el value del contexto re-renderizaba TODOS los
+  // consumidores —incluidas vistas montadas con display:none— en cada cambio.
   // Filtro rápido para drill-down (ej. { tipo: "estado", valor: "Firmo" }).
   const [quickFilter, setQuickFilter] = useState(null);
   // 1.8.7 (#3-7): filtro global con modal (persistido en app-filters).
@@ -146,11 +150,6 @@ export function FiltersProvider({ children }) {
     () => setFiltroGlobal(FILTRO_GLOBAL_DEFAULT),
     []
   );
-
-  // Optimización 1.6.6: `searchQuery` debounced para persistencia, evitando
-  // escrituras a localStorage en cada keystroke. El valor en vivo sigue siendo
-  // `searchQuery`; solo el guardado usa la versión debounced.
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Guardar en localStorage
   useEffect(() => {
@@ -162,13 +161,12 @@ export function FiltersProvider({ children }) {
           selectedYear,
           selectedDays,
           selectedView,
-          searchQuery: debouncedSearchQuery,
           quickFilter,
           filtroGlobal,
         })
       );
     } catch {}
-  }, [selectedMonth, selectedYear, selectedDays, selectedView, debouncedSearchQuery, quickFilter, filtroGlobal]);
+  }, [selectedMonth, selectedYear, selectedDays, selectedView, quickFilter, filtroGlobal]);
 
   // Cargar desde localStorage
   useEffect(() => {
@@ -185,13 +183,70 @@ export function FiltersProvider({ children }) {
         } else if (data.selectedDay !== undefined) {
           setSelectedDays(data.selectedDay >= 0 ? [data.selectedDay] : []);
         }
-        if (data.selectedView !== undefined && data.selectedView === 'mi-espacio') setSelectedView('mi-espacio');
-        if (data.searchQuery !== undefined) setSearchQuery(data.searchQuery);
+        // RUN-01 (1.10.1): los atajos PWA (#dashboard, #kanban, …) se aplican en
+        // un efecto HIJO de App que corre ANTES que este restore del padre
+        // (React ejecuta efectos de hijos primero); sin este guard, la vista
+        // persistida pisaba la del hash y el atajo no abría nada en arranque
+        // frío. Si hay hash de atajos en la URL, gana el hash (este guard solo
+        // afecta la vista; el resto de los filtros se restaura igual).
+        const hashAtajo = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+        const hashDefineVista =
+          hashAtajo !== "" &&
+          ["dashboard", "kanban", "tabla", "reportes", "mi-espacio", "utiles"].includes(
+            hashAtajo
+          );
+        if (
+          !hashDefineVista &&
+          data.selectedView !== undefined &&
+          data.selectedView === 'mi-espacio'
+        ) {
+          setSelectedView('mi-espacio');
+        }
         if (data.quickFilter !== undefined) setQuickFilter(data.quickFilter);
         if (data.filtroGlobal !== undefined)
           setFiltroGlobal(normalizarFiltroGlobal(data.filtroGlobal));
       }
     } catch {}
+  }, []);
+
+  // C03 (1.10.1): al renombrar/eliminar un estado en Configuración hay que
+  // migrar también el filtro global y el filtro rápido guardados. El estado
+  // vive acá (useState) y no en localStorage: sin este listener, el contexto
+  // seguiría con el nombre viejo y el efecto de guardado de arriba lo
+  // re-pisaría encima de la migración hecha en el DOM.
+  useEffect(() => {
+    const onRenombrado = (ev) => {
+      const { prev, next } = ev.detail || {};
+      if (!prev || !next || prev === next) return;
+      setFiltroGlobal((fg) =>
+        Array.isArray(fg?.estado) && fg.estado.includes(prev)
+          ? { ...fg, estado: fg.estado.map((e) => (e === prev ? next : e)) }
+          : fg
+      );
+      setQuickFilter((qf) =>
+        qf && qf.tipo === "estado" && qf.valor === prev
+          ? { ...qf, valor: next }
+          : qf
+      );
+    };
+    const onEliminado = (ev) => {
+      const nombre = ev.detail && ev.detail.nombre;
+      if (!nombre) return;
+      setFiltroGlobal((fg) =>
+        Array.isArray(fg?.estado) && fg.estado.includes(nombre)
+          ? { ...fg, estado: fg.estado.filter((e) => e !== nombre) }
+          : fg
+      );
+      setQuickFilter((qf) =>
+        qf && qf.tipo === "estado" && qf.valor === nombre ? null : qf
+      );
+    };
+    window.addEventListener("app:estado-renombrado", onRenombrado);
+    window.addEventListener("app:estado-eliminado", onEliminado);
+    return () => {
+      window.removeEventListener("app:estado-renombrado", onRenombrado);
+      window.removeEventListener("app:estado-eliminado", onEliminado);
+    };
   }, []);
 
   const getMonthLabel = useCallback((month) => MONTHS[month] || month, []);
@@ -202,13 +257,11 @@ export function FiltersProvider({ children }) {
       selectedYear,
       selectedDays,
       selectedView,
-      searchQuery,
       quickFilter,
       setSelectedMonth,
       setSelectedYear,
       setSelectedDays,
       setSelectedView,
-      setSearchQuery,
       setQuickFilter,
       filtroGlobal,
       setFiltroGlobal,
@@ -221,13 +274,11 @@ export function FiltersProvider({ children }) {
       selectedYear,
       selectedDays,
       selectedView,
-      searchQuery,
       quickFilter,
       setSelectedMonth,
       setSelectedYear,
       setSelectedDays,
       setSelectedView,
-      setSearchQuery,
       setQuickFilter,
       filtroGlobal,
       setFiltroGlobal,

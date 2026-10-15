@@ -218,26 +218,76 @@ export function buscarGlobal(indices, q) {
 }
 
 /**
+ * Cuenta casos asociados a una entidad por nombre (match exacto normalizado,
+ * igual que entityRelations.matchName). Se usa para el "N casos" del subtítulo
+ * de aseguradoras/estudios en la Búsqueda Global (S11b, 1.10.1): antes el
+ * campo casesCount nunca se seteaba y el UI siempre mostraba "0 casos".
+ */
+function contarCasosPorEntidad(cases, campo, nombre) {
+  const n = normalizarTexto(nombre);
+  if (!n) return 0;
+  return cases.filter((c) => normalizarTexto(c?.[campo]) === n).length;
+}
+
+/**
+ * Etiqueta legible de una condición (modelo real de condicionales:
+ * condicion === 'no-toma' | 'condicion'; ver CondicionalesView).
+ * S11b (1.10.1): el UI antes mostraba el código crudo y el campo inexistente
+ * .estudioJuridico, generando subtítulos vacíos.
+ */
+export function condicionalEtiqueta(condicion) {
+  return condicion === 'no-toma' ? 'No toma' : 'Con condiciones';
+}
+
+/**
+ * Subtítulo de un resultado condicional: "<etiqueta> — <estudio>".
+ * Compartido entre GlobalSearch y tests para garantizar el formato.
+ */
+export function condicionalSubtitle(c) {
+  const estudio = c?.estudio || 'Sin estudio';
+  return `${condicionalEtiqueta(c?.condicion)} — ${estudio}`;
+}
+
+/**
  * Busca en aseguradoras, estudios jurídicos y condicionales.
+ *
+ * Cambios 1.10.1:
+ * - S11 (ALTO): mapeo usa `.estudio` (no `.nombre`) y condicionales usa
+ *   `.estudio` (no `.estudioJuridico`) según los modelos reales
+ *   (MAPEO_EJEMPLO en constants.js y CondicionalesView/entityRelations).
+ *   Antes los grupos "Estudios Jurídicos"/"Condicionales" NUNCA aparecían.
+ * - S11b: acepta `cases` (opcional) en entityIndices para calcular
+ *   `casesCount` real de aseguradoras y estudios.
+ * - Los estudios se deduplican por nombre: el mapeo puede tener varias filas
+ *   del mismo estudio (una por provincia, ver MAPEO_EJEMPLO).
  */
 export function buscarEntidades(entityIndices, q) {
   const { tipo, termino } = parseBusqueda(q);
   if (!termino) return { insurers: [], lawFirms: [], condicionales: [] };
-  const { aseguradoras = [], mapeo = [], condicionales = [] } = entityIndices;
+  const { aseguradoras = [], mapeo = [], condicionales = [], cases = [] } = entityIndices;
   const term = normalizarTexto(termino);
 
   const insurers = aseguradoras
     .filter((a) => normalizarTexto(typeof a === 'string' ? a : a.nombre || '').includes(term))
     .slice(0, 5)
-    .map((a) => ({ nombre: typeof a === 'string' ? a : a.nombre }));
+    .map((a) => {
+      const nombre = typeof a === 'string' ? a : a.nombre;
+      return { nombre, casesCount: contarCasosPorEntidad(cases, 'aseguradora', nombre) };
+    });
 
-  const lawFirms = mapeo
-    .filter((m) => normalizarTexto(typeof m === 'string' ? m : m.nombre || '').includes(term))
-    .slice(0, 5)
-    .map((m) => ({ nombre: typeof m === 'string' ? m : m.nombre }));
+  const vistos = new Set();
+  const lawFirms = [];
+  for (const m of mapeo) {
+    const nombre = typeof m === 'string' ? m : m?.estudio || '';
+    const n = normalizarTexto(nombre);
+    if (!n || !n.includes(term) || vistos.has(n)) continue;
+    vistos.add(n);
+    lawFirms.push({ nombre, casesCount: contarCasosPorEntidad(cases, 'estudioJuridico', nombre) });
+    if (lawFirms.length >= 5) break;
+  }
 
   const foundCondicionales = condicionales
-    .filter((c) => normalizarTexto(c.aseguradora || '').includes(term) || normalizarTexto(c.estudioJuridico || '').includes(term))
+    .filter((c) => normalizarTexto(c?.aseguradora || '').includes(term) || normalizarTexto(c?.estudio || '').includes(term))
     .slice(0, 5);
 
   return { insurers, lawFirms, condicionales: foundCondicionales };

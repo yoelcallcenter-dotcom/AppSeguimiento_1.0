@@ -51,14 +51,28 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
   const year = now.getFullYear();
   const month = now.getMonth();
 
-  const dayState = getDayState(profile, availability, todayISO, goals, allCases);
-  const daily = getDailyGoalProgress(goals, allCases, todayISO);
-  const monthly = getMonthlyGoalProgress(goals, allCases, year, month);
-  const pace = getRequiredDailyPace(goals, allCases, year, month, availability, profile.workingDays, todayISO);
-  const effective = getEffectiveWorkDays(availability, year, month, profile.workingDays);
-  const availabilitySummary = getAvailabilitySummary(availability, year, month, profile.workingDays);
-  const suggestions = buildPersonalSuggestions({ goals, cases: allCases, availability, profile, year, month, todayISO, settings });
-  const perDay = getPerEffectiveDayMetrics(allCases, availability, year, month, profile.workingDays);
+  // v1.10.1 (fix X02): las 8 métricas O(n) estaban sin memoizar: se
+  // recalculaban en CADA render (incl. los repintados por tecla de X01) y cada
+  // 60 s con setNow. Ahora un único useMemo con deps completas:
+  // profile/availability/goals/settings (useState en useOperatorState →
+  // identidades estables), allCases, year/month/todayISO (derivados del reloj)
+  // y `now` explícito: getDayState/buildPersonalSuggestions leen new Date()
+  // dentro, así que el tick de 60 s debe invalidar el memo (riesgo: recomputo
+  // barato cada minuto, era el comportamiento deseado del reloj).
+  const metricas = useMemo(
+    () => ({
+      dayState: getDayState(profile, availability, todayISO, goals, allCases),
+      daily: getDailyGoalProgress(goals, allCases, todayISO),
+      monthly: getMonthlyGoalProgress(goals, allCases, year, month),
+      pace: getRequiredDailyPace(goals, allCases, year, month, availability, profile.workingDays, todayISO),
+      effective: getEffectiveWorkDays(availability, year, month, profile.workingDays),
+      availabilitySummary: getAvailabilitySummary(availability, year, month, profile.workingDays),
+      suggestions: buildPersonalSuggestions({ goals, cases: allCases, availability, profile, year, month, todayISO, settings }),
+      perDay: getPerEffectiveDayMetrics(allCases, availability, year, month, profile.workingDays),
+    }),
+    [goals, allCases, availability, profile, settings, year, month, todayISO, now]
+  );
+  const { dayState, daily, monthly, pace, effective, availabilitySummary, suggestions, perDay } = metricas;
 
   const greeting = useMemo(() => getDailyGreeting({ profile, date: now }), [profile, now]);
   const encouragement = useMemo(
@@ -68,7 +82,13 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
         dailyMet: (daily.cases.enabled ? daily.cases.met : true) && (daily.reports.enabled ? daily.reports.met : true) && (daily.firmas?.enabled ? daily.firmas.met : true),
         now,
       }),
-    [profile, daily.cases.met, daily.reports.met, now]
+    // v1.10.1 (fix X03): deps incompletas — el mensaje lee daily.cases y
+    // daily.reports (y ahora también daily.firmas): antes declaraba solo
+    // daily.cases.met/daily.reports.met, así que si la meta de reportes o la
+    // de firmas cambiaban, el aliento seguía mostrando el mensaje viejo (o se
+    // perdía al cumplirse). Se depende del objeto `daily` completo (identidad
+    // estable gracias al useMemo de metricas).
+    [profile, daily, now]
   );
 
   // Microinteracciones de objetivos: celebración discreta al cumplir la meta diaria.

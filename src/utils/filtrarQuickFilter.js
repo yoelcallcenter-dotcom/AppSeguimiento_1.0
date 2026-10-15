@@ -19,6 +19,11 @@
 // v1.9.7 (fix B1): para aplicarBusquedaFiltro (filtro "hoy" normalizado).
 import { normalizeDate } from "./dateFilters";
 import { hoyISO } from "./dateUtils";
+// v1.10.1 (fix M22/D04): helper ÚNICO de "activo" (contact ∪ pending) definido
+// en metricsEngine — era el motor que ya usaba el KPI "Activos". Antes aquí
+// había dos definiciones más: !perdido && !firmado (grupo ACTIVOS) y
+// !perdido (aplicarBusquedaFiltro "activos", que INCLUÍA firmados).
+import { esActivo, CATEGORIAS_DEFAULT } from "../features/dashboard/metricsEngine";
 
 function norm(v) {
   return String(v).trim().toUpperCase();
@@ -59,8 +64,16 @@ export function aplicarQuickFilter(casos, quickFilter, categories = {}) {
   if (quickFilter.tipo === "grupo") {
     switch (qv) {
       case "ACTIVOS":
-        filtered = filtered.filter(
-          (c) => !cats.lost.includes(c.estado) && !cats.success.includes(c.estado)
+        // v1.10.1 (fix M22): antes = !perdido && !firmado (incluía estados
+        // fuera de todo catálogo). Ahora, helper único contact ∪ pending: el
+        // drill muestra exactamente los casos del KPI "Activos". Si el caller
+        // no pasa esas categorías se cae al catálogo default (mismo criterio
+        // que esActivo) para no vaciar el filtro por un objeto incompleto.
+        filtered = filtered.filter((c) =>
+          esActivo(c, {
+            contact: categories.contact ?? CATEGORIAS_DEFAULT.contact,
+            pending: categories.pending ?? CATEGORIAS_DEFAULT.pending,
+          })
         );
         break;
       case "CERRADOS":
@@ -213,7 +226,8 @@ export function quickFilterToAccion(quickFilter) {
  *
  * @param {Array} casos
  * @param {string} filtro "todos" | "activos" | "pendientes" | "hoy"
- * @param {object} categories { lost, contact } categorías de estados
+ * @param {object} categories { lost, contact, pending, success } categorías de
+ *   estados (para "activos" se exige contact ∪ pending — helper único esActivo)
  * @param {string} hoy YYYY-MM-DD en hora local (default: hoyISO())
  */
 export function aplicarBusquedaFiltro(
@@ -223,8 +237,10 @@ export function aplicarBusquedaFiltro(
   hoy = hoyISO()
 ) {
   if (filtro === "activos") {
-    const lost = categories.lost || [];
-    return casos.filter((c) => !lost.includes(c.estado));
+    // v1.10.1 (fix M22/D04): antes era !perdido → incluía FIRMADOS y estados
+    // sin categorizar, con un resultado distinto al del KPI "Activos" y al
+    // del drill del mismo nombre. Ahora: helper único esActivo.
+    return casos.filter((c) => esActivo(c, categories));
   }
   if (filtro === "pendientes") {
     const contact = categories.contact || [];

@@ -59,8 +59,14 @@ describe('aplicarQuickFilter', () => {
   });
 
   it('grupo ACTIVOS/CERRADOS/FIRMAS/PERDIDOS/SINRESPUESTA', () => {
+    // v1.10.1 (fix M22): "ACTIVOS" = helper único esActivo (estado ∈ contact ∪
+    // pending de las categorías PASADAS). Antes era !perdido && !firmado, que
+    // metía cualquier estado sin categorizar (aquí 'Sin reporte' entraba aunque
+    // CATS no lo define). Riesgo documentado: un estado fuera del catálogo
+    // custom ya no cuenta como activo (en la app real 'Sin reporte' sí está en
+    // pending por defecto, vía CATEGORIAS_DEFAULT).
     expect(aplicarQuickFilter(CASOS, { tipo: 'grupo', valor: 'activos' }, CATS).map((c) => c.id).sort())
-      .toEqual([2, 3, 6, 7]);
+      .toEqual([2, 3, 6]);
     expect(aplicarQuickFilter(CASOS, { tipo: 'grupo', valor: 'firmas' }, CATS).map((c) => c.id))
       .toEqual([1, 4]);
     expect(aplicarQuickFilter(CASOS, { tipo: 'grupo', valor: 'perdidos' }, CATS).map((c) => c.id))
@@ -227,9 +233,13 @@ describe('aplicarBusquedaFiltro (1.9.7)', () => {
     expect(aplicarBusquedaFiltro(CASOS, undefined, CATS)).toHaveLength(4);
   });
 
-  it('"activos" excluye los estados perdidos', () => {
+  // v1.10.1 (fix M22/D04): "activos" era !perdido → INCLUÍA firmados (1, 2)
+  // con un resultado distinto al KPI "Activos" y al drill del mismo nombre.
+  // Ahora: helper único esActivo (contact ∪ pending) → solo el Pendiente (4);
+  // firmados, perdidos y estados sin categorizar quedan fuera en las 3 vistas.
+  it('"activos" = contact ∪ pending (sin firmados ni perdidos)', () => {
     const res = aplicarBusquedaFiltro(CASOS, 'activos', CATS);
-    expect(res.map((c) => c.id)).toEqual([1, 2, 4]);
+    expect(res.map((c) => c.id)).toEqual([4]);
   });
 
   it('"pendientes" solo estados de contacto', () => {

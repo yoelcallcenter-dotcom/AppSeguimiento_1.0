@@ -16,6 +16,11 @@ export function MultiSelect({
   onChange,
   placeholder = 'Todos',
   className = '',
+  // T4c (1.10.1): ancho mínimo configurable (default 150 = comportamiento
+  // histórico intacto para todos los usos existentes). La barra compacta del
+  // Calendario lo baja a ~118px para que los 5 grupos + acciones quepan en
+  // UNA fila sin cortar palabras (el minWidth inline viejo era inamovible).
+  minWidth = 150,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
@@ -48,7 +53,7 @@ export function MultiSelect({
     <div
       ref={ref}
       className={`relative flex flex-col gap-1 ${className}`}
-      style={{ minWidth: 150 }}
+      style={{ minWidth }}
     >
       {label && (
         <label

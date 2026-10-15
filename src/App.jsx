@@ -61,6 +61,9 @@ import { recordGoalAction, pushLastCase } from "./features/productivity/producti
 
 // Utils
 import { casoEnMes, getAvailableMonthsConReportes, normalizeDate } from "./utils/dateFilters";
+// M25 (1.10.1): firmas del mes con la regla canónica (fechaFirma) para la
+// celebración de la meta mensual (antes Firmo−Baja por c.fecha crudo).
+import { countSignedInMonth, setEstadosSuccess } from "./features/operator/operatorMetrics";
 import { casoCoincide } from "./utils/searchEngine";
 // v1.9.7 (fix B7): limpieza one-time de claves conversaciones_* huérfanas
 // (nota conocida de 1.9.6 al importar backups viejos).
@@ -73,7 +76,8 @@ import { notificationManager } from "./core/notifications/notificationManager";
 import { soundSystem } from "./core/notifications/soundSystem";
 import { eventBus, AppEvents } from "./core/events/eventBus";
 import { notifyChange, SYNC_EVENTS } from "./core/sync/syncService";
-import { reportError } from "./core/error/reportError";
+// P01 (1.10.1): clearErrors para vaciar el log de diagnóstico en el borrado total.
+import { reportError, clearErrors } from "./core/error/reportError";
 import { localStorageAdapter } from "./core/storage/localStorageAdapter";
 import { setupAutoBackupWatcher, normalizeAutoBackupHistory } from "./services/autoBackup";
 import { startSystemStatusMonitor } from "./core/status/storageHealth";
@@ -102,16 +106,30 @@ function celebrarEstado(caso, estado) {
   );
 }
 
+// C03 (1.10.1): "firmó" = estado en la categoría `success` del dashboard
+// (por defecto ["Firmo"]). Antes había literales "Firmo" en App que se
+// desincronizaban al renombrar el estado en Configuración: no se seteaba
+// fechaFirma y la meta de firmas dejaba de contar. Las categorías se migran
+// junto con el renombrado, así que este check sigue al estado nuevo.
+// "Pendiente" en la celebración sigue siendo literal (no pertenece a ninguna
+// categoría de forma exclusiva): límite documentado en el CHANGELOG de 1.10.1.
+function esFirmaEstado(cats, estado) {
+  return Array.isArray(cats?.success) && cats.success.includes(estado);
+}
+
 // Detecta si el mes del caso alcanzó la meta de firmas y felicita (una vez por mes).
 function celebrarLogroSiCorresponde(casos, caso) {
   if (!caso) return;
-  const mes = (caso.fecha || "").slice(0, 7);
-  if (!mes) return;
-  const firmas = casos.filter(
-    (c) => (c.fecha || "").startsWith(mes) && c.estado === "Firmo"
-  ).length - casos.filter(
-    (c) => (c.fecha || "").startsWith(mes) && c.estado === "Baja"
-  ).length;
+  // M25/R03 (1.10.1): el mes se determina por la fecha de FIRMA normalizada
+  // (fallback: fecha de creación normalizada) y las firmas del mes usan la
+  // regla canónica countSignedInMonth (fechaFirma, sin resta de "Baja" y sin
+  // `startsWith(c.fecha)` crudo, que ignoraba fechas legadas DD/MM/YYYY).
+  const iso = normalizeDate(caso.fechaFirma) || normalizeDate(caso.fecha);
+  if (!iso) return;
+  const mes = iso.slice(0, 7);
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7)) - 1;
+  const firmas = countSignedInMonth(casos, year, month);
   if (firmas < META_FIRMAS_MES) return;
   try {
     if (localStorage.getItem(`app_goal_celebrated_${mes}`) === "1") return;
@@ -155,13 +173,16 @@ import {
 import {
   computeCaseChanges,
   recordCaseChanges,
-  deleteCaseHistory,
+  HISTORY_TYPES,
 } from "./core/cases/caseHistory";
 import { runIntegrityCheck } from "./core/integrity/integrityService";
 import {
   syncCitaEvent,
   createRescheduleEvent,
 } from "./core/cases/citaAutoEvents";
+// 1.10.1: completar el evento automático de cita al recibir un reporte
+// (helper idempotente en calendarStore; ver comentario ahí).
+import { completarCitasDeCaso } from "./features/calendar/calendarStore";
 import { formatCita } from "./utils/citaParser";
 
 // Components - Views (lazy)
@@ -263,6 +284,7 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
   const renderBtn = ([k, label, Icon]) => {
     const isActive = selectedView === k;
     const isMiEspacio = k === "mi-espacio";
+    const visibleLabel = t(`tabs.${k}`, label);
     return (
       <button
         key={k}
@@ -273,6 +295,16 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
           if (load) load().catch(() => {});
         }}
         data-tour={k}
+        // X08 (1.10.1): semántica de pestañas para lectores de pantalla —
+        // aria-selected + aria-current; el grupo se marca como tablist más abajo.
+        role="tab"
+        aria-selected={isActive}
+        aria-current={isActive ? "page" : undefined}
+        // X09 (1.10.1): bajo 480px la etiqueta visible se oculta (hidden xs:inline),
+        // por lo que el nombre accesible solo existía como texto del ícono (vacío).
+        // Se agrega aria-label con la etiqueta completa en todos los breakpoints.
+        aria-label={visibleLabel}
+        title={visibleLabel}
         className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md transition-colors transition-shadow ${
           isActive
             ? isMiEspacio
@@ -288,14 +320,17 @@ function ViewTabs({ tabs, selectedView, onSelect }) {
             : undefined
         }
       >
-        <Icon size={13} />
-        <span className="hidden xs:inline">{t(`tabs.${k}`, label)}</span>
+        <Icon size={13} aria-hidden="true" />
+        <span className="hidden xs:inline" aria-hidden="true">{visibleLabel}</span>
       </button>
     );
   };
 
   return (
+    // X08: el strip de pestañas se expone como tablist.
     <div
+      role="tablist"
+      aria-label="Vistas principales"
       className="tab-strip scrollbar-hide items-center gap-0.5 pb-2 grow"
       style={{ justifyContent }}
     >
@@ -326,8 +361,6 @@ function AppContent() {
     setSelectedMonth,
     setSelectedYear,
     setSelectedDays,
-    searchQuery,
-    setSearchQuery,
     quickFilter,
     setQuickFilter,
     filtroGlobal,
@@ -389,7 +422,8 @@ function AppContent() {
   const [modalReporte, setModalReporte] = useState(false);
   const [casoReporteRapido, setCasoReporteRapido] = useState(null);
   const [estadoReporteRapido, setEstadoReporteRapido] = useState(null);
-  const [modalComentarios, setModalComentarios] = useState(null);
+  // N17/F12 (1.10.1): se eliminó `modalComentarios` — declarado en 1.3 y jamás
+  // leído (solo se le asignaba null); ComentariosUI vive dentro de VerCasoModal.
   const [verCaso, setVerCaso] = useState(null);
   const [casosSeleccionados, setCasosSeleccionados] = useState([]);
   const [overlayOpen, setOverlayOpen] = useState(null);
@@ -401,6 +435,9 @@ function AppContent() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [pendingNoteId, setPendingNoteId] = useState(null);
   const [pendingEventId, setPendingEventId] = useState(null);
+  // X14 (1.10.1): pestaña destino de Útiles para la navegación desde
+  // GlobalSearch (se pasa como subvistaInicial a UtilesView).
+  const [utilesTab, setUtilesTab] = useState(null);
   // Deshacer: snapshot previo de casos para revertir la última mutación.
   const [undoState, setUndoState] = useState(null);
   // Navegación contextual: pila de contextos para breadcrumb/back.
@@ -433,8 +470,26 @@ function AppContent() {
     setSelectedView('utiles');
   }, []);
 
-  const pushUndo = useCallback((label) => {
-    setUndoState({ prevCasos: casos, label, ts: Date.now() });
+  // X14 (1.10.1): navegación real desde GlobalSearch a la pestaña de Útiles
+  // correspondiente (antes solo cambiaba de vista sin seleccionar la subvista).
+  // setUtilesTab ANTES de setSelectedView: si Útiles ya estaba montada, el
+  // effect de UtilesView reacciona al cambio de prop; si no, el valor inicial
+  // (subvistaInicial) la abre directa.
+  const handleGlobalSearchNavigateUtiles = useCallback((tab) => {
+    setUtilesTab(tab);
+    setSelectedView('utiles');
+  }, [setSelectedView]);
+
+  // X01/N18 (1.10.1): la búsqueda real del header vive acá (estado local);
+  // Dashboard la limpia al hacer drill-down y ReportesView la snapshota.
+  const limpiarBusquedaHeader = useCallback(() => setQuery(''), []);
+
+  // F01/F17 (1.10.1): pushUndo acepta un payload `cascade` con las filas de
+  // historial y las referencias relatedCaseIds que se pierden al borrar; el
+  // deshacer las restaura (antes el undo devolvía el caso pero el timeline
+  // quedaba vacío y los vínculos de notas/eventos no volvían).
+  const pushUndo = useCallback((label, cascade = null) => {
+    setUndoState({ prevCasos: casos, label, ts: Date.now(), cascade });
   }, [casos]);
 
   const showToast = useCallback((message, type = "success") => {
@@ -446,12 +501,35 @@ function AppContent() {
     });
   }, []);
 
+  // F17 (1.10.1): restaura historial y vínculos al deshacer un borrado.
+  const restaurarBorradoCascade = useCallback(async (cascade) => {
+    try {
+      const { default: casesDB } = await import("./core/db/casesDB");
+      const { default: appDB } = await import("./core/db/appDB");
+      const jobs = [];
+      if (cascade.historyRows && cascade.historyRows.length > 0) {
+        // bulkPut conserva los ids originales de los eventos del historial.
+        jobs.push(casesDB.case_history.bulkPut(cascade.historyRows));
+      }
+      (cascade.notesRefs || []).forEach((n) => {
+        jobs.push(appDB.notes.update(n.id, { relatedCaseIds: n.relatedCaseIds }));
+      });
+      (cascade.eventsRefs || []).forEach((e) => {
+        jobs.push(appDB.events.update(e.id, { relatedCaseIds: e.relatedCaseIds }));
+      });
+      await Promise.all(jobs);
+    } catch (e) {
+      reportError(e, { context: "deshacer:restaurarBorradoCascade", silent: true });
+    }
+  }, []);
+
   const deshacer = useCallback(() => {
     if (!undoState) return;
     setCasos(undoState.prevCasos);
+    if (undoState.cascade) restaurarBorradoCascade(undoState.cascade);
     setUndoState(null);
     showToast("Cambio deshecho", "info");
-  }, [undoState, setCasos, showToast]);
+  }, [undoState, setCasos, showToast, restaurarBorradoCascade]);
 
   // PWA: registrar SW, avisar de nuevas versiones y de offline-ready.
   const [updateReady, setUpdateReady] = useState(false);
@@ -623,6 +701,19 @@ function AppContent() {
   useEffect(() => {
     try {
       notificationManager.configure(config);
+    } catch {}
+    // C03 (1.10.1): además se espeja la config en la store para que los
+    // componentes profundos (Pill) resuelvan catálogos por `getEstados(config)`
+    // y los estados creados/renombrados en Configuración se pinten en todas
+    // las vistas, no solo en las que reciben config por props.
+    try {
+      useAppStore.getState().setConfig(config);
+    } catch {}
+    // C03 (1.10.1): operatorMetrics es un módulo puro (sin React) y usa la
+    // categoría success para el fallback de fechaFirmaDe; se le pasa la lista
+    // vigente para que renombrar "Firmo" no rompa metas/logros.
+    try {
+      setEstadosSuccess(config?.metrics?.categorias?.success);
     } catch {}
   }, [config]);
 
@@ -898,7 +989,12 @@ function AppContent() {
         if (isNew) {
           trackEvent("CASE_CREATED");
           eventBus.emit(AppEvents.CASE_CREATED, { type: "success", title: "Caso creado", message: `${casoFinal.nombre} fue agregado`, source: "cases" });
-        } else {
+        } else if (huboActividad) {
+          // 1.10.1-fix: antes se emitía CASE_UPDATED sin importar si hubo
+          // cambios reales; guardar sin editar generaba toast "Caso
+          // actualizado" + entrada en el Centro + sonido. Ahora solo se emite
+          // si computeCaseChanges detectó actividad (coherente con
+          // recordCaseChanges que ya estaba condicionado).
           trackEvent("CASE_EDITED");
           eventBus.emit(AppEvents.CASE_UPDATED, { type: "info", title: "Caso actualizado", message: `${casoFinal.nombre} fue modificado`, source: "cases" });
         }
@@ -917,10 +1013,10 @@ function AppContent() {
       setModalCaso(null);
       soundSystem.playAction(isNew ? "create" : "save");
       if (!isNew && prev && prev.estado !== caso.estado) {
-        if (caso.estado === "Firmo" || caso.estado === "Pendiente") {
+        if (esFirmaEstado(catsFiltro, caso.estado) || caso.estado === "Pendiente") {
           celebrarEstado(caso, caso.estado);
         }
-        if (caso.estado === "Firmo") {
+        if (esFirmaEstado(catsFiltro, caso.estado)) {
           const updatedForGoal = casos.map((c) =>
             c.id === caso.id ? caso : c
           );
@@ -932,23 +1028,86 @@ function AppContent() {
       if (isNew || (prev && prev.estado !== casoFinal.estado)) {
         runCaseRules(casoFinal, isNew ? null : prev);
       }
+      // 1.10.1: si el guardado agregó un reporte a un caso existente, el
+      // evento automático de cita (tag 'regla-cita') se marca completado —
+      // la cita ya tuvo su contacto. Fire-and-forget, igual que syncCitaEvent.
+      // Solo casos existentes: en un alta con reporte inicial el evento recién
+      // creado queda pendiente hasta el próximo reporte.
+      if (cambios.some((c) => c.type === HISTORY_TYPES.REPORT_ADDED)) {
+        completarCitasDeCaso(casoFinal.id);
+      }
     },
-    [setCasos, showToast, casos, pushUndo]
+    // catsFiltro (C03): las celebraciones/metas resuelven la categoría success.
+    [setCasos, showToast, casos, pushUndo, catsFiltro]
   );
 
+  // F01/F19 (1.10.1): borrado con cascade compartido por el borrado simple
+  // (eliminarCaso) y el masivo por mes (Configuración). Limpia case_history y
+  // las referencias relatedCaseIds de notas/eventos (antes quedaban huérfanos;
+  // el cascade de useAppStore.deleteCase la UI nunca lo invocaba) y devuelve el
+  // payload para que el deshacer pueda restaurarlo (F17).
+  const borrarCasosConCascade = useCallback(async (ids) => {
+    if (!ids || ids.length === 0) return null;
+    const { default: casesDB } = await import("./core/db/casesDB");
+    const { default: appDB } = await import("./core/db/appDB");
+    const idSet = new Set(ids.map(String));
+    const tieneRef = (refs) =>
+      Array.isArray(refs) && refs.some((r) => idSet.has(String(r)));
+    const [historyRows, notesConRef, eventsConRef] = await Promise.all([
+      casesDB.case_history.where("caseId").anyOf(ids.map(String)).toArray(),
+      appDB.notes.filter((n) => tieneRef(n.relatedCaseIds)).toArray(),
+      appDB.events.filter((e) => tieneRef(e.relatedCaseIds)).toArray(),
+    ]);
+    const quitarRef = (refs) =>
+      Array.isArray(refs) ? refs.filter((r) => !idSet.has(String(r))) : refs;
+    await Promise.all([
+      casesDB.case_history.where("caseId").anyOf(ids.map(String)).delete(),
+      appDB.notes
+        .filter((n) => tieneRef(n.relatedCaseIds))
+        .modify((n) => { n.relatedCaseIds = quitarRef(n.relatedCaseIds); }),
+      appDB.events
+        .filter((e) => tieneRef(e.relatedCaseIds))
+        .modify((e) => { e.relatedCaseIds = quitarRef(e.relatedCaseIds); }),
+    ]);
+    return {
+      historyRows,
+      notesRefs: notesConRef.map((n) => ({ id: n.id, relatedCaseIds: n.relatedCaseIds })),
+      eventsRefs: eventsConRef.map((e) => ({ id: e.id, relatedCaseIds: e.relatedCaseIds })),
+    };
+  }, []);
+
   const eliminarCaso = useCallback(
-    (id) => {
+    async (id) => {
       const deleted = casos.find((c) => c.id === id);
-      pushUndo("Caso eliminado");
+      // F01/F17 (1.10.1): cascade + payload de undo (antes solo borraba
+      // case_history sin posibilidad de restauración y dejaba notas/eventos
+      // apuntando al caso).
+      const cascade = await borrarCasosConCascade([id]);
+      pushUndo("Caso eliminado", cascade);
       setCasos((list) => list.filter((c) => c.id !== id));
-      deleteCaseHistory(id);
       setModalCaso(null);
       soundSystem.playAction("delete");
       if (deleted) {
         eventBus.emit(AppEvents.CASE_DELETED, { type: "info", title: "Caso eliminado", message: `${deleted.nombre} fue eliminado`, source: "cases" });
       }
     },
-    [setCasos, casos, pushUndo]
+    [setCasos, casos, pushUndo, borrarCasosConCascade]
+  );
+
+  // F19 (1.10.1): borrado masivo por mes desde Configuración, con el mismo
+  // cascade (historial + referencias) y undo que el borrado simple. Antes
+  // ConfiguracionView hacía casesDB.cases.bulkDelete directo: huérfanos en
+  // lote, sin historial ni deshacer.
+  const handleEliminarCasosBatch = useCallback(
+    async (ids) => {
+      if (!ids || ids.length === 0) return 0;
+      const cascade = await borrarCasosConCascade(ids);
+      pushUndo("Casos eliminados", cascade);
+      const idSet = new Set(ids.map(String));
+      setCasos((list) => list.filter((c) => !idSet.has(String(c.id))));
+      return ids.length;
+    },
+    [borrarCasosConCascade, pushUndo, setCasos]
   );
 
   const cambiarEstado = useCallback(
@@ -961,8 +1120,11 @@ function AppContent() {
       const updated = casos.map((c) => {
         if (c.id !== id) return c;
         const base = { ...c, estado };
-        if (estado === "Firmo" && !c.fechaFirma) {
-          base.fechaFirma = new Date().toISOString().slice(0, 10);
+        if (esFirmaEstado(catsFiltro, estado) && !c.fechaFirma) {
+          // R03/D07 (1.10.1): fechaFirma en hora LOCAL (hoyISO) — antes usaba
+          // toISOString().slice(0,10) (UTC): entre 21:00 y 24:00 (UTC-3) la
+          // firma se fechaba al día siguiente (rompía metas/logro por fecha).
+          base.fechaFirma = hoyISO();
           base.alertaFirmaEnviada = false;
         }
         return base;
@@ -973,10 +1135,10 @@ function AppContent() {
         recordCaseChanges(id, prev, cambio);
         recordGoalAction('CASE_MOVED');
         eventBus.emit(AppEvents.CASE_STATUS_CHANGED, { type: "info", title: "Estado actualizado", message: `${prev?.nombre || "Caso"}: ${oldState} → ${estado}`, source: "cases", priority: "medium" });
-        if (estado === "Firmo" || estado === "Pendiente") {
+        if (esFirmaEstado(catsFiltro, estado) || estado === "Pendiente") {
           celebrarEstado(cambio, estado);
         }
-        if (estado === "Firmo") {
+        if (esFirmaEstado(catsFiltro, estado)) {
           celebrarLogroSiCorresponde(updated, cambio);
         }
         // v1.10.0 (feature D): reglas al cambiar estado desde la vista
@@ -985,7 +1147,8 @@ function AppContent() {
       }
       setCasos(updated);
     },
-    [setCasos, casos, pushUndo]
+    // catsFiltro (C03): fechaFirma/celebraciones resuelven la categoría success.
+    [setCasos, casos, pushUndo, catsFiltro]
   );
 
   const guardarReporteRapido = useCallback(
@@ -1000,8 +1163,11 @@ function AppContent() {
       const caso = base;
       const prev = casos.find((c) => c.id === caso.id) || null;
       let casoFinal = caso;
+      let reportAdded = false;
       if (prev) {
         const cambios = computeCaseChanges(prev, caso);
+        // 1.10.1: ¿este reporte creció el reporteHistory del caso?
+        reportAdded = cambios.some((c) => c.type === HISTORY_TYPES.REPORT_ADDED);
         if (cambios.length > 0) {
           casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
           recordCaseChanges(casoFinal.id, prev, casoFinal);
@@ -1030,10 +1196,10 @@ function AppContent() {
       }
 
       if (prev && prev.estado !== casoFinal.estado) {
-        if (casoFinal.estado === "Firmo" || casoFinal.estado === "Pendiente") {
+        if (esFirmaEstado(catsFiltro, casoFinal.estado) || casoFinal.estado === "Pendiente") {
           celebrarEstado(casoFinal, casoFinal.estado);
         }
-        if (casoFinal.estado === "Firmo") {
+        if (esFirmaEstado(catsFiltro, casoFinal.estado)) {
           const updatedForGoal = casos.map((c) =>
             c.id === casoFinal.id ? casoFinal : c
           );
@@ -1042,16 +1208,25 @@ function AppContent() {
         // v1.10.0 (feature D): reglas al cargar un reporte que cambia el estado.
         runCaseRules(casoFinal, prev);
       }
+      // 1.10.1: reporte agregado a un caso existente → el evento automático
+      // de cita (tag 'regla-cita') queda completado. Fire-and-forget.
+      if (reportAdded) {
+        completarCitasDeCaso(casoFinal.id);
+      }
     },
-    [setCasos, casos, pushUndo]
+    // catsFiltro (C03): celebraciones/metas resuelven la categoría success.
+    [setCasos, casos, pushUndo, catsFiltro]
   );
 
   const actualizarCaso = useCallback(
     (caso) => {
       const prev = casos.find((c) => c.id === caso.id);
       let casoFinal = caso;
+      let reportAdded = false;
       if (prev) {
         const cambios = computeCaseChanges(prev, caso);
+        // 1.10.1: ¿este guardado (VerCasoModal/comentarios) agregó un reporte?
+        reportAdded = cambios.some((c) => c.type === HISTORY_TYPES.REPORT_ADDED);
         if (cambios.length > 0) {
           casoFinal = { ...caso, lastActivityAt: new Date().toISOString() };
           recordCaseChanges(casoFinal.id, prev, casoFinal);
@@ -1067,8 +1242,29 @@ function AppContent() {
       if (prev && prev.estado !== casoFinal.estado) {
         runCaseRules(casoFinal, prev);
       }
+      // 1.10.1: reporte agregado a un caso existente → el evento automático
+      // de cita (tag 'regla-cita') queda completado. Fire-and-forget.
+      if (reportAdded) {
+        completarCitasDeCaso(casoFinal.id);
+      }
     },
     [setCasos, casos, pushUndo]
+  );
+
+  // F20 (1.10.1): el drop de un evento CITA en el calendario ahora pasa por la
+  // orquestación de App (actualizarCaso → persistencia + historial + undo +
+  // lastActivityAt) y luego sincroniza el evento automático con syncCitaEvent.
+  // Antes CalendarView hacía un casesDB.update directo sin historial/undo.
+  const handleCitaDrop = useCallback(
+    async (casoActualizado) => {
+      actualizarCaso(casoActualizado);
+      try {
+        await syncCitaEvent(casoActualizado, { config });
+      } catch (err) {
+        reportError(err, { context: "handleCitaDrop:syncCitaEvent", silent: true });
+      }
+    },
+    [actualizarCaso, config]
   );
 
   const handleNavigateToNote = useCallback((noteId) => {
@@ -1169,7 +1365,16 @@ function AppContent() {
         appDB.events.clear(),
         appDB.note_versions.clear(),
         appDB.auto_backups.clear(),
+        // P01 (1.10.1): survivors del "borrar todos los datos" — el usuario
+        // creía que limpiaba todo pero plantillas, reportes guardados y los
+        // snapshots de migración (que contienen copias de notes/events/
+        // auto_backups) sobrevivían en AppData.
+        appDB.templates.clear(),
+        appDB.saved_reports.clear(),
+        appDB.migration_snapshots.clear(),
       ]);
+      // P01 (1.10.1): log de errores de diagnóstico (DB AppDiagnostics).
+      await clearErrors();
     } catch (e) {
       reportError(e, { context: 'App:clearDatabases' });
     }
@@ -1180,9 +1385,11 @@ function AppContent() {
     localStorageAdapter.clear();
 
     // 2) Limpiar claves con prefijo app- (guión) — no cubiertas por el adapter
+    //    P01 (1.10.1): se agregó app-typography-preset, que quedaba fuera.
     const hyphenKeys = [
       "app-view-orders", "app-theme", "app-palette", "app-estado-colors",
       "app-onboarding-done", "app-font-size", "app-filters",
+      "app-typography-preset",
     ];
     hyphenKeys.forEach((key) => localStorage.removeItem(key));
 
@@ -1218,12 +1425,17 @@ function AppContent() {
     ];
     unprefixedKeys.forEach((key) => localStorage.removeItem(key));
 
-    // 4) Limpiar claves con prefijo conversaciones_*, tour_* y app_*
+    // 4) Limpiar claves con prefijo conversaciones_*, tour_*, app_* y,
+    //    P01 (1.10.1), los prefijos que faltaban: app.* (estado colapsado de
+    //    secciones app.sh.* y el flag app.auto-backups-normalized) y
+    //    seg-art:* (banners de estado de almacenamiento).
     Object.keys(localStorage)
       .filter((key) =>
         key.startsWith("conversaciones_") ||
         key.startsWith("tour_") ||
-        key.startsWith("app_")
+        key.startsWith("app_") ||
+        key.startsWith("app.") ||
+        key.startsWith("seg-art:")
       )
       .forEach((key) => localStorage.removeItem(key));
 
@@ -1247,7 +1459,7 @@ function AppContent() {
       return;
     }
     const casosExport = casos.filter((c) => casosSeleccionados.includes(c.id));
-    exportarPDF(casosExport, "Casos seleccionados");
+    exportarPDF(casosExport, "Casos seleccionados", { categorias: catsFiltro });
     setCasosSeleccionados([]);
   }, [casos, casosSeleccionados, showToast]);
 
@@ -1257,13 +1469,22 @@ function AppContent() {
     onReporte: () => setModalReporte(true),
     onBuscar: () =>
       document.querySelector('input[placeholder*="Buscar"]')?.focus(),
+    // N17 (1.10.1): Escape ya NO cierra todas las capas a la vez. Los diálogos
+    // y Overlays (VerCaso, Editar, Reporte, ConfirmDialog, GlobalSearch,
+    // Calendar/Notas/Config…) se cierran solos desde la pila global de
+    // useDialogA11y (capture + tope LIFO), que además cancela el evento para
+    // este listener. Acá solo quedan las capas SIN diálogo propio
+    // (CsvExportModal y FilterModal), y solo si no hay ninguna capa con
+    // Escape propio abierta (si la hay, esa se cierra sola).
     onCerrarModal: () => {
-      setModalCaso(null);
-      setModalReporte(false);
-      setVerCaso(null);
-      setModalComentarios(null);
-      setOverlayOpen(null);
-      setShowCalendar(false);
+      if (verCaso || modalCaso || modalReporte || confirmDeleteCaso) return;
+      if (showCalendar || showBlocNotas || overlayOpen) return;
+      if (useAppStore.getState().ui.globalSearchOpen) return;
+      if (showCsvModal) {
+        setShowCsvModal(false);
+        return;
+      }
+      if (showFilterModal) setShowFilterModal(false);
     },
     onExportar: exportarSeleccionados,
     onCambiarVista: setSelectedView,
@@ -1371,6 +1592,32 @@ function AppContent() {
         }}
         onDismiss={() => setUpdateReady(false)}
       />
+
+      {/* X13 (1.10.1): skip-link de accesibilidad — primer foco al cargar,
+          visible solo al recibir foco (estilo inline para no depender de CSS). */}
+      <a
+        href="#contenido-principal"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          zIndex: 9999,
+          padding: "8px 16px",
+          backgroundColor: "var(--color-accent)",
+          color: "var(--color-text-on-accent)",
+          borderRadius: "0 0 8px 0",
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.left = "0";
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.left = "-9999px";
+        }}
+      >
+        Saltar al contenido principal
+      </a>
 
       {/* HEADER */}
       <header className="app-header sticky top-0 z-sticky">
@@ -1583,8 +1830,9 @@ function AppContent() {
         </div>
       </header>
 
-      {/* CONTENIDO */}
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto relative overflow-x-clip">
+      {/* CONTENIDO — X13 (1.10.1): se marca como landmark main (role="main")
+          y recibe id para el skip-link. */}
+      <div id="contenido-principal" role="main" tabIndex={-1} className="p-4 sm:p-6 max-w-[1400px] mx-auto relative overflow-x-clip outline-none">
         <SystemStatusBanner />
         <Suspense
           fallback={
@@ -1611,6 +1859,7 @@ function AppContent() {
               onNuevoCaso={handleNuevoCaso}
               onImportarCSV={handleImportarCSV}
               onTour={handleTour}
+              onClearSearch={limpiarBusquedaHeader}
             />
           </div>
         )}
@@ -1652,6 +1901,8 @@ function AppContent() {
               mesesDisponibles={mesesDisponibles}
               setConfig={setConfig}
               showToast={showToast}
+              busqueda={debouncedQuery}
+              onBusquedaChange={setQuery}
             />
           </div>
         )}
@@ -1678,6 +1929,7 @@ function AppContent() {
             <UtilesView
               config={config}
               setConfig={setConfig}
+              subvistaInicial={utilesTab}
               pasos={pasos}
               setPasos={setPasos}
               tips={tips}
@@ -1726,6 +1978,7 @@ function AppContent() {
             casos={casos}
             config={config}
             onVerCaso={(c) => { setVerCaso(c); }}
+            onActualizarCaso={handleCitaDrop}
             initialEventId={pendingEventId}
             onInitialEventConsumed={() => setPendingEventId(null)}
           />
@@ -1792,6 +2045,7 @@ function AppContent() {
             showToast={showToast}
             casos={casos}
             onEliminarTodos={eliminarTodosLosDatos}
+            onEliminarCasos={handleEliminarCasosBatch}
             setCasos={setCasos}
           />
         </Suspense>
@@ -1917,6 +2171,7 @@ function AppContent() {
           onSelectNote={handleGlobalSearchSelectNote}
           onSelectEvent={handleGlobalSearchSelectEvent}
           onSelectEntity={handleGlobalSearchSelectEntity}
+          onNavigateUtiles={handleGlobalSearchNavigateUtiles}
           condicionales={condicionales}
           aseguradoras={aseguradorasFromCases}
           mapeo={mapeo}
@@ -1954,7 +2209,6 @@ function AppContent() {
           onTimeout={() => setUndoState(null)}
         />
       )}
-
     </div>
     </UXProvider>
     </I18nProvider>

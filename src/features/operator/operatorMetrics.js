@@ -8,6 +8,27 @@
 
 import { normalizeDate } from "../../utils/dateFilters";
 import { DAY_STATES } from "./operatorDefaults";
+// v1.10.1 (fix M25/M26): el literal del estado de éxito se toma del catálogo
+// ESTADOS (constants.js) en un solo lugar; si el usuario lo renombra en
+// Configuración, solo hay que tocar este apodo (los KPIs del Dashboard ya
+// leen config.metrics.categorias.success en su lugar).
+import { ESTADOS } from "../../utils/constants";
+
+/** Apodo del estado "Firmo" del catálogo ESTADOS (fuente única). */
+export const ESTADO_FIRMO = ESTADOS.find((e) => e?.v === "Firmo")?.v || "Firmo";
+
+// C03 (1.10.1): estados que cuentan como "firmó" = categoría `success` del
+// dashboard. Antes fechaFirmaDe comparaba contra ESTADO_FIRMO (literal
+// "Firmo"): al renombrar ese estado en Configuración, el fallback "último
+// reporte si está firmado" dejaba de matchear y las metas perdían firmas.
+// Este módulo es puro (sin React) por lo que el setter lo llama App.jsx en el
+// mismo effect que notificationManager.configure(); con config default la
+// lista es ["Firmo"] (idéntico al comportamiento anterior) y los tests no
+// necesitan tocar nada.
+let ESTADOS_SUCCESS = ["Firmo"];
+export function setEstadosSuccess(list) {
+  if (Array.isArray(list) && list.length > 0) ESTADOS_SUCCESS = list;
+}
 
 // ============================================================
 // UTILIDADES DE FECHAS
@@ -240,18 +261,47 @@ export function countReportsOnDay(cases, isoDate) {
   ).length;
 }
 
-export function countSignedOnDay(cases, isoDate) {
-  const firmoCount = cases.filter((c) => {
-    if (c.estado !== "Firmo") return false;
-    const d = normalizeDate(c.fecha);
-    return d === isoDate;
-  }).length;
-  const bajaCount = cases.filter((c) => {
-    if (c.estado !== "Baja") return false;
-    const d = normalizeDate(c.fecha);
-    return d === isoDate;
-  }).length;
-  return Math.max(0, firmoCount - bajaCount);
+/**
+ * v1.10.1 (fix M25/M26): fecha de FIRMA de un caso para metas/logro.
+ * Regla canónica:
+ *  1) `fechaFirma` normalizada, si existe → manda siempre;
+ *  2) si es null Y el caso está en estado Firmo → último reporte cargado
+ *     (es el reporte que suele registrar la firma);
+ *  3) si no, null → el caso NO cuenta como firma en ningún período.
+ * Antes se contaba por `c.fecha` (fecha de CREACIÓN): un caso firmado en
+ * octubre pero creado en agosto no sumaba en la meta de octubre.
+ * Documentado además: ya NO se resta "Baja" (resta Firmo−Baja): un caso en
+ * estado Baja nunca alcanzó la firma, restarlo hacía que la meta bajara por
+ * bajas ajenas al período y podía dar números negativos forzados a 0.
+ */
+export function fechaFirmaDe(caso) {
+  const directa = normalizeDate(caso?.fechaFirma);
+  if (directa) return directa;
+  // C03 (1.10.1): en vez del literal ESTADO_FIRMO se usa la categoría success
+  // vigente (setEstadosSuccess desde App); si el usuario renombró "Firmo" el
+  // fallback sigue matcheando el estado nuevo.
+  if (!ESTADOS_SUCCESS.includes(caso?.estado)) return null;
+  const reports = caso.reporteHistory;
+  if (!Array.isArray(reports) || reports.length === 0) return null;
+  return normalizeDate(reports[reports.length - 1]?.fecha);
+}
+
+/**
+ * True si el caso tiene fecha de firma dentro del período.
+ * Sin year/month (ambos undefined) cuenta siempre — se usa para el total
+ * "sin filtro de mes" de LogroObjetivos.
+ */
+export function esFirmaEnPeriodo(caso, year, month) {
+  const iso = fechaFirmaDe(caso);
+  if (!iso) return false;
+  if (year === undefined || month === undefined) return true;
+  const [y, m] = iso.split("-").map(Number);
+  return y === year && m === month + 1;
+}
+
+export function countSignedOnDay(cases = [], isoDate) {
+  // v1.10.1 (fix M25): firmas del día por FECHA DE FIRMA (no por c.fecha).
+  return cases.filter((c) => fechaFirmaDe(c) === isoDate).length;
 }
 
 export function countReportsInMonth(cases, year, month) {
@@ -267,21 +317,15 @@ export function countReportsInMonth(cases, year, month) {
 }
 
 export function countSignedInMonth(cases, year, month) {
-  const firmoCount = cases.filter((c) => {
-    if (c.estado !== "Firmo") return false;
-    const d = normalizeDate(c.fecha);
-    if (!d) return false;
-    const parts = d.split("-").map(Number);
-    return parts[0] === year && parts[1] === month + 1;
-  }).length;
-  const bajaCount = cases.filter((c) => {
-    if (c.estado !== "Baja") return false;
-    const d = normalizeDate(c.fecha);
-    if (!d) return false;
-    const parts = d.split("-").map(Number);
-    return parts[0] === year && parts[1] === month + 1;
-  }).length;
-  return Math.max(0, firmoCount - bajaCount);
+  // v1.10.1 (fix M26): antes = (Firmo − Baja) contados por `c.fecha`
+  // (fecha de CREACIÓN): un caso firmado en octubre pero creado en agosto no
+  // sumaba en la meta de octubre, y las bajas del mes restaban firmas ajenas
+  // (incluso podía dar negativos forzados a 0). Ahora: firmas del período =
+  // casos con fecha de firma dentro del período (esFirmaEnPeriodo, con el
+  // fallback documentado fechaFirma → último reporte si estado Firmo).
+  // Riesgo asumido: casos "Firmo" sin fechaFirma y sin reportes no cuentan en
+  // ninguna meta (antes sí, por fecha de creación); se alinea con LogroObjetivos.
+  return cases.filter((c) => esFirmaEnPeriodo(c, year, month)).length;
 }
 
 /**
@@ -696,12 +740,24 @@ export function getWeeklyGoalProgress(
   const esEfectivo = (iso) => !isUnavailableOn(availability, iso);
 
   const countInRange = (field, fromISO, toISO) => {
+    // v1.10.1 (fix M25/M26): "firmas" semanales = casos con fecha de FIRMA
+    // dentro de la semana (fechaFirmaDe), ANTES = estado "Firmo" por c.fecha
+    // (creación) menos "Baja" — misma incoherencia que countSignedInMonth y
+    // que LogroObjetivos; el día efectivo se evalúa sobre la fecha de firma.
+    // Riesgo: casos Firmo sin fechaFirma ni reportes dejan de contar (antes
+    // contaban por fecha de creación).
+    if (field === "signed") {
+      return cases.filter((c) => {
+        const f = fechaFirmaDe(c);
+        if (!f || f < fromISO || f > toISO) return false;
+        return esEfectivo(f);
+      }).length;
+    }
     const baseCount = cases.filter((c) => {
       const d = normalizeDate(c.fecha);
       if (!d) return false;
       if (d < fromISO || d > toISO) return false;
       if (!esEfectivo(d)) return false;
-      if (field === "signed") return c.estado === "Firmo";
       if (field === "reports") {
         return (c.reporteHistory || []).some((r) => {
           const rd = normalizeDate(r.fecha);
@@ -710,15 +766,7 @@ export function getWeeklyGoalProgress(
       }
       return true;
     }).length;
-    if (field !== "signed") return baseCount;
-    const bajaCount = cases.filter((c) => {
-      if (c.estado !== "Baja") return false;
-      const d = normalizeDate(c.fecha);
-      if (!d) return false;
-      if (!esEfectivo(d)) return false;
-      return d >= fromISO && d <= toISO;
-    }).length;
-    return Math.max(0, baseCount - bajaCount);
+    return baseCount;
   };
 
   const types = [

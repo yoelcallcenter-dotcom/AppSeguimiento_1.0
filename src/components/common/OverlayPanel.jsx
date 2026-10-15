@@ -16,20 +16,19 @@ export function OverlayPanel({
 }) {
   const panelRef = useRef(null);
   const { isRendered, isLeaving } = useAnimatedPresence(isOpen);
-  useDialogA11y(panelRef, isOpen);
-
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // N17 (1.10.1): el Escape del panel entra a la pila global de useDialogA11y
+  // (solo actúa el panel TOPE); antes tenía su propio listener en document y
+  // cerraba el panel aunque hubiera un ConfirmDialog/Modal por encima.
+  useDialogA11y(panelRef, isOpen, { onEscape: () => onCloseRef.current() });
 
   useLayoutEffect(() => {
     if (!isOpen) return undefined;
-    const handleEscape = (e) => {
-      if (e.key === "Escape") onCloseRef.current();
-    };
-    document.addEventListener("keydown", handleEscape);
+    // N17 (1.10.1): se quitó el listener propio de Escape (ver useDialogA11y);
+    // acá solo queda el lock de scroll del body.
     lockBodyScroll();
     return () => {
-      document.removeEventListener("keydown", handleEscape);
       unlockBodyScroll();
     };
   }, [isOpen]);

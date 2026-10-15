@@ -80,6 +80,8 @@ function DireccionCell({ direcciones, onChange }) {
             </option>
           ))}
         </select>
+        {/* X11 (1.10.1): p-1 → p-1.5 en los 5 botones de la celda de
+            direcciones (icono 14px: 22px → 26px, WCAG 2.5.8 mínimo 24px). */}
         <button
           type="button"
           title="Agregar dirección"
@@ -87,7 +89,7 @@ function DireccionCell({ direcciones, onChange }) {
             setEditando({ modo: "nuevo" });
             setValor("");
           }}
-          className="p-1 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
+          className="p-1.5 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
           style={{ color: "var(--color-accent)" }}
         >
           <Plus size={14} />
@@ -101,7 +103,7 @@ function DireccionCell({ direcciones, onChange }) {
                 setEditando({ modo: "editar", texto: sel });
                 setValor(sel);
               }}
-              className="p-1 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
+              className="p-1.5 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
               style={{ color: "var(--color-text)" }}
             >
               <Pencil size={14} />
@@ -110,7 +112,7 @@ function DireccionCell({ direcciones, onChange }) {
               type="button"
               title="Eliminar dirección"
               onClick={eliminar}
-              className="p-1 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
+              className="p-1.5 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
               style={{ color: "var(--color-danger)" }}
             >
               <Trash2 size={14} />
@@ -135,7 +137,7 @@ function DireccionCell({ direcciones, onChange }) {
             type="button"
             title="Guardar"
             onClick={confirmar}
-            className="p-1 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
+            className="p-1.5 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
             style={{ color: "var(--color-accent)" }}
           >
             <Check size={14} />
@@ -144,7 +146,7 @@ function DireccionCell({ direcciones, onChange }) {
             type="button"
             title="Cancelar"
             onClick={cancelar}
-            className="p-1 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
+            className="p-1.5 rounded hover:bg-[var(--color-surface)] transition-colors shrink-0"
             style={{ color: "var(--color-text-muted)" }}
           >
             <X size={14} />
@@ -495,9 +497,11 @@ export function MapeoView({ mapeo, setMapeo, showToast }) {
                   />
                 </td>
                 <td className="px-2 py-1.5 text-center">
+                  {/* X11 (1.10.1): p-1 → p-1.5 en el botón de eliminar fila
+                      de la tabla (icono 14px: 22px → 26px, WCAG 2.5.8). */}
                   <button
                     onClick={() => setFilaAEliminar(m)}
-                    className="p-1 rounded hover:opacity-70 transition-opacity"
+                    className="p-1.5 rounded hover:opacity-70 transition-opacity"
                   >
                     <Trash2
                       size={14}

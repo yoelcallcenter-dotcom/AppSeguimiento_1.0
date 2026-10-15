@@ -88,34 +88,12 @@ export function isSameMonth(dateStr, month, year) {
   return y === year && m === month + 1;
 }
 
-/**
- * Filtra un array por mes/año
- */
-export function filterByMonth(dataArray, dateField, month, year) {
-  if (!dataArray || !Array.isArray(dataArray) || dataArray.length === 0) {
-    return [];
-  }
-
-  return dataArray.filter((item) => {
-    const dateValue = item[dateField];
-    if (!dateValue) return false;
-    return isSameMonth(dateValue, month, year);
-  });
-}
-
-/**
- * Obtiene el mes actual (0-11)
- */
-export function getCurrentMonth() {
-  return new Date().getMonth();
-}
-
-/**
- * Obtiene el año actual
- */
-export function getCurrentYear() {
-  return new Date().getFullYear();
-}
+// 1.10.1 — Higiene P3 (código muerto): se eliminaron filterByMonth, getCurrentMonth,
+// getCurrentYear y parseMonthYear (cluster dateFilters ×4, AUDITORIA_RELEASE_1.10.1 §8).
+// Verificación: grep de cada nombre en src/ incl. *.test.* = 0 usos (ni internos ni
+// externos; dateFilters.test.js no los cubre). normalizeDate/isSameMonth/getMonthLabel/
+// getAvailableMonths/fechaUltimoReporte/casoEnMes/casoVieneDeReporte/
+// getAvailableMonthsConReportes siguen con consumidores reales y NO se tocan.
 
 /**
  * Genera un string de mes para mostrar (Enero 2024)
@@ -156,15 +134,6 @@ export function getAvailableMonths(dataArray, dateField) {
   });
 
   return Array.from(monthsSet).sort().reverse();
-}
-
-/**
- * Obtiene el mes y año de un string YYYY-MM
- */
-export function parseMonthYear(monthYear) {
-  if (!monthYear) return null;
-  const [year, month] = monthYear.split("-").map(Number);
-  return { year, month: month - 1 };
 }
 
 /**

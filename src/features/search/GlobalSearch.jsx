@@ -3,9 +3,11 @@ import { Search, FileText, Calendar, User, X, Clock, Hash, AtSign, Building2, Sc
 import useAppStore from '../../core/store/useAppStore';
 import casesDB from '../../core/db/casesDB';
 import { readConfig, formatDateWithConfig, formatPhoneWithConfig } from '../../utils/configFormatters';
-import { crearIndicesGlobal, buscarGlobal, buscarEntidades } from '../../utils/searchEngine';
+import { crearIndicesGlobal, buscarGlobal, buscarEntidades, condicionalSubtitle } from '../../utils/searchEngine';
 import { reportError } from '../../core/error/reportError';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 const HISTORIAL_KEY = 'global-search-history';
 const RECENT_KEY = 'recent-entities-art-tracker';
@@ -28,8 +30,11 @@ const cargarHistorial = () => {
   try { return JSON.parse(localStorage.getItem(HISTORIAL_KEY) || '[]'); } catch { return []; }
 };
 
+// X18 (1.10.1): los encabezados son decorativos dentro del listbox (solo
+// pueden vivir options/group); role="presentation" evita que el lector de
+// pantalla los anuncie como nodos del listbox.
 const GroupHeader = React.memo(({ label }) => (
-  <div className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+  <div role="presentation" className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
     {label}
   </div>
 ));
@@ -47,7 +52,10 @@ const ResultItem = React.memo(({ icon: Icon, title, subtitle, badge, color, onSe
     </div>
     <span
       className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5"
-      style={{ backgroundColor: color + '22', color }}
+      // R02 (1.10.1): antes `color + '22'` concatenaba el sufijo alfa sobre
+      // var(--…) generando un valor inválido (la decl se descartaba). Patrón
+      // color-mix adoptado en 1.10.0.
+      style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, color }}
       aria-hidden="true"
     >
       {badge}
@@ -55,7 +63,15 @@ const ResultItem = React.memo(({ icon: Icon, title, subtitle, badge, color, onSe
   </button>
 ));
 
-export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent, onSelectEntity, condicionales = [], aseguradoras = [], mapeo = [] }) {
+// X14 (1.10.1): pestaña de Útiles asociada a cada tipo de entidad, para que
+// App pueda navegar al directorio correcto en vez de solo cambiar a 'utiles'.
+const TAB_UTILES_POR_TIPO = {
+  insurer: 'aseguradoras',
+  lawFirm: 'mapeo',
+  condicional: 'condicionales',
+};
+
+export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent, onSelectEntity, onNavigateUtiles, condicionales = [], aseguradoras = [], mapeo = [] }) {
   const isOpen = useAppStore((s) => s.ui.globalSearchOpen);
   const setUIState = useAppStore((s) => s.setUIState);
   const cases = useAppStore((s) => s.cases);
@@ -68,6 +84,17 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
   const [historialCasos, setHistorialCasos] = useState([]);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  // X10 (1.10.1): el diálogo ahora usa el hook estándar de a11y (igual que
+  // ConfirmDialog/Modal): trampa de Tab, foco inicial y restauración al cerrar.
+  const dialogRef = useRef(null);
+
+  // X04 (1.10.1): la consulta se debouncea a 300ms, igual que el header
+  // (App.jsx:642 y FiltersContext.jsx:153 con useDebounce). El input sigue
+  // controlado y tipeable en vivo, pero recién el valor debounceado dispara
+  // buscarGlobal + buscarEntidades, que hoy recorren casos/notas/eventos,
+  // reportes y TODO case_history: sin esto cada tecla re-corria el motor
+  // completo sobre el historial indexado.
+  const debouncedQuery = useDebounce(query, 300);
 
   // Indización del historial de casos (case_history) cuando se abre la búsqueda.
   // Se carga una sola vez por apertura: los índices solo se recalculan cuando
@@ -113,14 +140,19 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     () => crearIndicesGlobal({ cases, notes, events, cfg, historial: historialCasos }),
     [cases, notes, events, cfg, historialCasos]
   );
-  const entityIndices = useMemo(() => ({ aseguradoras, mapeo, condicionales }), [aseguradoras, mapeo, condicionales]);
+  // S11b (1.10.1): se pasan los casos para que buscarEntidades calcule el
+  // casesCount real de aseguradoras/estudios (antes "0 casos" siempre).
+  const entityIndices = useMemo(
+    () => ({ aseguradoras, mapeo, condicionales, cases }),
+    [aseguradoras, mapeo, condicionales, cases]
+  );
 
   const results = useMemo(() => {
-    if (!query.trim()) return EMPTY_RESULTS;
-    const core = buscarGlobal(indices, query);
-    const entities = buscarEntidades(entityIndices, query);
+    if (!debouncedQuery.trim()) return EMPTY_RESULTS;
+    const core = buscarGlobal(indices, debouncedQuery);
+    const entities = buscarEntidades(entityIndices, debouncedQuery);
     return { ...core, ...entities };
-  }, [query, indices, entityIndices]);
+  }, [debouncedQuery, indices, entityIndices]);
 
   const flatResults = useMemo(() => {
     if (results === EMPTY_RESULTS) return EMPTY_FLAT;
@@ -166,14 +198,22 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     if (!isOpen) return undefined;
     setQuery('');
     setSelectedIndex(0);
-    setTimeout(() => inputRef.current?.focus(), 50);
+    // X10 (1.10.1): el foco inicial (y la restauración al cerrar) lo gestiona
+    // useDialogA11y; antes se hackeaba con setTimeout(50) sobre el input.
     lockBodyScroll();
     return () => unlockBodyScroll();
   }, [isOpen]);
 
+  // X10 (1.10.1): trampa de Tab + foco inicial/restauración + Escape, con el
+  // mismo hook que usan ConfirmDialog/Modal (antes el role="dialog" no tenía
+  // gestor de foco ni trampa: el Tab salía al fondo de la página).
+  useDialogA11y(dialogRef, isOpen, { onEscape: close });
+
+  // El cursor vuelve a 0 cuando cambia la lista de resultados (query debounceada),
+  // no en cada tecla: así no se "salta" mientras el debounce resuelve.
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query]);
+  }, [debouncedQuery]);
 
   useEffect(() => {
     if (isOpen) {
@@ -200,6 +240,22 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     }
   }, [isOpen, flatResults, selectedIndex, totalItems, close, guardarEnHistorial]);
 
+  // X14 (1.10.1): navegación mínima a la entidad elegida. App hoy pasa un
+  // onSelectEntity que IGNORA tipo+nombre (solo setSelectedView('utiles')),
+  // así que el resultado nunca llegaba al directorio concreto. Este handler
+  // resuelve internamente el tab de Útiles correspondiente y:
+  //   - si App pasa `onNavigateUtiles(tab, nombre)` → navega al tab exacto;
+  //   - si no, cae en retrocompatibilidad con el prop legado onSelectEntity
+  //     (mantiene el comportamiento actual de ir a 'utiles').
+  const handleSelectEntidad = useCallback((tipo, nombre) => {
+    const tab = TAB_UTILES_POR_TIPO[tipo];
+    if (onNavigateUtiles) {
+      onNavigateUtiles(tab, nombre, tipo);
+      return;
+    }
+    if (onSelectEntity) onSelectEntity(tipo, nombre);
+  }, [onNavigateUtiles, onSelectEntity]);
+
   const handleSelect = useCallback((item) => {
     guardarEnHistorial(query);
     if (item.type === 'case' && onSelectCase) onSelectCase(item.data.id);
@@ -208,10 +264,14 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     if ((item.type === 'reporte' || item.type === 'historial') && item.data.caseId !== undefined && onSelectCase) {
       onSelectCase(item.data.caseId);
     }
-    if ((item.type === 'insurer' || item.type === 'lawFirm') && onSelectEntity) onSelectEntity(item.type === 'insurer' ? 'insurer' : 'lawFirm', item.data.nombre || item.data);
-    if (item.type === 'condicional' && onSelectEntity) onSelectEntity('condicional', item.data.aseguradora);
+    if (item.type === 'insurer' || item.type === 'lawFirm') {
+      handleSelectEntidad(item.type, item.data.nombre || item.data);
+    }
+    if (item.type === 'condicional') {
+      handleSelectEntidad('condicional', item.data.aseguradora || item.data.estudio);
+    }
     close();
-  }, [onSelectCase, onSelectNote, onSelectEvent, onSelectEntity, close, guardarEnHistorial, query]);
+  }, [onSelectCase, onSelectNote, onSelectEvent, handleSelectEntidad, close, guardarEnHistorial, query]);
 
   const getItemIndex = (flatIdx) => {
     let count = -1;
@@ -221,10 +281,16 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
     return count;
   };
 
+  // X18 (1.10.1): el rol listbox solo aplica cuando hay resultados (el panel
+  // de recientes/histórico es de botones, no opciones, y no debe mentirle a
+  // la API de a11y con un listbox vacío).
+  const hayOpciones = Boolean(debouncedQuery.trim()) && flatResults.some((r) => r.type !== 'header');
+
   if (!isOpen) return null;
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="Búsqueda global"
@@ -247,6 +313,15 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
             placeholder="Buscar casos, notas, eventos, reportes, historial... (#etiqueta / @comentario)"
             className="flex-1 bg-transparent border-none outline-none text-sm"
             style={{ color: 'var(--color-text)' }}
+            // X18 (1.10.1): el cursor de flechas antes solo se comunicaba por
+            // color de fondo; ahora el input declara el listbox y la opción
+            // activa para lectores de pantalla.
+            role="combobox"
+            aria-expanded={hayOpciones}
+            aria-controls="gs-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={hayOpciones ? `gs-opt-${selectedIndex}` : undefined}
+            aria-label="Buscar en casos, notas, eventos, reportes, historial y entidades"
           />
           {query && (
             <button
@@ -258,7 +333,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
               <X size={14} />
             </button>
           )}
-          {query.trim() && totalItems > 0 && (
+          {debouncedQuery.trim() && totalItems > 0 && (
             <span
               className="hidden sm:inline-flex items-center text-[10px] font-semibold rounded-full px-2 py-0.5 whitespace-nowrap"
               style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
@@ -275,8 +350,16 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
           </button>
         </div>
 
-        <div ref={listRef} className="max-h-[420px] overflow-y-auto">
-          {!query.trim() ? (
+        <div
+          ref={listRef}
+          className="max-h-[420px] overflow-y-auto"
+          // X18 (1.10.1): contenedor de resultados como listbox real; cada fila
+          // es una option con id/aria-selected y el input la referencia.
+          id="gs-listbox"
+          role={hayOpciones ? 'listbox' : undefined}
+          aria-label="Resultados de búsqueda"
+        >
+          {!debouncedQuery.trim() ? (
             recientes.length > 0 ? (
               <div>
                 <div className="px-3 py-1.5 text-ds-xs font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
@@ -287,7 +370,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                   return (
                     <button
                       key={`r-${i}`}
-                      onClick={() => onSelectEntity && onSelectEntity(r.type, r.name)}
+                      onClick={() => handleSelectEntidad(r.type, r.name)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors text-xs"
                       style={{ color: 'var(--color-text)', borderBottom: '1px solid var(--color-border)' }}
                     >
@@ -323,7 +406,7 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
             )
           ) : flatResults.length === 0 ? (
             <div className="px-4 py-8 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              Sin resultados para "{query}"
+              Sin resultados para "{debouncedQuery}"
             </div>
           ) : (
             flatResults.map((r, idx) => {
@@ -378,19 +461,33 @@ export default function GlobalSearch({ onSelectCase, onSelectNote, onSelectEvent
                   };
                 }
                 if (r.type === 'insurer') {
-                  return { title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                  // S11b (1.10.1): casesCount ahora lo calcula buscarEntidades
+                  // con los casos reales (antes el campo no existía y decía
+                  // "0 casos" siempre).
+                  const n = r.data.casesCount || 0;
+                  return { title: r.data.nombre || r.data, subtitle: `${n} caso${n === 1 ? '' : 's'}` };
                 }
                 if (r.type === 'lawFirm') {
-                  return { title: r.data.nombre || r.data, subtitle: `${r.data.casesCount || 0} casos` };
+                  const n = r.data.casesCount || 0;
+                  return { title: r.data.nombre || r.data, subtitle: `${n} caso${n === 1 ? '' : 's'}` };
                 }
                 if (r.type === 'condicional') {
-                  return { title: r.data.aseguradora, subtitle: `${r.data.condicion} — ${r.data.estudioJuridico || ''}` };
+                  // S11b (1.10.1): el modelo real guarda .estudio (no el
+                  // inexistente .estudioJuridico) y la condición como código
+                  // ('no-toma' | 'condicion'); condicionalSubtitle compone
+                  // "No toma|Con condiciones — <estudio>".
+                  return { title: r.data.aseguradora || 'Sin aseguradora', subtitle: condicionalSubtitle(r.data) };
                 }
                 return { title: '', subtitle: '' };
               })();
               return (
                 <div
                   key={`r-${idx}`}
+                  // X18 (1.10.1): opción del listbox; el id la vincula con
+                  // aria-activedescendant del input (cursor por flechas).
+                  id={`gs-opt-${itemIdx}`}
+                  role="option"
+                  aria-selected={isSelected}
                   style={{ backgroundColor: isSelected ? 'var(--color-surface)' : 'transparent' }}
                   onMouseEnter={() => setSelectedIndex(itemIdx)}
                 >

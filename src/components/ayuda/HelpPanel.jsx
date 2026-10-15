@@ -53,7 +53,12 @@ function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
         <Icon size={16} style={{ color }} className="flex-shrink-0" />
         <span className="text-xs font-semibold flex-1" style={{ color: "var(--color-text)" }}>{titulo}</span>
         {badge && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${color}22`, color }}>
+          // 1.10.1 (R02): antes `${color}22` concatenaba el sufijo alfa sobre el
+          // valor; con color = ACCENT ("var(--color-accent)") resultaba
+          // "var(--color-accent)22" → inválido y backgroundColor se descartaba.
+          // Se reescribe con color-mix (22 → 13.3%), convención de 1.10.0; es
+          // igual de válido para los colores hex que pasan el resto de secciones.
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `color-mix(in srgb, ${color} 13.3%, transparent)`, color }}>
             {badge}
           </span>
         )}

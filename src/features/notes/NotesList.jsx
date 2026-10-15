@@ -3,6 +3,8 @@ import { Trash2, Clock, Tag, FileText } from 'lucide-react';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { SearchInput } from '../../components/common/SearchInput';
 import { EmptyState } from '../../components/common/EmptyState';
+// T4c (1.10.1): Btn para el botón de eliminar de cada fila.
+import { Btn } from '../../components/common/Btn';
 import { onKeyActivate } from '../../utils/a11y';
 
 export default function NotesList({
@@ -115,16 +117,20 @@ export default function NotesList({
                   </div>
                 </div>
                 <div className="flex gap-0.5 flex-shrink-0">
-                  <button
+                  {/* T4c/C03 (1.10.1): pasa de <button> crudo (p-1 +
+                      hover:bg-white/5, invisible en tema claro) a Btn danger
+                      sm: misma forma/estados que el resto de los botones de la
+                      app y área táctil ≥24px (X11). Se conservan aria-label y
+                      title "Eliminar nota". */}
+                  <Btn
                     type="button"
-                    aria-label="Eliminar nota"
+                    ariaLabel="Eliminar nota"
                     onClick={e => { e.stopPropagation(); setConfirmDelete(note.id); }}
-                    className="p-1 rounded hover:bg-white/5 transition-colors"
-                    style={{ color: 'var(--color-danger)' }}
+                    variant="danger"
+                    size="sm"
+                    icon={Trash2}
                     title="Eliminar nota"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  />
                 </div>
               </div>
             </div>

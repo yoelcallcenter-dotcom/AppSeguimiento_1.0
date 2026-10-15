@@ -141,7 +141,15 @@ class SoundSystem {
   }
 
   configure(config = {}) {
-    this._enabled = config.notifSonido !== false;
+    // T18a (1.10.1): el default estaba invertido respecto de
+    // ruleEngine.shouldPlaySound (`notifSonido !== true` ⇒ SIN sonido por
+    // defecto): acá `_enabled` quedaba ON con `notifSonido !== false`, así que
+    // una config sin la clave habilitaba el sonido en el SoundSystem y lo
+    // deshabilitaba en el gate. Se unifica el default en false (sin sonido).
+    // Con CONFIG_DEFAULT.notifSonido=false el resultado práctico es el mismo
+    // que antes (configure siempre corría con la config completa desde App);
+    // solo cambia el caso "clave ausente" (tests o config vacía).
+    this._enabled = config.notifSonido === true;
     this._volume = config.volumenNotificaciones ?? 0.5;
   }
 

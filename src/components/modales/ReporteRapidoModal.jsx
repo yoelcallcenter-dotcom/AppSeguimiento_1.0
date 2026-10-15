@@ -482,6 +482,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                     onSelect={(resolved) => {
                       if (resolved.texto) setTexto(resolved.texto);
                       if (resolved.origen) setOrigen(resolved.origen);
+                      // 1.10.1: la plantilla de reporte puede precargar también
+                      // el estado del caso (campo opcional 'estado', vacío =
+                      // sin cambio).
+                      if (resolved.estado) setEstado(resolved.estado);
                     }}
                   />
                 </div>

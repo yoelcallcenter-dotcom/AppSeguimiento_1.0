@@ -138,7 +138,15 @@ export default function AlertsPanel({ metrics, cases, notes, events, onDrill, on
                 type="button"
                 onClick={() => onDrill && onDrill(item.drill)}
                 className="w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors hover:opacity-90"
-                style={{ backgroundColor: sev.bg, border: '1px solid ' + sev.color + '44' }}
+                style={{
+                  backgroundColor: sev.bg,
+                  // 1.10.1 (R02): sev.color es un token var(--chart-color-*) y
+                  // `+ '44'` producía "var(--chart-color-danger)44" → valor
+                  // inválido y la declaración de border se descartaba. Se reescribe
+                  // con color-mix conservando el alfa de '44' (0x44 = 26.7%),
+                  // igual que la convención adoptada en 1.10.0 (ver CHANGELOG H1).
+                  border: `1px solid color-mix(in srgb, ${sev.color} 26.7%, transparent)`,
+                }}
               >
                 <Icon size={16} style={{ color: sev.color, flexShrink: 0, marginTop: 2 }} />
                 <div className="min-w-0 flex-1">

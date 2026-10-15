@@ -72,87 +72,10 @@ export function getCasesByLawFirm(lawFirmName, cases) {
   );
 }
 
-/**
- * Devuelve un objeto con toda la información resuelta de un caso.
- * Útil para el Perfil 360°.
- * @param {string|number} caseId
- * @param {Array} cases
- * @param {Array} notes
- * @param {Array} events
- * @returns {object|null} { caso, notas, eventos, casosByInsurer, casosByLawFirm }
- */
-export function getCaseSummary(caseId, cases, notes, events) {
-  if (!caseId) return null;
-  const caso = cases.find((c) => String(c.id) === String(caseId));
-  if (!caso) return null;
-
-  const notas = getRelatedNotes(caseId, notes);
-  const eventos = getRelatedEvents(caseId, events);
-  const casosByInsurer = caso.aseguradora
-    ? getCasesByInsurer(caso.aseguradora, cases).filter(
-        (c) => String(c.id) !== String(caseId)
-      )
-    : [];
-  const casosByLawFirm = caso.estudioJuridico
-    ? getCasesByLawFirm(caso.estudioJuridico, cases).filter(
-        (c) => String(c.id) !== String(caseId)
-      )
-    : [];
-
-  return { caso, notas, eventos, casosByInsurer, casosByLawFirm };
-}
-
-/**
- * Normaliza un nombre de aseguradora/estudio para comparación segura.
- * Devuelve string vacío si el valor es null/undefined/vacío.
- * @param {string} name
- * @returns {string}
- */
-export function safeName(name) {
-  return (name || "").trim();
-}
-
-/**
- * Verifica si un nombre de aseguradora/estudio tiene casos asociados.
- * @param {string} name
- * @param {Array} cases
- * @param {'aseguradora'|'estudioJuridico'} field
- * @returns {boolean}
- */
-export function hasRelatedCases(name, cases, field = "aseguradora") {
-  if (!name || !Array.isArray(cases)) return false;
-  const normalized = name.trim().toLowerCase();
-  return cases.some(
-    (c) => (c[field] || "").trim().toLowerCase() === normalized
-  );
-}
-
-/**
- * Obtiene todas las aseguradoras únicas de los casos existentes.
- * @param {Array} cases
- * @returns {Array<string>}
- */
-export function getUniqueInsurers(cases) {
-  if (!Array.isArray(cases)) return [];
-  const set = new Set();
-  for (const c of cases) {
-    const v = (c.aseguradora || "").trim();
-    if (v) set.add(v);
-  }
-  return Array.from(set).sort();
-}
-
-/**
- * Obtiene todos los estudios jurídicos únicos de los casos existentes.
- * @param {Array} cases
- * @returns {Array<string>}
- */
-export function getUniqueLawFirms(cases) {
-  if (!Array.isArray(cases)) return [];
-  const set = new Set();
-  for (const c of cases) {
-    const v = (c.estudioJuridico || "").trim();
-    if (v) set.add(v);
-  }
-  return Array.from(set).sort();
-}
+// 1.10.1 — Higiene P3 (código muerto): se eliminaron getCaseSummary, safeName,
+// hasRelatedCases, getUniqueInsurers y getUniqueLawFirms. Verificación: grep de
+// cada nombre en src/ (incl. *.test.* y barrels) = 0 usos fuera de este archivo y
+// 0 usos internos (getCaseSummary no era llamado por nadie; el resto tampoco).
+// Informe AUDITORIA_RELEASE_1.10.1.md §8 (cluster caseRelations ×6; verificados 5).
+// Se conservan getRelatedNotes/getRelatedEvents/getCasesByInsurer/getCasesByLawFirm,
+// únicos importados por components/modales/VerCasoModal.jsx:36-41.

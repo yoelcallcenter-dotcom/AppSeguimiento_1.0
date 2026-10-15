@@ -132,6 +132,18 @@ class NotificationManager {
     return this.handleEvent(event);
   }
 
+  /**
+   * ¿Inicializado? (1.10.1 · T01) Lo necesita useAppStore.addToast para
+   * distinguir "filtrado por config" (notify devuelve null con el manager
+   * activo → se respeta el gate) de "manager aún no arrancado" (null →
+   * fallback a toast directo para no perder el mensaje). Sin esto, los toasts
+   * de alertsSystem/CSVImporter se perdían entre el arranque de React y
+   * notificationManager.init (App.jsx al montar).
+   */
+  isReady() {
+    return this._initialized;
+  }
+
   handleEvent(event) {
     if (!this._initialized) return null;
 
@@ -164,7 +176,11 @@ class NotificationManager {
     }
 
     if (ruleEngine.shouldShowToast(normalized, this._config)) {
-      const duration = normalized.priority === "critical" || normalized.priority === "high" ? 8000 : 4000;
+      // 1.10.1 (T01): si el emisor pasó `duration` explícito (alertsSystem y
+      // CSVImporter lo hacen vía useAppStore.addToast) se respeta; si no, el
+      // default por prioridad de siempre.
+      const duration = normalized.duration ||
+        (normalized.priority === "critical" || normalized.priority === "high" ? 8000 : 4000);
       store.addToast({
         ...normalized,
         id: `toast-${id}`,

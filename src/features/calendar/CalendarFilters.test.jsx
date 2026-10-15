@@ -48,7 +48,7 @@ const byText = (expected) => (_, el) =>
   Boolean(el) && el.textContent.replace(/\s+/g, " ").trim() === expected;
 
 describe("CalendarFilters", () => {
-  it("renderiza los 5 grupos con un solo label por campo y la cabecera", () => {
+  it("renderiza los 5 grupos con un solo label por campo y el panel con nombre propio", () => {
     render(
       <CalendarFilters
         events={EVENTS}
@@ -57,7 +57,10 @@ describe("CalendarFilters", () => {
         onFiltrosChange={vi.fn()}
       />
     );
-    expect(screen.getByText("Filtros")).toBeTruthy();
+    // T4c/C03 (1.10.1): la cabecera de texto "Filtros" desaparece (ya vive en
+    // el chip de la toolbar); el panel queda identificable como group con
+    // nombre propio, que es lo que enlaza el aria-controls del chip.
+    expect(screen.getByRole("group", { name: "Filtros del calendario" })).toBeTruthy();
     ["Estado", "Prioridad", "Aseguradora", "Estudio", "Tipo"].forEach(
       (label) => {
         expect(screen.getAllByText(label)).toHaveLength(1);
