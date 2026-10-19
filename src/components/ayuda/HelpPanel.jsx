@@ -39,6 +39,9 @@ import { AtajosTeclado } from "./AtajosTeclado";
 import { FeedbackForm } from "./FeedbackForm";
 import { useTour, TOURS } from "../../tour";
 import { DOC_README, DOC_CHANGELOG } from "../../docs/docsContent";
+// Post 1.10.1 (lector md): la pestaña Documentación mostraba los .md en texto
+// plano (<pre>); Markdown interpreta títulos, negrita, listas, tablas, etc.
+import { Markdown } from "./Markdown";
 import { EjemplosCasos } from "./EjemplosCasos";
 
 function SeccionAccordeon({ id, titulo, icon: Icon, color, badge, children }) {
@@ -655,13 +658,10 @@ export default function HelpPanel({ showToast, onClose }) {
                   {DOCS[docTab].desc}
                 </span>
               </div>
-              <div className="preview-scroll" style={{ maxHeight: 460 }}>
-                <pre
-                  className="text-sm whitespace-pre-wrap font-mono p-4"
-                  style={{ color: "var(--color-text)", margin: 0 }}
-                >
-                  {contenido}
-                </pre>
+              <div className="preview-scroll p-4" style={{ maxHeight: 460 }}>
+                {/* Post 1.10.1: antes era un <pre> en texto plano (los "#" y
+                    "**" del .md se veían literales); ahora se renderiza como md. */}
+                <Markdown content={contenido} />
               </div>
             </div>
           </div>
@@ -687,11 +687,9 @@ export default function HelpPanel({ showToast, onClose }) {
                   border: "1px solid var(--color-border)",
                 }}
               >
-                <div
-                  className="text-sm whitespace-pre-wrap font-mono"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  {docs[seccion.replace("doc_", "")] || "Contenido no disponible"}
+                {/* Post 1.10.1: mismo tratamiento md que la pestaña principal. */}
+                <div className="text-sm" style={{ color: "var(--color-text)" }}>
+                  <Markdown content={docs[seccion.replace("doc_", "")] || "Contenido no disponible"} />
                 </div>
               </div>
             </div>

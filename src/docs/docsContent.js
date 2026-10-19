@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.10.1** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.2** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,24 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.1 — Integridad, accesibilidad y estados personalizados
+- **Estados de caso personalizados de verdad**: crear, renombrar y eliminar estados migra casos, colores, filtros, métricas y PDF (antes el catálogo fijo ignoraba los cambios).
+- **Borrado seguro con deshacer**: "Borrar todos los datos" limpia de verdad; eliminar casos arrastra historial y referencias, y el deshacer restaura la línea de tiempo.
+- **Calendario**: filtros compactos ocultos por defecto con chip "Filtros (N)" que cuenta los filtros activos.
+- **Consistencia visual**: form de plantillas crear/editar unificado (mismos chips de tipo), toolbar del Bloc de Notas con botones accesibles, botones con estado de carga y export CSV en dos filas.
+- Accesibilidad (Escape apilado, contraste AA, targets táctiles) y métricas alineadas (tasa de cierre y fechas consistentes).
+
+### 1.10.0 — Reglas automáticas, navegador y metas
+- **Reglas automáticas** cableadas al guardado de casos, con editor de reglas propias en lenguaje llano y alertas que no se repiten (dedup 10 min).
+- **Notificaciones del navegador** (opcional, solo prioridad alta y con la pestaña oculta).
+- **Meta de firmas** en Resumen e **historial de metas (30 días hábiles)** en Rendimiento.
+- Marcador del día de hoy en el filtro de Día y auditoría de color que reparó el patrón \`var(--token)NN\` en toda la app.
+
+### 1.9.x — Speechs Interactivos y refinamiento
+- **Speechs Interactivos**: recorridos por pasos con editor de árbol, duplicación, ejecución paso a paso y exportación/importación en JSON versionado.
+- Sistema global de pills/tabs con alineación configurable y filtro rápido de casos en el header.
+- Categorías y variables configurables en Conversación Sugerida, objeciones vía llaves en Speechs, fechas en hora local y backups sin anidamiento.
 
 ### 1.8.4 — Configuración y Personalización
 - **Configuración rediseñada**: 17 secciones con navegación unificada por pills, encabezados con ícono y descripción, sugerencias homogéneas y tarjetas consistentes.
@@ -328,6 +346,30 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.10.2] - Lector Markdown de la Documentación y README al día
+
+Release menor de documentación y UX de la ayuda: la pestaña Documentación de la app mostraba los archivos \`.md\` como texto plano (títulos \`#\` y negrita \`**\` literales) y ahora los renderiza como un visor de Markdown real; el README vuelve a reflejar las versiones recientes.
+
+### Documentación en la app (Ayuda → Sistema → Documentación)
+
+- **Lector Markdown propio** (\`src/components/ayuda/Markdown.jsx\`): antes el README y el CHANGELOG se mostraban dentro de un \`<pre>\` monoespaciado, así que toda la sintaxis markdown se veía literal — el doble asterisco de la negrita incluido. Ahora se interpretan títulos \`#\` hasta \`######\`, **negrita**, *itálica* (\`*\` o \`_\`), \`***ambas***\`, ~~tachado~~, \`código inline\` con backticks, listas no ordenadas y ordenadas con sub-niveles por indentación, bloques con fence \`\`\` (contenido literal: \`#\` y \`*\` dentro no se interpretan), tablas \`| encabezado |\`, citas \`>\`, reglas horizontales \`---\`, enlaces \`[texto](url)\` (con \`rel="noopener noreferrer"\`) y escapes con \`\\\`.
+- **Implementación sin dependencias nuevas**: parser propio que devuelve React elements (nunca \`dangerouslySetInnerHTML\`, por lo que el contenido no puede inyectar HTML); los marcadores sin cerrar quedan como texto (no inventa énfasis) y los colores usan los tokens \`var(--color-*)\` del tema vigente.
+- **Aplicado en los dos flujos del panel**: la pestaña Documentación (README.md / CHANGELOG.md) y el fallback de secciones \`doc_*\`.
+
+### README (×3 copias byte-idénticas)
+
+- **"Características principales" al día**: terminaba en 1.8.4; se agregan los resúmenes de **1.10.1** (estados personalizados con migración, borrado seguro con deshacer, filtros del calendario con chip contador, form de plantillas unificado), **1.10.0** (reglas automáticas, notificaciones del navegador, metas de firmas/historial) y **1.9.x** (Speechs Interactivos, sistema de pills/tabs, filtro rápido en header). Versión de portada actualizada a 1.10.2.
+
+### Versionado y documentación
+
+- **Bump a 1.10.2** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y las 2 líneas de versión del \`package-lock.json\` (\`@types/serve-index\` sigue en 1.9.4 por casualidad); \`PROJECT_CONTEXT.md\` verificado en 1.10.2 en sus 2 referencias.
+- \`docsContent.js\` regenerado (\`node scripts/build-docs.js\`) con el README nuevo.
+
+### Pruebas y build
+
+- **Suite: 122 archivos y 1222 tests en verde**; \`npm run build\` compila sin errores ni warnings.
+- Tests nuevos: \`Markdown.test.jsx\` (9: títulos, negrita/itálica, código, listas con sub-nivel, bloques literales, tablas, citas/enlaces, escape y marcadores sin cerrar) y +1 en \`HelpPanel.test.jsx\` (la pestaña Documentación renderiza el README con \`<strong>\`/\`<h1>\` y sin \`**\` literal).
 
 ## [1.10.1] - Correcciones de integridad de datos, accesibilidad y deuda técnica
 

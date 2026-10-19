@@ -163,3 +163,23 @@ describe('HelpPanel (alineación y resaltado de tabs, 1.9.2)', () => {
     expect(screen.getByLabelText('Secciones de Ayuda').style.justifyContent).toBe('flex-end');
   });
 });
+
+describe('HelpPanel (lector markdown de Documentación, post 1.10.1)', () => {
+  it('renderiza el README como .md: negrita y títulos, sin asteriscos literales', () => {
+    const { container } = renderHelp();
+    fireEvent.click(screen.getByRole('button', { name: 'Sistema' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Documentación/ }));
+    // "**Versión 1.x.y**" del README debe salir como <strong>, no como texto
+    // (matcher por regex: no se ata a un número de versión concreto).
+    const hits = screen.getAllByText(/^Versión 1\.\d+\.\d+$/);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.some((el) => el.tagName === 'STRONG')).toBe(true);
+    // Los títulos "#" del .md se interpretan como encabezados reales.
+    const panel = document.getElementById('documentacion-panel');
+    expect(panel).toBeTruthy();
+    expect(panel.querySelector('h1').textContent).toBe('AppSeguimiento');
+    // Ya no queda el doble asterisco literal en el documento renderizado.
+    expect(panel.textContent).not.toContain('**');
+    expect(container).toBeTruthy();
+  });
+});

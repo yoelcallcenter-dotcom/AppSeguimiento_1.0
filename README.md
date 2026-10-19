@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.1** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.2** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,24 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.1 — Integridad, accesibilidad y estados personalizados
+- **Estados de caso personalizados de verdad**: crear, renombrar y eliminar estados migra casos, colores, filtros, métricas y PDF (antes el catálogo fijo ignoraba los cambios).
+- **Borrado seguro con deshacer**: "Borrar todos los datos" limpia de verdad; eliminar casos arrastra historial y referencias, y el deshacer restaura la línea de tiempo.
+- **Calendario**: filtros compactos ocultos por defecto con chip "Filtros (N)" que cuenta los filtros activos.
+- **Consistencia visual**: form de plantillas crear/editar unificado (mismos chips de tipo), toolbar del Bloc de Notas con botones accesibles, botones con estado de carga y export CSV en dos filas.
+- Accesibilidad (Escape apilado, contraste AA, targets táctiles) y métricas alineadas (tasa de cierre y fechas consistentes).
+
+### 1.10.0 — Reglas automáticas, navegador y metas
+- **Reglas automáticas** cableadas al guardado de casos, con editor de reglas propias en lenguaje llano y alertas que no se repiten (dedup 10 min).
+- **Notificaciones del navegador** (opcional, solo prioridad alta y con la pestaña oculta).
+- **Meta de firmas** en Resumen e **historial de metas (30 días hábiles)** en Rendimiento.
+- Marcador del día de hoy en el filtro de Día y auditoría de color que reparó el patrón `var(--token)NN` en toda la app.
+
+### 1.9.x — Speechs Interactivos y refinamiento
+- **Speechs Interactivos**: recorridos por pasos con editor de árbol, duplicación, ejecución paso a paso y exportación/importación en JSON versionado.
+- Sistema global de pills/tabs con alineación configurable y filtro rápido de casos en el header.
+- Categorías y variables configurables en Conversación Sugerida, objeciones vía llaves en Speechs, fechas en hora local y backups sin anidamiento.
 
 ### 1.8.4 — Configuración y Personalización
 - **Configuración rediseñada**: 17 secciones con navegación unificada por pills, encabezados con ícono y descripción, sugerencias homogéneas y tarjetas consistentes.
