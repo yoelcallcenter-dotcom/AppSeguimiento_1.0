@@ -240,9 +240,13 @@ export function CasoEditModal({
       aria-modal="true"
       aria-labelledby="caso-modal-title"
     >
+      {/* 1.10.3 (anti-doble-scrollbar): card con tope de viewport y flex-col
+          para que SOLO el body scrollee (patrón Modal.jsx/EventModal).
+          Antes podían convivir la barra del overlay (fixed overflow-y-auto)
+          y la del cuerpo (max-h-[75vh]) → doble barra en el mismo modal. */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-2xl rounded-xl my-6 ${
+        className={`w-full max-w-2xl rounded-xl my-6 max-h-[calc(100vh-5rem)] flex flex-col ${
           isClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
         }`}
         style={{
@@ -250,7 +254,9 @@ export function CasoEditModal({
           border: "1px solid var(--color-border)",
         }}
       >
-        <div className="modal-header">
+        {/* 1.10.3: flex-shrink-0 para que el header no se comprima cuando el
+            body flex-1 reclama espacio dentro de la card con max-h. */}
+        <div className="modal-header flex-shrink-0">
           <div>
             <div
               className="text-lg font-bold"
@@ -276,7 +282,11 @@ export function CasoEditModal({
           </div>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        {/* 1.10.3 (anti-doble-scrollbar): el body es el ÚNICO área de scroll
+            del modal (flex-1 + min-h-0 dentro de la card con max-h, patrón
+            Modal.jsx). Antes tenía max-h-[75vh] junto con el overlay
+            overflow-y-auto → podían convivir dos barras. */}
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* FORMAS INLINE: Nota / Evento vinculados al caso (1.5.0) */}
           {mostrarFormNota && (
             <InlineNoteForm
@@ -542,7 +552,9 @@ COMENTARIOS:`}
             >
               Historial de reportes
             </div>
-            <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+            {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio — la lista
+                se extiende y la baja el único scroll del body del modal. */}
+            <div className="space-y-2 mb-3">
               {(!caso.reporteHistory || caso.reporteHistory.length === 0) && (
                 <div
                   className="text-xs"
@@ -670,8 +682,10 @@ COMENTARIOS:`}
           </div>
         </div>
 
+        {/* 1.10.3: flex-shrink-0 — footer fijo mientras solo el body scrollea
+            (card flex-col + max-h de viewport). */}
         <div
-          className="flex items-center justify-between px-5 py-4"
+          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
           style={{ borderTop: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-1.5">

@@ -640,13 +640,16 @@ export function CondicionalesView({
               </button>
             </div>
           )}
+          {/* 1.10.3 (anti-doble-scrollbar): la tabla de reglas vive en una
+              vista con scroll de PÁGINA — con maxHeight 560 + overflow
+              mostraba dos barras. Ahora se extiende y la baja el único scroll
+              de la página; el usuario controla la longitud con
+              Expandir/Colapsar todo. */}
           <div
-            className="rounded-xl overflow-auto"
+            className="rounded-xl"
             style={{
               backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              maxHeight: 560,
-              scrollbarGutter: "stable",
             }}
           >
             <table

@@ -7,6 +7,39 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.3] - Modales de evento rediseñados y cita con horario real
+
+Dos entregas en una: el fix de un bug de flujo (la cita de un caso nuevo nacía a las 09:00 ignorando el paste) y el rediseño completo de los formularios de evento de la app.
+
+### Cita de un caso nuevo (fix del horario 09:00)
+
+- **El evento de la cita ahora nace con el horario del paste, no con 09:00 hardcodeado**. Eran dos bugs encadenados: (1) `parseCita` no entendía el formato real del sistema cliente — "19/10 (12:30 a 13:00) - Yoel Libay" lleva el guión entre fecha y horario opcional y un sufijo tras el rango, ambos rechazados antes —, así que `syncCitaEvent` no creaba el evento de cita; (2) la regla `case-estado-nuevo-create-event` del motor creaba SIEMPRE un evento a `T09:00:00` ignorando el campo CITA. Ahora el parser acepta esos formatos (el rango "HH:MM a HH:MM" sigue obligatorio y el sufijo solo con guión) y la regla usa la fecha resuelta y el rango de la cita (con hora de fin); 09:00 queda solo como fallback (caso sin cita, cita inválida o fecha no resoluble como 31/02).
+- **Sin eventos duplicados**: en `guardarCaso`, `syncCitaEvent` corre antes que las reglas; si el caso ya tiene su evento de cita, la regla no crea un segundo evento (antes, con una cita válida, convivían el evento real y uno fantasma a las 09:00). El evento de campo no se taggea `regla-cita' a propósito: la decisión 1.10.1 mantiene `completarCitasDeCaso` lejos de los eventos del sistema de citas por campo.
+
+### Rediseño de los modales de evento
+
+- **Fix del nombre repetido en "Vincular casos"**: `EventModal` mostraba los casos vinculados dos veces (chips propios clicables + chips del `CaseLinker`). Ahora el `CaseLinker` es la única lista y sus chips ganaron la acción "abrir caso" (nueva prop opcional `onOpenCase`, compatible con su uso en el Bloc de Notas) además de "quitar".
+- **`EventModal` por secciones con preview en vivo**: el form dejó de ser un bloque apilado sin jerarquía; se agrupa en tarjetas **Cuándo / Detalles / Clasificación / Vinculaciones**, y el subheader del modal muestra el evento resumiéndose en tiempo real: título (o "Sin título"), fecha corta · horario, etiqueta relativa ("Hoy" / "Mañana" / "En N días"), prioridad y estado.
+- **Estado en chips de color**: el select nativo de estado pasó a chips segmentados con `aria-pressed` (Pendiente ámbar, Confirmado azul, Completado verde, Cancelado gris), igual que la prioridad.
+- **Hora fin auto-calculada**: mover la hora inicio arrastra la fin conservando la duración; editar la fin a mano desactiva el arrastre. La duración calculada se muestra en la tarjeta. Vale también en el `InlineEventForm` y en la tarjeta de reprogramación del `ReporteRapidoModal`.
+- **`CaseLinker` mejorado**: el dropdown abre también vacío (muestra los primeros casos, antes solo aparecía al escribir), se navega con ↑/↓ + Enter con resaltado, muestra el estado del caso en los resultados, tiene estado vacío amigable y sus botones ahora llevan `type="button"` (dentro del form del modal, un click disparaba el submit).
+- **`InlineEventForm` sin repetición**: el nombre del caso vive solo en el chip del header (antes se repetía en el placeholder del título) y la descripción pasó a textarea.
+- **`ReporteRapidoModal`**: la tarjeta "Nueva cita de reprogramación" muestra el resumen en vivo de la nueva cita.
+- **Vista del calendario bien distribuida y sin barras dobles**: el contenedor usaba altura fija con un `overflow-auto` interno, de modo que cuando el contenido no cabía convivían la barra interna y la de la página. Ahora la vista **mide su espacio en runtime** (viewport menos el top real del contenedor —header y padding del main, leídos con `getBoundingClientRect`— y el padding inferior): si el contenido entra, llena exactamente la pantalla sin ninguna barra y las filas se estiran (filas iguales en la vista mes, celdas fantasma antes del día 1 pintadas como celda normal, vista semana en 7 columnas); si excede — viewport muy bajo o filtros abiertos — el contenedor crece con el contenido y el scroll lo aporta una sola vez la página.
+- **Una sola barra de scroll por superficie (modales y vistas)**: los modales de caso (`VerCasoModal`, `CasoEditModal`) y de reporte (`ReporteRapidoModal`) adoptan el patrón de `Modal.jsx`/EventModal — card con tope de viewport y `flex-col`, header y footer fijos (`flex-shrink-0`) y el único scroll en el body. Antes podían convivir la barra del overlay y la del cuerpo, y el cuerpo quedaba cortado a `60vh`/`75vh`/`80vh` dejando la card sin aprovechar (en `ReporteRapidoModal` el overlay además no tenía `overflow`: en pantallas bajas la card se salía de la pantalla). Las listas internas (comentarios, reportes del caso, historiales) y los paneles de dashboard/estadísticas/diagnóstico/disponibilidad perdieron sus `max-h` propios: el contenido se extiende verticalmente y lo baja el scroll de su superficie — nunca dos barras una sobre otra.
+- **Errores reactivos**: al tocar un campo con error se limpia su mensaje; la validación al guardar se mantiene con `role="alert"`/`aria-live="polite"` intactos.
+- Helpers nuevos en `dateUtils`: `fechaCortaLabel`, `diasDesdeHoy` y `fechaRelativaLabel` (parseo por partes para no caer en el desfase UTC de las fechas solo-día).
+
+### Pruebas y build
+
+- **Suite: 123 archivos y 1230 tests en verde**; `npm run build` compila sin errores ni warnings.
+- Tests nuevos: `EventModal.test.jsx` (6: nombre del caso único, abrir/quitar caso, arrastre de hora fin, fin manual sin arrastre, chips de estado con `aria-pressed` y validación de título) + tests del fix de citas en `citaParser.test.js` (formato del paste con/sin guión y con sufijo) y en `rulesEngine.test.js` (horario de la cita, no duplicar evento existente y fallback 09:00).
+
+### Versionado y documentación
+
+- **Bump a 1.10.3** en `src/core/version.js` (`APP_VERSION`), `package.json` y las 2 líneas de versión del `package-lock.json` (`@types/serve-index` sigue en 1.9.4 por casualidad); `PROJECT_CONTEXT.md` actualizado en sus 2 referencias.
+- README con la nueva sección 1.10.3 en "Características principales" (×3 copias byte-idénticas); `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.2] - Lector Markdown de la Documentación y README al día
 
 Release menor de documentación y UX de la ayuda: la pestaña Documentación de la app mostraba los archivos `.md` como texto plano (títulos `#` y negrita `**` literales) y ahora los renderiza como un visor de Markdown real; el README vuelve a reflejar las versiones recientes.

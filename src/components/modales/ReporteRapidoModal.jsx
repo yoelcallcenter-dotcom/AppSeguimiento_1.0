@@ -25,7 +25,8 @@ import { PhoneLink } from "../common/PhoneLink";
 import { sanitizeString } from "../../utils/sanitize";
 import { capitalizarSiMayus } from "../../utils/helpers";
 // v1.9.7 (fix B3): hoyISO (día en hora local) como fecha por defecto.
-import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
+// 1.10.3: fechaCortaLabel para el resumen en vivo de la nueva cita.
+import { hoyDDMM, hoyISO, fechaCortaLabel } from "../../utils/dateUtils";
 import { useDialogA11y } from "../../hooks/useDialogA11y";
 import { useDelayedClose } from "../../hooks/useAnimatedPresence";
 import { lockBodyScroll, unlockBodyScroll } from "../../utils/bodyScrollLock";
@@ -60,6 +61,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nuevaHoraIni, setNuevaHoraIni] = useState("09:00");
   const [nuevaHoraFin, setNuevaHoraFin] = useState("10:00");
+  // 1.10.3: hora fin auto-calculada (duración conservada); si el usuario la
+  // edita a mano, la marca queda y mover la inicio ya no la pisa.
+  const nuevaDurRef = useRef(60);
+  const nuevaEndTouchedRef = useRef(false);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState(null);
 
   // Pre-select case if casoInicial is provided
@@ -103,7 +108,42 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       setNuevaHoraIni("09:00");
       setNuevaHoraFin("10:00");
     }
+    // 1.10.3: al elegir caso se recalcula la duración de referencia y el fin
+    // vuelve a modo automático.
+    nuevaEndTouchedRef.current = false;
+    nuevaDurRef.current = calcDuracion(propia ? propia.horaIni : "09:00", propia ? propia.horaFin : "10:00");
   };
+
+  /** 1.10.3: duración en minutos entre dos "HH:MM" (60 si no es válida). */
+  function calcDuracion(ini, fin) {
+    const sm = String(ini || "").split(":");
+    const em = String(fin || "").split(":");
+    const s = parseInt(sm[0], 10) * 60 + parseInt(sm[1] || "0", 10);
+    const e = parseInt(em[0], 10) * 60 + parseInt(em[1] || "0", 10);
+    return Number.isFinite(s) && Number.isFinite(e) && e > s ? e - s : 60;
+  }
+
+  /** 1.10.3: minutos (positivos) a "HH:MM" con wrap de 24 h. */
+  function minToHHMM(total) {
+    const t = ((total % 1440) + 1440) % 1440;
+    return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+  }
+
+  /** 1.10.3: mueve la hora inicio arrastrando la fin (si no se editó a mano). */
+  function changeNuevaHoraIni(v) {
+    setNuevaHoraIni(v);
+    if (!nuevaEndTouchedRef.current) {
+      const m = String(v || "").match(/^(\d{1,2}):(\d{2})$/);
+      if (m) setNuevaHoraFin(minToHHMM(parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + nuevaDurRef.current));
+    }
+  }
+
+  /** 1.10.3: edición manual de la hora fin: marca fin propio y nueva duración. */
+  function changeNuevaHoraFin(v) {
+    nuevaEndTouchedRef.current = true;
+    nuevaDurRef.current = calcDuracion(nuevaHoraIni, v);
+    setNuevaHoraFin(v);
+  }
 
   // Deriva un prefill determinista para reprogramar desde el campo CITA del caso.
   function prefillsParaReprogramacion(c) {
@@ -260,9 +300,15 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
       aria-modal="true"
       aria-labelledby="reporte-rapido-title"
     >
+      {/* 1.10.3 (anti-dobble-scrollbar): card con tope de viewport y flex-col
+          para que SOLO el body scrollee (patrón Modal.jsx/EventModal). El
+          overlay de este modal NI siquiera tenía overflow (items-center): en
+          pantallas bajas la card se salía de la pantalla sin posibilidad de
+          scrollear. Con max-h la card siempre cabe y el scroll vive en el
+          body; desaparece además la doble barra body (80vh) + listas internas. */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-2xl rounded-xl my-6 ${
+        className={`w-full max-w-2xl rounded-xl my-6 max-h-[calc(100vh-5rem)] flex flex-col ${
           isClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
         }`}
         style={{
@@ -270,7 +316,9 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           border: "1px solid var(--color-border)",
         }}
       >
-        <div className="modal-header">
+        {/* 1.10.3: flex-shrink-0 para que el header no se comprima cuando el
+            body flex-1 reclama espacio dentro de la card con max-h. */}
+        <div className="modal-header flex-shrink-0">
           <div
             className="text-lg font-bold flex items-center gap-2"
             id="reporte-rapido-title"
@@ -287,7 +335,12 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           </button>
         </div>
 
-        <div className="p-5 space-y-4" style={{ minHeight: '380px', maxHeight: '80vh', overflowY: 'auto' }}>
+        {/* 1.10.3 (anti-doble-scrollbar): flex-1 + min-h-0 → el body es el
+            único scroll de la card (tope de viewport en la card). Se elimina
+            maxHeight: 80vh (en pantallas bajas la card se salía de la
+            pantalla: el overlay no tenía overflow). minHeight: 380px se
+            conserva para que el modal no quede vacío con poca data. */}
+        <div className="p-5 space-y-4 flex-1 min-h-0" style={{ minHeight: '380px', overflowY: 'auto' }}>
           <div>
             <SearchInput
               value={query}
@@ -452,18 +505,35 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                     border: "1px solid color-mix(in srgb, var(--color-accent) 33.3%, transparent)",
                   }}
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--color-accent)" }}>
-                    <CalendarClock size={14} /> Nueva cita de reprogramación
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--color-accent)" }}>
+                      <CalendarClock size={14} /> Nueva cita de reprogramación
+                    </div>
+                    {/* 1.10.3: resumen en vivo de la nueva cita. */}
+                    {nuevaFecha && (
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
+                          color: "var(--color-accent)",
+                          border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)",
+                        }}
+                      >
+                        {fechaCortaLabel(nuevaFecha)} · {nuevaHoraIni}–{nuevaHoraFin}
+                      </span>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <Field label="Nueva fecha">
                       <TextInput type="date" value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
                     </Field>
                     <Field label="Hora inicio">
-                      <TextInput type="time" value={nuevaHoraIni} onChange={(e) => setNuevaHoraIni(e.target.value)} />
+                      {/* 1.10.3: al mover el inicio se arrastra la fin. */}
+                      <TextInput type="time" value={nuevaHoraIni} onChange={(e) => changeNuevaHoraIni(e.target.value)} />
                     </Field>
                     <Field label="Hora fin">
-                      <TextInput type="time" value={nuevaHoraFin} onChange={(e) => setNuevaHoraFin(e.target.value)} />
+                      {/* 1.10.3: edición manual desactiva el arrastre. */}
+                      <TextInput type="time" value={nuevaHoraFin} onChange={(e) => changeNuevaHoraFin(e.target.value)} />
                     </Field>
                   </div>
                   <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
@@ -510,7 +580,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                     >
                       Historial de reportes
                     </div>
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio —
+                        la lista se extiende y la baja el único scroll del
+                        body del modal. */}
+                    <div className="space-y-1">
                       {seleccionado.reporteHistory.map((r, i) => {
                         const isEditing = editIndex === i;
                         return (
@@ -604,8 +677,10 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           )}
         </div>
 
+        {/* 1.10.3: flex-shrink-0 — footer fijo mientras solo el body scrollea
+            (card flex-col + max-h de viewport). */}
         <div
-          className="flex items-center justify-end gap-2 px-5 py-4"
+          className="flex items-center justify-end gap-2 px-5 py-4 flex-shrink-0"
           style={{ borderTop: "1px solid var(--color-border)" }}
         >
           <BtnOutline

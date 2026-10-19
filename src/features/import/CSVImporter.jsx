@@ -370,7 +370,10 @@ export default function CSVImporter({ onComplete }) {
           <BtnOutline onClick={reset} size="sm" color="var(--color-text-muted)" icon={RefreshCw}>Reiniciar</BtnOutline>
         </div>
 
-        <div className="space-y-1.5 max-h-60 overflow-y-auto">
+        {/* 1.10.3 (anti-doble-scrollbar): sin max-h-60 propio — el mapeo de
+            columnas se extiende y la baja el scroll del contenedor/página
+            (antes: barra de la lista + barra del body del asistente). */}
+        <div className="space-y-1.5">
           {mappings.map((m, i) => (
             <div key={i} className="flex items-center gap-2 rounded px-3 py-2" style={{ backgroundColor: 'var(--color-surface2)' }}>
               <span className="text-xs font-medium w-32 truncate" style={{ color: 'var(--color-text)' }}>{m.header}</span>

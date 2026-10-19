@@ -120,11 +120,38 @@ const defaultRules = [
       (context?.prev?.estado ?? null) !== entity.estado,
     action: async (entity) => {
       const { createEvent } = await import('../calendar/calendarStore');
+      // 1.10.2-fix: reutiliza el criterio de "evento de cita del caso" del
+      // sistema de citas por campo (mismo filtro: tipo 'cita' + status !=
+      // 'cancelled' + relatedCaseIds) en vez de duplicar la lógica.
+      const { findExistingCitaEvent } = await import('../../core/cases/citaAutoEvents');
+      const { parseCita, resolveCitaDate } = await import('../../utils/citaParser');
       // v1.9.7 (fix B3): fecha "hoy" en hora local.
       const today = hoyISO();
+
+      // 1.10.2-fix (no duplicar): en guardarCaso, syncCitaEvent corre ANTES
+      // que las reglas y crea/actualiza el evento real del campo CITA. Antes
+      // esta regla creaba SIEMPRE un segundo evento hardcodeado a las 09:00
+      // junto a la cita real. Ahora, si el caso ya tiene su evento de cita,
+      // la regla no crea nada. El evento de campo NO se taggea 'regla-cita' a
+      // propósito (decisión 1.10.1: completarCitasDeCaso no debe tocar los
+      // eventos del sistema de citas por campo).
+      const existingCita = await findExistingCitaEvent(entity.id);
+      if (existingCita) {
+        return { action: 'skip', reason: 'existing-cita-event', entityId: entity.id };
+      }
+
+      // 1.10.2-fix (respetar el paste): si el campo CITA es parseable, el
+      // evento nace con su fecha y rango horario reales — p.ej. el paste
+      // "19/10 (12:30 a 13:00) - Yoel Libay" da 12:30–13:00, no 09:00. Las
+      // 09:00 quedan SOLO como fallback: caso sin cita, cita inválida o fecha
+      // no resoluble (ej. 31/02), para no dejar la transición sin evento.
+      const parsed = entity.cita ? parseCita(entity.cita) : null;
+      const iso = parsed ? resolveCitaDate(parsed, entity.fecha) : null;
       await createEvent({
         title: `Cita: ${entity.nombre || 'Sin nombre'}`,
-        startDate: `${today}T09:00:00`,
+        startDate: iso ? `${iso}T${parsed.startTime}:00` : `${today}T09:00:00`,
+        // Solo con rango resuelto: sin fecha fiable no se inventa hora de fin.
+        ...(iso ? { endDate: `${iso}T${parsed.endTime}:00` } : {}),
         description: `Cita agendada para ${entity.nombre}`,
         status: 'pending',
         priority: 'high',

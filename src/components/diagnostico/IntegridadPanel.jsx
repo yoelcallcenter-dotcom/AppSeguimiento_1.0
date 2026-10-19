@@ -216,8 +216,11 @@ export function IntegridadPanel() {
           <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--color-text-muted)" }}>
             Registro de integridad (últimas {log.length})
           </div>
+          {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio — el registro
+              se extiende y lo baja el único scroll de la página (antes:
+              barra del log + barra de página). */}
           <div
-            className="rounded-lg divide-y max-h-40 overflow-y-auto"
+            className="rounded-lg divide-y"
             style={{ backgroundColor: "var(--color-surface2)", borderColor: "var(--color-border)" }}
           >
             {log.map((e, i) => (

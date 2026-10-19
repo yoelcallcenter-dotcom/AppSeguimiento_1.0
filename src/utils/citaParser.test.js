@@ -30,6 +30,18 @@ describe('parseCita', () => {
     });
   });
 
+  // 1.10.2-fix: soporte del paste REAL del sistema cliente. Antes el guión
+  // entre fecha y horario era obligatorio y no se admitía texto tras el
+  // rango → "19/10 (12:30 a 13:00) - Yoel Libay" daba null, syncCitaEvent no
+  // creaba el evento y la regla dejaba un evento genérico a las 09:00.
+  it('parsea el formato del paste de Cita (sin guión y con sufijo)', () => {
+    const esperado = { day: 19, month: 10, startTime: '12:30', endTime: '13:00' };
+    expect(parseCita('19/10 (12:30 a 13:00) - Yoel Libay')).toEqual(esperado);
+    expect(parseCita('19/10 (12:30 a 13:00)')).toEqual(esperado);
+    expect(parseCita('19/10 - (12:30 a 13:00) - Yoel Libay')).toEqual(esperado);
+    expect(parseCita('19/10 12:30 a 13:00')).toEqual(esperado);
+  });
+
   it('rechaza formatos ambiguos o inválidos', () => {
     expect(parseCita('próxima semana')).toBeNull();
     expect(parseCita('')).toBeNull();
@@ -39,6 +51,9 @@ describe('parseCita', () => {
     expect(parseCita('15/09 - (14:00 a 14:00)')).toBeNull(); // fin <= inicio
     expect(parseCita('32/13 - (14:00 a 15:00)')).toBeNull(); // día/mes inválidos
     expect(parseCita('15/09 - (25:00 a 26:00)')).toBeNull(); // horas inválidas
+    // 1.10.2-fix: el sufijo se admite SOLO con guión como separador; sin él
+    // (texto libre pegado al rango) sigue rechazándose por conservadurismo.
+    expect(parseCita('19/10 (12:30 a 13:00) por teléfono')).toBeNull();
   });
 });
 

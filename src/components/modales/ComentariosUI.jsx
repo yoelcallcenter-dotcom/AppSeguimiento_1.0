@@ -77,7 +77,11 @@ export function ComentariosUI({
   return (
     <div className="space-y-3">
       {/* Lista de comentarios estilo burbujas */}
-      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+      {/* 1.10.3 (anti-doble-scrollbar): se quitó max-h-[300px] + overflow:
+          ComentariosUI vive dentro del body scrolleable de VerCasoModal, y
+          con su propio tope mostraba dos barras una encima de otra. Ahora la
+          lista de comentarios se extiende y la baja el único scroll del body. */}
+      <div className="space-y-3 pr-1">
         {comentarios && comentarios.length > 0 ? (
           comentarios.map((c, i) => {
             const color = getColor(c.id || i);

@@ -11,6 +11,48 @@ export function hoyISO() {
   return toLocalDateStr(new Date());
 }
 
+/**
+ * 1.10.3 (rediseño modales de evento): etiqueta corta de una fecha ISO
+ * "YYYY-MM-DD" para previews ("19 oct"). Se parsea el string a partes (como
+ * formatearFecha) porque new Date sobre un solo-día lo interpreta en UTC y
+ * en Argentina mostraba el día anterior.
+ */
+export function fechaCortaLabel(iso) {
+  if (!iso) return "";
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(iso);
+  const mes = (MESES[parseInt(m[2], 10) - 1] || m[2]).slice(0, 3).toLowerCase();
+  return `${parseInt(m[3], 10)} ${mes}`;
+}
+
+/**
+ * 1.10.3: diferencia en días enteros entre una fecha ISO y hoy (hora local).
+ * 0 = hoy, negativo = en el pasado, null si no es parseable.
+ */
+export function diasDesdeHoy(iso) {
+  if (!iso) return null;
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const target = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target - today) / 86400000);
+}
+
+/**
+ * 1.10.3: "Hoy" / "Mañana" / "Ayer" / "En N días" / "Hace N días".
+ * Alimenta el preview en vivo de los modales de evento.
+ */
+export function fechaRelativaLabel(iso) {
+  const d = diasDesdeHoy(iso);
+  if (d === null) return "";
+  if (d === 0) return "Hoy";
+  if (d === 1) return "Mañana";
+  if (d === -1) return "Ayer";
+  if (d > 1) return `En ${d} días`;
+  return `Hace ${-d} días`;
+}
+
 export function mesLabel(yyyyMM) {
   const [y, m] = (yyyyMM || "").split("-");
   if (!y || !m) return yyyyMM;

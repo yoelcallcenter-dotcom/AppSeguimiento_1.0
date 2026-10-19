@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { Calendar } from 'lucide-react';
 import { Spinner } from '../../components/common/Spinner';
 import { useCalendarService } from './calendarService';
@@ -184,6 +184,33 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
   // memoria: como los propios filtros se resetean al salir de la vista, la
   // preferencia abierta tampoco tiene sentido que persista.
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // 1.10.3-rev4 (scroll del calendario): se mide el espacio REAL del
+  // contenedor en vez de estimarlo con un cálculo fijo de viewport. El
+  // cálculo anterior restaba también los gaps space-y-4 y la leyenda, que
+  // viven DENTRO del root: el alto resultante quedaba ~70px por debajo de
+  // lo disponible, la página scrolleaba (barra al final: la leyenda) y las
+  // filas del mes caían a su mínimo → días "comprimidos". Ahora
+  // minHeight = viewport − top real (header + padding del main, medidos con
+  // getBoundingClientRect) − padding inferior. Si el contenido entra, la
+  // vista llena ese espacio sin barra y las filas se estiran; si excede
+  // (viewport muy bajo, filtros abiertos), el root crece y el scroll lo da
+  // una sola vez la página.
+  const rootRef = useRef(null);
+  const [altoDisponible, setAltoDisponible] = useState(null);
+  useLayoutEffect(() => {
+    const medir = () => {
+      const el = rootRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      // 24px = padding inferior del main (sm:p-6); piso de 420px para
+      // viewports muy bajos (ahí scrollea la página, nunca se recorta).
+      setAltoDisponible(Math.max(Math.round(window.innerHeight - top - 24), 420));
+    };
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, []);
   // Contador de filtros aplicados, para el "(N)" del chip de la toolbar:
   // con el panel oculto sigue viéndose que hay filtros activos.
   const filtersActive = useMemo(
@@ -437,7 +464,20 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
     const cells = [];
     for (let i = 0; i < firstDay; i++) {
-      cells.push(<div key={`empty-${i}`} className="p-1" />);
+      // 1.10.3-rev2: la celda fantasma antes del día 1 era un div invisible
+      // (p-1 sin fondo ni borde) y la cuadrícula se veía rota. Ahora lleva
+      // el mismo fondo/borde que una celda normal y se estira con las filas.
+      cells.push(
+        <div
+          key={`empty-${i}`}
+          className="rounded-lg"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            opacity: 0.5,
+          }}
+        />
+      );
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -464,13 +504,16 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
       // repo) y pierde `hover:bg-white/5`, que NO aplicaba nunca: el fondo va en
       // style inline y un estilo inline gana sobre cualquier clase. El hover real
       // lo aporta la capa absoluta con group-hover (ver comentario más abajo).
+      // 1.10.3-rev2: min-h bajó de 80px a 64px para que 6 filas de semana + el
+      // encabezado quepan en laptops (768px de alto) SIN barra de desplazamiento;
+      // las pills igual scrollean dentro de la celda (ver contenedor flex-1).
       cells.push(
         <div
           key={dateStr}
           role="button"
           tabIndex={0}
           aria-label={`Ver día ${day}/${month + 1}/${year}`}
-          className="group relative rounded-lg p-1 min-h-[80px] cursor-pointer transition-colors"
+          className="group relative flex flex-col rounded-lg p-1 min-h-[64px] cursor-pointer transition-colors"
           style={{
             backgroundColor: isToday
               ? 'color-mix(in srgb, var(--color-accent) 6.7%, transparent)'
@@ -540,7 +583,9 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
               {AVAILABILITY_LABELS[availState.key]}
             </div>
           )}
-          <div className="relative space-y-0.5 mt-0.5">
+          {/* 1.10.3-rev2: las pills scrollean DENTRO de la celda (flex-1 +
+              min-h-0) en vez de estirar la fila del grid. */}
+          <div className="relative space-y-0.5 mt-0.5 overflow-y-auto flex-1 min-h-0">
             {dayEvents.slice(0, 3).map(evt => {
               const color = resolveEventColor(evt);
               const caseColor = resolveCaseStateColor(evt, casoMap, config);
@@ -598,7 +643,11 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
     }
 
     return (
-      <div className="grid grid-cols-7 gap-1 flex-1">
+      // 1.10.3-rev2: h-full contra el contenedor scrolleable (que ahora sí
+      // tiene altura) + auto-rows-fr → las 7 columnas llenan la pantalla y
+      // el scroll es interno por columna. Antes `flex-1` no hacía nada (el
+      // padre no era flex) y las columnas colgaban del contenido.
+      <div className="grid grid-cols-7 gap-1 h-full auto-rows-fr">
         {days.map((d, idx) => {
           const dateStr = toLocalDateStr(d);
           const dayEvents = eventsByDate[dateStr] || [];
@@ -643,7 +692,9 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                   {d.getDate()}
                 </div>
               </div>
-              <div className="relative space-y-0.5 overflow-y-auto flex-1">
+              {/* 1.10.3-rev2: min-h-0 para que flex-1+overflow funcionen en
+                  columna (sin él el scroll se iba al contenedor general). */}
+              <div className="relative space-y-0.5 overflow-y-auto flex-1 min-h-0">
                 {dayEvents.map(evt => {
                   const color = resolveEventColor(evt);
                   const caseColor = resolveCaseStateColor(evt, casoMap, config);
@@ -928,14 +979,23 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
     switch (view) {
       case 'month':
+        // 1.10.3-rev2 (distribución): el encabezado de días sale del grid de
+        // celdas (antes era la primera fila del mismo grid y auto-rows-fr le
+        // daba ~100px de alto a una fila de texto). Ahora el header mide solo
+        // lo que necesita y las celdas se reparten el alto disponible con
+        // filas iguales (flex-1 + auto-rows-fr) en vez de colgar del min-h.
         return (
-          <div className="grid grid-cols-7 gap-1">
-            {DIAS_SEMANA.map(d => (
-              <div key={d} className="text-center text-[10px] font-semibold py-1" style={{ color: 'var(--color-text-muted)' }}>
-                {d}
-              </div>
-            ))}
-            {renderMonthView()}
+          <div className="flex flex-col h-full">
+            <div className="grid grid-cols-7 gap-1">
+              {DIAS_SEMANA.map(d => (
+                <div key={d} className="text-center text-xs font-semibold py-1.5 uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr min-h-0">
+              {renderMonthView()}
+            </div>
           </div>
         );
       case 'week':
@@ -950,7 +1010,22 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+        // 1.10.3-rev4 (distribución + anti-doble-scrollbar): la altura YA NO es
+    // un cálculo fijo de viewport. `altoDisponible` (useLayoutEffect arriba)
+    // = viewport − top real del root (header + padding del main, medidos con
+    // getBoundingClientRect) − padding inferior: la vista ocupa exactamente
+    // el espacio que su contenedor le da, sin barra de página y con las
+    // filas estiradas. Si el contenido (filtros abiertos, viewport muy bajo)
+    // excede ese mínimo, el root crece con él y el scroll lo da una sola vez
+    // la página — nunca dos barras. Nota: no escribir clases completas con
+    // calc entre backticks en comentarios o docs: Tailwind las escanea como
+    // candidatas y un valor con puntos o puntos suspensivos rompe
+    // postcss-calc al minificar el CSS.
+    <div
+      ref={rootRef}
+      className="flex flex-col space-y-4"
+      style={altoDisponible ? { minHeight: altoDisponible } : undefined}
+    >
       <SectionHeader
         icon={Calendar}
         titulo="Calendario"
@@ -983,7 +1058,13 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
           />
         </div>
       )}
-      <div className="flex-1 overflow-auto">
+      {/* 1.10.3-rev3 (anti-doble-scrollbar): sin overflow propio. El raíz
+          tiene min-h (no altura fija), así que si sobra espacio la caja se
+          estira y la grilla llena la pantalla SIN barra alguna; si el
+          contenido excede, la caja crece con él y el scroll lo da la página
+          una sola vez. Antes el overflow-auto acá generaba una barra interna
+          además de la de la página. */}
+      <div className="flex-1">
         {renderContent()}
       </div>
       {/* T4a/C03 (1.10.1): LEYENDA compacta — no existía en la vista. Dos

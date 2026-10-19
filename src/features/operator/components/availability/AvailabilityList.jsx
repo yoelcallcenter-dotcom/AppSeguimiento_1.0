@@ -26,7 +26,10 @@ export function AvailabilityList({ availability, tab, onEdit, onRemove }) {
   const todayISO = hoyISO();
 
   return (
-    <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
+    // 1.10.3 (anti-doble-scrollbar): sin max-h-80 propio — la lista vive en
+    // una vista con scroll de PÁGINA; ahora se extiende y la baja el único
+    // scroll de la página (antes: barra interna + barra de página).
+    <div className="space-y-1.5 pr-0.5">
       {list.map((item) => {
         const color = tabColor(tab);
         const isActive = itemActive(tab, item, todayISO);

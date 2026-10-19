@@ -337,9 +337,16 @@ export function VerCasoModal({
       aria-labelledby="ver-caso-title"
       {...(covered ? { inert: "" } : {})}
     >
+      {/* 1.10.3 (anti-doble-scrollbar): la card se limita al viewport
+          (max-h = 100vh − overlay p-4 16px + my-6 24px por lado = 5rem) y
+          pasa a flex-col para que SOLO el body tenga scroll (mismo patrón
+          que Modal.jsx / EventModal). Antes la card no tenía tope y el body
+          además tenía max-h-[60vh]: podían convivir la barra del overlay y
+          la del cuerpo → dos barras en el mismo modal, y el contenido quedaba
+          cortado a 60vh con el resto de la card vacío. */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-2xl rounded-xl my-6 ${
+        className={`w-full max-w-2xl rounded-xl my-6 max-h-[calc(100vh-5rem)] flex flex-col ${
           isClosing ? "animate-modal-rise-out" : "animate-modal-rise-in"
         }`}
         style={{
@@ -352,7 +359,7 @@ export function VerCasoModal({
         {/* BREADCRUMB DE NAVEGACIÓN CONTEXTUAL */}
         {navigationStack.length > 0 && (
           <div
-            className="flex items-center gap-1.5 px-5 py-2 text-[11px] font-medium"
+            className="flex items-center gap-1.5 px-5 py-2 text-[11px] font-medium flex-shrink-0"
             style={{
               borderBottom: "1px solid var(--color-border)",
               backgroundColor: "var(--color-surface)",
@@ -378,8 +385,10 @@ export function VerCasoModal({
           </div>
         )}
 
+        {/* 1.10.3: flex-shrink-0 para que el header no se comprima cuando el
+            body flex-1 reclama espacio dentro de la card con max-h. */}
         <div
-          className="flex items-center justify-between px-5 py-4"
+          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
           style={{
             borderBottom: "1px solid var(--color-border)",
             borderLeft: `3px solid ${estadoColor}`,
@@ -428,7 +437,12 @@ export function VerCasoModal({
           </div>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        {/* 1.10.3 (anti-doble-scrollbar): el body es el ÚNICO área de scroll
+            del modal (flex-1 + min-h-0 dentro de la card con max-h, patrón
+            Modal.jsx). Antes tenía max-h-[60vh]: el contenido quedaba cortado
+            a 60vh con la card sin aprovechar, y en pantallas bajas cabía
+            además la barra del overlay → doble barra. */}
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* RESUMEN RÁPIDO DE SEGUIMIENTO */}
           <div
             className="rounded-lg p-3"
@@ -820,7 +834,9 @@ export function VerCasoModal({
             </button>
             {mostrarReportes && (
               <div className="mt-2 space-y-2">
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio — la
+                    lista se extiende y la baja el único scroll del body. */}
+                <div className="space-y-2">
                   {(!caso.reporteHistory || caso.reporteHistory.length === 0) && (
                     <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                       Sin reportes cargados.
@@ -946,8 +962,10 @@ export function VerCasoModal({
           </div>
         </div>
 
-        {/* Acciones: gestión a la izquierda, Cerrar a la derecha */}
-        <div className="flex flex-wrap items-center justify-between gap-1.5 px-5 py-4" style={{ borderTop: "1px solid var(--color-border)" }}>
+        {/* Acciones: gestión a la izquierda, Cerrar a la derecha.
+            1.10.3: flex-shrink-0 — con la card en flex-col + max-h, el footer
+            queda fijo mientras scrollea solo el body. */}
+        <div className="flex flex-wrap items-center justify-between gap-1.5 px-5 py-4 flex-shrink-0" style={{ borderTop: "1px solid var(--color-border)" }}>
           <div className="flex flex-wrap items-center gap-1.5">
             <Btn onClick={() => { onEdit(caso); }} icon={Edit3} size="sm">Editar</Btn>
             {onReporteRapido && (

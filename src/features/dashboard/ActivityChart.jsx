@@ -120,7 +120,10 @@ export const ActivityChart = React.memo(({ cases, selectedDay, onSelectDay, desc
         ))}
       </div>
       {selectedDay && (
-        <div className="mt-3 space-y-1 max-h-32 overflow-y-auto animate-fade-in">
+        <div className="mt-3 space-y-1 animate-fade-in">
+          {/* 1.10.3 (anti-doble-scrollbar): sin max-h-32 propio — la lista de
+              casos del día seleccionado se extiende y la baja el único scroll
+              de la página (antes: barra de la card + barra de página). */}
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>
               Casos del {selectedDay.slice(-2)}/{selectedDay.slice(5, 7)}

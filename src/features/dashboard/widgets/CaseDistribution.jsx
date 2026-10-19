@@ -53,7 +53,11 @@ export default function CaseDistribution({ data, onDrill, desc }) {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="w-full md:w-1/2 space-y-1 max-h-[220px] overflow-y-auto">
+          {/* 1.10.3 (anti-doble-scrollbar): la leyenda del gráfico vivía en
+              una card de una vista con scroll de PÁGINA — con max-h-[220px]
+              mostraba dos barras a la vez. Ahora se extiende y la baja el
+              único scroll de la página. */}
+          <div className="w-full md:w-1/2 space-y-1">
             {chartData.map((d) => (
               <button
                 key={d.name}

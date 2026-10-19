@@ -238,8 +238,11 @@ export function LogroObjetivos({ casos, onVerCaso, showHeader = true }) {
       </div>
 
       {showDetalle && statsMes.casosMes.length > 0 && (
+        // 1.10.3 (anti-doble-scrollbar): sin max-h-64 propio — el detalle de
+        // casos del mes se extiende y lo baja el único scroll de la página
+        // (antes: barra de la card + barra de página).
         <div
-          className="rounded-lg p-3 max-h-64 overflow-y-auto"
+          className="rounded-lg p-3"
           style={{
             backgroundColor: "var(--color-surface2)",
             border: "1px solid var(--color-border)",

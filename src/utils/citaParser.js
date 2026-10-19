@@ -11,12 +11,28 @@
  * guion largo, paréntesis opcionales) siempre que no cambien la interpretación.
  * No se interpretan textos ambiguos.
  *
+ * 1.10.2-fix: relajación del formato para soportar el paste REAL del sistema
+ * cliente, p.ej. "19/10 (12:30 a 13:00) - Yoel Libay":
+ *  - el guión entre fecha y horario pasó a ser OPCIONAL (antes obligatorio);
+ *  - se admite un sufijo tras el rango horario SIEMPRE que vaya precedido de
+ *    un guión (ej. " - Yoel Libay"), que se ignora al parsear.
+ * Antes esos formatos daban null → syncCitaEvent no creaba el evento de cita
+ * y la regla del motor dejaba un evento genérico a las 09:00 ignorando el
+ * paste. El rango horario "HH:MM a HH:MM" sigue siendo obligatorio: sin él
+ * no hay cita (p.ej. "15/09 (14:00)" sigue rechazado) y se mantiene el
+ * anclaje al inicio del texto para no capturar fechas incrustadas en frases.
+ *
  * Toda la lógica es local y determinista. Centraliza la regla de resolución del
  * año para que sea idéntica en creación, edición, importación y restauración.
  */
 
-/** Regex del formato CITA. Grupos: día, mes, hhIni, mmIni, hhFin, mmFin. */
-const CITA_REGEX = /^\s*(\d{1,2})\/(\d{1,2})\s*[-–]\s*\(?\s*(\d{1,2}):(\d{2})\s*[aA]\s+(\d{1,2}):(\d{2})\s*\)?\s*$/;
+/**
+ * Regex del formato CITA. Grupos: día, mes, hhIni, mmIni, hhFin, mmFin.
+ * 1.10.2-fix: `[-–]?` (guión fecha/hora opcional) y sufijo opcional con guión
+ * tras el rango `(?:\s*[-–—]\s*\S.*)?` — ver cabecera del módulo. Ejemplos que
+ * ahora parsean: "19/10 (12:30 a 13:00)" y "19/10 (12:30 a 13:00) - Yoel Libay".
+ */
+const CITA_REGEX = /^\s*(\d{1,2})\/(\d{1,2})\s*[-–]?\s*\(?\s*(\d{1,2}):(\d{2})\s*[aA]\s+(\d{1,2}):(\d{2})\s*\)?(?:\s*[-–—]\s*\S.*)?\s*$/;
 
 /**
  * ¿Días hacia el pasado a partir del cual una fecha DD/MM se considera

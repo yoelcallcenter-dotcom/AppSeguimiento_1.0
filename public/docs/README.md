@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.2** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.3** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,14 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.3 — Modales de evento rediseñados y cita con horario real
+- **La cita de un caso nuevo nace con su horario real** (no a las 09:00): el parser de CITA ahora entiende el formato del paste del sistema cliente ("19/10 (12:30 a 13:00) - Yoel Libay") y la regla automática usa la fecha y el rango de la cita; además no duplica el evento cuando `syncCitaEvent` ya lo creó.
+- **Modales de evento rediseñados**: el form del calendario queda en secciones (Cuándo / Detalles / Clasificación / Vinculaciones) con preview en vivo del evento en el header, estado en chips de color y hora fin auto-calculada al mover el inicio.
+- **"Vincular casos" sin repetición**: el nombre del caso aparece una sola vez; los chips del buscador ganaron "abrir caso" y "quitar", y el dropdown abre vacío y se navega con ↑/↓.
+- El form de evento desde el caso (`InlineEventForm`) y la tarjeta de reprogramación del Reporte Rápido comparten el mismo lenguaje visual.
+- **Calendario bien distribuido**: la vista mide su espacio en runtime y ocupa exactamente lo disponible (sin barra de página), con filas y columnas iguales, celdas fantasma visibles y toolbar/leyenda siempre en pantalla.
+- **Una sola barra de scroll en todas partes**: los modales de caso y de reporte quedan con header y footer fijos y un único scroll en el cuerpo (igual que el EventModal); las listas internas de vistas y widgets se extienden en lugar de cortarse con su propia barra.
 
 ### 1.10.1 — Integridad, accesibilidad y estados personalizados
 - **Estados de caso personalizados de verdad**: crear, renombrar y eliminar estados migra casos, colores, filtros, métricas y PDF (antes el catálogo fijo ignoraba los cambios).

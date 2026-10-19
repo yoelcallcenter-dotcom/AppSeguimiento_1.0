@@ -322,7 +322,10 @@ export function ReportesView({ casos, casosBase = [], casosMes, onVerCaso, meses
                       </span>
                     </div>
                   </div>
-                      <div className="mt-2 pt-2 space-y-1.5 max-h-32 overflow-y-auto" style={{ borderTop: "1px solid var(--color-border)" }}>
+                      {/* 1.10.3 (anti-doble-scrollbar): sin max-h-32 propio —
+                          los últimos reportes se extienden y los baja el
+                          único scroll de la página. */}
+                      <div className="mt-2 pt-2 space-y-1.5" style={{ borderTop: "1px solid var(--color-border)" }}>
                     {!ultimoReporte ? (
                       <div
                         className="text-xs italic"
