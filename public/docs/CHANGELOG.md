@@ -7,6 +7,38 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.5] - Configuración centralizada de Liquidaciones
+
+Configuración completa del módulo de Liquidaciones en **Configuración → General → Liquidaciones** (nueva sub-sección con 5 tabs), consumida por Mi Espacio como única fuente de verdad de las reglas económicas. Las liquidaciones cerradas siguen congeladas con su instantánea histórica: los cambios de tarifas o mínimos no las reescriben.
+
+### Configuración → General → Liquidaciones
+
+- **Nueva sub-sección con 5 tabs**: General (mínimo de firmas, modalidad, período y validaciones), Tarifas (categorías), Reglas de liquidación (conceptos), Premios (fondo y distribución) e Historial (auditoría con restauración).
+- **Mínimo de firmas editable** (default 14): se mantiene la única modalidad implementada — netas < mínimo → importe 0; netas ≥ mínimo → pagan TODAS las netas. Un valor corrupto (negativo o no entero, p. ej. 7.5) cae al default: nunca se redondea en silencio porque cambiaría el umbral de cobro.
+- **Tarifas por categoría editables**: alta de categorías desde la UI (nombre + importe; clave interna slug única y estable generada automáticamente), edición de importes y **desactivar sin eliminar** —las desactivadas no se ofrecen en nuevas clasificaciones pero sus tarifas siguen resolviendo para lo ya liquidado—. Valores por defecto provisionales: leve $10.000, grave $20.000, enfermedad profesional $20.000 (independiente, no derivada de leve).
+- **Categoría sin tarifa vigente** (p. ej. su clave dejó de existir en la configuración): el concepto queda "pendiente de revisión", el importe total se informa no confiable y el cierre se bloquea —nunca se le asigna un importe arbitrario ni se cuenta como $0 silencioso—.
+- **Regla de segundo concepto con interruptor real**: apagado, las marcas manuales existentes dejan de computar con aviso visible; nunca se duplican casos automáticamente.
+- **Premios por top configurables**: interruptor de activación, fondo editable (default $100.000), cantidad de puestos, distribución **fija** o **porcentual** con validación estricta (fija: la suma debe cubrir el fondo exacto, salvo el toggle explícito "permitir saldo sin asignar"; porcentual: exactamente 100 % con la misma excepción). Cambiar la modalidad convierte los valores existentes a la nueva unidad y solo guarda si el resultado sigue siendo válido.
+- **Asignación manual de puestos en Mi Espacio**: cada operador marcado en el top elige su lugar (1..N) con regla anti-duplicado (el puesto ocupado por otro queda "pendiente de reasignación") y el premio se calcula con la distribución vigente, con el saldo sin asignar siempre a la vista. El top sigue siendo declaración manual: la app no tiene ranking automático.
+- **Validaciones configurables**: "permitir preparar con advertencias" (apagado = bloquea la preparación hasta resolverlas) y "bloquear cierre sin firmas" (encendido = error impeditivo). Las críticas de integridad (duplicados, categorías y tarifas faltantes) no se pueden desactivar.
+- **Historial con auditoría y restauración**: cada cambio guarda fecha, campo, valor anterior y valor nuevo; "Restaurar" reaplica un valor anterior como configuración vigente con confirmación explícita (afecta a cálculos futuros; las liquidaciones cerradas nunca se modifican). La app no tiene usuarios autenticados: el registro no incluye autor inventado, solo fechas reales.
+
+### Integración con Mi Espacio
+
+- **Recálculo automático de liquidaciones en preparación** al montar la sección cuando el snapshot de reglas difiere de la configuración vigente (conserva los ajustes manuales y avisa con toast). Las cerradas conservan su instantánea histórica intacta.
+- **Select de categorías dinámico** en el detalle por operador: solo categorías activas (con su importe visible); una categoría desactivada ya usada se muestra aislada con la aclaración "(desactivada)".
+
+### Modelo de datos, compatibilidad y auditoría
+
+- **AppData v12 (aditivo, sin migración destructiva)**: tabla `liquidacion_config_history` para la auditoría de configuración, incluida en backup/export/import. La configuración vive en `config.liquidaciones` dentro de `config-art-tracker` (que ya viajaba en backup): los defaults mergeados hacen que configs anteriores a la 1.10.5 funcionen sin migración, y un import de backup antiguo sin esa clave activa los defaults seguros.
+- **Validación de imports**: la configuración de liquidaciones que llega en un backup se valida antes de aplicarla (estructuras corruptas se rechazan con mensajes claros; las categorías desactivadas se importan tal cual con aviso).
+
+### Pruebas, build y versionado
+
+- **39 tests nuevos o ampliados en verde**: configuración (defaults, merge de configs antiguas, validadores de categorías/distribución/premios y roundtrip de backup), motor (segundo concepto apagado, categoría inexistente pendiente de revisión, bloqueo de cierre sin firmas, sugerencia con categoría desactivada), store (puesto del top e historial de auditoría) y UI (alta de categorías con validación real, bloqueo de distribuciones inválidas, historial con restauración, puestos del top persistiendo y auto-recálculo con configuración vigente).
+- `npm run build` compila sin errores ni warnings.
+- **Bump a 1.10.5** en `src/core/version.js` (`APP_VERSION`), `package.json` y la línea de versión del `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.4] - Módulo de Liquidaciones en Mi Espacio
 
 Nuevo módulo en Mi Espacio para liquidar por firmas y registrar la participación manual en el top. El cálculo es determinista (motor puro, testeable sin UI), las tarifas viven centralizadas (provisionales, listas para conectarlas a Configuración en la 1.10.5) y el cierre congela una instantánea histórica que no se recalcula.

@@ -29,6 +29,7 @@ import {
 import { Modal } from "../../components/common/Modal";
 import { Btn } from "../../components/common/Btn";
 import { Toggle } from "../../components/common/Toggle";
+import { Select } from "../../components/common/Select";
 import { Spinner } from "../../components/common/Spinner";
 import { EmptyState } from "../../components/common/EmptyState";
 import { TextInput } from "../../components/common/TextInput";
@@ -41,7 +42,7 @@ import {
   getTopDelPeriodo,
   setTopDelPeriodo,
 } from "./liquidacionesStore";
-import { getReglas } from "./liquidacionReglas";
+import { getReglas, calcularPremioPuesto, validarDistribucion } from "./liquidacionReglas";
 import { LiquidacionDetalleModal } from "./LiquidacionDetalleModal";
 
 function formatArs(n) {
@@ -106,7 +107,12 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
     };
   }, [periodoKey, year, month, toast]);
 
-  /** Recalcula desde los casos + ajustes actuales y persiste el documento. */
+  /**
+   * Recalcula desde los casos + ajustes actuales y persiste el documento.
+   * v1.10.5: respeta la validación configurable "permitir preparar con
+   * advertencias" (§3D). Si está apagada, las advertencias del cálculo
+   * bloquean el guardado con un error identificable (bloqueoValidacion).
+   */
   const recalcularYGuardar = useCallback(
     async (ajustes) => {
       const calc = calcularLiquidacion(casos, {
@@ -116,12 +122,63 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
         ajustes,
         reglas,
       });
+      if (
+        reglas.validaciones?.permitirPrepararConAdvertencias === false &&
+        (calc.advertencias || []).length > 0
+      ) {
+        const err = new Error(`Preparación bloqueada por advertencias: ${calc.advertencias[0]}`);
+        err.bloqueoValidacion = true;
+        throw err;
+      }
       const saved = await guardarLiquidacion({ periodoKey, estado: "preparacion", ...calc });
       setLiq(saved);
       return saved;
     },
     [casos, year, month, fechaCierre, reglas, periodoKey]
   );
+
+  // Ref de "montaje de verdad" (v1.10.5): los cleanups de los effects se
+  // ejecutan también al cambiar dependencias, no solo al desmontar; este ref
+  // solo baja en el desmontaje real (con re-set en re-mount de StrictMode).
+  const montadoRef = useRef(true);
+  useEffect(() => {
+    montadoRef.current = true;
+    return () => {
+      montadoRef.current = false;
+    };
+  }, []);
+
+  /**
+   * v1.10.5 (§8): una liquidación EN PREPARACIÓN cuyo snapshot de reglas
+   * difiere de la configuración vigente se recalcula sola (conservando los
+   * ajustes manuales), para que cambiar el mínimo o una tarifa actualice los
+   * cálculos abiertos sin recargar la app. Las CERRADAS nunca se tocan:
+   * conservan su instantánea histórica (§7A).
+   *
+   * El guardia de "montaje real" es un ref: el cleanup de este effect corre
+   * también cuando cambian sus propias dependencias (p. ej. el setLiq del
+   * recálculo exitoso), y con un closure `vivo` el toast informativo nunca
+   * se emitía a pesar de haber recalculado bien.
+   */
+  useEffect(() => {
+    if (!liq || liq.estado !== "preparacion" || cargando) return;
+    if (JSON.stringify(liq.reglasSnapshot) === JSON.stringify(reglas)) return;
+    (async () => {
+      try {
+        const saved = await recalcularYGuardar(liq.ajustes || ajustesVacios());
+        if (montadoRef.current && saved) toast("Liquidación recalculada con la configuración vigente.", "info");
+      } catch (err) {
+        // El bloqueo por validaciones configuradas no es un error técnico:
+        // se informa tal cual y sin reintentar en cada render.
+        if (montadoRef.current) {
+          toast(
+            err?.bloqueoValidacion ? String(err.message) : "No se pudo recalcular con las reglas vigentes.",
+            "error"
+          );
+        }
+      }
+    })();
+  }, [liq, cargando, reglas, recalcularYGuardar, toast]);
 
   const preparar = async () => {
     if (cerrada) {
@@ -132,8 +189,13 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
     try {
       await recalcularYGuardar(liq?.ajustes || ajustesVacios());
       toast("Liquidación preparada. Podés revisarla y recalcularla antes de cerrar.", "success");
-    } catch {
-      toast("No se pudo preparar la liquidación.", "error");
+    } catch (err) {
+      // v1.10.5: si la configuración bloquea preparar con advertencias, el
+      // motivo real se muestra tal cual (no un genérico "error").
+      toast(
+        err?.bloqueoValidacion ? String(err.message) : "No se pudo preparar la liquidación.",
+        "error"
+      );
     } finally {
       setProcesando(false);
     }
@@ -144,8 +206,11 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
     if (!liq || cerrada) return;
     try {
       await recalcularYGuardar(mutar(liq.ajustes || ajustesVacios()));
-    } catch {
-      toast("No se pudo guardar el ajuste.", "error");
+    } catch (err) {
+      toast(
+        err?.bloqueoValidacion ? String(err.message) : "No se pudo guardar el ajuste.",
+        "error"
+      );
     }
   };
 
@@ -191,7 +256,9 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
   const topSet = useMemo(() => new Set(top.map((t) => t.estudio)), [top]);
   const toggleTop = async (estudio, on) => {
     try {
-      await setTopDelPeriodo(periodoKey, estudio, on);
+      // Al re-mantener un operador ya marcado se conserva su puesto manual.
+      const actual = top.find((t) => t.estudio === estudio);
+      await setTopDelPeriodo(periodoKey, estudio, on, on ? actual?.puesto ?? null : null);
       setTop(await getTopDelPeriodo(periodoKey));
       toast(
         on ? `${estudio} quedó marcado en el top de ${periodoLabel}.` : `${estudio} se quitó del top de ${periodoLabel}.`,
@@ -201,6 +268,42 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
       toast("No se pudo actualizar el top.", "error");
     }
   };
+
+  /**
+   * v1.10.5 (§6F): asignación MANUAL de puesto dentro del top del período.
+   * Sin ranking automático: el lugar se elige a mano. Regla anti-duplicado:
+   * si el puesto ya lo ocupaba otro operador del mismo período, ese queda
+   * "pendiente de asignación" (nunca dos con el mismo lugar).
+   */
+  const cambiarPuesto = async (estudio, puesto) => {
+    try {
+      const lugar = Number.isInteger(Number(puesto)) && Number(puesto) >= 1 ? Math.floor(Number(puesto)) : null;
+      const ocupado = top.find((t) => t.estudio !== estudio && lugar != null && Number(t.puesto) === lugar);
+      await setTopDelPeriodo(periodoKey, estudio, true, lugar);
+      if (ocupado) await setTopDelPeriodo(periodoKey, ocupado.estudio, true, null);
+      setTop(await getTopDelPeriodo(periodoKey));
+      toast(
+        lugar == null
+          ? `${estudio} quedó sin puesto asignado (pendiente).`
+          : ocupado
+          ? `Puesto ${lugar} asignado a ${estudio}: ${ocupado.estudio} queda pendiente de reasignación.`
+          : `Puesto ${lugar} asignado a ${estudio}.`,
+        "success"
+      );
+    } catch {
+      toast("No se pudo asignar el puesto.", "error");
+    }
+  };
+
+  // ---- Estado del fondo de premios vigente (v1.10.5, §6G: el fondo es el
+  // presupuesto máximo; el saldo sin asignar siempre se muestra).
+  const premios = reglas.premios;
+  const premiosValidacion = useMemo(() => validarDistribucion(premios), [premios]);
+  const premioAsignado = top.reduce((s, t) => {
+    if (t.puesto == null) return s;
+    return s + (calcularPremioPuesto(premios, t.puesto) || 0);
+  }, 0);
+  const saldoPremios = Math.max(0, (Number(premios.fondo) || 0) - premioAsignado);
 
   // ---- Tabla: filtro por búsqueda + orden por columna.
   const filas = useMemo(() => {
@@ -539,12 +642,13 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
             )}
           </div>
 
-          {/* PREMIOS POR TOP (§6) */}
+          {/* PREMIOS POR TOP (§6 — v1.10.5: fondo/puestos configurables y
+              asignación manual de puestos con importes calculados) */}
           <div
             className="rounded-xl p-4"
             style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
           >
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Trophy size={15} style={{ color: "var(--color-warning)" }} />
               <div className="text-sm font-bold" style={{ color: "var(--color-text)" }}>
                 Premios por top
@@ -557,37 +661,128 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
                   border: "1px solid color-mix(in srgb, var(--color-accent) 27%, transparent)",
                 }}
               >
-                Fondo {formatArs(reglas.fondoTop)} · {reglas.puestosTop} puestos
+                Fondo {formatArs(premios.fondo)} · {premios.puestos.length} puestos ·{" "}
+                {premios.modalidad === "porcentual" ? "distribución porcentual" : "importes fijos"}
               </span>
+              {!premios.activo && (
+                <span
+                  className="pill-sm"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--color-text-muted) 13%, transparent)",
+                    color: "var(--color-text-muted)",
+                    border: "1px solid color-mix(in srgb, var(--color-text-muted) 27%, transparent)",
+                  }}
+                >
+                  Premios desactivados
+                </span>
+              )}
             </div>
             <div className="text-xs mb-3 flex items-start gap-1.5" style={{ color: "var(--color-text-muted)" }}>
               <Info size={12} className="flex-shrink-0 mt-0.5" />
               <span>
                 El top se registra a mano (toggle "Está en el top" en la tabla): la app NO verifica el ranking real
-                ni asigna puestos ni calcula premios individuales. El estado es exclusivo de {periodoLabel}.
+                ni asigna puestos automáticamente. Los puestos se eligen a mano y los importes se calculan con la
+                distribución vigente en Configuración. El estado es exclusivo de {periodoLabel}.
               </span>
             </div>
-            {topSet.size === 0 ? (
+
+            {/* Distribución inválida en configuración → avisar sin calcular de más */}
+            {!premiosValidacion.ok && (
+              <div
+                className="rounded-lg p-2 mb-3 text-xs flex items-start gap-2"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--color-danger) 8%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--color-danger) 27%, transparent)",
+                  color: "var(--color-text)",
+                }}
+                role="alert"
+              >
+                <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-danger)" }} />
+                <span>
+                  La distribución de premios tiene errores (revisar en Configuración → General → Liquidaciones →
+                  Premios): {premiosValidacion.errores[0]}
+                </span>
+              </div>
+            )}
+
+            {!premios.activo ? (
+              <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                Los premios están desactivados en Configuración. El registro manual del top (toggle y puestos) sigue
+                disponible y se conserva por período.
+              </div>
+            ) : topSet.size === 0 ? (
               <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 Nadie está marcado en el top de {periodoLabel} todavía.
               </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {[...topSet].map((estudio) => (
-                  <span
-                    key={estudio}
-                    className="inline-flex items-center gap-1.5 pill-sm"
-                    style={{
-                      backgroundColor: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-                      color: "var(--color-warning)",
-                      border: "1px solid color-mix(in srgb, var(--color-warning) 27%, transparent)",
-                    }}
-                  >
-                    <Trophy size={11} />
-                    {estudio}
+              <>
+                <div className="rounded-lg overflow-hidden mb-3" style={{ border: "1px solid var(--color-border)" }}>
+                  <table className="w-full text-xs" style={{ color: "var(--color-text)" }} aria-label="Premios del top">
+                    <thead>
+                      <tr style={{ backgroundColor: "var(--color-bg)" }}>
+                        <th className="text-left p-2 font-semibold">Operador marcado</th>
+                        <th className="text-left p-2 font-semibold">Puesto (manual)</th>
+                        <th className="text-right p-2 font-semibold">Premio calculado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {top.map((t) => {
+                        const premio = t.puesto != null ? calcularPremioPuesto(premios, t.puesto) : null;
+                        return (
+                          <tr key={t.estudio} style={{ borderTop: "1px solid var(--color-border)" }}>
+                            <td className="p-2 font-medium">{t.estudio}</td>
+                            <td className="p-2">
+                              <Select
+                                aria-label={`Puesto de ${t.estudio}`}
+                                value={t.puesto ?? ""}
+                                onChange={(e) => cambiarPuesto(t.estudio, e.target.value)}
+                                options={[
+                                  { value: "", label: "Pendiente de asignar" },
+                                  ...premios.puestos.map((p) => {
+                                    const tomado = top.some(
+                                      (x) => x.estudio !== t.estudio && Number(x.puesto) === p.lugar
+                                    );
+                                    return { value: p.lugar, label: tomado ? `Puesto ${p.lugar} (ocupado)` : `Puesto ${p.lugar}` };
+                                  }),
+                                ]}
+                                style={{ minWidth: "170px" }}
+                              />
+                            </td>
+                            <td className="p-2 text-right font-semibold">
+                              {t.puesto == null ? (
+                                <span style={{ color: "var(--color-warning)" }}>Pendiente</span>
+                              ) : premio == null ? (
+                                <span style={{ color: "var(--color-danger)" }}>Sin importe válido</span>
+                              ) : (
+                                formatArs(premio)
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {/* §6G: el fondo es el presupuesto MÁXIMO; el saldo sin
+                    asignar siempre queda a la vista. */}
+                <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  <span>
+                    Asignado: <b style={{ color: "var(--color-text)" }}>{formatArs(premioAsignado)}</b>
                   </span>
-                ))}
-              </div>
+                  <span>
+                    Fondo total: <b style={{ color: "var(--color-text)" }}>{formatArs(premios.fondo)}</b>
+                  </span>
+                  <span>
+                    Saldo sin asignar:{" "}
+                    <b style={{ color: saldoPremios > 0 ? "var(--color-warning)" : "var(--color-success)" }}>
+                      {formatArs(saldoPremios)}
+                    </b>
+                  </span>
+                  {premiosValidacion.advertencias.length > 0 && (
+                    <span style={{ color: "var(--color-warning)" }}>{premiosValidacion.advertencias[0]}</span>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </>

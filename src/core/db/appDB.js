@@ -149,8 +149,24 @@ appDB.version(11).stores({
   liquidacion_top: 'id, periodoKey, estudio, updatedAt',
 });
 
+// v12: historial de configuraciones de Liquidaciones (1.10.5) — auditoría de
+// cambios (fecha, campo, valor anterior, valor nuevo). Aditivo, sin .upgrade:
+// no toca datos existentes (mismo patrón que v11).
+appDB.version(12).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+  saved_reports: '++id, nombre, updatedAt',
+  liquidaciones: 'id, periodoKey, estado, updatedAt',
+  liquidacion_top: 'id, periodoKey, estudio, updatedAt',
+  liquidacion_config_history: '++id, fecha, campo, createdAt',
+});
+
 /** Versión de schema actual que la app conoce. */
-export const APP_DB_SCHEMA_VERSION = 11;
+export const APP_DB_SCHEMA_VERSION = 12;
 
 setupDexieLifecycle(appDB, { name: 'AppData' });
 

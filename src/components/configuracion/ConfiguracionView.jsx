@@ -9,7 +9,7 @@ import {
   LayoutGrid, Table2, ClipboardList, Wrench, Plus, Target, Type, CalendarClock, Sun,
   CalendarDays, ListTodo, Zap, Lock, Columns, MoreHorizontal, GitBranch,
   ListOrdered, MessageSquare, MessagesSquare, ShieldAlert, HeartPulse, Scale, Car, FileSearch,
-  BarChart3, Building2, Filter, ClipboardPaste, Info, Sparkles,
+  BarChart3, Building2, Filter, ClipboardPaste, Info, Sparkles, Banknote,
 } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
@@ -21,6 +21,8 @@ import { useJustifyPestanas } from "../common/UINav";
 import { PersonalizacionColores } from "./PersonalizacionColores";
 import { KeywordsInput } from "./KeywordsInput";
 import { TipografiaView } from "./TipografiaView";
+// v1.10.5: sección de Liquidaciones dentro de Configuración → General.
+import { LiquidacionesConfig } from "./LiquidacionesConfig";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
 // v1.9.6 (fix metas): getOperatorGoals + subscribeOperatorGoals para que el
 // input de meta muestre siempre el valor canónico (Mi Espacio) y se refresque
@@ -131,6 +133,8 @@ const SECTION_META = {
   plantillas: "Plantillas de reportes para agilizar el registro.",
   conversaciones:
     "Categorías y variables con llaves de Útiles → Conversación Sugerida.",
+  liquidaciones:
+    "Reglas económicas de Liquidaciones: mínimo de habilitación, tarifas por categoría, conceptos, premios por top e historial de cambios.",
   apariencia: "Tema claro/oscuro, paletas de color y colores por estado de caso.",
   tipografia: "Presets tipográficos y tamaño de fuente de toda la app.",
   dashboard: "Orden de pestañas y widgets del Dashboard, Mi Espacio, Tablero, Tabla, Reportes y Útiles.",
@@ -392,6 +396,8 @@ export function ConfiguracionView({
         { id: "plantillas", label: "Plantillas", icon: FileText },
         // 1.9.6: editor de categorías y variables de Útiles → Conversación Sugerida.
         { id: "conversaciones", label: "Conversación Sugerida", icon: MessagesSquare },
+        // v1.10.5: reglas económicas del módulo de Liquidaciones (centralizadas).
+        { id: "liquidaciones", label: "Liquidaciones", icon: Banknote },
       ],
     },
     {
@@ -1503,6 +1509,11 @@ export function ConfiguracionView({
           <HelpSection />
         </div>
         );
+
+      // v1.10.5: reglas económicas centralizadas (fuente de verdad compartida
+      // con Mi Espacio vía liquidacionReglas.getReglas(config)).
+      case "liquidaciones":
+        return <LiquidacionesConfig config={config} setConfig={setConfig} showToast={showToast} />;
 
       case "apariencia":
         return <PersonalizacionColores showToast={showToast} config={config} />;

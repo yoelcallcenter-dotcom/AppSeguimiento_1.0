@@ -12,6 +12,8 @@ import {
   guardarLiquidacion,
   getTopDelPeriodo,
   setTopDelPeriodo,
+  registrarCambioConfig,
+  getHistorialConfig,
 } from "./liquidacionesStore";
 import { calcularLiquidacion, ajustesVacios } from "./liquidacionEngine";
 import { REGLAS_LIQUIDACION_DEFECTO } from "./liquidacionReglas";
@@ -39,6 +41,7 @@ function ajusteLeve(casos) {
 beforeEach(async () => {
   await appDB.liquidaciones.clear();
   await appDB.liquidacion_top.clear();
+  await appDB.liquidacion_config_history.clear();
 });
 
 describe("liquidacionesStore", () => {
@@ -120,5 +123,37 @@ describe("liquidacionesStore", () => {
     const all = await appDB.liquidaciones.toArray();
     expect(all).toHaveLength(1);
     expect(second.totales.firmas).toBe(5);
+  });
+
+  // -------------------------------------------------------------------------
+  // v1.10.5: puesto manual en el top + historial de auditoría de configuración
+  // -------------------------------------------------------------------------
+
+  it("v1.10.5: el puesto manual del top persiste y se limpia al desmarcar", async () => {
+    const pk = periodoKeyDe(2026, 9);
+    await setTopDelPeriodo(pk, "gl caba", true, 2);
+    const top = await getTopDelPeriodo(pk);
+    expect(top[0].puesto).toBe(2);
+    // Un valor inválido queda como null (pendiente), nunca 0 ni negativo.
+    await setTopDelPeriodo(pk, "otro estudio", true, 0);
+    expect((await getTopDelPeriodo(pk)).find((t) => t.estudio === "otro estudio").puesto).toBeNull();
+    // Desmarcar elimina el registro completo (incluido el puesto).
+    await setTopDelPeriodo(pk, "gl caba", false);
+    expect(await getTopDelPeriodo(pk)).toHaveLength(1);
+  });
+
+  it("v1.10.5: el historial de configuración registra fecha, campo y valores", async () => {
+    await registrarCambioConfig({ campo: "minimoFirmasNetas", valorAnterior: 14, valorNuevo: 18 });
+    await registrarCambioConfig({ campo: "premios", valorAnterior: { fondo: 100000 }, valorNuevo: { fondo: 150000 } });
+    const rows = await getHistorialConfig();
+    expect(rows).toHaveLength(2);
+    // Orden: el más reciente primero (misma fecha ISO → el último registrado).
+    expect(rows[0].campo).toBe("premios");
+    expect(rows[1].campo).toBe("minimoFirmasNetas");
+    expect(rows[0].valorNuevo).toBe(JSON.stringify({ fondo: 150000 }));
+    expect(rows[0].valorAnterior).toBe(JSON.stringify({ fondo: 100000 }));
+    expect(rows[0].fecha).toBeTruthy();
+    // El límite recorta los más antiguos.
+    expect(await getHistorialConfig(1)).toHaveLength(1);
   });
 });

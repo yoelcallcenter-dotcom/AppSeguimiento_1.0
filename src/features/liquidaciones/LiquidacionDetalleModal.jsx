@@ -16,12 +16,7 @@ import { Modal } from "../../components/common/Modal";
 import { Btn } from "../../components/common/Btn";
 import { Select } from "../../components/common/Select";
 import { TextInput } from "../../components/common/TextInput";
-import { CATEGORIAS_LIQUIDACION, categoriaLabel } from "./liquidacionReglas";
-
-const OPCIONES_CATEGORIA = [
-  { value: "", label: "Sin clasificar" },
-  ...CATEGORIAS_LIQUIDACION.map((c) => ({ value: c.key, label: c.label })),
-];
+import { categoriaLabel, getCategoriasActivas } from "./liquidacionReglas";
 
 function formatArs(n) {
   if (n == null) return "—";
@@ -41,6 +36,25 @@ export function LiquidacionDetalleModal({
 }) {
   const minimo = reglas?.minimoFirmasNetas ?? 14;
   const op = operador;
+
+  // v1.10.5: opciones de categoría DINÁMICAS desde la configuración vigente.
+  // Solo se ofrecen categorías activas (las desactivadas no se usan en nuevas
+  // clasificaciones, §4C); si el concepto ya usa una desactivada, se muestra
+  // con su nombre y la aclaración "(desactivada)" para no perder la referencia.
+  const catsActivas = getCategoriasActivas(reglas);
+  const opcionesDe = (categoriaActual) => {
+    const ops = [
+      { value: "", label: "Sin clasificar" },
+      ...catsActivas.map((c) => ({
+        value: c.key,
+        label: `${c.nombre} — $ ${c.tarifa.toLocaleString("es-AR")}`,
+      })),
+    ];
+    if (categoriaActual && !catsActivas.some((c) => c.key === categoriaActual)) {
+      ops.push({ value: categoriaActual, label: `${categoriaLabel(categoriaActual, reglas)} (desactivada)` });
+    }
+    return ops;
+  };
 
   // Estado local del formulario de baja manual (solo preparación).
   const [bajaCasoId, setBajaCasoId] = React.useState("");
@@ -146,13 +160,13 @@ export function LiquidacionDetalleModal({
                   <td className="p-2">{c.tipoConcepto === "transito" ? "2.º (tránsito)" : "Firma"}</td>
                   <td className="p-2">
                     {cerrada ? (
-                      categoriaLabel(c.categoria)
+                      categoriaLabel(c.categoria, reglas)
                     ) : (
                       <Select
                         aria-label={`Categoría de ${c.casoNombre}`}
                         value={c.categoria || ""}
                         onChange={(e) => onCambiarCategoria(c.casoId, e.target.value || null)}
-                        options={OPCIONES_CATEGORIA}
+                        options={opcionesDe(c.categoria)}
                         style={{ minWidth: "150px" }}
                       />
                     )}

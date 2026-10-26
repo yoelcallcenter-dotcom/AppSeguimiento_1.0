@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.3** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.5** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,12 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.5 — Configuración centralizada de Liquidaciones
+
+- **Configuración → General → Liquidaciones** (nueva sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada.
+- **Mi Espacio consume la misma fuente de verdad**: las liquidaciones en preparación se recalculan con la configuración vigente (las cerradas conservan su instantánea histórica); los puestos del top se asignan a mano con anti-duplicado y los importes de premio se calculan con la distribución vigente, con el saldo sin asignar a la vista.
+- **Persistencia AppData v12 (aditiva)**: tabla de auditoría de la configuración, incluida en backup/export/import; compatibilidad total con configs y backups anteriores (defaults mergeados, sin migración destructiva).
 
 ### 1.10.4 — Módulo de Liquidaciones en Mi Espacio
 

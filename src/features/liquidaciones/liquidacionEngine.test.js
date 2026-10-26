@@ -291,3 +291,79 @@ describe("Liquidaciones · duplicados (Prueba 14)", () => {
     expect(v.errores).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// v1.10.5: efectos reales de la configuración central sobre el cálculo (§13)
+// ---------------------------------------------------------------------------
+
+describe("Liquidaciones · configuración central (v1.10.5)", () => {
+  it("segundo concepto desactivado en configuración → las marcas existentes se ignoran con advertencia", () => {
+    const reglasLegacy = { ...REGLAS_LIQUIDACION_DEFECTO, minimoFirmasNetas: 1 };
+    const casos = firmas("s", 1);
+    const ajustes = catAll(casos, "leve");
+    ajustes.conceptosExtra = { "s-1": { habilitado: true, categoria: "grave" } };
+
+    // Con la regla activa (default) el segundo concepto computa.
+    const conExtra = calcularLiquidacion(casos, opts({ reglas: reglasLegacy, ajustes }));
+    expect(conExtra.operadores[0].importe).toBe(10000 + 20000);
+
+    // Con la regla apagada, la marca se IGNORA (no se duplica sola) y avisa.
+    const sinExtra = calcularLiquidacion(
+      casos,
+      opts({
+        reglas: { ...reglasLegacy, reglasConceptos: { permitirSegundoConcepto: false } },
+        ajustes,
+      })
+    );
+    expect(sinExtra.operadores[0].importe).toBe(10000); // solo el concepto principal
+    expect(sinExtra.advertencias.some((a) => a.includes("Segundos conceptos desactivados"))).toBe(true);
+  });
+
+  it("categoría inexistente en la configuración → pendiente de revisión y cierre bloqueado (§4D)", () => {
+    const casos = firmas("t", 1);
+    // Reglas con lista de categorías que NO incluye "leve".
+    const reglas = {
+      categorias: [{ key: "grave", nombre: "Lesión grave", tarifa: 20000, activa: true }],
+      minimoFirmasNetas: 1,
+    };
+    const ajustes = catAll(casos, "leve"); // clave que ya no existe
+    const liq = calcularLiquidacion(casos, opts({ reglas, ajustes }));
+    expect(liq.operadores[0].conceptos[0].tarifaUnitaria).toBeNull();
+    expect(liq.operadores[0].conceptos[0].pendienteRevision).toBe(true);
+    expect(liq.incompleto).toBe(true);
+    expect(liq.totales.importeTotal).toBeNull();
+    const v = validarCierre(liq);
+    expect(v.ok).toBe(false);
+  });
+
+  it("bloquearCierreSinFirmas apagado (default) → advertencia; encendido → error de cierre", () => {
+    const liq = calcularLiquidacion([], opts());
+    const vDefault = validarCierre(liq);
+    expect(vDefault.ok).toBe(true);
+    expect(vDefault.advertencias.some((a) => a.includes("no tiene firmas"))).toBe(true);
+
+    const conBloqueo = {
+      ...liq,
+      reglasSnapshot: { validaciones: { bloquearCierreSinFirmas: true } },
+    };
+    const vBloqueo = validarCierre(conBloqueo);
+    expect(vBloqueo.ok).toBe(false);
+    expect(vBloqueo.errores.some((e) => e.includes("solo períodos con firmas"))).toBe(true);
+  });
+
+  it("categoría desactivada NO se sugiere para nuevos conceptos (§4C)", () => {
+    const casos = firmas("u", 1);
+    casos[0].tipoIngreso = "Enfermedad Profesional";
+    const reglas = {
+      categorias: [
+        { key: "leve", nombre: "L", tarifa: 10000, activa: true },
+        { key: "grave", nombre: "G", tarifa: 20000, activa: true },
+        { key: "profesional", nombre: "P", tarifa: 20000, activa: false },
+      ],
+      minimoFirmasNetas: 1,
+    };
+    const liq = calcularLiquidacion(casos, opts({ reglas }));
+    expect(liq.operadores[0].conceptos[0].categoria).toBeNull();
+    expect(liq.incompleto).toBe(true); // queda sin clasificar → el usuario decide
+  });
+});

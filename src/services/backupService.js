@@ -42,6 +42,8 @@ const DB_TABLES = [
   // lo local (misma semántica que auto_backups).
   { db: "appDB", name: "liquidaciones" },
   { db: "appDB", name: "liquidacion_top" },
+  // v1.10.5: historial de auditoría de la configuración de liquidaciones.
+  { db: "appDB", name: "liquidacion_config_history" },
 ];
 
 const DB_INSTANCES = { casesDB, appDB };

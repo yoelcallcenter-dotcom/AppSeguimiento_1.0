@@ -94,11 +94,19 @@ export function seleccionarFirmas(casos, { year, month, fechaCierre = null, cats
  * `tipoIngreso` es inequívoco ("Enfermedad Profesional"); leve/grave no es
  * deducible de forma fiable de los campos del caso, así que queda null y el
  * usuario clasifica a mano (el cierre se bloquea con conceptos sin clasificar).
+ *
+ * v1.10.5: la sugerencia solo aplica si la categoría "profesional" EXISTE y
+ * está ACTIVA en la configuración vigente (las desactivadas no se usan en
+ * nuevas clasificaciones — §4C), salvo que se llame sin reglas (legacy).
  */
-export function sugerirCategoria(caso) {
+export function sugerirCategoria(caso, reglas = null) {
   const tipo = (caso?.tipoIngreso || "").toLowerCase();
-  if (tipo.includes("enfermedad profesional")) return "profesional";
-  return null;
+  if (!tipo.includes("enfermedad profesional")) return null;
+  if (Array.isArray(reglas?.categorias)) {
+    const cat = reglas.categorias.find((c) => c.key === "profesional");
+    return cat && cat.activa !== false ? "profesional" : null;
+  }
+  return "profesional";
 }
 
 function buildConcepto(caso, { extra = false, categoria = null, reglas }) {
@@ -112,6 +120,12 @@ function buildConcepto(caso, { extra = false, categoria = null, reglas }) {
     tipoConcepto: extra ? "transito" : "firma",
     categoria,
     tarifaUnitaria: tarifa,
+    // v1.10.5 (§4D): categoría marcada pero sin tarifa vigente (p. ej. su
+    // clave ya no existe en la configuración): el concepto queda "pendiente
+    // de revisión" — nunca se le asigna un importe arbitrario ni se cuenta
+    // como $0 silencioso (incompleto → importeTotal en null y cierre
+    // bloqueado con "Sin tarifa para la categoría").
+    pendienteRevision: !!categoria && tarifa == null,
     cantidad: 1,
     subtotal: tarifa == null ? null : tarifa * 1,
   };
@@ -144,6 +158,11 @@ export function calcularLiquidacion(casos, opciones = {}) {
   const extras = ajustes.conceptosExtra || {};
   const bajasManualesIn = ajustes.bajasManuales || [];
 
+  // v1.10.5: si la configuración apagó "permitir segundo concepto", las
+  // marcas existentes se IGNORAN en el cálculo (con advertencia visible):
+  // nunca se duplica un caso de forma automática (§5C).
+  const permitirExtra = reglas?.reglasConceptos?.permitirSegundoConcepto !== false;
+
   const seleccion = seleccionarFirmas(casos, { year, month, fechaCierre, cats, today });
   const seleccionIds = new Set(seleccion.map((x) => x.caso.id));
 
@@ -154,6 +173,14 @@ export function calcularLiquidacion(casos, opciones = {}) {
 
   // ---- Bajas manuales: validación anti-duplicado (Prueba 14).
   const advertencias = [];
+  if (!permitirExtra) {
+    const ignorados = Object.values(extras).filter((e) => e?.habilitado).length;
+    if (ignorados > 0) {
+      advertencias.push(
+        `Segundos conceptos desactivados en Configuración: se ignoraron ${ignorados} marca(s) manual(es) de doble concepto.`
+      );
+    }
+  }
   const bajasManuales = [];
   const vistosManual = new Set();
   for (const b of bajasManualesIn) {
@@ -193,29 +220,34 @@ export function calcularLiquidacion(casos, opciones = {}) {
     for (const caso of cs) {
       const esBaja = idsBajaAuto.has(caso.id) || idsBajaManual.has(caso.id);
       const motivo = idsBajaAuto.has(caso.id) ? "automatica" : "manual";
-      const categoria = catPorCaso[caso.id] ?? sugerirCategoria(caso);
+      const categoria = catPorCaso[caso.id] ?? sugerirCategoria(caso, reglas);
 
       firmas += 1;
       if (esBaja) {
         bajas += 1;
         bajasDetalle.push({ casoId: caso.id, casoNombre: caso.nombre || "(sin nombre)", origen: motivo });
       } else {
-        if (!categoria) sinCategoria += 1;
-        conceptos.push(buildConcepto(caso, { categoria, reglas }));
+        const concepto = buildConcepto(caso, { categoria, reglas });
+        // v1.10.5 (§4D): también cuenta lo "pendiente de revisión"
+        // (categoría sin tarifa vigente) como dato incompleto.
+        if (!categoria || concepto.pendienteRevision) sinCategoria += 1;
+        conceptos.push(concepto);
       }
 
       // Segundo concepto (marca manual "tránsito" por caso): se contabiliza
-      // por separado SOLO si el usuario lo habilitó (nunca automático).
+      // por separado SOLO si el usuario lo habilitó y la configuración lo
+      // permite (nunca automático).
       const extra = extras[caso.id];
-      if (extra?.habilitado) {
+      if (permitirExtra && extra?.habilitado) {
         firmas += 1;
         if (esBaja) {
           bajas += 1;
           bajasDetalle.push({ casoId: caso.id, casoNombre: caso.nombre || "(sin nombre)", origen: motivo, extra: true });
         } else {
           const catExtra = extra.categoria || null;
-          if (!catExtra) sinCategoria += 1;
-          conceptos.push(buildConcepto(caso, { extra: true, categoria: catExtra, reglas }));
+          const conceptoX = buildConcepto(caso, { extra: true, categoria: catExtra, reglas });
+          if (!catExtra || conceptoX.pendienteRevision) sinCategoria += 1;
+          conceptos.push(conceptoX);
         }
       }
     }
@@ -288,7 +320,14 @@ export function validarCierre(liq) {
     return { ok: false, errores, advertencias };
   }
   if (liq.totales.firmas === 0) {
-    advertencias.push("El período no tiene firmas: la liquidación quedará en cero.");
+    // v1.10.5: la configuración puede elevar "período sin firmas" de
+    // advertencia a ERROR de cierre (validación configurable §3D). Las
+    // validaciones críticas (duplicados, tarifas, categorías) no lo son.
+    if (liq.reglasSnapshot?.validaciones?.bloquearCierreSinFirmas === true) {
+      errores.push("El período no tiene firmas: la configuración exige cerrar solo períodos con firmas.");
+    } else {
+      advertencias.push("El período no tiene firmas: la liquidación quedará en cero.");
+    }
   }
   if (liq.incompleto) {
     errores.push("Hay conceptos sin clasificar: completá la categoría antes de cerrar.");
