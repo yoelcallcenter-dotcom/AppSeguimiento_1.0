@@ -37,6 +37,11 @@ const DB_TABLES = [
   { db: "appDB", name: "note_versions" },
   { db: "appDB", name: "templates" },
   { db: "appDB", name: "saved_reports" },
+  // v1.10.4: liquidaciones por período + top manual. Los backups anteriores a
+  // esta versión no traen estas secciones: al restaurar, la ausencia preserva
+  // lo local (misma semántica que auto_backups).
+  { db: "appDB", name: "liquidaciones" },
+  { db: "appDB", name: "liquidacion_top" },
 ];
 
 const DB_INSTANCES = { casesDB, appDB };

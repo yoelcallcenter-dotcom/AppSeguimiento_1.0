@@ -17,6 +17,12 @@
 
 ## Características principales
 
+### 1.10.4 — Módulo de Liquidaciones en Mi Espacio
+
+- **Liquidación por firmas en Mi Espacio**: nueva sub-sección con período y fecha de cierre, resumen económico, tabla por estudio y detalle por concepto. El mínimo de 14 firmas netas es un requisito de habilitación (si se alcanza, pagan todas las netas); tarifas iniciales centralizadas y provisionales, bajas automáticas/manuales con validación anti-duplicado, y cierre con instantánea histórica que no se recalcula.
+- **Premios por top manuales**: toggle "Está en el top" por período —declaración manual, sin ranking automático— con fondo y puestos como valores provisionales.
+- **Persistencia nueva (AppData v11, aditiva)**: `liquidaciones` y `liquidacion_top`, ambas incluidas en backup/export/import sin romper backups anteriores.
+
 ### 1.10.3 — Modales de evento rediseñados y cita con horario real
 - **La cita de un caso nuevo nace con su horario real** (no a las 09:00): el parser de CITA ahora entiende el formato del paste del sistema cliente ("19/10 (12:30 a 13:00) - Yoel Libay") y la regla automática usa la fecha y el rango de la cita; además no duplica el evento cuando `syncCitaEvent` ya lo creó.
 - **Modales de evento rediseñados**: el form del calendario queda en secciones (Cuándo / Detalles / Clasificación / Vinculaciones) con preview en vivo del evento en el header, estado en chips de color y hora fin auto-calculada al mover el inicio.

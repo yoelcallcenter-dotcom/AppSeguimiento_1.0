@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
-import { UserCircle2, CalendarDays, Target, KeyRound, Sun, ArrowRight, FileDown } from "lucide-react";
+import { UserCircle2, CalendarDays, Target, KeyRound, Sun, ArrowRight, FileDown, Banknote } from "lucide-react";
 import useCelebrationStore from "../../core/celebrations/celebrationStore";
 import { useOperatorState } from "./useOperatorState";
 import { getDayState, getDailyGoalProgress, getMonthlyGoalProgress, getRequiredDailyPace, getEffectiveWorkDays, getAvailabilitySummary, buildPersonalSuggestions, getPerEffectiveDayMetrics } from "./operatorMetrics";
@@ -10,6 +10,8 @@ import { AvailabilityCard } from "./components/availability";
 import { GoalsSection } from "./components/GoalsSection";
 import { CredentialsSection } from "./components/CredentialsSection";
 import { TodayCenter } from "./TodayCenter";
+// v1.10.4: Liquidaciones por firmas + premios por top (sub-sección de Mi Espacio).
+import { OperatorLiquidaciones } from "../liquidaciones/OperatorLiquidaciones";
 // Optimización 1.6.6: PdfExportModal se carga bajo demanda (solo al exportar).
 const PdfExportModal = lazy(() =>
   import("./PdfExportModal").then((m) => ({ default: m.PdfExportModal }))
@@ -153,6 +155,8 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
     { key: "perfil", label: "Mi perfil", icon: UserCircle2 },
     { key: "disponibilidad", label: "Mi disponibilidad", icon: CalendarDays },
     { key: "metas", label: "Mis metas", icon: Target },
+    // v1.10.4: nueva sub-sección de Liquidaciones (por firmas + premios por top).
+    { key: "liquidaciones", label: "Liquidaciones", icon: Banknote },
     { key: "accesos", label: "Accesos personales", icon: KeyRound },
   ];
 
@@ -296,6 +300,9 @@ export function OperatorView({ config, casos, showToast, onChangeView, onVerCaso
             showToast={showToast}
             showPace={settings.showPace !== false}
           />
+        )}
+        {activeSection === "liquidaciones" && (
+          <OperatorLiquidaciones casos={allCases} showToast={showToast} config={config} />
         )}
         {activeSection === "accesos" && (
           <CredentialsSection

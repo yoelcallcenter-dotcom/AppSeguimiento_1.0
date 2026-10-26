@@ -25,6 +25,12 @@ export const DOC_README = `# AppSeguimiento
 
 ## Características principales
 
+### 1.10.4 — Módulo de Liquidaciones en Mi Espacio
+
+- **Liquidación por firmas en Mi Espacio**: nueva sub-sección con período y fecha de cierre, resumen económico, tabla por estudio y detalle por concepto. El mínimo de 14 firmas netas es un requisito de habilitación (si se alcanza, pagan todas las netas); tarifas iniciales centralizadas y provisionales, bajas automáticas/manuales con validación anti-duplicado, y cierre con instantánea histórica que no se recalcula.
+- **Premios por top manuales**: toggle "Está en el top" por período —declaración manual, sin ranking automático— con fondo y puestos como valores provisionales.
+- **Persistencia nueva (AppData v11, aditiva)**: \`liquidaciones\` y \`liquidacion_top\`, ambas incluidas en backup/export/import sin romper backups anteriores.
+
 ### 1.10.3 — Modales de evento rediseñados y cita con horario real
 - **La cita de un caso nuevo nace con su horario real** (no a las 09:00): el parser de CITA ahora entiende el formato del paste del sistema cliente ("19/10 (12:30 a 13:00) - Yoel Libay") y la regla automática usa la fecha y el rango de la cita; además no duplica el evento cuando \`syncCitaEvent\` ya lo creó.
 - **Modales de evento rediseñados**: el form del calendario queda en secciones (Cuándo / Detalles / Clasificación / Vinculaciones) con preview en vivo del evento en el header, estado en chips de color y hora fin auto-calculada al mover el inicio.
@@ -354,6 +360,45 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.10.4] - Módulo de Liquidaciones en Mi Espacio
+
+Nuevo módulo en Mi Espacio para liquidar por firmas y registrar la participación manual en el top. El cálculo es determinista (motor puro, testeable sin UI), las tarifas viven centralizadas (provisionales, listas para conectarlas a Configuración en la 1.10.5) y el cierre congela una instantánea histórica que no se recalcula.
+
+### Liquidación por firmas
+
+- **Nueva sub-sección "Liquidaciones" en Mi Espacio**: selector de período (mes) + fecha de cierre, resumen del período (firmas registradas, bajas, netas, habilitados/no habilitados e importe total liquidable), tabla por estudio con búsqueda y orden por columna, y detalle por operador en modal (resumen del mínimo, desglose por concepto con importe unitario y subtotal, bajas contabilizadas y total final).
+- **Mínimo de 14 firmas netas como requisito de habilitación, no como deducción**: \`firmasNetas = firmasTotales − bajas\`; si netas < 14 el importe liquidable es 0 y el detalle explica por qué; si netas ≥ 14 se pagan TODAS las netas (las primeras 14 no se descuentan).
+- **Tarifas iniciales centralizadas y marcadas como provisionales** en \`liquidacionReglas.js\` (leve $10.000, grave $20.000, enfermedad profesional $20.000): ningún importe vive hardcodeado en componentes y \`getReglas(config)\` queda lista para que la 1.10.5 las exponga en Configuración → General → Liquidaciones.
+- **Clasificación por concepto, no por caso**: cada concepto liquidable conserva referencia al caso, su categoría, tarifa aplicada, cantidad y subtotal. Un caso puede generar DOS conceptos (p. ej. lesión laboral y accidente de tránsito) únicamente con marca manual "2.º": nunca se duplican importes automáticamente.
+- **Período y corte**: la fecha de la firma sigue la convención canónica de la app (último reporte del caso; si no hay reportes, \`fechaFirma\`); nada posterior a la fecha de cierre entra al cálculo.
+- **Bajas automáticas y manuales**: automáticas = casos del período cuyo estado actual es "Baja" (firma anulada); manuales = registro por caso con motivo. La validación anti-duplicado impide el doble descuento (baja manual repetida o sobre baja automática).
+- **Validación previa al cierre**: período definido, fecha de cierre válida, sin conceptos ni bajas duplicados, categorías identificadas y tarifas disponibles. Si hay datos incompletos el importe total se informa como no confiable y el cierre queda bloqueado: nunca se presenta una liquidación definitiva incorrecta.
+
+### Premios por top
+
+- **Toggle manual "Está en el top" por (período, estudio)**: es una declaración manual — la app NO verifica el ranking real, NO asigna puestos y NO calcula premios individuales. El estado persiste exclusivamente del período elegido (no se pierde al navegar o recargar y no se copia al cambiar de período) y el panel muestra el fondo total ($100.000) y los puestos premiados (3) como valores provisionales.
+
+### Modelo de datos y persistencia
+
+- **AppData v11 (aditivo, sin migración destructiva)** con dos tablas nuevas: \`liquidaciones\` (un documento por período con cabecera, snapshot de reglas, ajustes manuales, operadores con sus conceptos y totales; estado de preparación —recalculable— o cerrada —instantánea congelada—) y \`liquidacion_top\` (participación manual por período y estudio). Ambas quedan incluidas en backup/export/import; los backups antiguos, que no traen estas secciones, se restauran sin novedad (la ausencia preserva lo local).
+- **Separación de responsabilidades**: reglas económicas (\`liquidacionReglas.js\`), motor de cálculo puro (\`liquidacionEngine.js\`), persistencia (\`liquidacionesStore.js\`) e interfaz (\`OperatorLiquidaciones.jsx\` + \`LiquidacionDetalleModal.jsx\`).
+
+### Limitaciones de los datos disponibles (documentadas, no inferidas)
+
+- La app es **mono-operador** (perfil único en Mi Espacio): los casos no tienen campo de operador, por lo que la agrupación de firmas usa \`estudioJuridico\` —unidad real del modelo, ya analizada en el Dashboard— con fila "Sin estudio" para los casos sin asignar.
+- La categoría económica (leve/grave/enfermedad profesional) **no existe como campo del caso**: se clasifica a mano por concepto, con una pre-sugerencia visible y editable desde \`tipoIngreso\` cuando es inequívoca ("Enfermedad Profesional"). Mientras haya conceptos sin clasificar, el importe total se informa incompleto y el cierre está bloqueado.
+- No hay ranking automático de top (es una declaración manual) ni usuario autenticado: el cierre registra únicamente timestamps, sin autor inventado.
+
+### Pruebas y build
+
+- **26 tests nuevos en verde**: motor (Pruebas 1-8, 13 y 14: mínimo de habilitación con sus cuatro ejemplos, subtotales por categoría, doble concepto identificado, ausencia de duplicados artificiales, datos incompletos y bajas/conceptos duplicados), store (Pruebas 9-12: cierre que conserva importes originales ante cambios posteriores de tarifas, top persistente por período, períodos independientes y recuperación tras recarga) e integración de UI (preparar la liquidación desde la vista y toggle del top persistiendo en Dexie).
+- \`npm run build\` compila sin errores ni warnings.
+
+### Versionado y documentación
+
+- **Bump a 1.10.4** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y la línea de versión del \`package-lock.json\`.
+- CHANGELOG (×3 copias byte-idénticas) y README actualizados; \`docsContent.js\` regenerado (\`node scripts/build-docs.js\`).
 
 ## [1.10.3] - Modales de evento rediseñados y cita con horario real
 

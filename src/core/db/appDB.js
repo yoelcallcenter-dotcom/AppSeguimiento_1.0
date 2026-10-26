@@ -131,8 +131,26 @@ appDB.version(10).stores({
   saved_reports: '++id, nombre, updatedAt',
 });
 
+// v11: módulo de Liquidaciones (1.10.4). Aditivo, sin .upgrade: no toca datos
+// existentes (patrón de case_history v3 en CasesDB).
+// - liquidaciones: 1 doc por período (id = "YYYY-MM") con snapshot de reglas,
+//   ajustes manuales, operadores/conceptos y totales; estado preparación|cerrada.
+// - liquidacion_top: declaración manual de integrantes del top por
+//   (período, estudio); id = "periodoKey::estudio" — no se copia entre períodos.
+appDB.version(11).stores({
+  events: '++id, startDate, endDate, status, priority, relatedNoteId, createdAt',
+  notes: '++id, title, createdAt, updatedAt, *tags',
+  note_versions: '++id, noteId, createdAt',
+  auto_backups: '++id, timestamp, kind',
+  migration_snapshots: '++id, fromVersion, toVersion, createdAt',
+  templates: '++id, name, category, type, active, createdAt, updatedAt',
+  saved_reports: '++id, nombre, updatedAt',
+  liquidaciones: 'id, periodoKey, estado, updatedAt',
+  liquidacion_top: 'id, periodoKey, estudio, updatedAt',
+});
+
 /** Versión de schema actual que la app conoce. */
-export const APP_DB_SCHEMA_VERSION = 10;
+export const APP_DB_SCHEMA_VERSION = 11;
 
 setupDexieLifecycle(appDB, { name: 'AppData' });
 
