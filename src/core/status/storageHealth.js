@@ -252,6 +252,10 @@ export function evaluarHuellaDatos(conteos) {
  *                   La bandera permanece: sigue bloqueando la huella.
  *  - 'recuperado':  había bandera pero los conteos están completos → la
  *                   recarga reparó el acceso; se libera y se avisa.
+ *  - 'sin-huellas': había bandera pero NO existe huella previa con qué
+ *                   comparar (primer arranque 1.10.6 con la base ya rota):
+ *                   no se puede verificar que los datos estén completos →
+ *                   init() emite un aviso honesto, no un "todo bien".
  *  - 'ok':          sin novedad.
  * @param {{cases?: number, notes?: number, events?: number}} conteos
  * @returns {{caso: string, perdidas?: Array}}
@@ -267,9 +271,15 @@ export function verificarDatosPostCarga(conteos) {
     return { caso: "alarma", perdidas };
   }
   if (bandera) {
+    // v1.10.7: si la pérdida se detectó en una sesión SIN huella previa
+    // (p. ej. primer arranque en 1.10.6 ya con la base rota), no hay
+    // evidencia con qué comparar → no se PUEDE verificar que los datos estén
+    // completos. Se devuelve 'sin-huellas' para que init() informe un aviso
+    // honesto en lugar del toast de "todo recuperado".
+    const hayHuella = !!leerHuellaDatos();
     liberarBanderaPerdida();
     estado.clearStorageLost();
-    return { caso: "recuperado" };
+    return hayHuella ? { caso: 'recuperado' } : { caso: 'sin-huellas' };
   }
   return { caso: "ok" };
 }

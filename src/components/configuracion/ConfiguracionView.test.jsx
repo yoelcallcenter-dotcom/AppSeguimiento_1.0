@@ -7,6 +7,8 @@ import { UXProvider } from "../../context/UXContext";
 import { ConfiguracionView } from "./ConfiguracionView";
 import { CONFIG_DEFAULT, ESTADOS } from "../../utils/constants";
 import casesDB from "../../core/db/casesDB";
+// v1.10.7: estado de pérdida de almacenamiento (historial honesto).
+import useSystemStatus from "../../core/status/systemStatusStore";
 
 const noop = () => {};
 
@@ -723,5 +725,35 @@ describe("ConfiguracionView · Reglas automáticas (revisión 1.10.0)", () => {
     expect(visto.estados.map((e) => e.v)).toEqual(ESTADOS.map((e) => e.v));
     expect(visto.estadosDeleted).toEqual([]);
     expect(screen.getByLabelText("Nombre del estado Firmo")).toBeTruthy();
+  });
+});
+
+// v1.10.7: con la base dañada getBackupHistory devuelve [] por ERROR DE
+// LECTURA (su fallback), no porque no existan backups. La sección Datos debe
+// decir la verdad: "Historial ilegible" en vez de "Todavía no hay backups".
+describe("Historial de backups honesto con storage dañado (1.10.7)", () => {
+  afterEach(() => {
+    useSystemStatus.getState().clearStorageLost();
+  });
+
+  it("sin pérdida activa → mensaje original de 'todavía no hay'", async () => {
+    render(<VistaConfig />);
+    abrirDatos();
+    // waitFor: el historial se carga por Dexie (fake-indexeddb) de forma
+    // asíncrona; mientras, el bloque muestra "Cargando historial...".
+    await waitFor(() =>
+      expect(screen.getByText(/Todavía no hay backups automáticos/)).toBeTruthy()
+    );
+    expect(screen.queryByText(/Historial ilegible/)).toBeNull();
+  });
+
+  it("con pérdida activa → 'Historial ilegible' en vez de mentir", async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: "Data lost" });
+    render(<VistaConfig />);
+    abrirDatos();
+    await waitFor(() =>
+      expect(screen.getByText(/Historial ilegible/)).toBeTruthy()
+    );
+    expect(screen.queryByText(/Todavía no hay backups automáticos/)).toBeNull();
   });
 });

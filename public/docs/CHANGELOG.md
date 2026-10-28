@@ -7,6 +7,29 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.7] - Diagnóstico honesto de backups ante pérdida de almacenamiento
+
+Corrección de los síntomas reportados sobre la 1.10.6 ("No se pudo completar la verificación de datos: AbortError NotReadableError Data lost…" y "Atención: Todavía no existe ningún backup en el historial") y del vacío real del historial tras recrearse la base. La causa de fondo es la misma pérdida de archivos de Chromium (ya detectada y avisada por la 1.10.6); esta versión evita que el diagnóstico mienta y que el historial quede vacío un día entero tras la recuperación.
+
+### Por qué no se podían hacer backups (diagnóstico)
+
+- Con la base dañada **ningún backup es posible**: el backup automático escribe en `auto_backups` de la misma IndexedDB ilegible, y tanto el automático como la descarga por archivo pasan por `exportBackup()`, que lee todas las tablas y lanza. No es un bug del temporizador: hasta que el navegador repare/reabra la base (recarga) o se restaure un archivo previo, no hay nada que la app pueda respaldar.
+- Dos mentiras corregidas: (a) con la base rota, `getBackupHistory()` tragaba el error y devolvía `[]`, con lo que el Diagnóstico informaba "Todavía no existe ningún backup en el historial" cuando en realidad el historial no se pudo **leer**; (b) tras recrearse la DB, `backup-last-run` (localStorage) sobrevive al desastre y `isBackupDue()` impedía cualquier backup hasta 24 h después, dejando el historial vacío un día entero.
+
+### Correcciones
+
+- **`getBackupHistory({ relanzar })`**: el Diagnóstico ahora distingue "sin backups" (warning) de "historial ilegible" (error con explicación y salida: recargar o restaurar desde archivo); la UI conserva el fallback a `[]`.
+- **`hayQueEjecutarBackup()`**: el backup automático corre también cuando el historial está vacío aunque no esté vencido el período — tras recrearse la DB se respalda de inmediato en lugar de esperar 24 h. Respeta la frecuencia "manual" y no reintenta en bucle si la tabla es ilegible.
+- **Guía en el error del bloque principal de verificación**: cuando el fallo es de la familia pérdida de almacenamiento, el mensaje agrega "almacenamiento local dañado… recargá la app y, si los datos no vuelven, restaurá desde un archivo de backup descargado antes del fallo".
+- **Caso `sin-huellas` en `verificarDatosPostCarga`**: si la pérdida se detectó en una sesión sin huella previa (p. ej. primer arranque en 1.10.6 ya con la base rota), no hay evidencia con qué comparar y `init()` emite un aviso honesto de verificación imposible en lugar del toast engañoso de "volvió a estar disponible".
+- **Configuración → Datos**: con pérdida activa, el historial muestra "Historial ilegible: el almacenamiento local está dañado…" en vez de "Todavía no hay backups automáticos".
+
+### Pruebas, build y versionado
+
+- **16 tests nuevos en verde**: `hayQueEjecutarBackup` (manual, período vencido/no vencido, historial vacío, storage ilegible), `getBackupHistory({ relanzar })`, el informe de integridad (hist vacío real, ilegible por pérdida, ilegible por otra causa y guía del bloque principal), el caso `sin-huellas` (storageHealth e `init()`) y el mensaje honesto de Configuración.
+- Suite completa en verde (133 archivos, 1346 tests) y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.10.7** en `src/core/version.js` (`APP_VERSION`), `package.json` y la línea de versión del `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.6] - Detección y recuperación de pérdida del almacenamiento local
 
 Corrección de los errores críticos de información reportados en producción (logs del 27/10/2026 sobre la 1.10.2): cuando Chromium pierde los archivos que respaldan IndexedDB (`AbortError NotReadableError Data lost due to missing file…`), la app mostraba notas, eventos y casos **vacíos sin ningún aviso** —el usuario creía que sus datos no existían—, la causa raíza quedaba fuera del log (`metadata {}`, `stack ""`) y las reglas fallidas (`case-estado-nuevo-create-event`) eran víctimas de la misma muerte de la base.

@@ -7,6 +7,10 @@ import {
   __resetStorageHealthParaTest,
 } from '../status/storageHealth';
 import useSystemStatus from '../status/systemStatusStore';
+// v1.10.7: los toasts del store viven en notificationStore (llegan por
+// imports dinámicos); se usa el mismo patrón de useAppStore.addToast.test.js.
+import { notificationManager } from '../notifications/notificationManager';
+import useNotificationStore from '../notifications/notificationStore';
 
 /**
  * v1.10.6 — init() como verificador de integridad:
@@ -99,5 +103,44 @@ describe('useAppStore.init · integridad de almacenamiento (1.10.6)', () => {
     expect(hayPerdidaAlmacenamientoPendiente()).toBe(false);
     expect(useSystemStatus.getState().dataAlarm).toBeNull();
     expect(useSystemStatus.getState().storageLost).toBe(false);
+    // Drena el addToast asíncrono de este init() (llega por imports dinámicos
+    // al notificationStore) para que no se filtre al test siguiente.
+    await new Promise((r) => setTimeout(r, 20));
+  });
+
+  // v1.10.7: bandera SIN huella previa (p. ej. primer arranque en 1.10.6 ya
+  // con la base dañada) → no hay evidencia con qué comparar. init() no puede
+  // gritar "pérdida" (falsos positivos) ni decir "todo bien" (taparía una
+  // pérdida real): emite un aviso honesto de verificación imposible.
+  it('bandera previa SIN huella: aviso honesto de verificación imposible', async () => {
+    // Camino determinista: manager sin init → fallback (lee config vacía y
+    // aplica los mismos gates del pipeline central).
+    notificationManager.destroy();
+    useNotificationStore.setState({
+      notifications: [],
+      toastQueue: [],
+      persistentAlerts: [],
+    });
+    localStorage.setItem('app-storage-lost', '1');
+
+    await useAppStore.getState().init();
+
+    expect(hayPerdidaAlmacenamientoPendiente()).toBe(false);
+    expect(useSystemStatus.getState().dataAlarm).toBeNull();
+    await vi.waitFor(() =>
+      expect(
+        useNotificationStore.getState().toastQueue.some(
+          (t) =>
+            t.type === 'warning' &&
+            /no hay registros previos para verificar/.test(t.message)
+        )
+      ).toBe(true)
+    );
+    // Nunca el toast engañoso de "volvió a estar disponible." (fin de frase).
+    expect(
+      useNotificationStore.getState().toastQueue.some((t) =>
+        /volvió a estar disponible\.$/.test(t.message)
+      )
+    ).toBe(false);
   });
 });

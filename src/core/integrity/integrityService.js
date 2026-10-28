@@ -27,6 +27,9 @@ import {
   detectarDuplicadosCasos,
   repararPreferenciasPersistidas,
 } from './referentialChecks';
+// v1.10.7: clasificador de pérdida de almacenamiento — permite que el
+// informe explique la consecuencia en vez de mostrar el AbortError crudo.
+import { esAlmacenamientoPerdido } from '../status/storageHealth';
 
 const LOG_KEY = 'app_integrity_log';
 const LAST_CHECK_KEY = 'app_integrity_last_check';
@@ -221,11 +224,21 @@ export async function runIntegrityCheck({ completo = false } = {}) {
         informe.historial = { revisados: 0, invalidos: 0 };
       }
     } catch (err) {
-      pushProblema('error', `No se pudo completar la verificación de datos: ${err?.message || err}`);
+      // v1.10.7: con la base dañada el mensaje crudo (AbortError
+      // NotReadable…) no explicaba nada; se agrega la consecuencia y la
+      // salida (recargar / restaurar), que es lo que el usuario necesita.
+      const guia = esAlmacenamientoPerdido(err)
+        ? ' — almacenamiento local dañado: las listas pueden estar vacías y NO se pueden crear backups; recargá la app y, si los datos no vuelven, restaurá desde un archivo de backup descargado antes del fallo'
+        : '';
+      pushProblema('error', `No se pudo completar la verificación de datos: ${err?.message || err}${guia}`);
     }
 
     try {
-      const historial = await getBackupHistory();
+      // v1.10.7: con `relanzar` se distingue "sin backups" de "ilegible" —
+      // antes getBackupHistory tragaba el error y devolvía [], con lo que el
+      // informe mostraba "Todavía no existe ningún backup" cuando en
+      // realidad el historial no se pudo LEER (base dañada).
+      const historial = await getBackupHistory({ relanzar: true });
       const ultimo = historial?.[0];
       informe.ultimoBackup = ultimo
         ? { timestamp: ultimo.timestamp, kind: ultimo.kind, sizeKB: ultimo.sizeKB }
@@ -234,7 +247,14 @@ export async function runIntegrityCheck({ completo = false } = {}) {
         pushProblema('warning', 'Todavía no existe ningún backup en el historial');
       }
     } catch (err) {
-      pushProblema('warning', `No se pudo leer el historial de backups: ${err?.message || err}`);
+      if (esAlmacenamientoPerdido(err)) {
+        pushProblema(
+          'error',
+          'Historial de backups ilegible: el almacenamiento local está dañado. No se pueden leer NI crear backups hasta recargar la app; si los datos no vuelven, restaurá desde un archivo de backup descargado antes del fallo.'
+        );
+      } else {
+        pushProblema('warning', `No se pudo leer el historial de backups: ${err?.message || err}`);
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.5** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.7** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,12 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.7 — Diagnóstico honesto de backups ante pérdida de almacenamiento
+
+- **El Diagnóstico deja de mentir sobre los backups**: con la base dañada, el historial ilegible se informa como "Historial de backups ilegible" (con la salida: recargar o restaurar desde archivo) en vez de "Todavía no existe ningún backup en el historial"; el error de la verificación completa explica la consecuencia y los pasos a seguir.
+- **Historial que no queda vacío tras una recreación de la DB**: el backup automático se ejecuta de inmediato cuando el historial está vacío, aunque `backup-last-run` (que vive en `localStorage` y sobrevive al desastre) diga que "acaba de correr" — antes podía pasar un día entero sin respaldo.
+- **Aviso honesto sin huella previa**: si la pérdida se detecta en una sesión sin huella de conteos con qué comparar (p. ej. primer arranque ya con la base rota), la app informa que los datos no se pueden verificar en lugar de celebrar una recuperación incierta.
 
 ### 1.10.6 — Detección y recuperación de pérdida del almacenamiento local
 

@@ -431,6 +431,16 @@ const useAppStore = create(
     });
     if (resumen.caso === 'recuperado') {
       get().addToast('El almacenamiento local volvió a estar disponible.', 'success', 6000);
+    } else if (resumen.caso === 'sin-huellas') {
+      // v1.10.7: la base volvió a leerse pero no hay huella previa con la
+      // que verificar que los datos estén completos (p. ej. primer arranque
+      // en 1.10.6 ya con la base dañada). Un "todo bien" aquí taparía una
+      // pérdida real: se informa la limitación y la vía de recuperación.
+      get().addToast(
+        'El almacenamiento local volvió a estar disponible, pero no hay registros previos para verificar que los datos estén completos. Si faltan datos, restaurá desde un backup.',
+        'warning',
+        10000
+      );
     }
   },
 }),

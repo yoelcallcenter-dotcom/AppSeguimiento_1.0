@@ -251,8 +251,15 @@ export async function runAutoBackup(options = {}) {
   }
 }
 
-/** Historial de backups automáticos (más reciente primero). */
-export async function getBackupHistory() {
+/**
+ * Historial de backups automáticos (más reciente primero).
+ * v1.10.7: `{ relanzar: true }` propaga el error al llamador — al Diagnóstico
+ * le importa distinguir "no hay backups" de "el historial NO se puede leer"
+ * (con la base dañada devolvía [] y el informe mentía con "Todavía no existe
+ * ningún backup en el historial"). Los callers de UI conservan el fallback a [].
+ * @param {{relanzar?: boolean}} [options]
+ */
+export async function getBackupHistory(options = {}) {
   try {
     return await appDB.auto_backups
       .orderBy("timestamp")
@@ -260,7 +267,32 @@ export async function getBackupHistory() {
       .toArray();
   } catch (error) {
     reportError(error, { context: "autoBackup.getBackupHistory" });
+    if (options.relanzar) throw error;
     return [];
+  }
+}
+
+/**
+ * ¿Toca ejecutar un backup automático? (v1.10.7)
+ * - frecuencia "manual": nunca automático (decisión del usuario);
+ * - `isBackupDue()` según frecuencia (comportamiento original);
+ * - NUEVO: historial vacío aunque NO esté vencido el período. Cubre el caso
+ *   de la DB recreada tras una pérdida de archivos: `backup-last-run` vive en
+ *   localStorage y sobrevive al desastre, así que el automático no volvía a
+ *   correr hasta 24 h después y el historial quedaba vacío un día entero
+ *   (justo el aviso "Todavía no existe ningún backup"). Si la tabla ni
+ *   siquiera se puede leer (storage dañado), devuelve false: no tiene
+ *   sentido reintentar cada minuto algo que sigue roto (el fallo ya queda
+ *   reportado por runAutoBackup/watcher).
+ * @returns {Promise<boolean>}
+ */
+export async function hayQueEjecutarBackup() {
+  if (getBackupFrequency() === "manual") return false;
+  if (isBackupDue()) return true;
+  try {
+    return (await appDB.auto_backups.count()) === 0;
+  } catch {
+    return false;
   }
 }
 
@@ -338,8 +370,10 @@ export async function restoreFromHistory(id) {
 export function setupAutoBackupWatcher() {
   const check = async () => {
     try {
-      // 1) Backup por frecuencia (existente)
-      if (isBackupDue()) {
+      // 1) Backup por frecuencia O historial vacío (v1.10.7: ver
+      //    hayQueEjecutarBackup — evita que, tras recrearse la DB, el
+      //    historial quede vacío hasta la próxima ventana de 24 h).
+      if (await hayQueEjecutarBackup()) {
         const result = await runAutoBackup({ reason: 'frecuencia' });
         if (!result.ok) {
           import("../core/notifications/notificationStore").then(({ default: store }) =>

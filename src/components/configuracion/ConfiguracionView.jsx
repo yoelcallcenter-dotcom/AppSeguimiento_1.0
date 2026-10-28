@@ -65,6 +65,9 @@ import { Paginacion } from "../common/Paginacion";
 import { parseCSV, detectFieldMappings, FIELD_OPTIONS, mapRowToCase } from "../../features/import/CSVImporter";
 import { SystemLogs } from "../../pages/SystemLogs";
 import useAppStore from "../../core/store/useAppStore";
+// v1.10.7: estado de pérdida de almacenamiento → el historial de backups
+// muestra "ilegible" en vez de mentir con "todavía no hay backups".
+import useSystemStatus from "../../core/status/systemStatusStore";
 import appDB from "../../core/db/appDB";
 import casesDB from "../../core/db/casesDB";
 // C03 (1.10.1): el CRUD de estados escribe/borra/renombra las variables CSS
@@ -258,6 +261,9 @@ export function ConfiguracionView({
   const [backupStats, setBackupStats] = useState(null);
   const [backupHistory, setBackupHistory] = useState([]);
   const [backupHistoryLoading, setBackupHistoryLoading] = useState(false);
+  // v1.10.7: con la base dañada el historial se lee vacío (el fallback de
+  // getBackupHistory es []); este flag permite decir la verdad en la UI.
+  const storageLost = useSystemStatus((s) => s.storageLost);
   const [backupFrequency, setBackupFrequencyState] = useState(() => getBackupFrequency());
 
   const previewAbierto =
@@ -2531,9 +2537,17 @@ export function ConfiguracionView({
               {backupHistoryLoading ? (
                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Cargando historial...</div>
               ) : backupHistory.length === 0 ? (
-                <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  Todavía no hay backups automáticos. Se crearán según la frecuencia configurada.
-                </div>
+                storageLost ? (
+                  // v1.10.7: la base está dañada → el historial se leyó
+                  // vacío por ERROR DE LECTURA, no porque no existan backups.
+                  <div className="text-xs" style={{ color: "var(--color-danger)" }}>
+                    Historial ilegible: el almacenamiento local está dañado. Recargá la app o restaurá desde un archivo de backup; hasta entonces no se pueden crear backups.
+                  </div>
+                ) : (
+                  <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    Todavía no hay backups automáticos. Se crearán según la frecuencia configurada.
+                  </div>
+                )
               ) : (
                 <div className="space-y-2">
                   {backupHistory.map((b) => (

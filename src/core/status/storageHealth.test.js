@@ -171,6 +171,20 @@ describe('storageHealth · v1.10.6', () => {
       expect(useSystemStatus.getState().storageLost).toBe(false);
     });
 
+    // v1.10.7: bandera SIN huella previa (p. ej. primer arranque en 1.10.6 ya
+    // con la base rota) → no hay evidencia con qué comparar: no se puede
+    // verificar que los datos estén completos. Se libera la bandera (ya no
+    // hay storage perdido) pero init() emite un aviso honesto en vez del
+    // toast de "todo recuperado".
+    it("'sin-huellas': bandera sin huella previa → no se puede verificar", () => {
+      localStorage.setItem('app-storage-lost', '1');
+      const res = verificarDatosPostCarga({ cases: 0, notes: 0, events: 0 });
+      expect(res.caso).toBe('sin-huellas');
+      expect(hayPerdidaAlmacenamientoPendiente()).toBe(false);
+      expect(useSystemStatus.getState().storageLost).toBe(false);
+      expect(useSystemStatus.getState().dataAlarm).toBeNull();
+    });
+
     it("'ok': sin bandera y sin descensos → sin novedad", () => {
       actualizarHuellaDatos({ notes: 5 });
       const res = verificarDatosPostCarga({ cases: 0, notes: 5, events: 0 });
