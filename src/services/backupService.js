@@ -21,7 +21,9 @@ import { migrateBackup, validateMigratedBackup, needsMigration } from "../utils/
 // v1.10.6: al restaurar con éxito se limpia el estado de pérdida de
 // almacenamiento y se sincroniza la huella de conteos (evita una alarma
 // falsa de "pérdida" en el próximo arranque tras un backup más viejo).
-import { confirmarRecuperacionDatos } from "../core/status/storageHealth";
+// v1.10.8: + esAlmacenamientoPerdido para el SALVAMENTO de tablas/registros
+// dañados (exportar lo legible en vez de fallar todo-o-nada).
+import { confirmarRecuperacionDatos, esAlmacenamientoPerdido } from "../core/status/storageHealth";
 
 export const BACKUP_KIND = "appseguimiento-backup";
 export const BACKUP_SCHEMA_VERSION = 3;
@@ -134,24 +136,169 @@ async function readTable(dbName, tableName) {
   return await DB_INSTANCES[dbName][tableName].toArray();
 }
 
+// ============================================================
+// v1.10.8 — SALVAMENTO ANTE PÉRDIDA DE REGISTROS
+// ============================================================
+// Chromium marca registros como irrecoverables ("Data lost due to missing
+// file") y entonces TODA la lectura de la tabla falla: el export anterior
+// era todo-o-nada (un solo registro roto tiraba el backup COMPLETO, y hasta
+// el "Descargar lo disponible" del banner de pérdida). Este bloque recupera
+// lo legible y deja constancia de lo perdido en `backup.salvage` (FUERA de
+// `data`, para no alterar checksum ni validación).
+// ============================================================
+
 /**
- * Exporta un backup completo con checksum.
+ * Presupuesto de rangos de la bisección: evita explosión exponencial si el
+ * almacenamiento está tan roto que TODOS los rangos fallan.
+ */
+const RANGOS_BISECCION_MAX = 3000;
+
+/**
+ * Enumera las claves primarias numéricas de una tabla bisecando el espacio
+ * de claves. Solo aplica a claves `++id` numéricas (notes, events,
+ * case_history…): si un rango de UNA clave falla, esa es la dañada y se
+ * reporta; si el presupuesto se agota, la tabla entera queda como ilegible.
+ * @returns {Promise<{claves: Array<number>, perdidos: Array<number>}>}
+ */
+async function bisecarClavesNumericas(tabla) {
+  const estado = { presupuesto: RANGOS_BISECCION_MAX };
+  const claves = [];
+  const perdidos = [];
+
+  const rangos = async (min, max) => {
+    if (estado.presupuesto <= 0) {
+      // Pérdida TOTAL simulada: el caller la traduce como "tabla ilegible"
+      // (nunca como "tabla vacía", que implicaría borrar datos al restaurar).
+      throw Object.assign(
+        new Error("Data lost due to missing file (bisección agotada)"),
+        { name: "NotReadableError" }
+      );
+    }
+    estado.presupuesto--;
+    try {
+      const ks = await tabla
+        .orderBy(":id")
+        .between(min, max, true, false)
+        .primaryKeys();
+      for (const k of ks) claves.push(k);
+    } catch (err) {
+      if (!esAlmacenamientoPerdido(err)) throw err;
+      // Rango de UNA clave falló → esa clave es la dañada (un rango vacío no
+      // toca registros y no falla).
+      if (max - min <= 1) {
+        perdidos.push(min);
+        return;
+      }
+      const mid = Math.floor((min + max) / 2);
+      await rangos(min, mid);
+      await rangos(mid, max);
+    }
+  };
+
+  await rangos(0, Number.MAX_SAFE_INTEGER);
+  return { claves, perdidos };
+}
+
+/**
+ * Lee una tabla con tolerancia a pérdida de registros (v1.10.8):
+ *  1. `toArray()` (camino normal, siempre primero);
+ *  2. si lanza la familia pérdida → enumera claves primarias y lee registro
+ *     por registro aislando el(los) irrecoverable(s);
+ *  3. si falla la enumeración → sonda de tipo de clave: SOLO con claves
+ *     numéricas se biseca (con claves string el rango numérico devolvería
+ *     [] sin tocar registros = borrado silencioso falso);
+ *  4. si nada funciona → tabla vacía marcada `ilegible: true` (el export de
+ *     las demás tablas sigue siendo útil; nunca se reporta "vacía" en silencio).
+ * La familia pérdida NUNCA se propaga desde acá: se salva.
+ * @returns {Promise<{rows: Array, perdidos: Array, ilegible: boolean}>}
+ */
+async function leerTablaSalvamento(tabla) {
+  let filas;
+  try {
+    filas = await tabla.toArray();
+    return { rows: filas, perdidos: [], ilegible: false };
+  } catch (err) {
+    if (!esAlmacenamientoPerdido(err)) throw err;
+  }
+
+  // 1) Enumeración de claves (el índice de claves suele seguir legible
+  //    aunque el registro de valor esté dañado).
+  let claves = null;
+  let perdidos = [];
+  try {
+    claves = await tabla.orderBy(":id").primaryKeys();
+  } catch (errClaves) {
+    if (!esAlmacenamientoPerdido(errClaves)) throw errClaves;
+    // 2) Sonda de tipo de clave: solo las numéricas admiten bisección.
+    let tipo = null;
+    try {
+      const sonda = await tabla.orderBy(":id").limit(1).primaryKeys();
+      tipo = sonda.length > 0 ? typeof sonda[0] : null;
+    } catch (errSonda) {
+      if (!esAlmacenamientoPerdido(errSonda)) throw errSonda;
+      tipo = null;
+    }
+    if (tipo !== "number") {
+      // Claves string (cases, liquidaciones…) o sonda ilegible: no hay forma
+      // segura de acotar rangos → tabla completa marcada como ilegible.
+      return { rows: [], perdidos: [], ilegible: true };
+    }
+    // 3) Bisección numérica como último recurso.
+    try {
+      const bis = await bisecarClavesNumericas(tabla);
+      claves = bis.claves;
+      perdidos = bis.perdidos;
+    } catch (errBis) {
+      if (!esAlmacenamientoPerdido(errBis)) throw errBis;
+      return { rows: [], perdidos: [], ilegible: true };
+    }
+  }
+
+  const rows = [];
+  for (const k of claves) {
+    try {
+      const fila = await tabla.get(k);
+      if (fila !== undefined) rows.push(fila);
+    } catch (errGet) {
+      if (esAlmacenamientoPerdido(errGet)) perdidos.push(k);
+      else throw errGet;
+    }
+  }
+  return { rows, perdidos, ilegible: false };
+}
+
+/**
+ * Exporta un backup completo con checksum, tolerante a pérdida de registros.
+ * v1.10.8: si alguna tabla/registro está dañado, el backup sale igual con lo
+ * legible y lleva `salvage: { perdidas: [{tabla, registros, ilegible?}] }`
+ * (fuera de `data`: el checksum sigue cubriendo solo los datos exportados).
  * @returns {Promise<object>} objeto backup listo para serializar.
  */
 export async function exportBackup() {
-  const entries = await Promise.all(
-    DB_TABLES.map((t) => readTable(t.db, t.name).then((rows) => [t.name, rows]))
+  const resultados = await Promise.all(
+    DB_TABLES.map(async (t) => ({
+      name: t.name,
+      ...(await leerTablaSalvamento(DB_INSTANCES[t.db][t.name])),
+    }))
   );
 
   const db = {};
-  for (const [name, rows] of entries) db[name] = rows;
+  const perdidas = [];
+  for (const r of resultados) {
+    db[r.name] = r.rows;
+    if (r.ilegible) {
+      perdidas.push({ tabla: r.name, registros: null, ilegible: true });
+    } else if (r.perdidos.length > 0) {
+      perdidas.push({ tabla: r.name, registros: r.perdidos.length });
+    }
+  }
 
   const storage = localStorageAdapter.getAll();
 
   const payload = { db, storage };
   const checksum = await computeChecksum(payload);
 
-  return {
+  const backup = {
     kind: BACKUP_KIND,
     version: BACKUP_SCHEMA_VERSION,
     appVersion: APP_VERSION,
@@ -159,6 +306,14 @@ export async function exportBackup() {
     checksum,
     data: payload,
   };
+  if (perdidas.length > 0) {
+    backup.salvage = {
+      perdidas,
+      nota:
+        "Backup PARCIAL: parte de los datos no pudo leerse (almacenamiento dañado) y se omitió a propósito.",
+    };
+  }
+  return backup;
 }
 
 /**
@@ -305,6 +460,29 @@ export async function importBackup(backup, options = {}) {
   const db = effectiveBackup.data.db || {};
   const storage = effectiveBackup.data.storage || {};
 
+  // v1.10.8 — Salvamento: tablas que el export NO pudo leer y quedaron
+  // marcadas en `backup.salvage`. Al restaurar esas tablas NO se vacían: se
+  // conserva lo local (el backup no tiene nada fiable que poner en su lugar)
+  // y se advierte. Sin esto, la lista vacía exportada borraría datos sanos.
+  const tablasSalvage = new Set(
+    (Array.isArray(effectiveBackup.salvage?.perdidas)
+      ? effectiveBackup.salvage.perdidas
+      : []
+    )
+      .map((p) => (p && typeof p.tabla === "string" ? p.tabla : null))
+      .filter((t) => t && DB_TABLES.some((x) => x.name === t))
+  );
+  for (const t of tablasSalvage) {
+    const detalle = (effectiveBackup.salvage?.perdidas || []).find(
+      (p) => p && p.tabla === t
+    );
+    warnings.push(
+      detalle?.ilegible
+        ? `El backup marca "${t}" como ilegible (salvamento): los datos locales de esa tabla se conservaron.`
+        : `El backup marca "${t}" como dañada por salvamento: los datos locales de esa tabla se conservaron.`
+    );
+  }
+
   // ============================================================
   // INTEGRIDAD (1.3.3): protección contra reemplazos que vacían datos.
   //   - Sección ausente → se omite el bloque con advertencia (no se borra).
@@ -315,7 +493,9 @@ export async function importBackup(backup, options = {}) {
     let actuales = [];
     try { actuales = await casesDB.cases.toArray(); } catch { actuales = []; }
 
-    if (!Array.isArray(db.cases)) {
+    if (tablasSalvage.has("cases")) {
+      // v1.10.8: salvamento — no vacía ni bloquea: se conserva lo local.
+    } else if (!Array.isArray(db.cases)) {
       if (actuales.length > 0) {
         opts.casos = false;
         warnings.push(
@@ -391,22 +571,32 @@ export async function importBackup(backup, options = {}) {
     //    no contiene case_history y se aplica el default seguro (historial
     //    vacío), sin inventar eventos que no existieron.
     if (opts.casos) {
+      // v1.10.8: cada tabla se salta por separado si vino marcada como
+      // dañada en el salvamento (conservar lo local de ESA tabla).
+      const omitirCases = tablasSalvage.has("cases");
+      const omitirHistorial = tablasSalvage.has("case_history");
       const casosEntrantes = Array.isArray(db.cases)
         ? filasRestaurables("casos", db.cases)
         : [];
       const historyRows = Array.isArray(db.case_history)
         ? filasRestaurables("historial de casos", db.case_history)
         : [];
-      await casesDB.transaction("rw", [casesDB.cases, casesDB.case_history], async () => {
-        await casesDB.cases.clear();
-        if (casosEntrantes.length > 0) {
-          await casesDB.cases.bulkPut(casosEntrantes);
-        }
-        await casesDB.case_history.clear();
-        if (historyRows.length > 0) {
-          await casesDB.case_history.bulkPut(historyRows);
-        }
-      });
+      if (!omitirCases || !omitirHistorial) {
+        await casesDB.transaction("rw", [casesDB.cases, casesDB.case_history], async () => {
+          if (!omitirCases) {
+            await casesDB.cases.clear();
+            if (casosEntrantes.length > 0) {
+              await casesDB.cases.bulkPut(casosEntrantes);
+            }
+          }
+          if (!omitirHistorial) {
+            await casesDB.case_history.clear();
+            if (historyRows.length > 0) {
+              await casesDB.case_history.bulkPut(historyRows);
+            }
+          }
+        });
+      }
     }
 
     // 2) Notas, eventos y versiones (appDB) — un solo objeto de transacción.
@@ -420,13 +610,16 @@ export async function importBackup(backup, options = {}) {
       // Secciones ausentes del backup: se omiten con advertencia sin borrar
       // los datos actuales (preservación antes que limpieza).
       for (const t of appTables) {
+        if (tablasSalvage.has(t.name)) continue; // ya avisado por salvamento
         if (!(t.name in db)) {
           warnings.push(
             `El backup no incluye la sección "${t.name}": los datos actuales no fueron modificados.`
           );
         }
       }
-      const presentes = appTables.filter((t) => Array.isArray(db[t.name]));
+      const presentes = appTables.filter(
+        (t) => Array.isArray(db[t.name]) && !tablasSalvage.has(t.name)
+      );
       if (presentes.length > 0) {
         await appDB.transaction(
           "rw",
@@ -488,6 +681,17 @@ export async function importBackup(backup, options = {}) {
       if (t.db === "casesDB" && !opts.casos) continue;
       if (t.db === "appDB" && t.name === "events" && !opts.eventos) continue;
       if (t.db === "appDB" && t.name !== "events" && !opts.notas) continue;
+      if (tablasSalvage.has(t.name)) {
+        // Tabla conservada localmente: el conteo real es el LOCAL (el []
+        // exportado es el daño, no un borrado). Así la huella de conteos no
+        // se pisa con ceros y la evidencia de pérdida sigue siendo válida.
+        try {
+          counts[t.name] = await DB_INSTANCES[t.db][t.name].count();
+        } catch {
+          counts[t.name] = Array.isArray(db[t.name]) ? db[t.name].length : 0;
+        }
+        continue;
+      }
       counts[t.name] = Array.isArray(db[t.name]) ? db[t.name].length : 0;
     }
     if (!opts.config) counts.config = 0;
@@ -589,7 +793,10 @@ export async function parseBackupJSON(json) {
 
 /**
  * Descarga un backup completo como archivo JSON.
- * @returns {Promise<{name: string, sizeKB: number, counts: object}>}
+ * v1.10.8: con datos parcialmente dañados, el archivo SALE igual con lo
+ * legible y `salvage` informa qué tablas/registros faltaron (para que la UI
+ * lo advierta; el banner lo usa en "Descargar lo disponible").
+ * @returns {Promise<{name: string, sizeKB: number, salvage: object|null}>}
  */
 export async function downloadBackup() {
   const backup = await exportBackup();
@@ -605,5 +812,23 @@ export async function downloadBackup() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  return { name: a.download, sizeKB: backupSizeKB(backup) };
+  return { name: a.download, sizeKB: backupSizeKB(backup), salvage: backup.salvage || null };
+}
+
+/**
+ * Texto legible de un `salvage` de export, para toasts/avisos de UI.
+ * @param {object|null} salvage
+ * @returns {string|null}
+ */
+export function describirSalvage(salvage) {
+  if (!salvage || !Array.isArray(salvage.perdidas) || salvage.perdidas.length === 0) {
+    return null;
+  }
+  return salvage.perdidas
+    .map((p) =>
+      p.ilegible
+        ? `${p.tabla} (tabla ilegible completa)`
+        : `${p.tabla}: ${p.registros} registro(s) perdido(s)`
+    )
+    .join(", ");
 }

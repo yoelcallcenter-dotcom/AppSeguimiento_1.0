@@ -14,8 +14,13 @@ import {
   Zap,
   Database,
   Bug,
+  Wrench,
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
+// v1.10.8: reparación PROFUNDA del almacenamiento (drop de AppData + CasesDB
+// con indexedDB.deleteDatabase) — única forma de curar "Data lost…" desde la
+// app. La acción vive acá (Diagnóstico) y también en el banner de pérdida.
+import { repararAlmacenamientoLocal } from '../core/status/storageRepair';
 // Optimización 1.6.6: IntegridadPanel se carga bajo demanda en la vista de logs.
 const IntegridadPanel = lazy(() =>
   import('../components/diagnostico/IntegridadPanel').then((m) => ({
@@ -74,6 +79,42 @@ export function SystemLogs() {
     await exportErrors();
   };
 
+  // ============ v1.10.8 — REPARACIÓN PROFUNDA DEL ALMACENAMIENTO ============
+  // El estado "Data lost due to missing file" vive en el ARCHIVO del origen:
+  // limpiar tablas no lo cura. La reparación borra las bases COMPLETAS
+  // (AppData + CasesDB) y recarga; la huella de conteos intacta dispara la
+  // alarma "notas: X → 0" con "Restaurar desde archivo". Es DESTRUCTIVA →
+  // confirmación explícita en dos pasos + aviso de descargar antes.
+  const [confirmReparar, setConfirmReparar] = useState(false);
+  const [reparando, setReparando] = useState(false);
+  const [msgReparacion, setMsgReparacion] = useState(null);
+
+  const handleReparar = async () => {
+    if (!confirmReparar) {
+      setConfirmReparar(true);
+      setMsgReparacion(null);
+      return;
+    }
+    setConfirmReparar(false);
+    setReparando(true);
+    setMsgReparacion(null);
+    try {
+      const r = await repararAlmacenamientoLocal();
+      // Éxito: la reparación YA disparó la recarga de la página; no hay nada
+      // más que mostrar (en jsdom el reload es un no-op y se llega igual).
+      if (r && r.ok) return;
+      setMsgReparacion(
+        r && r.bloqueado
+          ? 'No se pudo reparar: la base sigue abierta en otra pestaña. Cerrá TODAS las pestañas de la app y volvé a intentar.'
+          : `No se pudo reparar: ${(r && r.error) || 'error desconocido'}.`
+      );
+    } catch (e) {
+      setMsgReparacion(`No se pudo reparar: ${e?.message || e}.`);
+    } finally {
+      setReparando(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       {/* Integridad de datos (1.3.3) */}
@@ -87,6 +128,73 @@ export function SystemLogs() {
         <Suspense fallback={null}>
           <IntegridadPanel />
         </Suspense>
+      </div>
+
+      {/* ============ v1.10.8 — Reparación del almacenamiento local ============ */}
+      <div
+        className="rounded-lg p-4"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-danger)',
+        }}
+      >
+        <div className="flex items-center gap-1.5 mb-2">
+          <Wrench size={15} color="var(--color-danger)" aria-hidden="true" />
+          <h3
+            className="text-sm font-bold"
+            style={{ color: 'var(--color-danger)' }}
+          >
+            Reparación del almacenamiento local
+          </h3>
+        </div>
+        <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+          Si la app muestra errores como «Data lost due to missing file» o
+          «NotReadableError», el archivo de IndexedDB del navegador está dañado y
+          limpiar tablas no alcanza. Esta reparación <b>borra por completo las
+          bases locales (notas, eventos, casos e historial) y las recrea
+          sanas</b>. Antes de reparar, descargá un backup (Configuración →
+          Datos) o tené un archivo a mano: al terminar, la app mostrará la
+          alarma de pérdida para restaurar en un clic.
+        </p>
+        {msgReparacion && (
+          <p className="text-xs mb-2" style={{ color: 'var(--color-danger)' }}>
+            {msgReparacion}
+          </p>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleReparar}
+            disabled={reparando}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-40"
+            style={{
+              backgroundColor: confirmReparar ? 'var(--color-danger)' : 'transparent',
+              color: confirmReparar ? '#fff' : 'var(--color-danger)',
+              border: '1px solid var(--color-danger)',
+              cursor: reparando ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <Wrench size={14} />
+            {reparando
+              ? 'Reparando…'
+              : confirmReparar
+              ? 'Sí, borrar y recrear la base'
+              : 'Reparar base de datos'}
+          </button>
+          {confirmReparar && !reparando && (
+            <button
+              onClick={() => setConfirmReparar(false)}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold"
+              style={{
+                backgroundColor: 'transparent',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+                cursor: 'pointer',
+              }}
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
       </div>
 
       <div

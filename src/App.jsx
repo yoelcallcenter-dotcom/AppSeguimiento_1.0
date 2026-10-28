@@ -79,7 +79,9 @@ import { notifyChange, SYNC_EVENTS } from "./core/sync/syncService";
 // P01 (1.10.1): clearErrors para vaciar el log de diagnóstico en el borrado total.
 import { reportError, clearErrors } from "./core/error/reportError";
 import { localStorageAdapter } from "./core/storage/localStorageAdapter";
-import { setupAutoBackupWatcher, normalizeAutoBackupHistory } from "./services/autoBackup";
+// v1.10.8: + limpiarSnapshotLocal — el vaciado deliberado ("borrar todo")
+// también elimina el snapshot de emergencia de localStorage (contiene datos).
+import { setupAutoBackupWatcher, normalizeAutoBackupHistory, limpiarSnapshotLocal } from "./services/autoBackup";
 import { startSystemStatusMonitor, confirmarRecuperacionDatos } from "./core/status/storageHealth";
 import { SystemStatusBanner } from "./components/common/SystemStatusBanner";
 import { NotificationBell } from "./components/notifications/NotificationBell";
@@ -1357,32 +1359,62 @@ function AppContent() {
 
     clearAllState();
 
+    // v1.10.8: se captura fuera del try para que el toast final pueda decir
+    // si el vaciado fue TOTAL o PARCIAL (tabla dañada = siguió con datos).
+    let tablasFallidas = [];
     try {
       const { default: casesDB } = await import("./core/db/casesDB");
       const { default: appDB } = await import("./core/db/appDB");
-      await casesDB.cases.clear();
-      await casesDB.case_history.clear();
-      await Promise.all([
-        appDB.notes.clear(),
-        appDB.events.clear(),
-        appDB.note_versions.clear(),
-        appDB.auto_backups.clear(),
+      // v1.10.8: clears INDIVIDUALES con try/catch por tabla. Antes, una
+      // tabla dañada (familia "Data lost due to missing file") abortaba en
+      // silencio el vaciado del resto (todo dentro del mismo try) y FALTABAN
+      // las tablas de liquidaciones (1.10.4/1.10.5): quedaban sobreviviendo
+      // al "borrar todo". Cada clear se aísla: lo que se pueda borrar, se
+      // borra; lo que no, queda registrado y la huella NO se pisa con ceros.
+      const operaciones = [
+        ["casos", () => casesDB.cases.clear()],
+        ["historial de casos", () => casesDB.case_history.clear()],
+        ["notas", () => appDB.notes.clear()],
+        ["eventos", () => appDB.events.clear()],
+        ["versiones de notas", () => appDB.note_versions.clear()],
+        ["backups automáticos", () => appDB.auto_backups.clear()],
         // P01 (1.10.1): survivors del "borrar todos los datos" — el usuario
         // creía que limpiaba todo pero plantillas, reportes guardados y los
         // snapshots de migración (que contienen copias de notes/events/
         // auto_backups) sobrevivían en AppData.
-        appDB.templates.clear(),
-        appDB.saved_reports.clear(),
-        appDB.migration_snapshots.clear(),
-      ]);
+        ["plantillas", () => appDB.templates.clear()],
+        ["reportes guardados", () => appDB.saved_reports.clear()],
+        ["snapshots de migración", () => appDB.migration_snapshots.clear()],
+        // v1.10.8: tablas de liquidaciones que faltaban en la lista.
+        ["liquidaciones", () => appDB.liquidaciones?.clear()],
+        ["top de liquidaciones", () => appDB.liquidacion_top?.clear()],
+        ["historial de config. de liquidaciones", () => appDB.liquidacion_config_history?.clear()],
+      ];
+      for (const [nombre, op] of operaciones) {
+        try {
+          await op();
+        } catch (eClear) {
+          // Tabla dañada/inaccesible: se registra y se sigue con la siguiente.
+          tablasFallidas.push(nombre);
+          reportError(eClear, { context: `App:clearDatabases.${nombre}` });
+        }
+      }
       // P01 (1.10.1): log de errores de diagnóstico (DB AppDiagnostics).
       await clearErrors();
       // v1.10.6: el vaciado es DELIBERADO → resincronizar la huella de
       // conteos a 0 (y liberar bandera/alarma). Sin esto, la huella previa
       // (p. ej. 42 notas) dispararía una alarma FALSA de "pérdida de datos"
-      // en el próximo arranque al ver la DB vacía. Solo corre si los clears
-      // anteriores terminaron bien (si fallaron, los datos siguen ahí).
-      confirmarRecuperacionDatos({ cases: 0, notes: 0, events: 0 });
+      // en el próximo arranque al ver la DB vacía.
+      // v1.10.8: SOLO si NADA falló — si alguna tabla quedó con datos, la
+      // huella no debe pisarse con ceros (la evidencia sigue siendo válida).
+      if (tablasFallidas.length === 0) {
+        confirmarRecuperacionDatos({ cases: 0, notes: 0, events: 0 });
+      } else {
+        reportError(
+          new Error(`Vaciado global incompleto: ${tablasFallidas.join(", ")}`),
+          { context: "App:clearDatabases.parcial" }
+        );
+      }
     } catch (e) {
       reportError(e, { context: 'App:clearDatabases' });
     }
@@ -1433,6 +1465,11 @@ function AppContent() {
     ];
     unprefixedKeys.forEach((key) => localStorage.removeItem(key));
 
+    // v1.10.8: el snapshot de emergencia de localStorage también contiene
+    // datos completos → "borrar todo" debe eliminarlo (si no, seguiría
+    // restaurable y los datos "borrados" no lo estarían).
+    limpiarSnapshotLocal();
+
     // 4) Limpiar claves con prefijo conversaciones_*, tour_*, app_* y,
     //    P01 (1.10.1), los prefijos que faltaban: app.* (estado colapsado de
     //    secciones app.sh.* y el flag app.auto-backups-normalized) y
@@ -1453,7 +1490,15 @@ function AppContent() {
       .filter((key) => key.endsWith("-art-tracker"))
       .forEach((key) => localStorage.removeItem(key));
 
-    showToast("Todos los datos eliminados. Recargando...", "warning");
+    // v1.10.8: si alguna tabla quedó dañada, el toast no puede mentir con
+    // "todos los datos eliminados": se informa qué sobrevivió y qué hacer.
+    showToast(
+      tablasFallidas.length === 0
+        ? "Todos los datos eliminados. Recargando..."
+        : `Datos eliminados (parcial): no se pudo vaciar ${tablasFallidas.join(", ")}. Recargando...`,
+      "warning",
+      tablasFallidas.length === 0 ? undefined : 10000
+    );
     setTimeout(() => window.location.reload(), 1500);
   }, [
     showToast, setCasos, setMapeo, setConfig, setPasos, setTips, setLinks,

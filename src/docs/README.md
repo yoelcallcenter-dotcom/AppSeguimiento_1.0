@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.7** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,14 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.8 — Export resistente, reparación profunda y snapshot local ante bases dañadas
+
+- **Backups que resisten la pérdida de datos**: con una tabla o registro dañado por Chromium, el export ya no falla entero — lee lo legible (por índice de claves, con bisección numérica como último recurso), marca lo perdido en `backup.salvage` y la descarga "lo disponible" funciona; al restaurar, las tablas marcadas conservan los datos locales y se avisa qué faltó.
+- **Reparación de la base dañada desde la app**: "Reparar base de datos" (banner de pérdida y Configuración → Sistema → Diagnóstico, con doble confirmación) borra y recrea AppData y CasesDB con `indexedDB.deleteDatabase()` — la única vía de curar "Data lost due to missing file" desde dentro de la aplicación — y la huella de conteos intacta dispara después la alarma "notas: X → 0" con restauración a un clic.
+- **Snapshot de emergencia en `localStorage`**: cada backup automático deja copia JSON en un origen independiente de IndexedDB (hasta ~4,5 MB), se puede restaurar desde el banner o Configuración → Datos aunque la base esté muerta, y "Borrar todos los datos" lo elimina junto con el resto.
+- **"Borrar todos los datos" sin abortos**: los clears se ejecutan tabla por tabla (una tabla dañada ya no deja el resto sin vaciar, con aviso "parcial" cuando corresponde) y se agregan las tablas de liquidaciones que faltaban.
+- **Corrección**: el "Restaurar desde archivo" del banner de pérdida fallaba siempre en producción (se validaba el wrapper de parse en vez del backup); ahora importa el backup real, con `omitirChecksum` cuando el archivo marcó mismatch.
 
 ### 1.10.7 — Diagnóstico honesto de backups ante pérdida de almacenamiento
 

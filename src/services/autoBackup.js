@@ -12,13 +12,86 @@
  */
 
 import appDB from "../core/db/appDB";
-import { exportBackup, importBackup, backupSizeKB } from "./backupService";
+// v1.10.8: + validateBackup para el restore del snapshot local de emergencia.
+import { exportBackup, importBackup, backupSizeKB, validateBackup } from "./backupService";
 import { notifyChange, SYNC_EVENTS } from "../core/sync/syncService";
 import { reportError } from "../core/error/reportError";
 
 const LAST_RUN_KEY = "backup-last-run";
 const LAST_JOURNADAY_RUN_KEY = "backup-last-jornada-run";
 const MAX_BACKUPS = 6;
+
+// ============================================================
+// v1.10.8 — SNAPSHOT LOCAL DE EMERGENCIA (localStorage)
+// ============================================================
+// Los backups automáticos viven en la MISMA IndexedDB que puede perderse:
+// si el archivo desaparece, no queda NADA con qué restaurar. Este snapshot
+// guarda el último backup como JSON en localStorage (origen de datos
+// independiente de IndexedDB) para poder restaurar aun con la base muerta.
+// Clave RAW sin prefijo y fuera del whitelist del adapter → NO viaja dentro
+// del campo `storage` de los backups (evita crecimiento recursivo) ni se
+// pisa con `localStorageAdapter.clear()`.
+// ============================================================
+export const SNAPSHOT_LOCAL_KEY = "backup-last-snapshot";
+/** Límite conservador en caracteres para no agotar la cuota (~5 MB) de localStorage. */
+export const SNAPSHOT_MAX_CHARS = 4_500_000;
+
+/**
+ * Guarda el último backup en localStorage. Best-effort: si no entra por cuota
+ * o falla, se informa el motivo pero NUNCA rompe el flujo del backup.
+ * @param {object} backup
+ * @returns {{guardado: boolean, motivo?: "limite"|"error", bytes?: number}}
+ */
+export function guardarSnapshotLocal(backup) {
+  try {
+    const json = JSON.stringify(backup);
+    if (json.length > SNAPSHOT_MAX_CHARS) {
+      return { guardado: false, motivo: "limite" };
+    }
+    localStorage.setItem(SNAPSHOT_LOCAL_KEY, json);
+    return { guardado: true, bytes: json.length };
+  } catch (e) {
+    return {
+      guardado: false,
+      motivo: e && e.name === "QuotaExceededError" ? "limite" : "error",
+    };
+  }
+}
+
+/** Lee el snapshot local (objeto) o null si no existe/está corrupto. */
+export function leerSnapshotLocal() {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_LOCAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ¿Existe snapshot local? Barato (sin parsear): pensado para evaluarse en
+ * cada render de la UI (el snapshot puede pesar MBs).
+ */
+export function haySnapshotLocal() {
+  try {
+    return !!localStorage.getItem(SNAPSHOT_LOCAL_KEY);
+  } catch {
+    return false;
+  }
+}
+
+/** Elimina el snapshot local (vaciado deliberado de datos, p. ej. "borrar todo"). */
+export function limpiarSnapshotLocal() {
+  try {
+    localStorage.removeItem(SNAPSHOT_LOCAL_KEY);
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
 
 export const FREQUENCIES = {
   diario: 24 * 60 * 60 * 1000,
@@ -195,8 +268,15 @@ function markJornadaBackupRunToday() {
  * @returns {Promise<{ok: boolean, id?: number, error?: string}>}
  */
 export async function runAutoBackup(options = {}) {
+  // v1.10.8: se declara fuera del try para informar en el catch si el
+  // snapshot local YA se guardó aunque falle la escritura del historial.
+  let snap = null;
   try {
     const backup = await exportBackup();
+    // v1.10.8: snapshot local ANTES de depender de auto_backups (que puede
+    // estar dañada): si el historial no se puede escribir, la copia en
+    // localStorage ya quedó y el usuario puede restaurarla desde la UI.
+    snap = guardarSnapshotLocal(backup);
     const id = await appDB.auto_backups.add({
       timestamp: new Date().toISOString(),
       kind: options.reason === 'jornada' ? 'jornada' : 'auto',
@@ -244,10 +324,38 @@ export async function runAutoBackup(options = {}) {
       });
     }
 
-    return { ok: true, id };
+    return { ok: true, id, snapshot: snap };
   } catch (error) {
     reportError(error, { context: "autoBackup.runAutoBackup" });
-    return { ok: false, error: error.message };
+    // v1.10.8: si el snapshot local ya se guardó, no es un fallo total —
+    // la UI puede decirle al usuario que esa copia SÍ existe y cómo usarla.
+    return { ok: false, error: error.message, snapshotGuardado: !!(snap && snap.guardado) };
+  }
+}
+
+/**
+ * Restaura el último snapshot guardado en localStorage (v1.10.8).
+ * Funciona aunque la IndexedDB esté MUERTA: el snapshot vive en otro origen
+ * de datos. Mismo camino de seguridad que un archivo (validación + import
+ * atómico con rollback; importBackup ya limpia pérdida/alarma y resincroniza
+ * la huella al terminar).
+ * @returns {Promise<{ok: boolean, counts?: object, warnings?: string[], error?: string}>}
+ */
+export async function restaurarSnapshotLocal() {
+  try {
+    const snap = leerSnapshotLocal();
+    if (!snap) {
+      return { ok: false, error: "No hay snapshot local de respaldo." };
+    }
+    const errores = validateBackup(snap);
+    if (errores.length > 0) {
+      return { ok: false, error: `El snapshot local no es válido: ${errores.join(". ")}` };
+    }
+    const res = await importBackup(snap, {});
+    return { ok: true, counts: res && res.counts, warnings: res && res.warnings };
+  } catch (err) {
+    reportError(err, { context: "autoBackup.restaurarSnapshotLocal" });
+    return { ok: false, error: (err && err.message) || String(err) };
   }
 }
 

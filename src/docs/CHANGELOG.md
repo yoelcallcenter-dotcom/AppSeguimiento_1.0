@@ -7,6 +7,42 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.8] - Export resistente, reparación profunda y snapshot local ante bases dañadas
+
+Continúa la línea 1.10.6 (detectar la pérdida) y 1.10.7 (diagnosticarla sin mentir): esta versión hace que la app pueda **rescatarse sola** cuando Chromium pierde los archivos de IndexedDB. Además corrige dos bugs reales encontrados al implementar: el "Restaurar desde archivo" del banner de pérdida **nunca funcionó en producción** (se le pasaba el wrapper de `parseBackupJSON` a `importBackup`, que validaba "no es un backup" y fallaba siempre), y el "Borrar todos los datos" **abortaba en silencio el vaciado completo** al tropezar con la tabla dañada (además de no incluir las tablas de liquidaciones).
+
+### A) Export resistente con salvamento de datos legibles
+
+- **`leerTablaSalvamento` en `backupService`**: el export dejó de ser todo-o-nada. Si `toArray()` lanza la familia pérdida, se enumera el índice de claves (suele seguir legible) y se lee registro por registro aislando el(los) irrecoverable(s); si la enumeración falla, una sonda de tipo de clave decide si corresponde **bisección numérica** del espacio de claves (tablas `++id`: notes, events, case_history…) con presupuesto de rangos — con claves string no hay forma segura de acotar rangos y la tabla queda marcada `ilegible`, nunca "vacía". Un error ajeno a la familia pérdida sigue propagándose como antes.
+- **`backup.salvage`**: las tablas/registros no legibles quedan registrados en `{ tabla, registros, ilegible? }` **fuera de `data`** — el checksum sigue cubriendo solo lo exportado y la validación de archivos no cambia.
+- **`downloadBackup` ahora SÍ funciona con la base dañada** (era el "Descargar lo disponible" del banner que fallaba) y devuelve `salvage`; la UI (banner y Configuración → Datos) avisa "Backup PARCIAL descargado/exportado — no se pudo leer: notas: 1 registro(s) perdido(s)…" con `describirSalvage()`.
+- **Import consciente del salvamento**: las tablas marcadas en `salvage` **no se vacían** (el `[]` exportado es el daño, no un borrado): se conservan los datos locales, se advierte en `warnings` y los conteos de la huella se toman del estado **local** para no pisar la evidencia de pérdida con ceros. El guard anti-vaciado de casos queda exento cuando `cases` viene marcada.
+
+### B) Reparación profunda del almacenamiento (`storageRepair.js`)
+
+- **`repararAlmacenamientoLocal()`**: única vía de curar "Data lost due to missing file" desde dentro de la app — `indexedDB.deleteDatabase()` de **AppData y CasesDB completas** (un `.clear()` de tablas NO cura el estado: el clear sobre el registro dañado vuelve a fallar). Cierra las conexiones locales, borra con manejo de `blocked` (timeout de 8 s → "cerrá todas las pestañas") y de errores, y recarga.
+- **A propósito NO toca la huella ni la bandera**: tras el drop + recarga, la verificación post-carga compara la huella previa con la base nueva y dispara la alarma "notas: X → 0" con "Restaurar desde archivo" a un clic (el usuario ve exactamente qué perdió).
+- **UI con doble confirmación**: botón "Reparar base de datos" en el banner de pérdida (variante A, flujo en dos pasos: "Sí, borrar y recrear la base" / Cancelar) y tarjeta "Reparación del almacenamiento local" en Configuración → Sistema → Diagnóstico, con el aviso de descargar un backup antes.
+
+### C) "Borrar todos los datos" sin abortos silenciosos
+
+- **Clears individuales con try/catch por tabla** en `eliminarTodosLosDatos`: una tabla dañada ya no aborta en silencio el vaciado del resto; lo que no se pudo vaciar queda registrado (`tablasFallidas`), se reporta al Diagnóstico y el toast informa "Datos eliminados (parcial): no se pudo vaciar X…" en lugar de mentir con "Todos los datos eliminados".
+- **Huella condicional**: `confirmarRecuperacionDatos(… 0)` solo corre si **nada** falló — si alguna tabla quedó con datos, la huella no se pisa con ceros (la evidencia sigue siendo válida).
+- **Tablas que faltaban**: `liquidaciones`, `liquidacion_top` y `liquidacion_config_history` (1.10.4/1.10.5) sobrevivían al "borrar todo"; ahora entran en la lista.
+
+### D) Snapshot de emergencia en localStorage
+
+- **`backup-last-snapshot`**: tras cada backup automático exitoso se guarda copia JSON del backup en localStorage — un origen independiente de IndexedDB, así la copia sobrevive justamente cuando más se necesita (a ~4,5 MB se informa `limite` y no se guarda; cuota agotada se informa sin romper el flujo). La clave queda **fuera del whitelist del adapter**: no viaja dentro del campo `storage` de los backups (evita crecimiento recursivo) ni se pisa con restores de configuración.
+- **`runAutoBackup` guarda el snapshot ANTES de depender de `auto_backups`** (que puede estar dañada): si la escritura del historial falla, el resultado informa `snapshotGuardado: true` y la UI explica que la copia SÍ existe y cómo restaurarla.
+- **Restauración desde la UI**: botón "Restaurar snapshot local" en el banner de pérdida y en Configuración → Datos (con confirmación en dos pasos), vía `restaurarSnapshotLocal()` — mismo camino de seguridad que un archivo (validación + import atómico con rollback).
+- **"Borrar todos los datos" también elimina el snapshot** (`limpiarSnapshotLocal()`): una eliminación deliberada no puede dejar datos restaurables escondidos.
+
+### Pruebas, build y versionado
+
+- **31 tests nuevos en verde**: salvamento de export (base sana sin `salvage`, aislamiento de registro dañado, tabla string ilegible, bisección numérica y error ajeno a la familia), import con salvamento (conserva local en notes/cases y regresión sin salvage), `describirSalvage`, `storageRepair` (feliz/bloqueada/error/excepción), snapshot local (guardar/límite/cuota/limpiar/restore + `runAutoBackup` con historial dañado), banner (args correctos de import con y sin checksum, archivo inválido, descarga con salvamento, reparación en dos pasos, snapshot) y Diagnóstico (tarjeta de reparación).
+- Suite completa en verde (136 archivos, 1378 tests; 3 flakes de saturación re-verificados aislados) y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.10.8** en `src/core/version.js` (`APP_VERSION`), `package.json` y la línea de versión del `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.7] - Diagnóstico honesto de backups ante pérdida de almacenamiento
 
 Corrección de los síntomas reportados sobre la 1.10.6 ("No se pudo completar la verificación de datos: AbortError NotReadableError Data lost…" y "Atención: Todavía no existe ningún backup en el historial") y del vacío real del historial tras recrearse la base. La causa de fondo es la misma pérdida de archivos de Chromium (ya detectada y avisada por la 1.10.6); esta versión evita que el diagnóstico mienta y que el historial quede vacío un día entero tras la recuperación.

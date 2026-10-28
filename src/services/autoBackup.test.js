@@ -1,10 +1,21 @@
 // v1.10.7: + vi/afterEach para spies de storage dañado y + hayQueEjecutarBackup.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import appDB from '../core/db/appDB';
+import casesDB from '../core/db/casesDB';
+import { exportBackup } from './backupService';
 import {
   getBackupHistory,
   normalizeAutoBackupHistory,
   hayQueEjecutarBackup,
+  // v1.10.8: snapshot local de emergencia (localStorage).
+  guardarSnapshotLocal,
+  leerSnapshotLocal,
+  haySnapshotLocal,
+  limpiarSnapshotLocal,
+  restaurarSnapshotLocal,
+  runAutoBackup,
+  SNAPSHOT_LOCAL_KEY,
+  SNAPSHOT_MAX_CHARS,
 } from './autoBackup';
 
 const NORMALIZED_KEY = 'app.auto-backups-normalized';
@@ -180,5 +191,131 @@ describe('hayQueEjecutarBackup + getBackupHistory({relanzar}) (1.10.7)', () => {
       })
     );
     await expect(getBackupHistory({ relanzar: true })).rejects.toThrow(/Data lost/);
+  });
+});
+
+// v1.10.8: el snapshot de EMERGENCIA en localStorage — si la IndexedDB se
+// pierde, los backups automáticos (que viven en esa misma base) también; el
+// snapshot sobrevive en otro origen de datos y permite restaurar igual.
+
+describe('snapshot local de emergencia (1.10.8)', () => {
+  let spies = [];
+  const spy = (...args) => {
+    const s = vi.spyOn(...args);
+    spies.push(s);
+    return s;
+  };
+
+  beforeEach(async () => {
+    localStorage.removeItem(SNAPSHOT_LOCAL_KEY);
+    localStorage.removeItem('backup-last-run');
+    await casesDB.cases.clear();
+    await casesDB.case_history.clear();
+    await appDB.notes.clear();
+    await appDB.events.clear();
+  });
+
+  afterEach(() => {
+    spies.forEach((s) => s.mockRestore());
+    spies = [];
+    vi.restoreAllMocks();
+  });
+
+  it('guardar + leer: devuelve el objeto exacto; haySnapshotLocal solo chequea presencia', async () => {
+    const backup = await exportBackup();
+    expect(haySnapshotLocal()).toBe(false);
+
+    const r = guardarSnapshotLocal(backup);
+
+    expect(r.guardado).toBe(true);
+    expect(r.bytes).toBeGreaterThan(0);
+    expect(haySnapshotLocal()).toBe(true);
+    expect(leerSnapshotLocal()).toEqual(backup);
+  });
+
+  it('guardarSnapshotLocal: si supera el límite NO guarda (no agota la cuota)', () => {
+    const r = guardarSnapshotLocal({ big: 'x'.repeat(SNAPSHOT_MAX_CHARS + 10) });
+    expect(r).toEqual({ guardado: false, motivo: 'limite' });
+    expect(haySnapshotLocal()).toBe(false);
+  });
+
+  it('guardarSnapshotLocal: cuota agotada se informa pero NUNCA lanza', () => {
+    spy(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+    });
+    const r = guardarSnapshotLocal({ ok: true });
+    expect(r).toEqual({ guardado: false, motivo: 'limite' });
+  });
+
+  it('limpiarSnapshotLocal elimina la copia (para "borrar todo")', async () => {
+    guardarSnapshotLocal(await exportBackup());
+    expect(haySnapshotLocal()).toBe(true);
+    limpiarSnapshotLocal();
+    expect(haySnapshotLocal()).toBe(false);
+    expect(leerSnapshotLocal()).toBeNull();
+  });
+
+  it('restaurarSnapshotLocal sin snapshot → ok:false con mensaje claro', async () => {
+    const r = await restaurarSnapshotLocal();
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/No hay snapshot local/);
+  });
+
+  it('restaurarSnapshotLocal con JSON corrupto → ok:false (no lanza)', () => {
+    localStorage.setItem(SNAPSHOT_LOCAL_KEY, '{esto no es json');
+    return restaurarSnapshotLocal().then((r) => {
+      expect(r.ok).toBe(false);
+    });
+  });
+
+  it('restaurarSnapshotLocal con objeto inválido → ok:false explicando el motivo', async () => {
+    localStorage.setItem(SNAPSHOT_LOCAL_KEY, JSON.stringify({ foo: 1 }));
+    const r = await restaurarSnapshotLocal();
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/no es válido/);
+  });
+
+  it('roundtrip: restaura el snapshot por sobre los datos locales', async () => {
+    await casesDB.cases.bulkPut([
+      { id: 'c1', nombre: 'Del snapshot', estado: 'Pendiente', fecha: '2026-07-01' },
+    ]);
+    const backup = await exportBackup();
+    guardarSnapshotLocal(backup);
+
+    // Dato POST-snapshot que el import (atómico) debe descartar.
+    await appDB.notes.add({ title: 'post-snapshot', content: '', tags: [] });
+
+    const r = await restaurarSnapshotLocal();
+
+    expect(r.ok).toBe(true);
+    expect(r.counts.cases).toBe(1);
+    const notas = await appDB.notes.toArray();
+    expect(notas.some((n) => n.title === 'post-snapshot')).toBe(false);
+  });
+
+  it('runAutoBackup feliz: guarda el snapshot y lo reporta en el resultado', async () => {
+    await appDB.notes.add({ title: 'N1', content: '', tags: [] });
+
+    const r = await runAutoBackup({ silent: true });
+
+    expect(r.ok).toBe(true);
+    expect(r.snapshot.guardado).toBe(true);
+    expect(haySnapshotLocal()).toBe(true);
+    const snap = leerSnapshotLocal();
+    expect(snap.data.db.notes).toHaveLength(1);
+  });
+
+  it('historial dañado (auto_backups.add falla): el snapshot SÍ quedó guardado', async () => {
+    spy(appDB.auto_backups, 'add').mockRejectedValue(
+      Object.assign(new Error('Data lost due to missing file'), { name: 'AbortError' })
+    );
+
+    const r = await runAutoBackup({ silent: true });
+
+    expect(r.ok).toBe(false);
+    expect(r.snapshotGuardado).toBe(true);
+    // La copia de emergencia existe y es restaurable.
+    expect(haySnapshotLocal()).toBe(true);
+    expect(leerSnapshotLocal().kind).toBe('appseguimiento-backup');
   });
 });

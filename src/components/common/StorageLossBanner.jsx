@@ -1,11 +1,19 @@
 import React, { useRef, useState } from "react";
-import { AlertTriangle, Download, RefreshCw, Upload, X } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw, Upload, Wrench, X } from "lucide-react";
 import useSystemStatus from "../../core/status/systemStatusStore";
 import {
   aceptarPerdidaDatos,
   confirmarRecuperacionDatos,
 } from "../../core/status/storageHealth";
+// v1.10.8: reparación profunda (drop de las bases), snapshot local y
+// descripción del salvamento en la descarga.
+import { repararAlmacenamientoLocal } from "../../core/status/storageRepair";
 import {
+  haySnapshotLocal,
+  restaurarSnapshotLocal,
+} from "../../services/autoBackup";
+import {
+  describirSalvage,
   downloadBackup,
   importBackup,
   parseBackupJSON,
@@ -50,6 +58,9 @@ export function StorageLossBanner() {
   // próxima recarga el estado vuelve a montarse y el banner reaparece.
   const [descartado, setDescartado] = useState(false);
   const [restaurando, setRestaurando] = useState(false);
+  // v1.10.8: reparación profunda con confirmación en dos pasos (destructiva).
+  const [confirmReparar, setConfirmReparar] = useState(false);
+  const [reparando, setReparando] = useState(false);
   const fileRef = useRef(null);
 
   const showToast = (msg, type, duration) =>
@@ -64,16 +75,32 @@ export function StorageLossBanner() {
     setRestaurando(true);
     try {
       const texto = await leerTextoArchivo(file);
-      const backup = await parseBackupJSON(texto);
-      const res = await importBackup(backup, {});
+      const parsed = await parseBackupJSON(texto);
+      // v1.10.8 (bug 1.10.6): se le pasaba el WRAPPER de parseBackupJSON a
+      // importBackup (validaba "no es un backup" y fallaba SIEMPRE); ahora se
+      // importa el backup real y el mismatch de checksum queda a criterio del
+      // usuario (mismo contrato de parseBackupJSON).
+      if (!parsed.backup) {
+        throw new Error(parsed.error || "El archivo no es un backup válido.");
+      }
+      const res = await importBackup(parsed.backup, {
+        omitirChecksum: parsed.checksumMismatch === true,
+      });
       // Limpia pérdida/alarma y sincroniza la huella (ver storageHealth).
       confirmarRecuperacionDatos(res && res.counts);
-      showToast("Backup restaurado correctamente.", "success", 6000);
+      const detalleSalvage = describirSalvage(parsed.backup.salvage);
+      showToast(
+        detalleSalvage
+          ? `Backup restaurado con datos PARCIALES (${detalleSalvage}).`
+          : "Backup restaurado correctamente.",
+        detalleSalvage ? "warning" : "success",
+        8000
+      );
     } catch (err) {
       // Si la DB sigue ilegible, el restore falla a propósito: se guía al
       // usuario a recargar primero (no se pierde el archivo elegido).
       showToast(
-        `No se pudo restaurar el backup: ${err?.message || err}. Si el almacenamiento sigue dañado, recargá la app y volvé a intentar.`,
+        `No se pudo restaurar el backup: ${err?.message || err}. Si el almacenamiento sigue dañado, recargá la app, probá «Reparar base de datos» y volvé a intentar.`,
         "error",
         10000
       );
@@ -84,14 +111,71 @@ export function StorageLossBanner() {
 
   const handleDescargar = async () => {
     try {
-      await downloadBackup();
-      showToast("Backup descargado.", "success", 4000);
+      const r = await downloadBackup();
+      const detalle = describirSalvage(r && r.salvage);
+      showToast(
+        detalle
+          ? `Backup PARCIAL descargado con lo legible (${detalle}).`
+          : "Backup descargado.",
+        detalle ? "warning" : "success",
+        detalle ? 10000 : 4000
+      );
     } catch (err) {
       showToast(
         `No se pudo descargar el backup: ${err?.message || err}.`,
         "error",
         8000
       );
+    }
+  };
+
+  // v1.10.8: snapshot local (localStorage) — restore aun con la base muerta.
+  const handleRestaurarSnapshot = async () => {
+    setRestaurando(true);
+    try {
+      const r = await restaurarSnapshotLocal();
+      if (!r.ok) throw new Error(r.error || "No hay snapshot local.");
+      confirmarRecuperacionDatos(r.counts);
+      showToast("Snapshot local restaurado correctamente.", "success", 6000);
+    } catch (err) {
+      showToast(
+        `No se pudo restaurar el snapshot local: ${err?.message || err}.`,
+        "error",
+        10000
+      );
+    } finally {
+      setRestaurando(false);
+    }
+  };
+
+  // v1.10.8: reparación profunda — dos pasos (el segundo es el destructivo).
+  const handleReparar = async () => {
+    if (!confirmReparar) {
+      setConfirmReparar(true);
+      return;
+    }
+    setReparando(true);
+    try {
+      const r = await repararAlmacenamientoLocal();
+      // Éxito: la reparación YA disparó la recarga de la página; no hay nada
+      // más que hacer acá (en jsdom el reload es un no-op y se llega igual).
+      if (r && r.ok) return;
+      showToast(
+        r && r.bloqueado
+          ? "No se pudo reparar: la base sigue abierta en otra pestaña. Cerrá TODAS las pestañas de la app e intentá de nuevo."
+          : `No se pudo reparar la base de datos: ${(r && r.error) || "error desconocido"}. Cerrá otras pestañas de la app y volvé a intentar.`,
+        "error",
+        12000
+      );
+    } catch (err) {
+      showToast(
+        `No se pudo reparar la base de datos: ${err?.message || err}.`,
+        "error",
+        12000
+      );
+    } finally {
+      setReparando(false);
+      setConfirmReparar(false);
     }
   };
 
@@ -152,13 +236,53 @@ export function StorageLossBanner() {
             style={{ justifyContent: "flex-start" }}
           >
             {esPerdida && (
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-base btn-primary btn-sm"
-              >
-                <RefreshCw size={14} className="mr-1.5" />
-                Recargar la app
-              </button>
+              <>
+                {/* Con salvamento (1.10.8) la descarga SÍ funciona con la base
+                    dañada: es la acción prioritaria ANTES de reparar. */}
+                <button
+                  onClick={handleDescargar}
+                  disabled={restaurando}
+                  className="btn-base btn-outline btn-sm"
+                >
+                  <Download size={14} className="mr-1.5" />
+                  Descargar lo disponible
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="btn-base btn-primary btn-sm"
+                >
+                  <RefreshCw size={14} className="mr-1.5" />
+                  Recargar la app
+                </button>
+                {confirmReparar ? (
+                  <>
+                    <button
+                      onClick={handleReparar}
+                      disabled={reparando}
+                      className="btn-base btn-danger btn-sm"
+                    >
+                      <Wrench size={14} className="mr-1.5" />
+                      {reparando ? "Reparando…" : "Sí, borrar y recrear la base"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmReparar(false)}
+                      className="btn-base btn-outline btn-sm"
+                      disabled={reparando}
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleReparar}
+                    disabled={reparando}
+                    className="btn-base btn-danger btn-sm"
+                  >
+                    <Wrench size={14} className="mr-1.5" />
+                    Reparar base de datos
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={abrirSelectorArchivo}
@@ -168,6 +292,16 @@ export function StorageLossBanner() {
               <Upload size={14} className="mr-1.5" />
               {restaurando ? "Restaurando…" : "Restaurar desde archivo"}
             </button>
+            {haySnapshotLocal() && (
+              <button
+                onClick={handleRestaurarSnapshot}
+                disabled={restaurando}
+                className="btn-base btn-outline btn-sm"
+              >
+                <Upload size={14} className="mr-1.5" />
+                Restaurar snapshot local
+              </button>
+            )}
             {esAlarma && (
               <>
                 <button
@@ -199,11 +333,14 @@ export function StorageLossBanner() {
               Causas habituales: limpieza de disco o antivirus sobre los
               archivos del navegador, un perfil de navegador en una carpeta
               sincronizada (OneDrive/Dropbox), cierre brusco o corrupción del
-              perfil. Pasos: 1) probá <strong>Recargar la app</strong>; 2) si
-              los datos no vuelven, <strong>Restaurar desde archivo</strong>{" "}
-              con un backup descargado antes del fallo (Configuración →
-              Sistema → Backup); 3) revisá Configuración → Sistema →
-              Diagnóstico para el detalle de errores.
+              perfil. Pasos: 1) <strong>Descargar lo disponible</strong> (con
+              datos parciales si hay tablas dañadas); 2) probá{" "}
+              <strong>Recargar la app</strong>; 3) si los datos no vuelven,{" "}
+              <strong>Reparar base de datos</strong> (borra y recrea la base
+              local — requiere confirmación —) y recién ahí{" "}
+              <strong>Restaurar desde archivo</strong> o{" "}
+              <strong>Restaurar snapshot local</strong>; 4) revisá
+              Configuración → Sistema → Diagnóstico para el detalle.
             </p>
           </details>
         </div>

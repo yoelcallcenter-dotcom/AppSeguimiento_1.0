@@ -9,12 +9,33 @@ import {
 
 // backupService se mockea completo: en este test solo importa el flujo del
 // banner (parse → import → confirmar), no Dexie ni el checksum real.
+// v1.10.8: + describirSalvage (aviso de backup PARCIAL en la descarga).
 vi.mock('../../services/backupService', () => ({
   parseBackupJSON: vi.fn(),
   importBackup: vi.fn(),
   downloadBackup: vi.fn(),
+  describirSalvage: vi.fn(() => null),
 }));
-import { parseBackupJSON, importBackup, downloadBackup } from '../../services/backupService';
+// v1.10.8: snapshot local (localStorage) y reparación profunda (drop de las
+// bases) — el banner solo orquesta la llamada; la lógica se testea aparte.
+vi.mock('../../services/autoBackup', () => ({
+  haySnapshotLocal: vi.fn(() => false),
+  restaurarSnapshotLocal: vi.fn(),
+}));
+vi.mock('../../core/status/storageRepair', () => ({
+  repararAlmacenamientoLocal: vi.fn(),
+}));
+import {
+  parseBackupJSON,
+  importBackup,
+  downloadBackup,
+  describirSalvage,
+} from '../../services/backupService';
+import {
+  haySnapshotLocal,
+  restaurarSnapshotLocal,
+} from '../../services/autoBackup';
+import { repararAlmacenamientoLocal } from '../../core/status/storageRepair';
 
 /**
  * v1.10.6 — StorageLossBanner (emergencia de pérdida de datos):
@@ -24,12 +45,20 @@ import { parseBackupJSON, importBackup, downloadBackup } from '../../services/ba
  *    disponible y "Entendido" cierra la alarma de verdad (no solo la UI);
  *  - flujo de restauración desde archivo: parse → import → confirma
  *    recuperación (limpia bandera y alarma).
+ * v1.10.8 — el restore ahora importa el backup REAL (bug 1.10.6: se le pasaba
+ * el wrapper de parseBackupJSON y fallaba SIEMPRE en producción) y se agregan:
+ * descarga PARCIAL con aviso de salvamento, reparación profunda en dos pasos
+ * y restauración del snapshot local de emergencia.
  */
-describe('StorageLossBanner · v1.10.6', () => {
+describe('StorageLossBanner · v1.10.6 + v1.10.8', () => {
   beforeEach(() => {
     localStorage.clear();
     __resetStorageHealthParaTest();
     vi.clearAllMocks();
+    // clearAllMocks NO borra implementaciones: se restauran los defaults del
+    // factory para que ningún test contamine al siguiente.
+    describirSalvage.mockReturnValue(null);
+    haySnapshotLocal.mockReturnValue(false);
   });
 
   it('sin estado de pérdida no renderiza nada', () => {
@@ -87,7 +116,11 @@ describe('StorageLossBanner · v1.10.6', () => {
     expect(screen.getByText('Posible pérdida de datos')).toBeTruthy();
     expect(screen.getByText(/notas: 5 → 0/)).toBeTruthy();
     expect(screen.getByText(/casos: 3 → 0/)).toBeTruthy();
-    expect(screen.getByText('Descargar lo disponible')).toBeTruthy();
+    // OJO (1.10.8): "Descargar lo disponible" también aparece en el <details>
+    // de ayuda → se consulta por rol de botón para que la query sea única.
+    expect(
+      screen.getByRole('button', { name: 'Descargar lo disponible' })
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByText('Entendido, continuar'));
 
@@ -99,7 +132,8 @@ describe('StorageLossBanner · v1.10.6', () => {
   it('restauración desde archivo: parse → import → confirma recuperación', async () => {
     useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
     localStorage.setItem('app-storage-lost', '1');
-    parseBackupJSON.mockResolvedValue({ ok: true });
+    const backupReal = { kind: 'appseguimiento-backup', version: 3, data: {} };
+    parseBackupJSON.mockResolvedValue({ backup: backupReal, error: null, checksumMismatch: false });
     importBackup.mockResolvedValue({ counts: { cases: 2, notes: 4, events: 1 } });
 
     const { container } = render(<StorageLossBanner />);
@@ -112,6 +146,10 @@ describe('StorageLossBanner · v1.10.6', () => {
 
     await waitFor(() => expect(importBackup).toHaveBeenCalledTimes(1));
     expect(parseBackupJSON).toHaveBeenCalledTimes(1);
+    // v1.10.8 (bug 1.10.6): se importa el backup REAL, no el wrapper
+    // {backup, error} de parseBackupJSON (con el wrapper, la validación de
+    // kind fallaba SIEMPRE en producción).
+    expect(importBackup).toHaveBeenCalledWith(backupReal, { omitirChecksum: false });
     // Estado limpio tras el restore (bandera + store).
     expect(hayPerdidaAlmacenamientoPendiente()).toBe(false);
     expect(useSystemStatus.getState().storageLost).toBe(false);
@@ -119,10 +157,53 @@ describe('StorageLossBanner · v1.10.6', () => {
     await waitFor(() => expect(container.innerHTML).toBe(''));
   });
 
+  it('checksum que no coincide: importa igual con omitirChecksum (contrato de parse)', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    const backupReal = { kind: 'appseguimiento-backup', version: 3, data: {} };
+    parseBackupJSON.mockResolvedValue({
+      backup: backupReal,
+      error: 'checksum no coincide',
+      checksumMismatch: true,
+    });
+    importBackup.mockResolvedValue({ counts: { cases: 1, notes: 0, events: 0 } });
+
+    const { container } = render(<StorageLossBanner />);
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['{}'], 'backup.json', { type: 'application/json' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    fireEvent.change(input);
+
+    await waitFor(() => expect(importBackup).toHaveBeenCalledTimes(1));
+    expect(importBackup).toHaveBeenCalledWith(backupReal, { omitirChecksum: true });
+  });
+
+  it('archivo inválido: NO llama a importBackup (solo aviso de error)', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    parseBackupJSON.mockResolvedValue({
+      backup: null,
+      error: 'El archivo no es un backup de AppSeguimiento',
+    });
+
+    const { container } = render(<StorageLossBanner />);
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['no soy backup'], 'backup.json', { type: 'application/json' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    fireEvent.change(input);
+
+    await waitFor(() => expect(parseBackupJSON).toHaveBeenCalledTimes(1));
+    expect(importBackup).not.toHaveBeenCalled();
+    // El banner sigue presente (el usuario puede reintentar).
+    expect(container.innerHTML).not.toBe('');
+  });
+
   it('un fallo del restore guía a recargar y NO limpia el estado', async () => {
     useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
     localStorage.setItem('app-storage-lost', '1');
-    parseBackupJSON.mockResolvedValue({ ok: true });
+    parseBackupJSON.mockResolvedValue({
+      backup: { kind: 'appseguimiento-backup', version: 3, data: {} },
+      error: null,
+      checksumMismatch: false,
+    });
     importBackup.mockRejectedValue(new Error('el almacenamiento sigue dañado'));
 
     const { container } = render(<StorageLossBanner />);
@@ -145,8 +226,79 @@ describe('StorageLossBanner · v1.10.6', () => {
     downloadBackup.mockResolvedValue(undefined);
 
     render(<StorageLossBanner />);
-    fireEvent.click(screen.getByText('Descargar lo disponible'));
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar lo disponible' }));
 
     await waitFor(() => expect(downloadBackup).toHaveBeenCalledTimes(1));
+  });
+
+  // ============ v1.10.8 — salvamento, reparación y snapshot ============
+
+  it('variante A (1.10.8): ofrece "Descargar lo disponible" y consulta el salvamento', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    downloadBackup.mockResolvedValue({
+      name: 'backup_x.json',
+      sizeKB: 12,
+      salvage: { perdidas: [{ tabla: 'notes', registros: 1 }] },
+    });
+    describirSalvage.mockReturnValue('notes: 1 registro(s) perdido(s)');
+
+    render(<StorageLossBanner />);
+    // Con salvamento la descarga SÍ funciona con la base dañada → es la
+    // acción prioritaria de la variante A (antes no existía acá).
+    expect(
+      screen.getByRole('button', { name: 'Descargar lo disponible' })
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar lo disponible' }));
+
+    await waitFor(() => expect(downloadBackup).toHaveBeenCalledTimes(1));
+    expect(describirSalvage).toHaveBeenCalledWith({
+      perdidas: [{ tabla: 'notes', registros: 1 }],
+    });
+  });
+
+  it('reparación profunda (1.10.8): confirmación en dos pasos antes de borrar', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    repararAlmacenamientoLocal.mockResolvedValue({ ok: true });
+
+    render(<StorageLossBanner />);
+    // Paso 1: armado — NO se borra nada todavía.
+    fireEvent.click(screen.getByRole('button', { name: /Reparar base de datos/ }));
+    expect(repararAlmacenamientoLocal).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: /Sí, borrar y recrear la base/ })
+    ).toBeTruthy();
+
+    // Paso 2: ejecución destructiva.
+    fireEvent.click(screen.getByRole('button', { name: /Sí, borrar y recrear la base/ }));
+    await waitFor(() => expect(repararAlmacenamientoLocal).toHaveBeenCalledTimes(1));
+  });
+
+  it('reparación bloqueada (otra pestaña): informa y el banner permanece', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    repararAlmacenamientoLocal.mockResolvedValue({ ok: false, bloqueado: true });
+
+    render(<StorageLossBanner />);
+    fireEvent.click(screen.getByRole('button', { name: /Reparar base de datos/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Sí, borrar y recrear la base/ }));
+
+    await waitFor(() => expect(repararAlmacenamientoLocal).toHaveBeenCalledTimes(1));
+    // La pérdida sigue real: el banner NO desaparece.
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('snapshot local (1.10.8): se ofrece y restaura por el mismo camino seguro', async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: 'Data lost due to missing file' });
+    haySnapshotLocal.mockReturnValue(true);
+    restaurarSnapshotLocal.mockResolvedValue({
+      ok: true,
+      counts: { cases: 1, notes: 0, events: 0 },
+    });
+
+    render(<StorageLossBanner />);
+    fireEvent.click(screen.getByRole('button', { name: /Restaurar snapshot local/ }));
+
+    await waitFor(() => expect(restaurarSnapshotLocal).toHaveBeenCalledTimes(1));
+    // Éxito: confirma recuperación → el store limpia la pérdida y el banner se va.
+    await waitFor(() => expect(useSystemStatus.getState().storageLost).toBe(false));
   });
 });

@@ -86,6 +86,9 @@ import {
   getBackupHistory, deleteBackup, restoreFromHistory, runAutoBackup,
   getBackupFrequency, setBackupFrequency, daysSinceLastBackup,
   BACKUP_FREQUENCY_OPTIONS, getJornadaBackupSchedule,
+  // v1.10.8: snapshot local de emergencia (localStorage) — se puede restaurar
+  // aunque la IndexedDB esté dañada.
+  haySnapshotLocal, restaurarSnapshotLocal,
 } from "../../services/autoBackup";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 // v1.10.0 (feature B): permiso de notificaciones del navegador (se pide solo
@@ -339,7 +342,38 @@ export function ConfiguracionView({
       showToast("Backup automático creado correctamente", "success");
       setBackupHistory(await getBackupHistory());
     } else {
-      showToast(result.error || "Error al crear el backup automático", "error");
+      // v1.10.8: si el historial no se pudo escribir pero el snapshot local
+      // SÍ salió, se avisa exactamente cómo usarlo (no es un fallo total).
+      const extra = result.snapshotGuardado
+        ? " — la copia de respaldo local SÍ se guardó: usá «Restaurar snapshot local» para recuperarla."
+        : "";
+      showToast(
+        (result.error || "Error al crear el backup automático") + extra,
+        "error",
+        result.snapshotGuardado ? 10000 : undefined
+      );
+    }
+  };
+
+  // v1.10.8: restore del snapshot local de emergencia (localStorage), con
+  // confirmación en dos pasos — pisca los datos actuales por los del snapshot.
+  const [confirmSnapshotRestore, setConfirmSnapshotRestore] = useState(false);
+  const handleRestaurarSnapshotLocal = async () => {
+    if (!confirmSnapshotRestore) {
+      setConfirmSnapshotRestore(true);
+      return;
+    }
+    setConfirmSnapshotRestore(false);
+    setLoading(true);
+    try {
+      const r = await restaurarSnapshotLocal();
+      if (!r.ok) throw new Error(r.error || "No hay snapshot local.");
+      showToast("Snapshot local restaurado correctamente", "success");
+      setBackupHistory(await getBackupHistory());
+    } catch (err) {
+      showToast(err.message || "Error al restaurar el snapshot local", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -908,7 +942,18 @@ export function ConfiguracionView({
     try {
       const result = await backupService.downloadBackup();
       setBackupStats({ name: result.name, sizeKB: result.sizeKB, at: new Date() });
-      showToast(`Backup completo exportado (${result.sizeKB} KB)`, "success");
+      // v1.10.8: con el salvamento el archivo SALE igual con lo legible; si
+      // hubo tablas dañadas se advierte explícitamente (backup PARCIAL).
+      const detalle = backupService.describirSalvage(result && result.salvage);
+      if (detalle) {
+        showToast(
+          `Backup PARCIAL exportado (${result.sizeKB} KB) — no se pudo leer: ${detalle}.`,
+          "warning",
+          10000
+        );
+      } else {
+        showToast(`Backup completo exportado (${result.sizeKB} KB)`, "success");
+      }
     } catch (err) {
       showToast(err.message || "Error al exportar backup", "error");
     } finally {
@@ -2533,6 +2578,21 @@ export function ConfiguracionView({
                 >
                   Crear backup ahora
                 </Btn>
+                {/* v1.10.8: snapshot local de emergencia — existe aunque la
+                    IndexedDB esté dañada (es su razón de ser). */}
+                {haySnapshotLocal() && (
+                  <Btn
+                    onClick={handleRestaurarSnapshotLocal}
+                    disabled={loading}
+                    size="sm"
+                    color="var(--color-danger)"
+                    icon={Upload}
+                  >
+                    {confirmSnapshotRestore
+                      ? "Confirmar restauración (reemplaza datos)"
+                      : "Restaurar snapshot local"}
+                  </Btn>
+                )}
               </div>
               {backupHistoryLoading ? (
                 <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>Cargando historial...</div>
