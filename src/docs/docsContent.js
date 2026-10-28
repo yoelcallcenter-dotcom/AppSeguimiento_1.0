@@ -30,6 +30,7 @@ export const DOC_README = `# AppSeguimiento
 - **La reparación ahora borra las TRES bases locales**: \`AppData\`, \`CasesDB\` y también \`AppDiagnostics\` (el log de errores) — antes, un archivo de log dañado volvía a apretar la alarma de pérdida con cada error, sin forma de curarlo desde la app.
 - **Diagnóstico cuando la reparación no basta**: si el drop se completa y las lecturas siguen fallando (borrado bloqueado por otra pestaña o la PWA, u otro origen), el banner lo dice explícitamente con los pasos a seguir (cerrar todas las ventanas del sitio, "Clear site data" en el origen correcto desde F12 → Application → Storage) en vez de repetir el mismo error sin contexto.
 - **Reparar junto al "Historial ilegible"**: el botón "Reparar base de datos" (doble confirmación) aparece en Configuración → Datos, debajo del propio mensaje de historial ilegible — no hay que buscarlo en el banner o en Diagnóstico.
+- **La config de Liquidaciones se muda a la tab Productividad**: "Configuración → Productividad → Liquidaciones" (antes en la tab General), junto a las funciones personales con las que se usa; el texto de ayuda en línea del módulo apunta a la nueva ruta.
 
 ### 1.10.8 — Export resistente, reparación profunda y snapshot local ante bases dañadas
 
@@ -53,7 +54,7 @@ export const DOC_README = `# AppSeguimiento
 
 ### 1.10.5 — Configuración centralizada de Liquidaciones
 
-- **Configuración → General → Liquidaciones** (nueva sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada.
+- **Configuración → Productividad → Liquidaciones** (sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada. *La ubicación cambió en 1.10.9: antes estaba en la tab General.*
 - **Mi Espacio consume la misma fuente de verdad**: las liquidaciones en preparación se recalculan con la configuración vigente (las cerradas conservan su instantánea histórica); los puestos del top se asignan a mano con anti-duplicado y los importes de premio se calculan con la distribución vigente, con el saldo sin asignar a la vista.
 - **Persistencia AppData v12 (aditiva)**: tabla de auditoría de la configuración, incluida en backup/export/import; compatibilidad total con configs y backups anteriores (defaults mergeados, sin migración destructiva).
 
@@ -411,14 +412,18 @@ Corrige los dos gaps encontrados en uso real de la reparación de la 1.10.8 (usu
 
 - **Botón "Reparar base de datos"** bajo el propio mensaje de historial ilegible (Configuración → Datos), con la misma **doble confirmación** ("Sí, borrar y recrear la base" / Cancelar) del banner y Diagnóstico: la salida destructiva queda a un clic en el lugar exacto donde el usuario ve el problema. Fallo/bloqueo informado por toast con el mismo guion ("cerrá TODAS las ventanas del sitio").
 
+### Reubicación de la configuración de Liquidaciones
+
+- **De la tab General a la tab Productividad**: la sub-sección "Liquidaciones" de Configuración ahora vive en la tab **Productividad** (tras "Productividad personal"), de donde se alimenta Mi Espacio — pedido para tenerla junto a las funciones personales. El texto de ayuda en línea del módulo y el README apuntan a la nueva ruta ("Configuración → Productividad → Liquidaciones"); las menciones de la 1.10.5 en este CHANGELOG quedan como registro histórico de esa entrega. Cubierto por un test de navegación que fija que Liquidaciones está en Productividad y ya no en General.
+
 ### Corrección de implementación interna
 
 - El detalle de pérdida vive en **\`storageLostDetail\`** (store \`systemStatusStore\`); la primera iteración de la guía leyó \`storageLost.trasReparacion\` (boolean) y no hubiera renderizado nada — corregido y cubierto por tests que fijan el contrato del store.
 
 ### Pruebas, build y versionado
 
-- **12 tests nuevos en verde**: \`storageRepair\` (3 bases, marca presente en éxito y ausente en fallo), \`storageHealth\` (marca one-shot con \`trasReparacion\`, vencida sin etiquetar, regresión sin marca, limpieza por verificación), banner (guía de Clear site data presente/ausente) y Configuración (doble confirmación, toast de bloqueo y que la reparación NO se ofrece sin pérdida activa).
-- Suite completa en verde (136 archivos, 1386 tests; 5 flakes de saturación re-verificados aislados) y \`npm run build\` compila sin errores ni warnings.
+- **9 tests nuevos en verde**: \`storageHealth\` (marca one-shot con \`trasReparacion\`, marca vencida sin etiquetar errores actuales, regresión sin marca y limpieza por verificación), banner (guía de Clear site data presente/ausente), Configuración (doble confirmación del botón de reparación junto al historial ilegible, toast de bloqueo y que la reparación NO se ofrece sin pérdida activa) y navegación (Liquidaciones vive en Productividad y ya no en General); además aserciones nuevas en \`storageRepair\` (las 3 bases, marca presente en éxito y ausente en fallo).
+- Suite completa en verde (136 archivos, 1387 tests; los 2 flakes de saturación de la corrida completa re-verificados aislados) y \`npm run build\` compila sin errores ni warnings.
 - **Bump a 1.10.9** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y la línea de versión del \`package-lock.json\`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; \`docsContent.js\` regenerado (\`node scripts/build-docs.js\`).
 
 ## [1.10.8] - Export resistente, reparación profunda y snapshot local ante bases dañadas

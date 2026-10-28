@@ -1,6 +1,6 @@
 /**
  * LiquidacionesConfig.jsx (v1.10.5)
- * Configuración → General → Liquidaciones.
+ * Configuración → Productividad → Liquidaciones (movida de General en v1.10.9).
  *
  * Sección compuesta por 5 sub-tabs: General · Tarifas · Reglas de liquidación
  * · Premios · Historial (patrón de sub-navegación tipo pill coherente con la

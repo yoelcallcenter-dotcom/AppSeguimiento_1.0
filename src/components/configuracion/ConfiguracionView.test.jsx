@@ -149,6 +149,29 @@ describe("ConfiguracionView", () => {
     expect(within(secciones).getByText("Pegado de Ficha")).toBeTruthy();
   });
 
+  // v1.10.9: la config de Liquidaciones se mudó de la tab General a Productividad
+  // (el usuario la pidió junto a las funciones personales de Mi Espacio).
+  it("Liquidaciones queda en el grupo Productividad y no en General", () => {
+    render(<VistaConfig />);
+    const grupos = screen.getByLabelText("Grupos de Configuración");
+    const secciones = screen.getByLabelText("Secciones de Configuración");
+
+    // Por defecto abre General: ahí YA no está Liquidaciones.
+    expect(within(secciones).queryByText("Liquidaciones")).toBeNull();
+
+    fireEvent.click(within(grupos).getByText("Productividad"));
+    // cambiarGrupo abre items[0] ("Productividad personal"); Liquidaciones
+    // aparece como segunda sub-sección del grupo.
+    expect(within(secciones).getByText("Productividad personal")).toBeTruthy();
+    fireEvent.click(within(secciones).getByText("Liquidaciones"));
+    // La sección renderiza el componente real (tabs internos visibles).
+    expect(screen.getByRole("tab", { name: "Tarifas" })).toBeTruthy();
+
+    // Y ya no vive en General.
+    fireEvent.click(within(grupos).getByText("General"));
+    expect(within(secciones).queryByText("Liquidaciones")).toBeNull();
+  });
+
   it("Pegado de Ficha permite tipear keywords con comas y espacios", () => {
     let visto = null;
     render(<VistaConfig onCfg={(c) => (visto = c)} />);

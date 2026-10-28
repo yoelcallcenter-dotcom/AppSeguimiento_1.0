@@ -5,7 +5,7 @@
  * v1.10.4: tarifas y mínimos fijos en REGLAS_LIQUIDACION_DEFECTO, con
  * getReglas(config) preparado para enchufar la configuración central.
  * v1.10.5: se habilita esa configuración desde
- * Configuración → General → Liquidaciones:
+ * Configuración → Productividad → Liquidaciones (antes en General; v1.10.9):
  *  - Categorías de tarifas editables (alta sin tocar código, clave estable,
  *    importe, activar/desactivar — NUNCA eliminación física §4C).
  *  - Mínimo de firmas editable (default 14).

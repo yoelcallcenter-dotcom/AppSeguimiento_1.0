@@ -21,7 +21,8 @@ import { useJustifyPestanas } from "../common/UINav";
 import { PersonalizacionColores } from "./PersonalizacionColores";
 import { KeywordsInput } from "./KeywordsInput";
 import { TipografiaView } from "./TipografiaView";
-// v1.10.5: sección de Liquidaciones dentro de Configuración → General.
+// v1.10.5: sección de Liquidaciones dentro de Configuración.
+// v1.10.9: se MOVIÓ de la tab General a la tab Productividad (ver GRUPOS_CONFIG).
 import { LiquidacionesConfig } from "./LiquidacionesConfig";
 import { getProductivitySettings, saveProductivitySettings, getGoalsState, setDailyTarget } from "../../features/productivity/productivityStore";
 // v1.9.6 (fix metas): getOperatorGoals + subscribeOperatorGoals para que el
@@ -470,8 +471,8 @@ export function ConfiguracionView({
         { id: "plantillas", label: "Plantillas", icon: FileText },
         // 1.9.6: editor de categorías y variables de Útiles → Conversación Sugerida.
         { id: "conversaciones", label: "Conversación Sugerida", icon: MessagesSquare },
-        // v1.10.5: reglas económicas del módulo de Liquidaciones (centralizadas).
-        { id: "liquidaciones", label: "Liquidaciones", icon: Banknote },
+        // v1.10.9: "Liquidaciones" se movió de acá (General) a la tab
+        // Productividad — junto a las funciones personales con las que se usa.
       ],
     },
     {
@@ -499,6 +500,10 @@ export function ConfiguracionView({
       id: "productividad", label: "Productividad", icon: Target,
       items: [
         { id: "productividad", label: "Productividad personal", icon: Target },
+        // v1.10.9: reglas económicas del módulo de Liquidaciones, movidas
+        // desde la tab General — es la config que alimenta Mi Espacio/Liquidaciones.
+        // OJO: debe ir DESPUÉS de "productividad": cambiarGrupo abre items[0].
+        { id: "liquidaciones", label: "Liquidaciones", icon: Banknote },
       ],
     },
     {

@@ -699,8 +699,8 @@ export function OperatorLiquidaciones({ casos, showToast, config }) {
               >
                 <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" style={{ color: "var(--color-danger)" }} />
                 <span>
-                  La distribución de premios tiene errores (revisar en Configuración → General → Liquidaciones →
-                  Premios): {premiosValidacion.errores[0]}
+                  La distribución de premios tiene errores (revisar en Configuración → Productividad → Liquidaciones
+                  → Premios): {premiosValidacion.errores[0]}
                 </span>
               </div>
             )}

@@ -22,6 +22,7 @@
 - **La reparación ahora borra las TRES bases locales**: `AppData`, `CasesDB` y también `AppDiagnostics` (el log de errores) — antes, un archivo de log dañado volvía a apretar la alarma de pérdida con cada error, sin forma de curarlo desde la app.
 - **Diagnóstico cuando la reparación no basta**: si el drop se completa y las lecturas siguen fallando (borrado bloqueado por otra pestaña o la PWA, u otro origen), el banner lo dice explícitamente con los pasos a seguir (cerrar todas las ventanas del sitio, "Clear site data" en el origen correcto desde F12 → Application → Storage) en vez de repetir el mismo error sin contexto.
 - **Reparar junto al "Historial ilegible"**: el botón "Reparar base de datos" (doble confirmación) aparece en Configuración → Datos, debajo del propio mensaje de historial ilegible — no hay que buscarlo en el banner o en Diagnóstico.
+- **La config de Liquidaciones se muda a la tab Productividad**: "Configuración → Productividad → Liquidaciones" (antes en la tab General), junto a las funciones personales con las que se usa; el texto de ayuda en línea del módulo apunta a la nueva ruta.
 
 ### 1.10.8 — Export resistente, reparación profunda y snapshot local ante bases dañadas
 
@@ -45,7 +46,7 @@
 
 ### 1.10.5 — Configuración centralizada de Liquidaciones
 
-- **Configuración → General → Liquidaciones** (nueva sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada.
+- **Configuración → Productividad → Liquidaciones** (sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada. *La ubicación cambió en 1.10.9: antes estaba en la tab General.*
 - **Mi Espacio consume la misma fuente de verdad**: las liquidaciones en preparación se recalculan con la configuración vigente (las cerradas conservan su instantánea histórica); los puestos del top se asignan a mano con anti-duplicado y los importes de premio se calculan con la distribución vigente, con el saldo sin asignar a la vista.
 - **Persistencia AppData v12 (aditiva)**: tabla de auditoría de la configuración, incluida en backup/export/import; compatibilidad total con configs y backups anteriores (defaults mergeados, sin migración destructiva).
 

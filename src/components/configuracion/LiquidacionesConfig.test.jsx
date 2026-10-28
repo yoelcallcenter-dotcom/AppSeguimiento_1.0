@@ -1,6 +1,6 @@
 /**
  * LiquidacionesConfig.test.jsx (v1.10.5)
- * UI de Configuración → General → Liquidaciones (§12A/B/D del prompt 1.10.5):
+ * UI de Configuración → Productividad → Liquidaciones (§12A/B/D del prompt 1.10.5):
  * navegación de sub-tabs, edición del mínimo, alta de categorías con
  * validación real, bloqueo de fondos que rompen la distribución de premios,
  * e historial con restauración confirmada. La auditoría se verifica sobre
