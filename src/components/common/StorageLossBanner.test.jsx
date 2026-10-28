@@ -83,6 +83,25 @@ describe('StorageLossBanner · v1.10.6 + v1.10.8', () => {
       screen.getByRole('button', { name: /Restaurar desde archivo/ })
     ).toBeTruthy();
     expect(screen.getByRole('alert')).toBeTruthy();
+    // v1.10.9: la guía de Clear site data SOLO aparece tras una reparación
+    // reciente (si no, es ruido para una pérdida normal).
+    expect(screen.queryByText(/Clear site data/)).toBeNull();
+  });
+
+  it('v1.10.9 · trasReparacion: la guía de Clear site data aparece en el banner', () => {
+    // storageLost con la marca que pone registrarPerdidaAlmacenamiento cuando
+    // el error ocurre DESPUÉS de un drop ok (el daño no está en las bases).
+    useSystemStatus
+      .getState()
+      .setStorageLost({ mensaje: 'Data lost due to missing file', trasReparacion: true });
+
+    render(<StorageLossBanner />);
+
+    expect(
+      screen.getByText(/La reparación se completó pero el almacenamiento sigue dañado/)
+    ).toBeTruthy();
+    expect(screen.getByText(/Clear site data/)).toBeTruthy();
+    expect(screen.getByText(/otra URL/)).toBeTruthy();
   });
 
   it('el descarte de la variante A oculta el banner solo para la sesión', () => {

@@ -90,6 +90,9 @@ import {
   // aunque la IndexedDB esté dañada.
   haySnapshotLocal, restaurarSnapshotLocal,
 } from "../../services/autoBackup";
+// v1.10.9: reparación profunda accesible desde el propio mensaje de
+// "Historial ilegible" (antes solo desde el banner o Diagnóstico).
+import { repararAlmacenamientoLocal } from "../../core/status/storageRepair";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 // v1.10.0 (feature B): permiso de notificaciones del navegador (se pide solo
 // desde el toggle de esta vista, nunca al arrancar).
@@ -374,6 +377,37 @@ export function ConfiguracionView({
       showToast(err.message || "Error al restaurar el snapshot local", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============ v1.10.9 — Reparación junto al "Historial ilegible" ============
+  // Mismo flujo destructivo en dos pasos del banner/Diagnóstico, pero en el
+  // lugar exacto donde el usuario ve el problema (la salida era difícil de
+  // encontrar con la app en estado crítico).
+  const [confirmRepararHistorial, setConfirmRepararHistorial] = useState(false);
+  const [reparandoHistorial, setReparandoHistorial] = useState(false);
+  const handleRepararHistorial = async () => {
+    if (!confirmRepararHistorial) {
+      setConfirmRepararHistorial(true);
+      return;
+    }
+    setConfirmRepararHistorial(false);
+    setReparandoHistorial(true);
+    try {
+      const r = await repararAlmacenamientoLocal();
+      // Éxito: la reparación YA disparó la recarga; no hay nada más que hacer.
+      if (r && r.ok) return;
+      showToast(
+        r && r.bloqueado
+          ? "No se pudo reparar: la base sigue abierta en otra pestaña o en la PWA. Cerrá TODAS las ventanas del sitio y volvé a intentar."
+          : `No se pudo reparar: ${(r && r.error) || "error desconocido"}.`,
+        "error",
+        12000
+      );
+    } catch (err) {
+      showToast(`No se pudo reparar: ${err?.message || err}.`, "error", 12000);
+    } finally {
+      setReparandoHistorial(false);
     }
   };
 
@@ -2600,8 +2634,37 @@ export function ConfiguracionView({
                 storageLost ? (
                   // v1.10.7: la base está dañada → el historial se leyó
                   // vacío por ERROR DE LECTURA, no porque no existan backups.
-                  <div className="text-xs" style={{ color: "var(--color-danger)" }}>
-                    Historial ilegible: el almacenamiento local está dañado. Recargá la app o restaurá desde un archivo de backup; hasta entonces no se pueden crear backups.
+                  <div>
+                    <div className="text-xs" style={{ color: "var(--color-danger)" }}>
+                      Historial ilegible: el almacenamiento local está dañado. Recargá la app o restaurá desde un archivo de backup; hasta entonces no se pueden crear backups.
+                    </div>
+                    {/* v1.10.9: la salida destructiva a un clic, en el lugar
+                        donde se ve el problema (antes solo en el banner o en
+                        Diagnóstico). Doble confirmación, igual que allá. */}
+                    <div className="flex items-center gap-2 flex-wrap mt-2">
+                      <Btn
+                        onClick={handleRepararHistorial}
+                        disabled={reparandoHistorial || loading}
+                        size="sm"
+                        color="var(--color-danger)"
+                        icon={Wrench}
+                      >
+                        {reparandoHistorial
+                          ? "Reparando…"
+                          : confirmRepararHistorial
+                          ? "Sí, borrar y recrear la base"
+                          : "Reparar base de datos"}
+                      </Btn>
+                      {confirmRepararHistorial && !reparandoHistorial && (
+                        <Btn
+                          onClick={() => setConfirmRepararHistorial(false)}
+                          size="sm"
+                          color="var(--color-text-muted)"
+                        >
+                          Cancelar
+                        </Btn>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>

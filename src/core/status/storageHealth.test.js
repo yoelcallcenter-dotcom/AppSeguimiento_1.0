@@ -229,4 +229,50 @@ describe('storageHealth · v1.10.6', () => {
       expect(leerHuellaDatos()).toMatchObject({ cases: 2, notes: 4, events: 1 });
     });
   });
+
+  // ---------- v1.10.9 — marca de reparación profunda (diagnóstico honesto) ----------
+  describe('marca de reparación (app-repair-pending)', () => {
+    const CLAVE = 'app-repair-pending';
+
+    it('registrar tras una reparación reciente → detalle.trasReparacion (one-shot)', () => {
+      localStorage.setItem(CLAVE, String(Date.now()));
+
+      registrarPerdidaAlmacenamiento({ message: 'Data lost due to missing file' }, 'App:loadNotes');
+
+      expect(useSystemStatus.getState().storageLost).toBe(true);
+      // El detalle vive en storageLostDetail (campo aparte del boolean).
+      expect(useSystemStatus.getState().storageLostDetail).toMatchObject({
+        trasReparacion: true,
+      });
+      // One-shot: un segundo registro (u otro origen de error) ya no la repite.
+      expect(localStorage.getItem(CLAVE)).toBeNull();
+    });
+
+    it('marca VENCIDA (reparación vieja) no etiqueta errores actuales', () => {
+      localStorage.setItem(CLAVE, String(Date.now() - 16 * 60 * 1000));
+
+      registrarPerdidaAlmacenamiento({ message: 'Data lost due to missing file' });
+
+      expect(useSystemStatus.getState().storageLost).toBe(true);
+      expect(
+        useSystemStatus.getState().storageLostDetail.trasReparacion
+      ).toBeUndefined();
+      expect(localStorage.getItem(CLAVE)).toBeNull(); // consumida (vencida)
+    });
+
+    it('sin reparación previa el detalle NO lleva trasReparacion (regresión)', () => {
+      registrarPerdidaAlmacenamiento({ message: 'Data lost due to missing file' });
+      expect(
+        useSystemStatus.getState().storageLostDetail.trasReparacion
+      ).toBeUndefined();
+    });
+
+    it('verificarDatosPostCarga con lecturas OK limpia la marca huérfana', () => {
+      localStorage.setItem(CLAVE, String(Date.now()));
+      // Sin bandera ni error: lecturas sanas → la marca ya no diagnóstica nada.
+      const resumen = verificarDatosPostCarga({ cases: 1, notes: 2, events: 0 });
+      expect(resumen.caso).toBe('ok');
+      expect(localStorage.getItem(CLAVE)).toBeNull();
+    });
+  });
 });

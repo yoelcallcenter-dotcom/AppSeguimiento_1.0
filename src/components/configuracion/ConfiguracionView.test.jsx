@@ -9,6 +9,12 @@ import { CONFIG_DEFAULT, ESTADOS } from "../../utils/constants";
 import casesDB from "../../core/db/casesDB";
 // v1.10.7: estado de pérdida de almacenamiento (historial honesto).
 import useSystemStatus from "../../core/status/systemStatusStore";
+// v1.10.9: la reparación profunda se mockea — acá se testea el FLUJO de la
+// UI (doble confirmación junto al "Historial ilegible"), no el drop real.
+vi.mock("../../core/status/storageRepair", () => ({
+  repararAlmacenamientoLocal: vi.fn(),
+}));
+import { repararAlmacenamientoLocal } from "../../core/status/storageRepair";
 
 const noop = () => {};
 
@@ -755,5 +761,75 @@ describe("Historial de backups honesto con storage dañado (1.10.7)", () => {
       expect(screen.getByText(/Historial ilegible/)).toBeTruthy()
     );
     expect(screen.queryByText(/Todavía no hay backups automáticos/)).toBeNull();
+  });
+});
+
+// v1.10.9: la salida destructiva ("Reparar base de datos") vive junto al
+// propio mensaje de "Historial ilegible" — antes solo estaba en el banner y
+// en Diagnóstico, difíciles de encontrar con la app en estado crítico.
+describe("Reparación junto al 'Historial ilegible' (1.10.9)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    useSystemStatus.getState().clearStorageLost();
+  });
+
+  it("confirmación en dos pasos: el primer clic arma, el segundo ejecuta", async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: "Data lost" });
+    repararAlmacenamientoLocal.mockResolvedValue({ ok: true });
+
+    render(<VistaConfig />);
+    abrirDatos();
+    await waitFor(() =>
+      expect(screen.getByText(/Historial ilegible/)).toBeTruthy()
+    );
+
+    // Paso 1: armado — NO se borró nada.
+    fireEvent.click(screen.getByRole("button", { name: /Reparar base de datos/ }));
+    expect(repararAlmacenamientoLocal).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /Sí, borrar y recrear la base/ })
+    ).toBeTruthy();
+
+    // Paso 2: ejecución.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Sí, borrar y recrear la base/ })
+    );
+    await waitFor(() => expect(repararAlmacenamientoLocal).toHaveBeenCalledTimes(1));
+  });
+
+  it("un fallo (bloqueo por otra pestaña) se informa por toast", async () => {
+    useSystemStatus.getState().setStorageLost({ mensaje: "Data lost" });
+    repararAlmacenamientoLocal.mockResolvedValue({ ok: false, bloqueado: true });
+    const showToast = vi.fn();
+
+    render(<VistaConfig showToast={showToast} />);
+    abrirDatos();
+    await waitFor(() =>
+      expect(screen.getByText(/Historial ilegible/)).toBeTruthy()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Reparar base de datos/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Sí, borrar y recrear la base/ })
+    );
+
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        expect.stringMatching(/Cerrá TODAS las ventanas del sitio/),
+        "error",
+        expect.any(Number)
+      )
+    );
+  });
+
+  it("sin pérdida activa NO se ofrece la reparación (no es destructiva por accidente)", async () => {
+    render(<VistaConfig />);
+    abrirDatos();
+    await waitFor(() =>
+      expect(screen.getByText(/Todavía no hay backups automáticos/)).toBeTruthy()
+    );
+    expect(screen.queryByRole("button", { name: /Reparar base de datos/ })).toBeNull();
   });
 });

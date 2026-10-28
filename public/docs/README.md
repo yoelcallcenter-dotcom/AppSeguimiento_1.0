@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.9** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,12 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.9 — Reparación completa de las 3 bases y diagnóstico honesto post-reparación
+
+- **La reparación ahora borra las TRES bases locales**: `AppData`, `CasesDB` y también `AppDiagnostics` (el log de errores) — antes, un archivo de log dañado volvía a apretar la alarma de pérdida con cada error, sin forma de curarlo desde la app.
+- **Diagnóstico cuando la reparación no basta**: si el drop se completa y las lecturas siguen fallando (borrado bloqueado por otra pestaña o la PWA, u otro origen), el banner lo dice explícitamente con los pasos a seguir (cerrar todas las ventanas del sitio, "Clear site data" en el origen correcto desde F12 → Application → Storage) en vez de repetir el mismo error sin contexto.
+- **Reparar junto al "Historial ilegible"**: el botón "Reparar base de datos" (doble confirmación) aparece en Configuración → Datos, debajo del propio mensaje de historial ilegible — no hay que buscarlo en el banner o en Diagnóstico.
 
 ### 1.10.8 — Export resistente, reparación profunda y snapshot local ante bases dañadas
 

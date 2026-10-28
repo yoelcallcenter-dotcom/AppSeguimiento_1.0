@@ -1,13 +1,22 @@
 /**
- * storageRepair.js — v1.10.8
+ * storageRepair.js — v1.10.8 (mejorado en v1.10.9)
  * Reparación PROFUNDA del almacenamiento local.
  *
  * Motivo: el estado "Data lost due to missing file" de Chromium vive en el
  * ARCHIVO del origen (perfil del navegador). Vaciar tablas con `.clear()` NO
  * lo cura — un clear sobre el registro dañado vuelve a fallar — y ninguna
  * otra acción de la app reinicia ese estado. La única vía desde dentro de la
- * app es `indexedDB.deleteDatabase()` de las bases COMPLETAS (AppData y
- * CasesDB): el navegador las descarta y, al reabrir, recrea un esquema sano.
+ * app es `indexedDB.deleteDatabase()` de las bases COMPLETAS: el navegador
+ * las descarta y, al reabrir, recrea un esquema sano.
+ *
+ * v1.10.9: se borran las TRES bases, no dos — faltaba AppDiagnostics (el log
+ * de errores, `core/db/indexedDB.js`): si su archivo está dañado, cada
+ * reportError vuelve a apretar la bandera de pérdida y jamás se curaba desde
+ * la app. Además se deja una marca (storageHealth.marcarReparacionProfunda)
+ * antes del drop: si tras la recarga las lecturas SIGUEN fallando, el banner
+ * puede diagnosticar "el daño no está en las bases que la app recrea"
+ * (borrado bloqueado por otra pestaña/PWA, u otro origen) en vez de mostrar
+ * el mismo error sin contexto.
  *
  * A propósito NO se toca la huella de conteos ni la bandera de pérdida
  * (storageHealth): tras el drop + recarga, la verificación post-carga
@@ -22,6 +31,9 @@
 
 import appDB from "../db/appDB";
 import casesDB from "../db/casesDB";
+// v1.10.9: tercera base (log de errores) — ver comentario del header.
+import diagnosticsDB from "../db/indexedDB";
+import { marcarReparacionProfunda, limpiarReparacionProfunda } from "./storageHealth";
 
 /** Espera máxima tras un `blocked` (otras pestañas con la base abierta). */
 const TIMEOUT_BLOQUEO_MS = 8000;
@@ -79,16 +91,30 @@ export async function repararAlmacenamientoLocal(options = {}) {
   // 1) Cerrar NUESTRAS conexiones: no deben bloquear el delete.
   try { casesDB.close(); } catch { /* ya cerrada */ }
   try { appDB.close(); } catch { /* ya cerrada */ }
+  // v1.10.9: AppDiagnostics también — si su archivo está dañado, cada
+  // escritura de log re-aprieta la bandera de pérdida.
+  try { diagnosticsDB.close(); } catch { /* ya cerrada */ }
 
-  // 2) Borrar ambas bases por completo (best-effort en paralelo).
+  // 2) Marca de reparación (v1.10.9): si las lecturas siguen fallando tras
+  //    la recarga, el banner lo sabrá diagnosticar. Se setea ANTES del drop
+  //    para sobrevivir a un cuelgue del navegador.
+  marcarReparacionProfunda();
+
+  // 3) Borrar las tres bases por completo (best-effort en paralelo).
   const resultados = await Promise.all([
     borrarBase(appDB, timeoutMs),
     borrarBase(casesDB, timeoutMs),
+    // v1.10.9: log de errores incluido.
+    borrarBase(diagnosticsDB, timeoutMs),
   ]);
   const falla = resultados.find((r) => !r.ok);
-  if (falla) return { ok: false, ...falla };
+  if (falla) {
+    // No hubo reparación real → la marca induciría a diagnósticos falsos.
+    limpiarReparacionProfunda();
+    return { ok: false, ...falla };
+  }
 
-  // 3) Recargar: al reabrir, bases sanas + huella intacta → la verificación
+  // 4) Recargar: al reabrir, bases sanas + huella intacta → la verificación
   //    post-carga dispara la alarma de pérdida con "Restaurar desde archivo".
   recargar();
   return { ok: true };

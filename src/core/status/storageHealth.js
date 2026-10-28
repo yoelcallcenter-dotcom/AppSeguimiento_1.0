@@ -97,6 +97,16 @@ export function isIndexedDBAvailable() {
 const CLAVE_BANDERA_PERDIDA = "app-storage-lost";
 /** Huella de conteos por tabla: evidencia para detectar recreación vacía. */
 const CLAVE_HUELLA_DATOS = "app-data-fingerprint";
+/**
+ * v1.10.9 — Marca de "reparación profunda en curso": storageRepair la setea
+ * ANTES del drop y esta casilla la consume tras la recarga. Si las lecturas
+ * siguen fallando DESPUÉS de un drop ok, el daño NO está en las bases que la
+ * app puede recrear (otra pestaña/PWA bloqueó el delete, u otro origen) y el
+ * banner puede decirlo explícitamente en vez de mostrar el mismo error.
+ */
+const CLAVE_REPARACION_PENDIENTE = "app-repair-pending";
+/** Validez de la marca: una reparación de otra sesión no debe etiquetar errores posteriores. */
+const REPARACION_TTL_MS = 15 * 60 * 1000;
 /** Tablas de la huella (casos viven en CasesDB; notas/eventos en AppData). */
 const TABLAS_HUELLA = ["cases", "notes", "events"];
 
@@ -150,6 +160,12 @@ export function registrarPerdidaAlmacenamiento(err, contexto) {
     contexto: contexto ? String(contexto).slice(0, 120) : null,
     desde: new Date().toISOString(),
   };
+  // v1.10.9: si esto ocurre DESPUÉS de una reparación profunda reciente, el
+  // drop se completó y AUN ASÍ las lecturas fallan → el daño no está en las
+  // bases que la app recrea. El detalle lo lleva para que el banner lo diga.
+  if (consumirReparacionProfunda()) {
+    detalle.trasReparacion = true;
+  }
   estado.setStorageLost(detalle);
   try {
     localStorage.setItem(CLAVE_BANDERA_PERDIDA, "1");
@@ -173,6 +189,48 @@ function liberarBanderaPerdida() {
     localStorage.removeItem(CLAVE_BANDERA_PERDIDA);
   } catch {
     /* almacenamiento no disponible */
+  }
+}
+
+// ---------- v1.10.9 — Marca de reparación profunda (diagnóstico honesto) ----------
+
+/**
+ * Deja la marca de que una reparación profunda (drop de las 3 bases) está por
+ * ejecutarse. Se llama ANTES de borrar: si el navegador se cuelga o la página
+ * no recarga, la próxima sesión aún sabe que hubo un intento.
+ */
+export function marcarReparacionProfunda() {
+  try {
+    localStorage.setItem(CLAVE_REPARACION_PENDIENTE, String(Date.now()));
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+
+/** Elimina la marca (reparación resuelta, fallo del drop o reset de tests). */
+export function limpiarReparacionProfunda() {
+  try {
+    localStorage.removeItem(CLAVE_REPARACION_PENDIENTE);
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+
+/**
+ * Consume la marca (one-shot): devuelve true solo si hubo una reparación
+ * RECIENTE (TTL de 15 min) pendiente de diagnosticar; en cualquier caso la
+ * elimina para no etiquetar errores ajenos más adelante.
+ * @returns {boolean}
+ */
+function consumirReparacionProfunda() {
+  try {
+    const raw = localStorage.getItem(CLAVE_REPARACION_PENDIENTE);
+    if (!raw) return false;
+    localStorage.removeItem(CLAVE_REPARACION_PENDIENTE);
+    const ts = Number(raw);
+    return Number.isFinite(ts) && Date.now() - ts <= REPARACION_TTL_MS;
+  } catch {
+    return false;
   }
 }
 
@@ -264,6 +322,10 @@ export function verificarDatosPostCarga(conteos) {
   ultimosConteos = conteos && typeof conteos === "object" ? { ...conteos } : null;
   const estado = useSystemStatus.getState();
   if (estado.storageLost) return { caso: "perdido" };
+  // v1.10.9: las lecturas salieron bien → una marca de reparación reciente ya
+  // no tiene nada que diagnosticar (se consume sola en el próximo error, si lo
+  // hubiera); se limpia acá para no acumular marcas huérfanas.
+  limpiarReparacionProfunda();
   const bandera = hayPerdidaAlmacenamientoPendiente();
   const { alarma, perdidas } = evaluarHuellaDatos(conteos || {});
   if (alarma) {
@@ -325,6 +387,8 @@ export function __resetStorageHealthParaTest() {
   try {
     localStorage.removeItem(CLAVE_BANDERA_PERDIDA);
     localStorage.removeItem(CLAVE_HUELLA_DATOS);
+    // v1.10.9: también la marca de reparación (tests de banner/repair).
+    localStorage.removeItem(CLAVE_REPARACION_PENDIENTE);
   } catch {
     /* almacenamiento no disponible */
   }

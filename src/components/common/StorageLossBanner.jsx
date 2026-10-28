@@ -53,6 +53,9 @@ function leerTextoArchivo(file) {
 
 export function StorageLossBanner() {
   const storageLost = useSystemStatus((s) => s.storageLost);
+  // v1.10.9: el detalle {mensaje, contexto, desde, trasReparacion} vive en un
+  // campo aparte (storageLost es boolean).
+  const storageLostDetail = useSystemStatus((s) => s.storageLostDetail);
   const dataAlarm = useSystemStatus((s) => s.dataAlarm);
   // Descarte SOLO de la sesión (estado local): si la pérdida persiste, en la
   // próxima recarga el estado vuelve a montarse y el banner reaparece.
@@ -229,6 +232,23 @@ export function StorageLossBanner() {
           >
             {mensaje}
           </p>
+
+          {/* v1.10.9: si esto aparece DESPUÉS de una reparación profunda, el
+              drop se completó y las lecturas siguen fallando → el daño no
+              está en las bases que la app puede recrear. Guía específica. */}
+          {esPerdida && storageLostDetail && storageLostDetail.trasReparacion && (
+            <p
+              className="text-xs mt-1 font-semibold"
+              style={{ color: "var(--color-danger)" }}
+            >
+              La reparación se completó pero el almacenamiento sigue dañado: el
+              problema no está en las bases que la app puede recrear. Cerrá
+              TODAS las pestañas y la ventana de la PWA del sitio, y borrá el
+              sitio completo desde F12 → Application → Storage → elegir este
+              origen → «Clear site data». Al reabrir, la app arranca sana. Si
+              la app corre en otra URL, los datos viven en ese otro origen.
+            </p>
+          )}
 
           {/* Acciones */}
           <div

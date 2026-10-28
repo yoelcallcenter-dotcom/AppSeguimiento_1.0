@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.10.8** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.9** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,12 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.9 — Reparación completa de las 3 bases y diagnóstico honesto post-reparación
+
+- **La reparación ahora borra las TRES bases locales**: \`AppData\`, \`CasesDB\` y también \`AppDiagnostics\` (el log de errores) — antes, un archivo de log dañado volvía a apretar la alarma de pérdida con cada error, sin forma de curarlo desde la app.
+- **Diagnóstico cuando la reparación no basta**: si el drop se completa y las lecturas siguen fallando (borrado bloqueado por otra pestaña o la PWA, u otro origen), el banner lo dice explícitamente con los pasos a seguir (cerrar todas las ventanas del sitio, "Clear site data" en el origen correcto desde F12 → Application → Storage) en vez de repetir el mismo error sin contexto.
+- **Reparar junto al "Historial ilegible"**: el botón "Reparar base de datos" (doble confirmación) aparece en Configuración → Datos, debajo del propio mensaje de historial ilegible — no hay que buscarlo en el banner o en Diagnóstico.
 
 ### 1.10.8 — Export resistente, reparación profunda y snapshot local ante bases dañadas
 
@@ -386,6 +392,34 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.10.9] - Reparación completa de las 3 bases y diagnóstico honesto post-reparación
+
+Corrige los dos gaps encontrados en uso real de la reparación de la 1.10.8 (usuario que reparaba, veía desaparecer los casos y el error "Historial ilegible" persistía igual, incluso borrando el IndexedDB desde F12): la reparación **no tocaba la tercera base** (\`AppDiagnostics\`, el log de errores, cuyo archivo dañado re-aprieta la bandera de pérdida con cada \`reportError\`) y, cuando el drop se completaba pero las lecturas seguían fallando (borrado bloqueado por otra pestaña/PWA, u origen distinto), la app mostraba el **mismo error sin ningún diagnóstico** de por qué la reparación no bastó.
+
+### P1 — Reparación profunda de las TRES bases (\`storageRepair.js\`)
+
+- **\`AppDiagnostics\` incluida en el drop**: \`repararAlmacenamientoLocal()\` ahora cierra y borra \`AppData\` + \`CasesDB\` **+ \`AppDiagnostics\`**. Antes, un archivo de log dañado hacía que cada escritura de \`reportError\` volviera a registrar la pérdida para siempre, sin que la app tuviera forma de curar esa base.
+
+### P2 — Diagnóstico honesto post-reparación (marca \`app-repair-pending\`)
+
+- **Marca de reparación en localStorage** (\`app-repair-pending\`, TTL 15 min): se setea ANTES del drop (sobrevive a cuelgues) y se consume one-shot. Si las lecturas siguen fallando DESPUÉS de un drop exitoso, \`registrarPerdidaAlmacenamiento\` adjunta \`trasReparacion: true\` al detalle del estado.
+- **Guía específica en el banner**: con \`storageLostDetail.trasReparacion\`, el banner muestra: "La reparación se completó pero el almacenamiento sigue dañado: el problema no está en las bases que la app puede recrear" + pasos concretos (cerrar pestañas y PWA, "Clear site data" desde F12 → Application → Storage en el origen correcto, o revisar si la app corre en otra URL). El "no repara nada" se convierte en un diagnóstico accionable.
+- **Limpieza sin ruido**: si las lecturas salen bien, \`verificarDatosPostCarga\` descarta la marca huérfana; si el drop falla (\`bloqueado\`/\`error\`), \`storageRepair\` la elimina para no inducir diagnósticos falsos; \`__resetStorageHealthParaTest\` también la limpia.
+
+### P3 — Reparación junto al "Historial ilegible" (Configuración → Datos)
+
+- **Botón "Reparar base de datos"** bajo el propio mensaje de historial ilegible (Configuración → Datos), con la misma **doble confirmación** ("Sí, borrar y recrear la base" / Cancelar) del banner y Diagnóstico: la salida destructiva queda a un clic en el lugar exacto donde el usuario ve el problema. Fallo/bloqueo informado por toast con el mismo guion ("cerrá TODAS las ventanas del sitio").
+
+### Corrección de implementación interna
+
+- El detalle de pérdida vive en **\`storageLostDetail\`** (store \`systemStatusStore\`); la primera iteración de la guía leyó \`storageLost.trasReparacion\` (boolean) y no hubiera renderizado nada — corregido y cubierto por tests que fijan el contrato del store.
+
+### Pruebas, build y versionado
+
+- **12 tests nuevos en verde**: \`storageRepair\` (3 bases, marca presente en éxito y ausente en fallo), \`storageHealth\` (marca one-shot con \`trasReparacion\`, vencida sin etiquetar, regresión sin marca, limpieza por verificación), banner (guía de Clear site data presente/ausente) y Configuración (doble confirmación, toast de bloqueo y que la reparación NO se ofrece sin pérdida activa).
+- Suite completa en verde (136 archivos, 1386 tests; 5 flakes de saturación re-verificados aislados) y \`npm run build\` compila sin errores ni warnings.
+- **Bump a 1.10.9** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y la línea de versión del \`package-lock.json\`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; \`docsContent.js\` regenerado (\`node scripts/build-docs.js\`).
 
 ## [1.10.8] - Export resistente, reparación profunda y snapshot local ante bases dañadas
 
