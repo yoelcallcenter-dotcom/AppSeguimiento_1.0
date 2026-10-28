@@ -17,6 +17,12 @@
 
 ## Características principales
 
+### 1.10.6 — Detección y recuperación de pérdida del almacenamiento local
+
+- **Banner de emergencia de pérdida de datos**: si el navegador pierde los archivos de IndexedDB ("Data lost due to missing file"), la app ahora lo detecta en un único punto (el servicio de errores), avisa con un banner fijo en todas las vistas —antes mostraba listas vacías sin ningún aviso— y ofrece recargar, restaurar desde un archivo de backup o descargar lo disponible.
+- **Detección de recreación vacía**: una huella de conteos en `localStorage` compara cada arranque con la última sesión; si la base volvió con menos datos ("notas: 42 → 0"), sale la alarma de pérdida silenciosa con restauración a un clic. Sin falsos positivos: borrados legítimos, restores y el vaciado deliberado re-sincronizan la huella.
+- **Diagnóstico con causa raíz**: los reportes heredados `reportError({type, message, context})` ahora guardan la causa real (`metadata.cause` + stack de respaldo), por lo que los logs de producción dejan de llegar vacíos.
+
 ### 1.10.5 — Configuración centralizada de Liquidaciones
 
 - **Configuración → General → Liquidaciones** (nueva sub-sección con tabs General, Tarifas, Reglas de liquidación, Premios e Historial): mínimo de firmas editable, tarifas por categoría con alta/edición/desactivación (nunca eliminación), interruptor del segundo concepto, premios por top (fondo, puestos y distribución fija o porcentual con validación estricta del fondo) e historial de auditoría con restauración confirmada.

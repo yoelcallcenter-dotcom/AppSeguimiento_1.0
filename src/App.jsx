@@ -80,7 +80,7 @@ import { notifyChange, SYNC_EVENTS } from "./core/sync/syncService";
 import { reportError, clearErrors } from "./core/error/reportError";
 import { localStorageAdapter } from "./core/storage/localStorageAdapter";
 import { setupAutoBackupWatcher, normalizeAutoBackupHistory } from "./services/autoBackup";
-import { startSystemStatusMonitor } from "./core/status/storageHealth";
+import { startSystemStatusMonitor, confirmarRecuperacionDatos } from "./core/status/storageHealth";
 import { SystemStatusBanner } from "./components/common/SystemStatusBanner";
 import { NotificationBell } from "./components/notifications/NotificationBell";
 import { ToastContainer } from "./components/notifications/ToastContainer";
@@ -93,6 +93,8 @@ import useCelebrationStore from "./core/celebrations/celebrationStore";
 // PWA
 import { initPWA, applyPWAUpdate } from "./pwa/pwa";
 import { PwaUpdateBanner } from "./pwa/PwaUpdateBanner";
+// v1.10.6: banner de emergencia por pérdida del archivo de IndexedDB.
+import { StorageLossBanner } from "./components/common/StorageLossBanner";
 import { InstallButton } from "./pwa/InstallButton";
 
 // Meta de firmas para el "Logro de Objetivos" (coincide con LogroObjetivos.jsx).
@@ -1375,6 +1377,12 @@ function AppContent() {
       ]);
       // P01 (1.10.1): log de errores de diagnóstico (DB AppDiagnostics).
       await clearErrors();
+      // v1.10.6: el vaciado es DELIBERADO → resincronizar la huella de
+      // conteos a 0 (y liberar bandera/alarma). Sin esto, la huella previa
+      // (p. ej. 42 notas) dispararía una alarma FALSA de "pérdida de datos"
+      // en el próximo arranque al ver la DB vacía. Solo corre si los clears
+      // anteriores terminaron bien (si fallaron, los datos siguen ahí).
+      confirmarRecuperacionDatos({ cases: 0, notes: 0, events: 0 });
     } catch (e) {
       reportError(e, { context: 'App:clearDatabases' });
     }
@@ -1592,6 +1600,11 @@ function AppContent() {
         }}
         onDismiss={() => setUpdateReady(false)}
       />
+
+      {/* v1.10.6: emergencia de pérdida de datos — fija arriba para verse en
+          cualquier vista/scroll (a diferencia de SystemStatusBanner, que es
+          informativa y vive dentro del contenido). */}
+      <StorageLossBanner />
 
       {/* X13 (1.10.1): skip-link de accesibilidad — primer foco al cargar,
           visible solo al recibir foco (estilo inline para no depender de CSS). */}

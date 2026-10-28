@@ -8,6 +8,9 @@ import { caseRepository } from '../cases/caseRepository';
 import { touchVersion, assertNoConflict } from '../db/versioning';
 import { notifyChange, subscribeToChanges, SYNC_EVENTS } from '../sync/syncService';
 import { repararPreferenciasPersistidas } from '../integrity/referentialChecks';
+// v1.10.6: huella de conteos + verificación post-carga contra pérdida del
+// archivo de IndexedDB (ver storageHealth.js).
+import { actualizarHuellaDatos, verificarDatosPostCarga } from '../status/storageHealth';
 // C02b (1.10.1): import estático seguro — ruleEngine es un módulo hoja sin
 // imports propios, así que no reintroduce el ciclo que obliga al import
 // dinámico de notificationManager/soundSystem más abajo.
@@ -96,8 +99,12 @@ const useAppStore = create(
     try {
       const data = normalizarCasos(await caseRepository.getAll());
       set({ cases: data, casesLoaded: true });
+      // v1.10.6: huella de integridad (detecta recreación vacía de la DB).
+      actualizarHuellaDatos({ cases: data.length });
     } catch (err) {
-      reportError({ type: 'db', message: 'Error loading cases', context: err });
+      // v1.10.6: mensaje localizado (aparece en el toast) y el reporte
+      // central extrae `context` y clasifica la pérdida de almacenamiento.
+      reportError({ type: 'db', message: 'Error al cargar los casos', context: err });
     }
   },
 
@@ -194,8 +201,13 @@ const useAppStore = create(
     try {
       const data = await appDB.notes.orderBy('updatedAt').reverse().toArray();
       set({ notes: data, notesLoaded: true });
+      // v1.10.6: huella de integridad (detecta recreación vacía de la DB).
+      actualizarHuellaDatos({ notes: data.length });
     } catch (err) {
-      reportError({ type: 'db', message: 'Error loading notes', context: err });
+      // v1.10.6: mensaje localizado (aparece en el toast) y el reporte
+      // central extrae `context` y clasifica la pérdida de almacenamiento
+      // (antes el error se tragaba y la lista quedaba vacía sin aviso).
+      reportError({ type: 'db', message: 'Error al cargar las notas', context: err });
     }
   },
 
@@ -257,8 +269,12 @@ const useAppStore = create(
     try {
       const data = await appDB.events.orderBy('startDate').toArray();
       set({ events: data, eventsLoaded: true });
+      // v1.10.6: huella de integridad (detecta recreación vacía de la DB).
+      actualizarHuellaDatos({ events: data.length });
     } catch (err) {
-      reportError({ type: 'db', message: 'Error loading events', context: err });
+      // v1.10.6: mensaje localizado (aparece en el toast) y el reporte
+      // central extrae `context` y clasifica la pérdida de almacenamiento.
+      reportError({ type: 'db', message: 'Error al cargar los eventos', context: err });
     }
   },
 
@@ -401,6 +417,20 @@ const useAppStore = create(
       reportError({ type: 'system', message: 'Init failed', context: err });
     } finally {
       set({ ui: { ...get().ui, loading: false } });
+    }
+    // v1.10.6: verificación de integridad post-carga — DEBE correr después de
+    // que los loaders terminaron (ellos registran la huella y, si fallaron,
+    // reportError ya marcó la pérdida). Detecta: (a) DB ilegible (banner de
+    // emergencia ya activo), (b) DB recreada con menos datos que la última
+    // sesión (alarma de pérdida silenciosa) o (c) pérdida previa recuperada
+    // con la recarga (se libera la bandera y se avisa).
+    const resumen = verificarDatosPostCarga({
+      cases: get().cases.length,
+      notes: get().notes.length,
+      events: get().events.length,
+    });
+    if (resumen.caso === 'recuperado') {
+      get().addToast('El almacenamiento local volvió a estar disponible.', 'success', 6000);
     }
   },
 }),

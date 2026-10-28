@@ -1,6 +1,10 @@
 import db from '../db/indexedDB';
 import { redactPII, redactObject } from '../../utils/redact';
 import { eventBus, AppEvents } from '../events/eventBus';
+import {
+  esAlmacenamientoPerdido,
+  registrarPerdidaAlmacenamiento,
+} from '../status/storageHealth';
 
 const MAX_ERRORS = 500;
 const DEDUP_INTERVAL_MS = 5000;
@@ -16,6 +20,25 @@ const recentHashes = new Set();
 let lastCleanup = Date.now();
 
 export async function reportError(error, metadata = {}) {
+  // ==== v1.10.6 — hook CENTRAL de pérdida de almacenamiento ====
+  // Corre PRIMERO y síncrono (sin awaits): los loaders (notes/events/cases)
+  // llaman reportError sin esperar su promesa; si esto estuviera después de
+  // un await, useAppStore.init() podría evaluar la huella ANTES de registrar
+  // la pérdida. Cubre los tres patrones de llamada: (a) error real
+  // (dos argumentos), (b) el heredado reportError({type, message, context:
+  // err}) —donde el error real viajaba dentro del objeto— y (c)
+  // rechazos no manejados (unhandledrejection).
+  const causa =
+    error && typeof error === 'object' && error.context && typeof error.context === 'object'
+      ? error.context
+      : null;
+  if (esAlmacenamientoPerdido(error) || esAlmacenamientoPerdido(causa)) {
+    registrarPerdidaAlmacenamiento(
+      causa || error,
+      (metadata && metadata.context) || (error && error.type)
+    );
+  }
+
   const hash = errorHash(error);
 
   if (recentHashes.has(hash)) return;
@@ -30,9 +53,25 @@ export async function reportError(error, metadata = {}) {
   const entry = {
     type: error?.type || 'RUNTIME_ERROR',
     message: redactPII(error?.message || String(error || 'Unknown error')),
-    stack: redactPII(error?.stack || ''),
+    // v1.10.6: el patrón reportError({type, message, context: err}) metía el
+    // error REAL dentro del objeto y se PERDÍA en el log (los reportes de
+    // producción quedaron con stack "" y metadata {}). Ahora el stack del
+    // error subyacente sirve de respaldo.
+    stack: redactPII(error?.stack || (causa && causa.stack) || ''),
     timestamp: new Date().toISOString(),
-    metadata: redactObject(metadata),
+    metadata: {
+      ...redactObject(metadata),
+      // v1.10.6: la causa raíz queda registrada como nombre+mensaje para que
+      // un próximo diagnóstico no dependa de adivinar qué falló.
+      ...(causa
+        ? {
+            cause: {
+              name: causa.name || 'Error',
+              message: redactPII(String(causa.message || '')),
+            },
+          }
+        : {}),
+    },
   };
 
   try {

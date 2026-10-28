@@ -18,6 +18,10 @@ import { localStorageAdapter } from "../core/storage/localStorageAdapter";
 import { BACKUP_VERSION as APP_VERSION, LEGACY_BACKUP_KINDS } from "../utils/backup/constants";
 import { notifyChange, SYNC_EVENTS } from "../core/sync/syncService";
 import { migrateBackup, validateMigratedBackup, needsMigration } from "../utils/backup/backupMigrator";
+// v1.10.6: al restaurar con éxito se limpia el estado de pérdida de
+// almacenamiento y se sincroniza la huella de conteos (evita una alarma
+// falsa de "pérdida" en el próximo arranque tras un backup más viejo).
+import { confirmarRecuperacionDatos } from "../core/status/storageHealth";
 
 export const BACKUP_KIND = "appseguimiento-backup";
 export const BACKUP_SCHEMA_VERSION = 3;
@@ -487,6 +491,12 @@ export async function importBackup(backup, options = {}) {
       counts[t.name] = Array.isArray(db[t.name]) ? db[t.name].length : 0;
     }
     if (!opts.config) counts.config = 0;
+
+    // v1.10.6: restore exitoso → limpiar estado de pérdida/alarma y poner la
+    // huella de conteos al día con lo restaurado. Debe ir ANTES del
+    // notifyChange: los loaders que se disparen por el sync ya encuentran la
+    // bandera liberada y actualizan la huella con los conteos reales.
+    confirmarRecuperacionDatos(counts);
 
     notifyChange(SYNC_EVENTS.ALL_DATA_UPDATED, { source: "backup-restore", counts });
 

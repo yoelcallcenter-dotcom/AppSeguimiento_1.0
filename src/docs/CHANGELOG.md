@@ -7,6 +7,30 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.6] - Detección y recuperación de pérdida del almacenamiento local
+
+Corrección de los errores críticos de información reportados en producción (logs del 27/10/2026 sobre la 1.10.2): cuando Chromium pierde los archivos que respaldan IndexedDB (`AbortError NotReadableError Data lost due to missing file…`), la app mostraba notas, eventos y casos **vacíos sin ningún aviso** —el usuario creía que sus datos no existían—, la causa raíza quedaba fuera del log (`metadata {}`, `stack ""`) y las reglas fallidas (`case-estado-nuevo-create-event`) eran víctimas de la misma muerte de la base.
+
+### Detección central (una sola clasificación para todos los caminos)
+
+- **Clasificador `esAlmacenamientoPerdido`** en `core/status/storageHealth.js`: reconoce la familia real de Chromium (incluido el envoltorio de Dexie vía `inner`) y **no** confunde aborts de fetch u otros `AbortError` ajenos a la base.
+- **Hook central en `reportError`**: cualquier error que pase por el servicio de errores (cargas, escrituras, reglas, backups, rechazos no manejados) activa el estado global de pérdida de forma síncrona, antes de que `init()` evalúe la integridad.
+- **Diagnóstico reparado**: el patrón heredado `reportError({type, message, context: err})` ahora persiste la causa raíz como `metadata.cause` (nombre + mensaje) y usa su stack de respaldo — los próximos reportes dejan de llegar vacíos.
+- **Mensajes de carga localizados** (`Error al cargar los casos/notas/eventos`): el toast deja de mostrar texto técnico en inglés.
+
+### Aviso honesto y recuperación real
+
+- **`StorageLossBanner` (nuevo)**: banner de emergencia fijo arriba en TODAS las vistas (a diferencia de `SystemStatusBanner`, que es informativa y vive en el contenido). Dos variantes: (A) "Se perdió el acceso al almacenamiento local" con la aclaración de que las listas pueden no reflejar los datos reales + acciones **Recargar la app**, **Restaurar desde archivo** y descarte por sesión; (B) "Posible pérdida de datos" con los conteos perdidos ("notas: 42 → 0") + **Restaurar desde archivo**, **Descargar lo disponible** y **Entendido, continuar**. Incluye panel de causas y pasos a seguir.
+- **Restauración desde archivo en un clic**: el banner lee un backup JSON (`parseBackupJSON` → `importBackup`) y, si el restore termina bien, confirma la recuperación y actualiza la UI sin recargar; si la base sigue dañada, el error guía a recargar primero.
+- **Huella de conteos en `localStorage`** (`app-data-fingerprint`): al arrancar, si la DB está activa pero tiene MENOS datos que la última sesión (42 notas → 0), se dispara la alarma de pérdida silenciosa — el caso típico de "el navegador recreó la base vacía tras la recarga". Mientras haya una pérdida pendiente, la huella no se reescribe (se preserva la evidencia) y la bandera `app-storage-lost` cruza sesiones.
+- **Sin falsos positivos**: los borrados legítimos actualizan la huella en el mismo load, un restore re-sincroniza la huella con lo restaurado, el "Borrar todos los datos" marca la recuperación a cero y el primer arranque (sin huella) no alarma nunca.
+
+### Pruebas, build y versionado
+
+- **35 tests nuevos en verde**: clasificador (incl. los falsos positivos), huella y sus guardas, los cuatro casos de la verificación post-carga, `reportError` como hook central con `metadata.cause`, `init()` del store (alarma sin pisar la evidencia, registro de pérdida, recuperación) y el banner (las dos variantes, descarte, restauración exitosa y fallida, descarga).
+- Suite completa en verde (132 archivos, 1330 tests) y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.10.6** en `src/core/version.js` (`APP_VERSION`), `package.json` y la línea de versión del `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.5] - Configuración centralizada de Liquidaciones
 
 Configuración completa del módulo de Liquidaciones en **Configuración → General → Liquidaciones** (nueva sub-sección con 5 tabs), consumida por Mi Espacio como única fuente de verdad de las reglas económicas. Las liquidaciones cerradas siguen congeladas con su instantánea histórica: los cambios de tarifas o mínimos no las reescriben.
