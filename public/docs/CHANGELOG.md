@@ -7,6 +7,40 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.10.11] - Transformador de texto, modal del caso por pestañas y reportes solo desde Reporte rápido
+
+Se salta la 1.10.10. Reúne el pedido de transformación de texto para Notas y Reportes (estilo mayusculasminusculas.ar), el rediseño del modal del caso con sus 4 secciones como pestañas y varias limpiezas de consistencia visual: sin alta de reportes en los modales del caso, sin objeciones, sin pills "+N" y con iconos en los labels de la ficha.
+
+### Transformador de texto (Notas y Reportes)
+
+- **6 modos compartidos** (`src/utils/textCase.js`): MAYÚSCULAS, minúsculas, Tipo oración, Tipo Título, aLtErNaR y Quitar espacios de más, con las decisiones de borde documentadas en el propio archivo (signos invertidos, dígitos que "usan" el turno de mayúscula, no-letras que no mueven el alternador, líneas vacías que no se borran).
+- **`TextCaseToolbar`** (nuevo componente común, `role="group"` con aria-label por uso): bajo el TextArea de contenido de nota (Notas inline), bajo "Texto del reporte" de Reporte rápido y en su input de edición, y en el input de edición de reporte de VerCasoModal y CasoEditModal. Títulos y campos cortos (DD/MM) quedan fuera. Los botones son **grandes tipo botón** (`.textcase-btn` en globals.css: radio 6px, borde definido, superficie sólida, icono + etiqueta de 12px, hover y press en acento) — no pills chicas — y aplican una **respuesta visual**: tras clickear, el botón queda 900ms en verde con check (estado `--ok` con timeout con cleanup) y vuelve a su icono.
+- **MenuBar de tiptap** (NotesEditor): 6 botones nuevos con sus iconos que transforman todo el documento preservando marcas (negrita/cursiva) y estructura (párrafos/listas/títulos) — los modos se aplican por nodo de texto; si una oración está partida por una negrita, cada trozo se trata como inicio de oración (tradeoff documentado a cambio de no perder formato).
+- **El guardado ya no reescribe el formato**: se quitó `capitalizarSiMayus` de las 7 rutas de guardado/edición de reportes — antes, cualquier texto en mayúsculas se revertía a "Primera mayúscula + resto minúsculas" al guardar, anulando la elección explícita de la toolbar.
+
+### Modal del caso: 4 secciones como segmented control
+
+- **Herramientas / Comentarios / Historial / Reportes** ahora son pestañas (icono + etiqueta + conteo, `role="tablist"/"tab"/"tabpanel"`, patrón de LiquidacionesConfig): una sola visible a la vez, default Herramientas. Reemplazan a 6 acordeones independientes con un único estado `seccionActiva`.
+- **Herramientas absorbe Notas y Eventos vinculadas** (sub-bloques estáticos con sus conteos) más las acciones rápidas Notas/Calendario y sus formularios inline.
+- **Historial lazy de verdad**: `CaseTimeline` solo se monta cuando su pestaña está activa.
+- **Ancla del tour recuperada**: el tab Herramientas lleva `data-tour="herramientas"` (el paso 15 del tour apuntaba a un selector que no existía en el DOM) y su descripción ya no menciona objeciones.
+- **Altura estable al cambiar de pestaña**: los 4 paneles comparten `min-h-[22rem]` como línea base — el modal deja de "brincar" al pasar de una pestaña a otra (cada panel tenía su propia altura natural) y solo crece cuando la pestaña activa tiene más contenido que la base, hasta el `max-h` del body con su único scroll.
+- **Historial de reportes en tarjetas grandes** (panel Reportes del modal y sección "Historial de reportes" de Reporte rápido): tarjetas `p-3` con badge de origen en `md` + chip de fecha arriba, texto en su propia línea a `text-sm` con interlineado (antes iba inline con el badge y quedaba apretado), rail de color del origen (OP/PA/EJ) en el borde izquierdo para escanear la lista, cabecera con icono + conteo, estado vacío punteado y botones de editar/borrar con borde y área táctil más grandes.
+
+### Limpiezas de la ficha del caso
+
+- **Sin objeciones en el modal**: se eliminó la sección y el paso de props `condicionales`/`speechs`/`objeciones` desde App.jsx; Útiles, Configuración y Speechs quedan intactos. De paso quedó sin uso `navigateContextual` (solo alimentaba las pills y devolvía vacío para ART/estudio desde 1.5.1) y también se eliminó.
+- **Sin alta de reportes en VerCasoModal y CasoEditModal**: se conservan edición y borrado (con la toolbar nueva en la edición); el alta vive solo en "Reporte rápido" (bajaron los estados `nuevoReporte*`, `agregarReporte`, el input "Agregar novedad...", el OrigenSelector/TemplateSelector de alta y los botones Agregar).
+- **Sin pills "+N"** de casos con misma ART/Estudio Jurídico: bajaron los memos `casosByInsurer`/`casosByLawFirm`, sus imports de `caseRelations` y las props `casos`/`onNavigateInsurer`/`onNavigateLawFirm`; Aseguradora y Estudio Jurídico muestran el valor en texto puro como el resto de los campos.
+- **Icono en los 13 labels** del grid de información (Nombre→User, Teléfono→Phone, Localidad→MapPin, Aseguradora→Building2, Profesión→Briefcase, Fecha→CalendarDays, Ingreso→LogIn, Lesión→HeartPulse, Tipo de Ingreso→ClipboardList, Cita→CalendarClock, Estudio Jurídico→Scale, Etiquetas→Tag, Observaciones→Info); los botones de copiar se conservan.
+
+### Pruebas, build y versionado
+
+- **18 tests nuevos**: `textCase.test.js` (6: los 6 modos con sus bordes), `TextCaseToolbar.test.jsx` (4: botones, transformación por clic, integración stateful y guardia sin onChange) y `VerCasoModal.test.jsx` reescrito (8: tabs y default, cambio de panel único, sin objeciones, panel Reportes sin alta, toolbar al editar, sin pills +N, iconos en labels y Cerrar).
+- **Fix de fecha preexistente en `OperatorLiquidaciones.test`**: el segundo render del test de recálculo volvía al mes actual (el view no persiste el período) y desde el 1/11/2026 —cuando "mes actual" dejó de ser octubre— nunca encontraba la liquidación preparada; el fallo se reprodujo en HEAD limpio `ed25ebd` (ajeno a esta release) y se reapunta el período a octubre tras el remontaje, como ya hacía `preparar()`.
+- Suite completa en verde (138 archivos, 1402 tests) y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.10.11** en `src/core/version.js` (`APP_VERSION`), `package.json` y el `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.10.9] - Reparación completa de las 3 bases y diagnóstico honesto post-reparación
 
 Corrige los dos gaps encontrados en uso real de la reparación de la 1.10.8 (usuario que reparaba, veía desaparecer los casos y el error "Historial ilegible" persistía igual, incluso borrando el IndexedDB desde F12): la reparación **no tocaba la tercera base** (`AppDiagnostics`, el log de errores, cuyo archivo dañado re-aprieta la bandera de pérdida con cada `reportError`) y, cuando el drop se completaba pero las lecturas seguían fallando (borrado bloqueado por otra pestaña/PWA, u origen distinto), la app mostraba el **mismo error sin ningún diagnóstico** de por qué la reparación no bastó.

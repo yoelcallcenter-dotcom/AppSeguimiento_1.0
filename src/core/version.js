@@ -18,7 +18,14 @@
 // Además el botón "Reparar base de datos" vive junto al "Historial ilegible"
 // de Configuración → Datos. También corrige el acceso al detalle de pérdida
 // (storageLostDetail, no el boolean storageLost).
-export const APP_VERSION = "1.10.9";
+// v1.10.11 (se salta la 1.10.10): transformador de texto de 6 modos en Notas
+// y Reportes (toolbar TextCaseToolbar + menu del editor que preserva marcas),
+// modal del caso con sus 4 secciones como segmented control (Herramientas
+// absorbe Notas y Eventos) y limpiezas de la ficha: sin alta de reportes en
+// los modales del caso (alta solo desde Reporte rápido), sin objeciones, sin
+// pills "+N" e iconos en los 13 labels. Fix de fecha del test de recálculo
+// de OperatorLiquidaciones (dependía de que el mes actual fuera octubre).
+export const APP_VERSION = "1.10.11";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

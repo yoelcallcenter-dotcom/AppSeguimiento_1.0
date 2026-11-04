@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.9** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.10.11** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,13 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.10.11 — Transformador de texto y modal del caso por pestañas
+
+- **Transformador de texto en Notas y Reportes** (estilo mayusculasminusculas.ar): 6 modos — MAYÚSCULAS, minúsculas, Tipo oración, Tipo Título, aLtErNaR y Quitar espacios de más — en los campos largos (contenido de nota, texto del reporte en Reporte rápido y en su edición, y edición de reporte en el modal del caso y en Editar caso), más el menú del editor de notas que transforma todo el documento sin perder formato. Botones grandes tipo botón (icono + etiqueta) con confirmación visual al aplicar cada modo, y el guardado ya no reescribe el formato elegido.
+- **Modal del caso con 4 pestañas**: Herramientas / Comentarios / Historial / Reportes como segmented control (icono + etiqueta + conteo, una visible a la vez, default Herramientas); Herramientas absorbe las Notas y Eventos vinculados al caso, y el modal mantiene su tamaño al cambiar de pestañas (altura estable: solo crece cuando la pestaña activa tiene más contenido).
+- **Historial de reportes en tarjetas grandes** (tanto en Reporte rápido como en el modal del caso): origen y fecha arriba, texto en su propia línea más grande y con interlineado, rail de color por origen y botones de editar/borrar con área táctil mayor.
+- **La ficha se limpia**: sin alta de reportes en el modal (se crean solo desde Reporte rápido; edición y borrado se conservan), sin objeciones, sin pills "+N" de casos con misma ART/estudio e iconos en los 13 labels de la información del caso.
 
 ### 1.10.9 — Reparación completa de las 3 bases y diagnóstico honesto post-reparación
 

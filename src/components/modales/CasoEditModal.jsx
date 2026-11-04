@@ -16,6 +16,9 @@ import { BtnOutline } from "../common/BtnOutline";
 import { Field } from "../common/Field";
 import { TextInput } from "../common/TextInput";
 import { TextArea } from "../common/TextArea";
+// v1.10.11: transformación de texto (MAYÚSCULAS/minúsculas/oración/título/
+// alternado/quitar espacios) para el reporte en edición.
+import { TextCaseToolbar } from "../common/TextCaseToolbar";
 import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
 import { ConfirmDialog } from "../common/ConfirmDialog";
@@ -24,7 +27,9 @@ import { OrigenBadge, OrigenSelector } from "../common/OrigenBadge";
 import { sanitizeString } from "../../utils/sanitize";
 import {
   parseFicha,
-  capitalizarSiMayus,
+  // v1.10.11: se quitó capitalizarSiMayus de los reportes — el guardado ya
+  // no reescribe el formato: si el operador eligió MAYÚSCULAS (u otro modo)
+  // con la toolbar, se respeta tal cual al guardar.
   sugerirTipoIngreso,
 } from "../../utils/helpers";
 import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
@@ -63,9 +68,9 @@ export function CasoEditModal({
   const [pegado, setPegado] = useState("");
   const [showPegar, setShowPegar] = useState(!casoInicial.nombre);
   const [estudioAuto, setEstudioAuto] = useState(!casoInicial.estudioJuridico);
-  const [nuevoReporteTexto, setNuevoReporteTexto] = useState("");
-  const [nuevoReporteFecha, setNuevoReporteFecha] = useState("");
-  const [nuevoReporteOrigen, setNuevoReporteOrigen] = useState("Operador");
+  // v1.10.11: se quitaron nuevoReporteTexto/Fecha/Origen — el alta de
+  // reportes salió de este modal (se crea solo desde "Reporte rápido");
+  // edición y borrado se conservan.
   const [editandoReporteIndex, setEditandoReporteIndex] = useState(null);
   const [editandoReporteTexto, setEditandoReporteTexto] = useState("");
   const [editandoReporteFecha, setEditandoReporteFecha] = useState("");
@@ -127,28 +132,9 @@ export function CasoEditModal({
   }, [caso.estado]);
 
   // ============ MANEJAR REPORTES ============
-  const agregarReporte = () => {
-    if (!nuevoReporteTexto.trim()) {
-      showToast("Escribe el texto del reporte", "warning");
-      return;
-    }
-    let entradas = caso.reporteHistory || [];
-    entradas = [
-      ...entradas,
-      {
-        fecha: nuevoReporteFecha.trim() || hoyDDMM(),
-        texto: capitalizarSiMayus(sanitizeString(nuevoReporteTexto)),
-        origen: nuevoReporteOrigen || "Operador",
-      },
-    ];
-    setCaso((c) => ({ ...c, reporteHistory: entradas }));
-    setNuevoReporteTexto("");
-    setNuevoReporteFecha("");
-    setNuevoReporteOrigen("Operador");
-    soundSystem.playAction("save");
-    showToast("Reporte agregado correctamente", "success");
-  };
-
+  // v1.10.11: se eliminó agregarReporte — el alta de reportes vive solo en
+  // "Reporte rápido" (consistencia: desde el modal del caso solo se
+  // edita/borra). Edición y borrado siguen abajo.
   const iniciarEdicionReporte = (index) => {
     const reporte = caso.reporteHistory[index];
     if (!reporte) return;
@@ -166,7 +152,7 @@ export function CasoEditModal({
     const entradas = [...caso.reporteHistory];
     entradas[editandoReporteIndex] = {
       fecha: editandoReporteFecha.trim() || hoyDDMM(),
-      texto: capitalizarSiMayus(sanitizeString(editandoReporteTexto)),
+      texto: sanitizeString(editandoReporteTexto),
       origen: editandoReporteOrigen || "Operador",
     };
     setCaso((c) => ({ ...c, reporteHistory: entradas }));
@@ -599,6 +585,13 @@ COMENTARIOS:`}
                               }
                             />
                           </div>
+                          {/* v1.10.11: conversión de texto (MAYÚSCULAS/
+                              minúsculas/…) al editar un reporte existente. */}
+                          <TextCaseToolbar
+                            value={editandoReporteTexto}
+                            onChange={setEditandoReporteTexto}
+                            ariaLabel="Formato del reporte en edición"
+                          />
                           <OrigenSelector value={editandoReporteOrigen} onChange={setEditandoReporteOrigen} />
                           <div className="flex gap-2">
                             <Btn
@@ -653,32 +646,10 @@ COMENTARIOS:`}
                 })}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <TextInput
-                  placeholder="DD/MM"
-                  style={{ width: 100 }}
-                  value={nuevoReporteFecha}
-                  onChange={(e) => setNuevoReporteFecha(e.target.value)}
-                />
-                <TextInput
-                  className="flex-1"
-                  placeholder="Agregar novedad..."
-                  value={nuevoReporteTexto}
-                  onChange={(e) => setNuevoReporteTexto(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      agregarReporte();
-                    }
-                  }}
-                />
-                <Btn onClick={agregarReporte} size="sm" icon={Plus}>
-                  Agregar
-                </Btn>
-              </div>
-              <OrigenSelector value={nuevoReporteOrigen} onChange={setNuevoReporteOrigen} />
-            </div>
+            {/* v1.10.11: se quitó el formulario de alta de reportes de aquí
+                (input "Agregar novedad..." + OrigenSelector + botón Agregar):
+                los reportes se crean solo desde "Reporte rápido". La lista de
+                arriba conserva editar y borrar. */}
           </div>
         </div>
 

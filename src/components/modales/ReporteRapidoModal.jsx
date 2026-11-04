@@ -18,12 +18,17 @@ import { Field } from "../common/Field";
 import { TextInput } from "../common/TextInput";
 import { SearchInput } from "../common/SearchInput";
 import { TextArea } from "../common/TextArea";
+// v1.10.11: transformación de texto (MAYÚSCULAS/minúsculas/oración/título/
+// alternado/quitar espacios) para el texto largo del reporte.
+import { TextCaseToolbar } from "../common/TextCaseToolbar";
 import { Select } from "../common/Select";
 import { PillMemo } from "../common/Pill";
-import { OrigenBadge, OrigenSelector, ORIGEN_OPTIONS } from "../common/OrigenBadge";
+import { OrigenBadge, OrigenSelector, ORIGEN_OPTIONS, getOrigenConfig } from "../common/OrigenBadge";
 import { PhoneLink } from "../common/PhoneLink";
 import { sanitizeString } from "../../utils/sanitize";
-import { capitalizarSiMayus } from "../../utils/helpers";
+// v1.10.11: se quitó capitalizarSiMayus de los reportes — el guardado ya no
+// reescribe el formato del texto: si el operador eligió MAYÚSCULAS (u otro
+// modo) con la toolbar, se respeta tal cual al guardar.
 // v1.9.7 (fix B3): hoyISO (día en hora local) como fecha por defecto.
 // 1.10.3: fechaCortaLabel para el resumen en vivo de la nueva cita.
 import { hoyDDMM, hoyISO, fechaCortaLabel } from "../../utils/dateUtils";
@@ -179,7 +184,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
     const entradas = [...seleccionado.reporteHistory];
     entradas[editIndex] = {
       fecha: editFecha.trim() || hoyDDMM(),
-      texto: capitalizarSiMayus(sanitizeString(editTexto)),
+      texto: sanitizeString(editTexto),
       origen: editOrigen || "Operador",
     };
     actualizarHistorial(entradas);
@@ -247,7 +252,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           ...entradas,
           {
             fecha: p.fecha || fecha.trim() || hoyDDMM(),
-            texto: capitalizarSiMayus(sanitizeString(p.texto)),
+            texto: sanitizeString(p.texto),
             origen: origen || "Operador",
           },
         ];
@@ -257,7 +262,7 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
           ...entradas,
           {
             fecha: fecha.trim() || hoyDDMM(),
-            texto: capitalizarSiMayus(sanitizeString(texto)),
+            texto: sanitizeString(texto),
             origen: origen || "Operador",
           },
         ];
@@ -569,34 +574,54 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                   placeholder="Escribe la novedad del caso..."
                   className="w-full"
                 />
+                {/* v1.10.11: conversión del texto pegado (estilo
+                    mayusculasminusculas.ar). */}
+                <TextCaseToolbar
+                  className="mt-1"
+                  value={texto}
+                  onChange={setTexto}
+                  ariaLabel="Formato del texto del reporte"
+                />
               </Field>
 
               {seleccionado.reporteHistory &&
                 seleccionado.reporteHistory.length > 0 && (
                   <div className="mt-3">
                     <div
-                      className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
+                      className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-2"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      Historial de reportes
+                      {/* Icono + conteo (1.10.11): cabecera más grande, con
+                          el mismo lenguaje de label que en el modal del
+                          caso. */}
+                      <FileText size={12} /> Historial de reportes ({seleccionado.reporteHistory.length})
                     </div>
                     {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio —
                         la lista se extiende y la baja el único scroll del
-                        body del modal. */}
-                    <div className="space-y-1">
+                        body del modal.
+                        v1.10.11: tarjetas más grandes (p-3, texto en su
+                        propia línea a text-sm, badge md y fecha en chip)
+                        con rail de color del origen y botones con borde. */}
+                    <div className="space-y-2">
                       {seleccionado.reporteHistory.map((r, i) => {
                         const isEditing = editIndex === i;
                         return (
                           <div
                             key={i}
-                            className="rounded p-1.5"
+                            className="rounded-lg p-3"
                             style={{
                               backgroundColor: isEditing
                                 ? "var(--color-surface2)"
-                                : "transparent",
+                                : "var(--color-surface)",
                               border: isEditing
-                                ? "1px solid var(--color-accent)"
-                                : "1px solid transparent",
+                                ? "1.5px solid var(--color-accent)"
+                                : "1px solid var(--color-border)",
+                              // Rail del origen (1.10.11): pinta el borde
+                              // izquierdo con el color del badge OP/PA/EJ
+                              // (getOrigenConfig); en edición manda accent.
+                              boxShadow: isEditing
+                                ? "none"
+                                : `inset 3px 0 0 ${getOrigenConfig(r.origen).color}`,
                             }}
                           >
                             {isEditing ? (
@@ -615,6 +640,13 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                     onChange={(e) => setEditTexto(e.target.value)}
                                   />
                                 </div>
+                                {/* v1.10.11: conversión también al editar un
+                                    reporte existente. */}
+                                <TextCaseToolbar
+                                  value={editTexto}
+                                  onChange={setEditTexto}
+                                  ariaLabel="Formato del reporte en edición"
+                                />
                                 <div className="flex gap-1.5">
                                   <OrigenSelector value={editOrigen} onChange={setEditOrigen} />
                                 </div>
@@ -632,37 +664,58 @@ export function ReporteRapidoModal({ casos, onGuardar, onClose, showToast, casoI
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <OrigenBadge origen={r.origen} />
-                                <span
-                                  className="text-[10px] font-medium whitespace-nowrap"
-                                  style={{ color: "var(--color-accent)" }}
-                                >
-                                  [{sanitizeString(r.fecha)}]
-                                </span>
-                                <span className="flex-1" style={{ color: "var(--color-text)" }}>
-                                  {sanitizeString(r.texto)}
-                                </span>
-                                <div className="flex gap-1 flex-shrink-0">
+                              <div className="flex items-start gap-2.5">
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  {/* Cabecera (1.10.11): origen en badge md +
+                                      fecha en chip destacado — antes iban
+                                      todo en una línea con el texto. */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <OrigenBadge origen={r.origen} size="md" />
+                                    <span
+                                      className="text-[11px] font-bold px-1.5 py-0.5 rounded-md"
+                                      style={{
+                                        backgroundColor: "color-mix(in srgb, var(--color-accent) 10%, transparent)",
+                                        color: "var(--color-accent)",
+                                        border: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                                      }}
+                                    >
+                                      {sanitizeString(r.fecha)}
+                                    </span>
+                                  </div>
+                                  {/* Texto en bloque propio, más grande y con
+                                      interlineado (1.10.11). */}
+                                  <div className="text-sm leading-relaxed" style={{ color: "var(--color-text)" }}>
+                                    {sanitizeString(r.texto)}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1.5 flex-shrink-0">
                                   <button
                                     onClick={() => iniciarEdicion(i)}
-                                    className="p-1 rounded hover:bg-white/5 transition-colors"
-                                    style={{ color: "var(--color-text-muted)" }}
+                                    className="p-1.5 rounded-md hover:opacity-75 transition-opacity"
+                                    style={{
+                                      color: "var(--color-text-muted)",
+                                      backgroundColor: "var(--color-surface)",
+                                      border: "1px solid var(--color-border)",
+                                    }}
                                     aria-label="Editar reporte"
                                     title="Editar reporte"
                                   >
-                                    <Edit3 size={12} />
+                                    <Edit3 size={14} />
                                   </button>
                                   <button
                                     onClick={() => {
                                       setConfirmDeleteIndex(i);
                                     }}
-                                    className="p-1 rounded hover:bg-white/5 transition-colors"
-                                    style={{ color: "var(--color-danger)" }}
+                                    className="p-1.5 rounded-md hover:opacity-75 transition-opacity"
+                                    style={{
+                                      color: "var(--color-danger)",
+                                      backgroundColor: "var(--color-surface)",
+                                      border: "1px solid var(--color-border)",
+                                    }}
                                     aria-label="Eliminar reporte"
                                     title="Eliminar reporte"
                                   >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} />
                                   </button>
                                 </div>
                               </div>

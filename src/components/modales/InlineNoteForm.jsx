@@ -4,6 +4,8 @@ import { Btn } from "../../components/common/Btn";
 import { BtnOutline } from "../../components/common/BtnOutline";
 import { TextInput } from "../../components/common/TextInput";
 import { TextArea } from "../../components/common/TextArea";
+// v1.10.11: transformación de texto del contenido (MAYÚSCULAS/minúsculas/…).
+import { TextCaseToolbar } from "../../components/common/TextCaseToolbar";
 import { reportError } from "../../core/error/reportError";
 
 /**
@@ -77,6 +79,13 @@ export default function InlineNoteForm({ caso, onCancel, onCreated, onOpenFull }
         onChange={(e) => setContenido(e.target.value)}
         placeholder="Escribe el contenido de la nota..."
         className="w-full"
+      />
+      {/* v1.10.11: conversión del contenido pegado (estilo
+          mayusculasminusculas.ar) sin salir del form. */}
+      <TextCaseToolbar
+        value={contenido}
+        onChange={setContenido}
+        ariaLabel="Formato del contenido de la nota"
       />
 
       <div className="flex items-center justify-between pt-1">

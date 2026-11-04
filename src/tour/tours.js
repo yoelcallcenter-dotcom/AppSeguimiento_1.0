@@ -217,11 +217,15 @@ export const TOURS = {
         id: "herramientas",
         selector: '[data-tour="herramientas"]',
         title: "15. Herramientas del caso",
-        description: "Desde la seccion Herramientas del modal de un caso, crea notas y eventos y revisa las objeciones vinculadas.",
+        // v1.10.11: se quito la mencion a Objeciones (seccion eliminada del
+        // modal) y se refleja el segmented control de las 4 secciones. El
+        // selector existia pero el data-tour no estaba en el DOM (ancla muerta):
+        // ahora vive en el tab Herramientas.
+        description: "Desde la seccion Herramientas del modal de un caso, crea notas y eventos y consulta sus vinculos.",
         details: [
           "Crear una nota o un evento vinculado al caso desde aqui",
-          "Ver objeciones relacionadas con la ART/estudio del caso",
           "Ver notas y eventos vinculados al caso",
+          "Pestanas Herramientas, Comentarios, Historial y Reportes (una visible a la vez)",
           "Boton Cerrar al pie del modal",
         ],
         tips: "El titulo del caso es clickable: busca en Prolegal.",

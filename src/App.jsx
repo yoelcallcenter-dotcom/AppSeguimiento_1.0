@@ -1293,13 +1293,11 @@ function AppContent() {
   }, []);
 
   // ============ NAVEGACIÓN CONTEXTUAL ============
-  const navigateContextual = useCallback((type, label, data) => {
-    if (type === 'insurer' || type === 'lawFirm') {
-      // Entidades conectadas eliminadas (1.5.1)
-      return;
-    }
-    setNavigationStack((prev) => [...prev, { type, label, data, ts: Date.now() }]);
-  }, []);
+  // v1.10.11: se eliminó navigateContextual — sus dos únicos consumidores
+  // eran onNavigateInsurer/onNavigateLawFirm de VerCasoModal (bajaron con
+  // las pills "+N"), y además solo retornaba sin hacer nada para esos tipos
+  // ("Entidades conectadas eliminadas (1.5.1)"). goBackNavigation y
+  // clearNavigation (justo abajo) siguen vivos: son los del breadcrumb.
 
   const goBackNavigation = useCallback(() => {
     setNavigationStack((prev) => prev.slice(0, -1));
@@ -2142,7 +2140,6 @@ function AppContent() {
         <VerCasoModal
           caso={casos.find((c) => c.id === verCaso.id) || verCaso}
           config={config}
-          casos={casos}
           onClose={() => { setVerCaso(null); clearNavigation(); }}
           onEdit={(caso) => {
             setModalCaso(caso);
@@ -2156,14 +2153,13 @@ function AppContent() {
             onReporteRapido={handleReporteRapido}
             onNavigateToNote={handleNavigateToNote}
            onNavigateToEvent={(eventId) => { setShowCalendar(true); }}
-           onNavigateInsurer={(name) => navigateContextual('insurer', name, { name })}
-           onNavigateLawFirm={(name) => navigateContextual('lawFirm', name, { name })}
+           // v1.10.11: bajaron onNavigateInsurer/onNavigateLawFirm
+           // (alimentaban las pills "+N" del modal del caso, eliminadas).
            navigationStack={navigationStack}
            onBackNavigation={goBackNavigation}
            showToast={showToast}
-           condicionales={condicionales}
-           speechs={speechs}
-           objeciones={objeciones}
+           // v1.10.11: bajaron condicionales/speechs/objeciones — la sección
+               // Objeciones ya no existe en el modal del caso.
           />
         </Suspense>
       )}

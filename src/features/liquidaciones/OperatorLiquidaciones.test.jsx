@@ -153,6 +153,19 @@ describe("OperatorLiquidaciones", () => {
       />
     );
 
+    // Fix de fecha (1.10.11): el período del view vuelve al mes ACTUAL al
+    // remontar (year/month salen de `hoy` y no se persisten). Hasta el
+    // 31/10/2026 el mes actual coincidía con octubre y el test pasaba solo;
+    // desde el 1/11 el segundo render caía en noviembre, no encontraba la
+    // liquidación preparada y el waitFor de $33.000 expiraba (verificado en
+    // HEAD limpio ed25ebd: fallaba igual, es ajeno a la 1.10.11). Se reapunta
+    // el período igual que hace preparar(): el efecto de carga trae el doc de
+    // octubre y el auto-recálculo §8 lo recalcula con la config vigente.
+    await waitFor(() => expect(screen.queryByLabelText("Período de liquidación")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Período de liquidación"), {
+      target: { value: "2026-10" },
+    });
+
     // El documento en preparación se recalcula solo con las reglas nuevas
     // (carga + recálculo + persistencia encadenados sobre Dexie: margen alto
     // porque esta máquina satura con operaciones secuenciales).

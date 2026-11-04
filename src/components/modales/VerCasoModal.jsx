@@ -3,13 +3,19 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, lazy, Sus
 // Dashboard y cualquier transform/filter del ancestro (p. ej. hover zoom)
 // rompía position:fixed y su scroll-lock.
 import { createPortal } from "react-dom";
-import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, ChevronDown, ChevronRight, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, CalendarClock, Plus } from "lucide-react";
+// v1.10.11: se quitaron ChevronDown/ChevronRight (ya no hay acordeones: las
+// secciones son tabs) y Plus (bajó el alta de reportes). Se agregaron los
+// iconos de los 13 labels del grid de información.
+import { X, Edit3, MessageSquare, Trash2, FileText, Calendar, ClipboardList, Link, Activity, Clock, AlertTriangle, Copy, Check, ChevronLeft, Building2, Scale, CalendarClock, User, Phone, MapPin, Briefcase, CalendarDays, LogIn, HeartPulse, Tag, Info } from "lucide-react";
 import { Btn } from "../common/Btn";
 import { BtnOutline } from "../common/BtnOutline";
 import { PillMemo } from "../common/Pill";
-import { OrigenBadge, OrigenSelector } from "../common/OrigenBadge";
+import { OrigenBadge, OrigenSelector, getOrigenConfig } from "../common/OrigenBadge";
 import { TextInput } from "../common/TextInput";
-import { TemplateSelector } from "../common/TemplateSelector";
+// v1.10.11: transformación de texto (MAYÚSCULAS/minúsculas/oración/título/
+// alternado/quitar espacios) para el reporte en edición. Se quitó
+// TemplateSelector (vivía solo en el bloque de alta de reportes, que salió).
+import { TextCaseToolbar } from "../common/TextCaseToolbar";
 import { ComentariosUI } from "./ComentariosUI";
 // Optimización 1.6.6: CaseTimeline se carga bajo demanda (solo al abrir el modal).
 const CaseTimeline = lazy(() =>
@@ -17,7 +23,9 @@ const CaseTimeline = lazy(() =>
 );
 import { sanitizeString } from "../../utils/sanitize";
 import { formatDateWithConfig } from "../../utils/configFormatters";
-import { capitalizarSiMayus } from "../../utils/helpers";
+// v1.10.11: se quitó capitalizarSiMayus de los reportes — el guardado ya no
+// reescribe el formato: si el operador eligió MAYÚSCULAS (u otro modo) con la
+// toolbar, se respeta tal cual al guardar.
 // v1.9.7 (fix B3): hoyISO (día en hora local) para "próximo seguimiento".
 import { hoyDDMM, hoyISO } from "../../utils/dateUtils";
 import { PhoneLink } from "../common/PhoneLink";
@@ -37,13 +45,13 @@ import {
   INACTIVIDAD_DEFAULT_DIAS,
   TIPOS_INTERACCION,
 } from "../../core/cases/caseHistory";
+// v1.10.11: se quitaron getCasesByInsurer/getCasesByLawFirm (alimentaban
+// las pills "+N" de casos con misma ART/estudio, eliminadas del grid) y
+// getRelatedTools (alimentaba Objeciones, que salió del modal).
 import {
   getRelatedNotes,
   getRelatedEvents,
-  getCasesByInsurer,
-  getCasesByLawFirm,
 } from "../../core/cases/caseRelations";
-import { getRelatedTools } from "../../core/entities/entityRelations";
 import InlineNoteForm from "./InlineNoteForm";
 import InlineEventForm from "./InlineEventForm";
 
@@ -71,7 +79,6 @@ function formatearActividad(ts) {
 export function VerCasoModal({
   caso,
   config,
-  casos = [],
   onClose,
   onEdit,
   onComentarios,
@@ -82,15 +89,14 @@ export function VerCasoModal({
   onReporteRapido,
   onNavigateToNote,
   onNavigateToEvent,
-  onNavigateInsurer,
-  onNavigateLawFirm,
   navigationStack = [],
   onBackNavigation,
   covered = false,
   showToast,
-  condicionales = [],
-  speechs = [],
-  objeciones = [],
+  // v1.10.11: se quitaron de la firma casos / onNavigateInsurer /
+  // onNavigateLawFirm (alimentaban las pills "+N", eliminadas) y
+  // condicionales / speechs / objeciones (sección Objeciones eliminada del
+  // modal). App.jsx ya no los pasa.
 }) {
   const dialogRef = useRef(null);
   const { isClosing, startClose } = useDelayedClose(onClose);
@@ -106,11 +112,12 @@ export function VerCasoModal({
   const notas = useAppStore((s) => s.notes);
   const eventos = useAppStore((s) => s.events);
   const estadoColor = getEstadoAccent(config, caso?.estado) || "#6B7280";
-  const [mostrarComentarios, setMostrarComentarios] = useState(false);
-  const [mostrarNotas, setMostrarNotas] = useState(true);
-  const [mostrarEventos, setMostrarEventos] = useState(true);
-  const [mostrarTimeline, setMostrarTimeline] = useState(true);
-  const [mostrarHerramientas, setMostrarHerramientas] = useState(true);
+  // v1.10.11: las 4 secciones del modal (Herramientas / Comentarios /
+  // Historial / Reportes) pasan de acordeones independientes a un segmented
+  // control con UN solo estado visible a la vez (default Herramientas).
+  // Reemplaza: mostrarComentarios / mostrarNotas / mostrarEventos /
+  // mostrarTimeline / mostrarHerramientas / mostrarReportes.
+  const [seccionActiva, setSeccionActiva] = useState("herramientas");
   const [comentariosLocales, setComentariosLocales] = useState([]);
   const [historial, setHistorial] = useState([]);
   const { copiar: copiarNombre, copiado: nombreCopiado } = useClipboard();
@@ -118,10 +125,9 @@ export function VerCasoModal({
   const [mostrarFormNota, setMostrarFormNota] = useState(false);
   const [mostrarFormEvento, setMostrarFormEvento] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [mostrarReportes, setMostrarReportes] = useState(true);
-  const [nuevoReporteTexto, setNuevoReporteTexto] = useState("");
-  const [nuevoReporteFecha, setNuevoReporteFecha] = useState("");
-  const [nuevoReporteOrigen, setNuevoReporteOrigen] = useState("Operador");
+  // v1.10.11: se quitaron nuevoReporteTexto/Fecha/Origen — el alta de
+  // reportes salió del modal (se crea solo desde "Reporte rápido");
+  // edición y borrado se conservan.
   const [editandoReporteIndex, setEditandoReporteIndex] = useState(null);
   const [editandoReporteTexto, setEditandoReporteTexto] = useState("");
   const [editandoReporteFecha, setEditandoReporteFecha] = useState("");
@@ -182,31 +188,10 @@ export function VerCasoModal({
     return getRelatedEvents(caso.id, eventos);
   }, [eventos, caso]);
 
-  // Casos relacionados por aseguradora/estudio (para mostrar conteo)
-  const casosByInsurer = useMemo(() => {
-    if (!caso?.aseguradora || !casos.length) return [];
-    return getCasesByInsurer(caso.aseguradora, casos).filter(
-      (c) => String(c.id) !== String(caso.id)
-    );
-  }, [caso, casos]);
-
-  const casosByLawFirm = useMemo(() => {
-    if (!caso?.estudioJuridico || !casos.length) return [];
-    return getCasesByLawFirm(caso.estudioJuridico, casos).filter(
-      (c) => String(c.id) !== String(caso.id)
-    );
-  }, [caso, casos]);
-
-  // Herramientas relacionadas — recibidas como props; solo se listan las objeciones.
-  const toolsData = useMemo(() => {
-    if (!caso?.aseguradora && !caso?.estudioJuridico) return { condicionales: [], speechs: [], objeciones: [], hasContent: false };
-    return getRelatedTools(caso.aseguradora, caso.estudioJuridico, condicionales, speechs, objeciones);
-  }, [caso?.aseguradora, caso?.estudioJuridico, condicionales, speechs, objeciones]);
-
-  // Determinar si aseguradora/estudio son clickeables (existen en la config)
-  const hasInsurer = !!(caso?.aseguradora || "").trim();
-  const hasLawFirm = !!(caso?.estudioJuridico || "").trim();
-
+  // v1.10.11: se eliminaron los memos casosByInsurer / casosByLawFirm (pills
+  // "+N" de casos con misma ART/estudio) y toolsData (Objeciones). También
+  // hasInsurer/hasLawFirm: los labels del grid ahora llevan el icono y el
+  // valor es texto puro igual que el resto de los campos.
   if (!caso) return null;
 
   const handleAddComentario = (texto, tipo = "") => {
@@ -243,32 +228,13 @@ export function VerCasoModal({
     if (showToast) showToast("Caso eliminado", "info");
   };
 
-  // ============ EDITAR / AGREGAR / ELIMINAR REPORTES INLINE (1.8.1) ============
+  // ============ EDITAR / BORRAR REPORTES INLINE (1.8.1) ============
+  // v1.10.11: se eliminó agregarReporte — el alta de reportes vive solo en
+  // "Reporte rápido" (coherencia: desde el modal del caso solo se edita/borra).
   const persistirReportes = (entradas) => {
     if (onActualizarCaso) {
       onActualizarCaso({ ...caso, reporteHistory: entradas });
     }
-  };
-
-  const agregarReporte = () => {
-    if (!nuevoReporteTexto.trim()) {
-      if (showToast) showToast("Escribe el texto del reporte", "warning");
-      return;
-    }
-    const entradas = [
-      ...(caso.reporteHistory || []),
-      {
-        fecha: nuevoReporteFecha.trim() || hoyDDMM(),
-        texto: capitalizarSiMayus(sanitizeString(nuevoReporteTexto)),
-        origen: nuevoReporteOrigen || "Operador",
-      },
-    ];
-    persistirReportes(entradas);
-    setNuevoReporteTexto("");
-    setNuevoReporteFecha("");
-    setNuevoReporteOrigen("Operador");
-    soundSystem.playAction("save");
-    if (showToast) showToast("Reporte agregado correctamente", "success");
   };
 
   const iniciarEdicionReporte = (index) => {
@@ -288,7 +254,7 @@ export function VerCasoModal({
     const entradas = [...caso.reporteHistory];
     entradas[editandoReporteIndex] = {
       fecha: editandoReporteFecha.trim() || hoyDDMM(),
-      texto: capitalizarSiMayus(sanitizeString(editandoReporteTexto)),
+      texto: sanitizeString(editandoReporteTexto),
       origen: editandoReporteOrigen || "Operador",
     };
     persistirReportes(entradas);
@@ -508,7 +474,7 @@ export function VerCasoModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Nombre</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><User size={9} /> Nombre</span>
               <div className="flex items-center gap-1.5">
                 <div className="text-sm font-medium flex-1" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.nombre) || "—"}</div>
                 <button
@@ -526,7 +492,7 @@ export function VerCasoModal({
               </div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Teléfono</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Phone size={9} /> Teléfono</span>
               <div className="flex items-center gap-1.5">
                 <div className="text-sm flex-1"><PhoneLink telefono={caso.telefono} size="md" showIcon={false} /></div>
                 <button
@@ -544,80 +510,49 @@ export function VerCasoModal({
               </div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Localidad</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><MapPin size={9} /> Localidad</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.localidad) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Aseguradora</span>
-              {hasInsurer ? (
-                <div
-                  className="flex items-center gap-1.5 text-sm font-medium text-left"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  <Building2 size={12} className="flex-shrink-0" style={{ color: "var(--color-text-muted)" }} />
-                  <span className="truncate">{sanitizeString(caso.aseguradora)}</span>
-                  {casosByInsurer.length > 0 && (
-                    <span
-                      className="pill-compact flex-shrink-0"
-                      style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
-                    >
-                      +{casosByInsurer.length}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.aseguradora) || "—"}</div>
-              )}
+              {/* v1.10.11: el icono pasa al label y el valor es texto puro
+                  como el resto de los campos; se quitó la pill "+N" de casos
+                  con misma ART (y su rama condicional con Building2). */}
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Building2 size={9} /> Aseguradora</span>
+              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.aseguradora) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Profesión</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Briefcase size={9} /> Profesión</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.profesion) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Fecha</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><CalendarDays size={9} /> Fecha</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{formatDateWithConfig(caso.fecha) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Ingreso</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><LogIn size={9} /> Ingreso</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.ingreso) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Lesión</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><HeartPulse size={9} /> Lesión</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.lesion) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Tipo de Ingreso</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><ClipboardList size={9} /> Tipo de Ingreso</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.tipoIngreso) || "—"}</div>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Cita</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><CalendarClock size={9} /> Cita</span>
               <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.cita) || "—"}</div>
             </div>
             <div className="col-span-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Estudio Jurídico</span>
-              {hasLawFirm ? (
-                <div
-                  className="flex items-center gap-1.5 text-sm font-medium text-left"
-                  style={{ color: "var(--color-text)" }}
-                >
-                  <Scale size={12} className="flex-shrink-0" style={{ color: "var(--color-text-muted)" }} />
-                  <span className="truncate">{sanitizeString(caso.estudioJuridico)}</span>
-                  {casosByLawFirm.length > 0 && (
-                    <span
-                      className="pill-compact flex-shrink-0"
-                      style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)" }}
-                    >
-                      +{casosByLawFirm.length}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.estudioJuridico) || "—"}</div>
-              )}
+              {/* v1.10.11: igual que Aseguradora — icono en el label, valor
+                  en texto puro y sin la pill "+N" de casos del mismo estudio. */}
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Scale size={9} /> Estudio Jurídico</span>
+              <div className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.estudioJuridico) || "—"}</div>
             </div>
             {caso.tags && caso.tags.length > 0 && (
               <div className="col-span-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Etiquetas</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Tag size={9} /> Etiquetas</span>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {caso.tags.map((t) => (
                     <span key={t} className="pill-sm" style={{ backgroundColor: "color-mix(in srgb, var(--color-accent) 13.3%, transparent)", color: "var(--color-accent)", border: "1px solid color-mix(in srgb, var(--color-accent) 26.7%, transparent)" }}>
@@ -628,59 +563,110 @@ export function VerCasoModal({
               </div>
             )}
             <div className="col-span-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>Observaciones</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}><Info size={9} /> Observaciones</span>
               <div className="text-sm" style={{ color: "var(--color-text)" }}>{sanitizeString(caso.observaciones) || "—"}</div>
             </div>
           </div>
 
-          {/* HERRAMIENTAS: acciones rápidas (Notas/Calendario) y objeciones */}
-          {(toolsData.objeciones.length > 0 || onNuevaNota || onNuevoEvento) && (
-            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button aria-expanded={mostrarHerramientas} onClick={() => setMostrarHerramientas(!mostrarHerramientas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
-                {mostrarHerramientas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <ClipboardList size={14} /> Herramientas
-              </button>
-              {mostrarHerramientas && (
-                <div className="mt-2 space-y-2">
-                  {(onNuevaNota || onNuevoEvento) && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {onNuevaNota && (
-                        <BtnOutline
-                          onClick={() => {
-                            setMostrarFormNota((v) => !v);
-                            setMostrarFormEvento(false);
-                          }}
-                          icon={FileText}
-                          size="sm"
-                        >Notas</BtnOutline>
-                      )}
-                      {onNuevoEvento && (
-                        <BtnOutline
-                          onClick={() => {
-                            setMostrarFormEvento((v) => !v);
-                            setMostrarFormNota(false);
-                          }}
-                          icon={Calendar}
-                          size="sm"
-                        >Calendario</BtnOutline>
-                      )}
-                    </div>
+          {/* ============ v1.10.11: SECCIONES COMO SEGMENTED CONTROL ============
+              Patrón de LiquidacionesConfig: role="tablist" con tabs
+              icono + etiqueta + conteo, y un solo role="tabpanel" visible a
+              la vez (default Herramientas). Reemplaza los 6 acordeones
+              independientes (mostrarHerramientas / mostrarNotas /
+              mostrarEventos / mostrarComentarios / mostrarTimeline /
+              mostrarReportes → un único seccionActiva). El conteo vive en la
+              etiqueta del tab (consistencia: Comentarios/Historial/Reportes
+              ya lo mostraban). data-tour="herramientas" resucita el ancla del
+              paso 15 del tour (su selector estaba muerto: no existía en el
+              modal). */}
+          <div
+            role="tablist"
+            aria-label="Secciones del caso"
+            className="flex flex-wrap gap-1 p-1 rounded-lg"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            {[
+              { id: "herramientas", label: "Herramientas", icon: ClipboardList, conteo: notasFiltradas.length + eventosFiltrados.length, tour: true },
+              { id: "comentarios", label: "Comentarios", icon: MessageSquare, conteo: comentariosLocales.length || 0 },
+              { id: "historial", label: "Historial", icon: Activity, conteo: historial.length },
+              { id: "reportes", label: "Reportes", icon: FileText, conteo: caso.reporteHistory?.length || 0 },
+            ].map((tab) => {
+              const activa = seccionActiva === tab.id;
+              const Icono = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`tab-${tab.id}`}
+                  aria-selected={activa}
+                  aria-controls={`panel-${tab.id}`}
+                  {...(tab.tour ? { "data-tour": "herramientas" } : {})}
+                  onClick={() => setSeccionActiva(tab.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                    activa ? "" : "hover:opacity-70"
+                  }`}
+                  style={
+                    activa
+                      ? {
+                          backgroundColor: "var(--color-accent)",
+                          color: "#fff",
+                          boxShadow: "0 1px 3px var(--color-shadow)",
+                        }
+                      : { backgroundColor: "transparent", color: "var(--color-text-muted)" }
+                  }
+                >
+                  <Icono size={13} />
+                  {tab.label} ({tab.conteo})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* v1.10.11 (altura estable): TODOS los paneles comparten
+              min-h-[22rem] como línea base. Al cambiar de pestaña el modal
+              mantiene su tamaño —antes cada panel tenía su altura natural y
+              el cuerpo del modal "brincaba" (Herramientas con notas vs
+              Comentarios vs Reportes vacío)— y solo crece cuando la pestaña
+              activa tiene más contenido que esa base, hasta el max-h del
+              body con su único scroll (patrón anti-doble-scrollbar). */}
+          {/* PANEL: HERRAMIENTAS — acciones rápidas + formularios inline +
+              Notas y Eventos vinculadas (absorbidos de sus acordeones). */}
+          {seccionActiva === "herramientas" && (
+            <div
+              role="tabpanel"
+              id="panel-herramientas"
+              aria-labelledby="tab-herramientas"
+              tabIndex={0}
+              className="space-y-3 pt-1 min-h-[22rem]"
+            >
+              {(onNuevaNota || onNuevoEvento) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {onNuevaNota && (
+                    <BtnOutline
+                      onClick={() => {
+                        setMostrarFormNota((v) => !v);
+                        setMostrarFormEvento(false);
+                      }}
+                      icon={FileText}
+                      size="sm"
+                    >Notas</BtnOutline>
                   )}
-                  {toolsData.objeciones.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: "var(--color-text-muted)" }}>Objeciones ({toolsData.objeciones.length})</div>
-                      {toolsData.objeciones.slice(0, 2).map((o, i) => (
-                        <div key={i} className="text-xs px-2 py-1 rounded truncate" style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)" }}>
-                          {o.titulo && <span className="font-medium">{o.titulo}: </span>}
-                          {(o.contenido || o.texto || '').slice(0, 80)}
-                        </div>
-                      ))}
-                    </div>
+                  {onNuevoEvento && (
+                    <BtnOutline
+                      onClick={() => {
+                        setMostrarFormEvento((v) => !v);
+                        setMostrarFormNota(false);
+                      }}
+                      icon={Calendar}
+                      size="sm"
+                    >Calendario</BtnOutline>
                   )}
                 </div>
               )}
-            </div>
-          )}
 
           {/* FORMAS INLINE: Nota / Evento vinculados al caso (1.5.0) */}
           {mostrarFormNota && (
@@ -716,129 +702,133 @@ export function VerCasoModal({
             </div>
           )}
 
-          {/* NOTAS VINCULADAS */}
+          {/* NOTAS VINCULADAS (v1.10.11: absorbidas por el panel
+              Herramientas — sin acordeón, solo se renderiza si la pestaña
+              está activa) */}
           {notasFiltradas.length > 0 && (
-            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button aria-expanded={mostrarNotas} onClick={() => setMostrarNotas(!mostrarNotas)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
-                {mostrarNotas ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <FileText size={14} /> Notas vinculadas ({notasFiltradas.length})
-              </button>
-              {mostrarNotas && (
-                <div className="mt-2 space-y-1">
-                  {notasFiltradas.map((n) => (
-                    <div
-                      key={n.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Abrir nota ${n.title || "Sin título"}`}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
-                      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-                      onClick={() => onNavigateToNote && onNavigateToNote(n.id)}
-                      onKeyDown={onKeyActivate(() => onNavigateToNote && onNavigateToNote(n.id))}
-                    >
-                      <Link size={10} style={{ color: "var(--color-text-muted)" }} />
-                      <span className="font-medium" style={{ color: "var(--color-text)" }}>{n.title || "Sin título"}</span>
-                      <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(n.updatedAt || n.createdAt || "")}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
+                <FileText size={9} /> Notas vinculadas ({notasFiltradas.length})
+              </div>
+              <div className="mt-1.5 space-y-1">
+                {notasFiltradas.map((n) => (
+                  <div
+                    key={n.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Abrir nota ${n.title || "Sin título"}`}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
+                    style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+                    onClick={() => onNavigateToNote && onNavigateToNote(n.id)}
+                    onKeyDown={onKeyActivate(() => onNavigateToNote && onNavigateToNote(n.id))}
+                  >
+                    <Link size={10} style={{ color: "var(--color-text-muted)" }} />
+                    <span className="font-medium" style={{ color: "var(--color-text)" }}>{n.title || "Sin título"}</span>
+                    <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(n.updatedAt || n.createdAt || "")}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* EVENTOS VINCULADOS */}
+          {/* EVENTOS VINCULADOS (v1.10.11: dentro del panel Herramientas) */}
           {eventosFiltrados.length > 0 && (
-            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-              <button aria-expanded={mostrarEventos} onClick={() => setMostrarEventos(!mostrarEventos)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
-                {mostrarEventos ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                <Calendar size={14} /> Eventos vinculados ({eventosFiltrados.length})
-              </button>
-              {mostrarEventos && (
-                <div className="mt-2 space-y-1">
-                  {eventosFiltrados.map((e) => (
-                    <div
-                      key={e.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Abrir evento ${e.title || "Sin título"}`}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
-                      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
-                      onClick={() => onNavigateToEvent && onNavigateToEvent(e.id)}
-                      onKeyDown={onKeyActivate(() => onNavigateToEvent && onNavigateToEvent(e.id))}
-                    >
-                      <Calendar size={10} style={{ color: "var(--color-text-muted)" }} />
-                      <span className="font-medium" style={{ color: "var(--color-text)" }}>{e.title || "Sin título"}</span>
-                      <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(e.startDate)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1" style={{ color: "var(--color-text-muted)" }}>
+                <Calendar size={9} /> Eventos vinculados ({eventosFiltrados.length})
+              </div>
+              <div className="mt-1.5 space-y-1">
+                {eventosFiltrados.map((e) => (
+                  <div
+                    key={e.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Abrir evento ${e.title || "Sin título"}`}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer hover:opacity-70 transition-opacity"
+                    style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+                    onClick={() => onNavigateToEvent && onNavigateToEvent(e.id)}
+                    onKeyDown={onKeyActivate(() => onNavigateToEvent && onNavigateToEvent(e.id))}
+                  >
+                    <Calendar size={10} style={{ color: "var(--color-text-muted)" }} />
+                    <span className="font-medium" style={{ color: "var(--color-text)" }}>{e.title || "Sin título"}</span>
+                    <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{formatDateWithConfig(e.startDate)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
             </div>
           )}
 
-          {/* COMENTARIOS */}
-          <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-            <button aria-expanded={mostrarComentarios} onClick={() => setMostrarComentarios(!mostrarComentarios)} className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity" style={{ color: "var(--color-accent)" }}>
-              {mostrarComentarios ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <MessageSquare size={14} />
-              Comentarios ({comentariosLocales.length || 0})
-            </button>
-            {mostrarComentarios && (
-              <div className="mt-3 animate-slide-up">
-                <ComentariosUI
-                  comentarios={comentariosLocales}
-                  onAdd={handleAddComentario}
-                  onDelete={handleDeleteComentario}
-                  showToast={showToast}
-                  usuario="Usuario"
-                  tiposInteraccion={TIPOS_INTERACCION}
-                  caso={caso}
-                  config={config}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* TIMELINE / HISTORIAL DEL CASO */}
-          <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-            <button
-              onClick={() => setMostrarTimeline(!mostrarTimeline)}
-              className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity"
-              style={{ color: "var(--color-accent)" }}
-              aria-expanded={mostrarTimeline}
+          {/* PANEL: COMENTARIOS */}
+          {seccionActiva === "comentarios" && (
+            <div
+              role="tabpanel"
+              id="panel-comentarios"
+              aria-labelledby="tab-comentarios"
+              tabIndex={0}
+              className="space-y-3 pt-1 min-h-[22rem]"
             >
-              {mostrarTimeline ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <Activity size={14} /> Historial ({historial.length})
-            </button>
-            {mostrarTimeline && (
-              <div className="mt-2">
-                <Suspense
-                  fallback={<div style={{ color: "var(--color-text-muted)" }}>Cargando historial...</div>}
+              <ComentariosUI
+                comentarios={comentariosLocales}
+                onAdd={handleAddComentario}
+                onDelete={handleDeleteComentario}
+                showToast={showToast}
+                usuario="Usuario"
+                tiposInteraccion={TIPOS_INTERACCION}
+                caso={caso}
+                config={config}
+              />
+            </div>
+          )}
+
+          {/* PANEL: HISTORIAL (v1.10.11: el Suspense/lazy se monta solo
+              cuando la pestaña está activa — antes vivía siempre montado). */}
+          {seccionActiva === "historial" && (
+            <div
+              role="tabpanel"
+              id="panel-historial"
+              aria-labelledby="tab-historial"
+              tabIndex={0}
+              className="space-y-3 pt-1 min-h-[22rem]"
+            >
+              <Suspense
+                fallback={<div style={{ color: "var(--color-text-muted)" }}>Cargando historial...</div>}
+              >
+                <CaseTimeline eventos={historial} config={config} />
+              </Suspense>
+            </div>
+          )}
+
+          {/* PANEL: REPORTES DEL CASO — edición y borrado (1.8.1).
+              v1.10.11: se quitó el alta (input "Agregar novedad...",
+              OrigenSelector y TemplateSelector de alta): los reportes se
+              crean solo desde "Reporte rápido". */}
+          {seccionActiva === "reportes" && (
+            <div
+              role="tabpanel"
+              id="panel-reportes"
+              aria-labelledby="tab-reportes"
+              tabIndex={0}
+              className="space-y-3 pt-1 min-h-[22rem]"
+            >
+                {/* Cabecera del historial (1.10.11): título + conteo, mismo
+                    lenguaje de label que "Notas vinculadas"/"Eventos
+                    vinculados" y los 13 labels de la ficha. */}
+                <div
+                  className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
+                  style={{ color: "var(--color-text-muted)" }}
                 >
-                  <CaseTimeline eventos={historial} config={config} />
-                </Suspense>
-              </div>
-            )}
-          </div>
-
-          {/* REPORTES DEL CASO: edición, plantillas y agregado inline (1.8.1) */}
-          <div className="pt-3" style={{ borderTop: "1px solid var(--color-border)" }}>
-            <button
-              onClick={() => setMostrarReportes(!mostrarReportes)}
-              className="flex items-center gap-2 text-xs font-semibold hover:opacity-70 transition-opacity"
-              style={{ color: "var(--color-accent)" }}
-              aria-expanded={mostrarReportes}
-            >
-              {mostrarReportes ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <FileText size={14} /> Reportes del caso ({caso.reporteHistory?.length || 0})
-            </button>
-            {mostrarReportes && (
-              <div className="mt-2 space-y-2">
+                  <FileText size={9} /> Historial de reportes ({caso.reporteHistory?.length || 0})
+                </div>
                 {/* 1.10.3 (anti-doble-scrollbar): sin max-h-40 propio — la
                     lista se extiende y la baja el único scroll del body. */}
                 <div className="space-y-2">
                   {(!caso.reporteHistory || caso.reporteHistory.length === 0) && (
-                    <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    <div
+                      className="rounded-lg border border-dashed px-3 py-4 text-sm text-center"
+                      style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}
+                    >
                       Sin reportes cargados.
                     </div>
                   )}
@@ -848,14 +838,21 @@ export function VerCasoModal({
                       return (
                         <div
                           key={i}
-                          className="rounded p-2"
+                          className="rounded-lg p-3"
                           style={{
                             backgroundColor: isEditing
                               ? "var(--color-surface)"
                               : "var(--color-surface2)",
                             border: isEditing
-                              ? "1px solid var(--color-accent)"
+                              ? "1.5px solid var(--color-accent)"
                               : "1px solid var(--color-border)",
+                            // Rail del origen (1.10.11): pinta el borde
+                            // izquierdo con el color del badge OP/PA/EJ
+                            // (getOrigenConfig) para escanear la lista de un
+                            // vistazo; en edición manda el borde accent.
+                            boxShadow: isEditing
+                              ? "none"
+                              : `inset 3px 0 0 ${getOrigenConfig(r.origen).color}`,
                           }}
                         >
                           {isEditing ? (
@@ -874,6 +871,13 @@ export function VerCasoModal({
                                   onChange={(e) => setEditandoReporteTexto(e.target.value)}
                                 />
                               </div>
+                              {/* v1.10.11: conversión de texto (MAYÚSCULAS/
+                                  minúsculas/…) al editar un reporte. */}
+                              <TextCaseToolbar
+                                value={editandoReporteTexto}
+                                onChange={setEditandoReporteTexto}
+                                ariaLabel="Formato del reporte en edición"
+                              />
                               <OrigenSelector value={editandoReporteOrigen} onChange={setEditandoReporteOrigen} />
                               <div className="flex gap-2">
                                 <Btn onClick={guardarEdicionReporte} size="sm" color="var(--color-success)">
@@ -885,30 +889,55 @@ export function VerCasoModal({
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex-1 flex items-center gap-1 flex-wrap">
-                                <OrigenBadge origen={r.origen} />
-                                <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--color-accent)" }}>
-                                  ({sanitizeString(r.fecha)})
-                                </span>
-                                <span className="text-xs" style={{ color: "var(--color-text)" }}>
+                            <div className="flex items-start gap-2.5">
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                {/* Cabecera (1.10.11): origen en badge md +
+                                    fecha en chip destacado. Antes iban todo
+                                    en una línea con el texto y quedaba
+                                    apretado. */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <OrigenBadge origen={r.origen} size="md" />
+                                  <span
+                                    className="text-[11px] font-bold px-1.5 py-0.5 rounded-md"
+                                    style={{
+                                      backgroundColor: "color-mix(in srgb, var(--color-accent) 10%, transparent)",
+                                      color: "var(--color-accent)",
+                                      border: "1px solid color-mix(in srgb, var(--color-accent) 25%, transparent)",
+                                    }}
+                                  >
+                                    {sanitizeString(r.fecha)}
+                                  </span>
+                                </div>
+                                {/* Texto en bloque propio, más grande y con
+                                    interlineado (1.10.11). */}
+                                <div className="text-sm leading-relaxed" style={{ color: "var(--color-text)" }}>
                                   {sanitizeString(r.texto)}
-                                </span>
+                                </div>
                               </div>
-                              <div className="flex gap-1 flex-shrink-0">
+                              <div className="flex gap-1.5 flex-shrink-0">
                                 <button
                                   onClick={() => iniciarEdicionReporte(i)}
-                                  className="p-1 rounded hover:opacity-70 transition-colors"
-                                  style={{ color: "var(--color-text-muted)" }}
+                                  className="p-1.5 rounded-md hover:opacity-75 transition-opacity"
+                                  style={{
+                                    color: "var(--color-text-muted)",
+                                    backgroundColor: "var(--color-surface)",
+                                    border: "1px solid var(--color-border)",
+                                  }}
                                   aria-label="Editar reporte"
+                                  title="Editar reporte"
                                 >
                                   <Edit3 size={14} />
                                 </button>
                                 <button
                                   onClick={() => setConfirmEliminarReporte(i)}
-                                  className="p-1 rounded hover:opacity-70 transition-colors"
-                                  style={{ color: "var(--color-danger)" }}
+                                  className="p-1.5 rounded-md hover:opacity-75 transition-opacity"
+                                  style={{
+                                    color: "var(--color-danger)",
+                                    backgroundColor: "var(--color-surface)",
+                                    border: "1px solid var(--color-border)",
+                                  }}
                                   aria-label="Eliminar reporte"
+                                  title="Eliminar reporte"
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -919,47 +948,13 @@ export function VerCasoModal({
                       );
                     })}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <TextInput
-                      placeholder="DD/MM"
-                      style={{ width: 100 }}
-                      value={nuevoReporteFecha}
-                      onChange={(e) => setNuevoReporteFecha(e.target.value)}
-                    />
-                    <TextInput
-                      className="flex-1"
-                      placeholder="Agregar novedad..."
-                      value={nuevoReporteTexto}
-                      onChange={(e) => setNuevoReporteTexto(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          agregarReporte();
-                        }
-                      }}
-                    />
-                    <Btn onClick={agregarReporte} size="sm" icon={Plus}>
-                      Agregar
-                    </Btn>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <OrigenSelector value={nuevoReporteOrigen} onChange={setNuevoReporteOrigen} />
-                    <TemplateSelector
-                      type="reporte"
-                      caso={caso}
-                      config={config}
-                      onSelect={(resolved) => {
-                        if (resolved.texto) setNuevoReporteTexto(resolved.texto);
-                        if (resolved.origen) setNuevoReporteOrigen(resolved.origen);
-                        if (resolved.fecha) setNuevoReporteFecha(resolved.fecha);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+                {/* v1.10.11: acá vivía el formulario de alta de reportes
+                    (DD/MM + "Agregar novedad..." + botón Agregar +
+                    OrigenSelector + TemplateSelector). El alta se movió a
+                    "Reporte rápido"; la lista de arriba conserva editar y
+                    borrar. */}
+            </div>
+          )}
         </div>
 
         {/* Acciones: gestión a la izquierda, Cerrar a la derecha.

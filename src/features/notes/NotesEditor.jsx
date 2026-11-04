@@ -5,6 +5,9 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import { sanitizeHTML } from '../../utils/sanitize';
+// v1.10.11: transformación de texto (MAYÚSCULAS/minúsculas/oración/título/
+// alternado/quitar espacios) compartida con la toolbar de TextInput/TextArea.
+import { applyCaseMode } from '../../utils/textCase';
 import {
   Bold,
   Italic,
@@ -18,10 +21,45 @@ import {
   Link as LinkIcon,
   Undo,
   Redo,
+  // v1.10.11: iconos del grupo de transformación de texto.
+  CaseUpper,
+  CaseLower,
+  CaseSensitive,
+  Type,
+  Shuffle,
+  Eraser,
 } from 'lucide-react';
 
 function MenuBar({ editor }) {
   if (!editor) return null;
+
+  // v1.10.11: transforma TODO el documento preservando marcas (negrita/
+  // cursiva) y estructura (párrafos/listas/títulos): recorre los nodos de
+  // texto y reemplaza cada uno. Los modos se aplican POR NODO — si una
+  // oración está partida por una negrita, cada trozo se trata como inicio de
+  // oración —; el tradeoff es aceptado a cambio de no perder formato (la
+  // alternativa, pasar a texto plano, destruiría el diseño de la nota).
+  const aplicarModo = (modo) => {
+    const { tr, schema, doc } = editor.state;
+    const cambios = [];
+    doc.descendants((node, pos) => {
+      if (node.isText && node.text) {
+        const nuevo = applyCaseMode(node.text, modo);
+        if (nuevo !== node.text) {
+          cambios.push({ pos, nodeSize: node.nodeSize, nuevo, marks: node.marks });
+        }
+      }
+    });
+    if (!cambios.length) return;
+    // De atrás hacia adelante: así los reemplazos no desplazan las
+    // posiciones de los nodos que faltan por tocar.
+    cambios.sort((a, b) => b.pos - a.pos);
+    cambios.forEach(({ pos, nodeSize, nuevo, marks }) => {
+      if (nuevo.length === 0) tr.delete(pos, pos + nodeSize);
+      else tr.replaceWith(pos, pos + nodeSize, schema.text(nuevo, marks));
+    });
+    editor.view.dispatch(tr);
+  };
 
   const buttons = [
     { icon: Bold, action: () => editor.chain().focus().toggleBold().run(), active: editor.isActive('bold'), label: 'Negrita' },
@@ -46,6 +84,15 @@ function MenuBar({ editor }) {
         }
         editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
       }, active: editor.isActive('link'), label: 'Link' },
+    { type: 'divider' },
+    // v1.10.11: transformación de texto (mismos modos que la toolbar
+    // TextCaseToolbar de los TextInput/TextArea — utils/textCase.js).
+    { icon: CaseUpper, action: () => aplicarModo('upper'), active: false, label: 'MAYÚSCULAS' },
+    { icon: CaseLower, action: () => aplicarModo('lower'), active: false, label: 'minúsculas' },
+    { icon: CaseSensitive, action: () => aplicarModo('sentence'), active: false, label: 'Tipo oración' },
+    { icon: Type, action: () => aplicarModo('title'), active: false, label: 'Tipo Título' },
+    { icon: Shuffle, action: () => aplicarModo('alter'), active: false, label: 'aLtErNaR' },
+    { icon: Eraser, action: () => aplicarModo('spaces'), active: false, label: 'Quitar espacios de más' },
     { type: 'divider' },
     { icon: Undo, action: () => editor.chain().focus().undo().run(), active: false, label: 'Deshacer' },
     { icon: Redo, action: () => editor.chain().focus().redo().run(), active: false, label: 'Rehacer' },

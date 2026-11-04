@@ -726,6 +726,55 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+/* v1.10.11: botones de la toolbar de transformación de texto (Notas y
+   Reportes). Se rediseñaron como BOTONES de verdad —borde definido, radio
+   chico (6px) y superficie sólida— en vez de las pills anteriores
+   (btn-base con --radius-ds-sm = 12px sobre un botón de 20px de alto se
+   leía pastilla): más grandes (py 8px / px 13px, texto 12px + icono de
+   15px), con hover en acento, press activo y estado --ok = respuesta
+   visual tras aplicar un modo (flash verde con check que pone/quita
+   TextCaseToolbar vía timeout de 900ms). */
+.textcase-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-surface2);
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 0.5rem 0.8125rem;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    transform var(--duration-instant) var(--ease-standard);
+}
+.textcase-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.textcase-btn:active {
+  transform: translateY(1px);
+}
+.textcase-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.textcase-btn--ok {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 14%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
 /* Sizes */
 .btn-sm {
   padding: 0.375rem 0.75rem;
