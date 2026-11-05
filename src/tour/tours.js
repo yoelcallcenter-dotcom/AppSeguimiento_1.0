@@ -71,7 +71,8 @@ export const TOURS = {
         details: [
           "Pasos a Seguir: protocolo de atencion paso a paso",
           "Speechs: guiones con copia al portapapeles para llamadas",
-          "Speechs Interactivos: recorridos con pasos y opciones, editor con arbol de flujo y ejecucion paso a paso",
+          // Release 1.11.0 (§6): renombre visible del módulo.
+          "Asistente de Llamadas: recorridos con etapas, preguntas y respuestas sugeridas, editor con arbol de flujo y ejecucion paso a paso",
           "Objeciones: respuestas categorizadas para objeciones comunes",
           "Conversaciones Sugeridas: plantillas de 3 etapas con {OPERADOR}",
           "Aseguradoras (ART y Transito), Lesiones y Estudios Juridicos con mapeo",

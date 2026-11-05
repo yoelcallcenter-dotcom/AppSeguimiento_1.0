@@ -127,7 +127,9 @@ export function UtilesView({
   const TAB_DESC = {
     condicionales: "Reglas de ingreso y condiciones por estudio jurídico y aseguradora.",
     pasos: "Secuencia operativa paso a paso con tips y enlaces de utilidad.",
-    speechs: "Libretos de comunicación y recorridos interactivos paso a paso.",
+    // Release 1.11.0 (§6): renombre visible "Speechs Interactivos" →
+    // "Asistente (Interactivo) de Llamadas".
+    speechs: "Libretos de comunicación y asistente interactivo de llamadas paso a paso.",
     objeciones: "Argumentos y respuestas ante objeciones frecuentes.",
     conversacion: "Guiones de conversación sugerida para cada contexto.",
     aseguradoras: "Directorio de aseguradoras y sus datos de contacto.",
@@ -215,6 +217,9 @@ export function UtilesView({
             setSpeechsInteractivos={setSpeechsInteractivos}
             showToast={showToast}
             objeciones={objeciones}
+            // Release 1.11.0 (§5.3): al importar guiones se fusionan las
+            // objeciones del archivo en la lista global (sin sobrescribir).
+            setObjeciones={setObjeciones}
           />
         );
       case "objeciones":

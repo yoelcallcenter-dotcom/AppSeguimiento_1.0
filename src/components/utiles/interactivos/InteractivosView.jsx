@@ -9,6 +9,9 @@ import {
   FileText,
   Upload,
   AlertTriangle,
+  Archive,
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { Btn } from "../../common/Btn";
 import { BtnOutline } from "../../common/BtnOutline";
@@ -31,7 +34,13 @@ import {
   parsearEnvelope,
   prepararFilasImport,
   aplicarImportacion,
+  // Release 1.11.0 (§7): fusión por id del seed de objeciones del ejemplo.
+  fusionarObjeciones,
 } from "./speechsInteractivosIO";
+import {
+  crearEjemploART,
+  OBJECIONES_EJEMPLO_ART,
+} from "./ejemploGuionART";
 import { SpeechEditor } from "./SpeechEditor";
 import { SpeechRunner } from "./SpeechRunner";
 
@@ -53,8 +62,17 @@ const chipEstado = (estado) => {
   return { label: "Nuevo", color: "var(--color-success)" };
 };
 
-export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = [] }) {
+export function InteractivosView({
+  speechs,
+  setSpeechs,
+  showToast,
+  objeciones = [],
+  // Release 1.11.0 (§5.3): al importar, las objeciones que viajan en el
+  // archivo se fusionan en la lista global sin sobrescribir las existentes.
+  setObjeciones,
+}) {
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
   const [modalNuevo, setModalNuevo] = useState(null);
   const [confirmEliminar, setConfirmEliminar] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
@@ -65,12 +83,20 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
 
   const lista = speechs || [];
 
+  // Release 1.11.0: filtro activo/archivado (§5). "todos" es el default para
+  // no cambiar el comportamiento histórico de la lista.
   const filtrados = useMemo(() => {
-    const ordenada = [...lista].sort((a, b) =>
-      String(b.fechaModificacion || "").localeCompare(
-        String(a.fechaModificacion || "")
-      )
-    );
+    const ordenada = [...lista]
+      .filter((s) => {
+        if (filtroEstado === "activos") return !s.archivado;
+        if (filtroEstado === "archivados") return Boolean(s.archivado);
+        return true;
+      })
+      .sort((a, b) =>
+        String(b.fechaModificacion || "").localeCompare(
+          String(a.fechaModificacion || "")
+        )
+      );
     const q = busqueda.trim().toLowerCase();
     if (!q) return ordenada;
     return ordenada.filter(
@@ -78,7 +104,7 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
         String(s.nombre || "").toLowerCase().includes(q) ||
         String(s.descripcion || "").toLowerCase().includes(q)
     );
-  }, [speechs, busqueda]);
+  }, [speechs, busqueda, filtroEstado]);
 
   const enEdicion = lista.find((s) => s.id === editandoId) || null;
   const enEjecucion = lista.find((s) => s.id === ejecutandoId) || null;
@@ -113,6 +139,49 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
     const copia = duplicarSpeech(speech);
     setSpeechs([...lista, copia]);
     showToast("Speech duplicado", "success");
+  };
+
+  /**
+   * Seed del guion de ejemplo ART (§7). Se dispara SOLO desde el estado vacío
+   * (nunca automático) y es idempotente por id: si el ejemplo ya existe no se
+   * duplica. Las 12 objeciones se fusionan por id sin sobrescribir las que ya
+   * tenga el usuario.
+   */
+  const crearEjemplo = () => {
+    if (lista.some((s) => s.id === "art-ejemplo")) {
+      showToast("El guion de ejemplo ya existe", "info");
+      return;
+    }
+    setSpeechs([...lista, crearEjemploART()]);
+    if (typeof setObjeciones === "function") {
+      const existentes = Array.isArray(objeciones) ? objeciones : [];
+      const fusionadas = fusionarObjeciones(existentes, OBJECIONES_EJEMPLO_ART);
+      // fusionarObjeciones devuelve la MISMA referencia si no hay novedades.
+      if (fusionadas !== existentes) setObjeciones(fusionadas);
+    }
+    showToast("Guion de ejemplo ART creado", "success");
+  };
+
+  // Release 1.11.0 (§5): archivar conserva el guion y su historial; reactivar
+  // lo devuelve al flujo normal. No borra nada.
+  const alternarArchivado = (speech) => {
+    const archivado = !speech.archivado;
+    actualizar({
+      ...speech,
+      archivado,
+      fechaModificacion: new Date().toISOString(),
+    });
+    showToast(
+      archivado ? "Speech archivado" : "Speech reactivado",
+      "info"
+    );
+  };
+
+  /** Exporta SOLO el guion abierto en el editor (con snapshot de objeciones). */
+  const exportarGuion = (speech) => {
+    if (!speech) return;
+    descargarJson(nombreArchivoSpeechs(), serializarSpeechs([speech], objeciones));
+    showToast("Exportacion completada", "success");
   };
 
   const abrirExport = () => {
@@ -184,17 +253,31 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
 
   const aplicarImport = () => {
     if (!importData) return;
-    const { lista: nueva, res } = aplicarImportacion(
+    // Release 1.11.0 (§5.3): además de los guiones se fusionan las objeciones
+    // que viajaron en el archivo. La fusión NO pisa las existentes: solo
+    // agrega las que falten por id.
+    const { lista: nueva, res, objeciones: objecionesNuevas } = aplicarImportacion(
       importData.filas,
       importData.estrategias,
-      lista
+      lista,
+      Array.isArray(objeciones) ? objeciones : undefined
     );
     setSpeechs(nueva);
+    if (
+      objecionesNuevas &&
+      objecionesNuevas !== objeciones &&
+      typeof setObjeciones === "function"
+    ) {
+      setObjeciones(objecionesNuevas);
+    }
     setImportData(null);
     setConfirmReemplazo(false);
     const partes = [`${res.agregados} importados`];
     if (res.reemplazados > 0) partes.push(`${res.reemplazados} reemplazados`);
     partes.push(`${res.omitidos} omitidos`);
+    if (res.objecionesAgregadas > 0) {
+      partes.push(`${res.objecionesAgregadas} objeción(es) agregada(s)`);
+    }
     showToast(partes.join(" · "), "success");
   };
 
@@ -220,6 +303,7 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
           onChange={actualizar}
           onVolver={() => setEditandoId(null)}
           onEjecutar={(id) => setEjecutandoId(id)}
+          onExportar={() => exportarGuion(enEdicion)}
           showToast={showToast}
           objeciones={objeciones}
         />
@@ -244,6 +328,18 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
             placeholder="Buscar speech interactivo..."
           />
         </div>
+        {/* Release 1.11.0 (§5): filtro activo/archivado sin destruir datos. */}
+        <Select
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          options={[
+            { value: "todos", label: "Todos" },
+            { value: "activos", label: "Activos" },
+            { value: "archivados", label: "Archivados" },
+          ]}
+          aria-label="Filtrar por estado"
+          className="flex-shrink-0"
+        />
         <BtnOutline
           onClick={abrirExport}
           icon={FileText}
@@ -318,20 +414,35 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
                       {errores.length} error{errores.length !== 1 ? "es" : ""}
                     </span>
                   )}
+                  {/* Release 1.11.0 (§5): estado activo/archivado visible. */}
+                  {s.archivado && (
+                    <span
+                      className="pill-sm font-bold flex-shrink-0"
+                      style={{
+                        backgroundColor:
+                          "color-mix(in srgb, var(--color-text-muted) 13.3%, transparent)",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      Archivado
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     aria-label="Ejecutar speech interactivo"
-                    disabled={errores.length > 0}
+                    disabled={errores.length > 0 || s.archivado}
                     title={
-                      errores.length > 0
+                      s.archivado
+                        ? "Reactivá el speech para ejecutarlo"
+                        : errores.length > 0
                         ? "Corregí los errores antes de ejecutar"
                         : "Ejecutar"
                     }
                     onClick={() => setEjecutandoId(s.id)}
                     className={`p-1 rounded transition-colors ${
-                      errores.length > 0
+                      errores.length > 0 || s.archivado
                         ? "opacity-40 cursor-not-allowed"
                         : "hover:bg-white/5"
                     }`}
@@ -358,6 +469,21 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     <Copy size={14} />
+                  </button>
+                  {/* Release 1.11.0 (§5): archivar/reactivar sin borrar. */}
+                  <button
+                    type="button"
+                    aria-label={
+                      s.archivado
+                        ? "Reactivar speech interactivo"
+                        : "Archivar speech interactivo"
+                    }
+                    title={s.archivado ? "Reactivar" : "Archivar"}
+                    onClick={() => alternarArchivado(s)}
+                    className="p-1 rounded hover:bg-white/5 transition-colors"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {s.archivado ? <RotateCcw size={14} /> : <Archive size={14} />}
                   </button>
                   <button
                     type="button"
@@ -395,9 +521,27 @@ export function InteractivosView({ speechs, setSpeechs, showToast, objeciones = 
           className="text-sm py-8 text-center"
           style={{ color: "var(--color-text-muted)" }}
         >
-          {busqueda
-            ? "No hay speechs que coincidan con la busqueda."
-            : "No hay speechs interactivos. Creá uno con el botón de arriba."}
+          {busqueda ? (
+            "No hay speechs que coincidan con la busqueda."
+          ) : lista.length === 0 ? (
+            <div className="flex flex-col items-center gap-3">
+              <span>
+                No hay speechs interactivos. Creá uno con el botón de arriba.
+              </span>
+              {/* Release 1.11.0 (§7): el ejemplo ART se ofrece SOLO acá, con la
+                  lista realmente vacía; nunca se siembra automáticamente. */}
+              <BtnOutline
+                onClick={crearEjemplo}
+                icon={Sparkles}
+                size="sm"
+                color="var(--color-accent)"
+              >
+                Crear guion de ejemplo ART
+              </BtnOutline>
+            </div>
+          ) : (
+            "No hay speechs con el filtro seleccionado."
+          )}
         </div>
       )}
 

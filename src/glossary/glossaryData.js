@@ -75,12 +75,14 @@ export const GLOSSARY_TERMS = [
     term: "Speech",
     definition: "Guion o frase predefinida utilizada durante las llamadas telefonicas para mantener consistencia en la comunicacion con los prospectos.",
     example: "Ej: 'Hola, soy {OPERADOR} de la linea informativa...'",
-    related: ["Utiles", "Objecion", "Speech interactivo"],
+    related: ["Utiles", "Objecion", "Asistente de Llamadas"],
   },
   {
-    term: "Speech interactivo",
-    definition: "Recorrido de conversacion con pasos y opciones: cada paso tiene contenido y opciones que llevan al siguiente paso. Se crea y edita en el editor visual con arbol de flujo, y se ejecuta paso a paso.",
-    example: "Ej: Paso 'Apertura' con opciones 'Interesado' y 'Dudoso' que derivan a pasos distintos",
+    // Release 1.11.0 (§6): renombre visible de "Speech interactivo" a
+    // "Asistente de Llamadas"; la definición se actualiza al modelo v2.
+    term: "Asistente de Llamadas",
+    definition: "Recorrido de conversación con etapas, preguntas y opciones. Cada etapa tiene contenido, preguntas con respuestas sugeridas y opciones que pueden ramificar a otra etapa, registrar datos y cerrar la llamada con un estado final. Se crea y edita en el editor visual con árbol de flujo y se ejecuta paso a paso durante la llamada.",
+    example: "Ej: Etapa 'Apertura' con opciones 'Interesado' y 'Dudoso' que derivan a etapas distintas",
     related: ["Speech", "Utiles"],
   },
   {

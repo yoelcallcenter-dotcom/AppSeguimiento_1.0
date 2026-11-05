@@ -7,6 +7,45 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.11.0] - Asistente (Interactivo) de Llamadas: etapas, registro y guion ART de ejemplo
+
+Rediseño completo del módulo antes llamado "Speechs Interactivos". El guion ahora se organiza en etapas, preguntas y opciones ramificadas; el operador puede registrar la llamada, volver atrás, saltar o completar etapas sin perder datos, y exportar/importar los guiones en un JSON versionado. No hay migraciones destructivas: los guiones guardados en el formato anterior se normalizan al leerse y se persisten en el formato nuevo al primer cambio o importación.
+
+### Motor por etapas, preguntas y ramificaciones
+
+- **Modelo v2** (`interactiveSpeechModel.js`): cada etapa (`steps`) contiene `preguntas[]` y cada pregunta `opciones[]` con destino, respuesta sugerida, acción del operador, datos a registrar, asignaciones automáticas a campos, `requiereAclaracion`, `finalizaLlamada`, `estadoFinalId` y `moduloId`.
+- **Navegación flexible**: avanzar, retroceder, saltar a una etapa, marcar/desmarcar completada y reiniciar sin perder lo registrado. Una opción sin destino avanza en línea (ya no es un error de validación).
+- **Normalización idempotente v1→v2**: los guiones viejos (opciones sueltas en la etapa) se migran en memoria al leerlos; el editor nunca ve la forma anterior y la app no reescribe el almacenamiento por sí sola.
+- **Registro de llamada en memoria**: 8 tipos de campo (texto corto/largo, selección única/múltiple, sí/no, fecha, hora, observaciones), valores conservados al navegar entre etapas y resumen final editable. No se vincula a expedientes ni se guarda como historial.
+- **Módulos transversales** (objeciones, inconvenientes, prestaciones) referenciables desde cualquier opción, con las objeciones resolubles por llave `{OBJECION:id}`.
+
+### Editor en 8 secciones
+
+- **General, Etapas y preguntas, Opciones, Respuestas sugeridas, Módulos, Campos, Estados y Vista previa/validación** como segmented control (`role="tablist"`), con el árbol de flujo siempre visible, la cabecera (nombre, descripción, validación e "Iniciar Speech") fija y el checklist de errores/advertencias a la vista.
+- **Borrador siempre guardable**: se puede salir y volver sin completar; la validación bloquea la ejecución, no la edición.
+- **Mensajes accionables con ubicación** (etapa/pregunta/opción/campo), detección de IDs duplicados, referencias inexistentes y campos inválidos.
+
+### Exportación e importación JSON
+
+- **Envelope versionado v2** con `type`, `version`, `fechaExportacion`, `appVersion` y `speechs[]`; migración encadenada 0→1→2 y rechazo explícito de formatos futuros.
+- **Importación con vista previa y confirmación**: estrategias por conflicto (agregar, copia, reemplazar, omitir), IDs regenerados en las copias, errores con ubicación y archivo `.json`.
+- **Las objeciones viajan en un snapshot del módulo** y se fusionan por ID sin sobrescribir las del usuario. El export no incluye datos personales de la llamada.
+
+### Ejecución y UI
+
+- **Runner rediseñado**: cabecera con progreso y pill "ETAPA n / total", speech en área cómoda con botón copiar, flujo de dos pasos (elegir opción → confirmar "Continuar"), navegación Atrás / Ir a etapa / Marcar completada / Reiniciar, y paneles de Objeciones y Resumen accesibles sin salir de la llamada.
+- **Cierre gateado** cuando hay datos en curso y diseño responsive en todas las secciones.
+- **Renombre visible**: "Speechs Interactivos" pasa a **"Asistente (Interactivo) de Llamadas"** en la navegación, Ayuda, FAQ, glosario, tour y Configuración.
+
+### Guion de ejemplo ART
+
+- **Guion operativo completo** derivado del documento de trabajo: 8 etapas, 9 estados finales, 12 objeciones frecuentes, 3 módulos y las reglas operativas como contenido editable (no codificadas en el motor).
+- **Seed solo desde el estado vacío** ("Crear guion de ejemplo ART"), idempotente por ID, con fusión de las 12 objeciones sin duplicar ni pisar las existentes.
+
+### Calidad
+
+- Tests nuevos/actualizados para modelo v2, IO, runner, editor, vista y ejemplo ART; suite completa y build de producción verificados.
+
 ## [1.10.11] - Transformador de texto, modal del caso por pestañas y reportes solo desde Reporte rápido
 
 Se salta la 1.10.10. Reúne el pedido de transformación de texto para Notas y Reportes (estilo mayusculasminusculas.ar), el rediseño del modal del caso con sus 4 secciones como pestañas y varias limpiezas de consistencia visual: sin alta de reportes en los modales del caso, sin objeciones, sin pills "+N" y con iconos en los labels de la ficha.

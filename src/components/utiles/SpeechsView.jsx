@@ -38,6 +38,9 @@ export function SpeechsView({
   setSpeechsInteractivos,
   showToast,
   objeciones = [],
+  // Release 1.11.0 (§5.3): necesario para fusionar las objeciones que viajan
+  // en un archivo importado. Opcional para no romper montajes existentes.
+  setObjeciones,
 }) {
   const [modo, setModo] = useState("clasicos");
   const [nuevo, setNuevo] = useState("");
@@ -178,7 +181,9 @@ export function SpeechsView({
           },
           {
             id: "interactivos",
-            label: "Interactivos",
+            // Release 1.11.0 (§6): renombre visible del módulo
+            // "Speechs Interactivos" → "Asistente de Llamadas".
+            label: "Asistente de Llamadas",
             icon: GitBranch,
             badge: interactivos.length > 0 ? interactivos.length : undefined,
           },
@@ -195,6 +200,7 @@ export function SpeechsView({
           setSpeechs={setSpeechsInteractivos}
           showToast={showToast}
           objeciones={objeciones}
+          setObjeciones={setObjeciones}
         />
       ) : (
         <>

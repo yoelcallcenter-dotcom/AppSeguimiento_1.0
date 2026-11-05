@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.10.11** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.0** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,15 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.0 — Asistente (Interactivo) de Llamadas: etapas, registro y guion ART
+
+- **Rediseño del módulo** (antes "Speechs Interactivos"): guiones por etapas, preguntas y opciones ramificadas, con respuesta sugerida, acción del operador, datos a registrar, módulos transversales, estados finales y reglas operativas editables.
+- **Registro de la llamada** con 8 tipos de campo (texto corto/largo, selección única/múltiple, sí/no, fecha, hora y observaciones), conservado al navegar y resumido en un panel editable al cierre.
+- **Editor en 8 secciones** (General, Etapas y preguntas, Opciones, Respuestas sugeridas, Módulos, Campos, Estados y Vista previa/validación) con árbol de flujo, checklist de errores/advertencias y borradores siempre guardables.
+- **Ejecución asistida** con progreso "ETAPA n / total", copiado del speech, navegación Atrás/Ir a etapa/Marcar completada/Reiniciar y paneles de Objeciones y Resumen sin salir de la llamada.
+- **Importación/exportación JSON v2** con vista previa, estrategias por conflicto (agregar, copia, reemplazar, omitir), migración de formatos anteriores y fusión de objeciones por ID.
+- **Guion ART de ejemplo** (8 etapas, 9 estados, 12 objeciones) disponible solo con la lista vacía mediante "Crear guion de ejemplo ART", sin duplicarse.
 
 ### 1.10.11 — Transformador de texto y modal del caso por pestañas
 
@@ -144,7 +153,7 @@ export const DOC_README = `# AppSeguimiento
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más **Speechs Interactivos** — recorridos con pasos y opciones, editor con árbol de flujo y reordenar con flechas, duplicación de speechs/pasos, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, registro de la llamada, editor con árbol de flujo, duplicación, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables \`{OPERADOR}\`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 
@@ -400,6 +409,45 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.11.0] - Asistente (Interactivo) de Llamadas: etapas, registro y guion ART de ejemplo
+
+Rediseño completo del módulo antes llamado "Speechs Interactivos". El guion ahora se organiza en etapas, preguntas y opciones ramificadas; el operador puede registrar la llamada, volver atrás, saltar o completar etapas sin perder datos, y exportar/importar los guiones en un JSON versionado. No hay migraciones destructivas: los guiones guardados en el formato anterior se normalizan al leerse y se persisten en el formato nuevo al primer cambio o importación.
+
+### Motor por etapas, preguntas y ramificaciones
+
+- **Modelo v2** (\`interactiveSpeechModel.js\`): cada etapa (\`steps\`) contiene \`preguntas[]\` y cada pregunta \`opciones[]\` con destino, respuesta sugerida, acción del operador, datos a registrar, asignaciones automáticas a campos, \`requiereAclaracion\`, \`finalizaLlamada\`, \`estadoFinalId\` y \`moduloId\`.
+- **Navegación flexible**: avanzar, retroceder, saltar a una etapa, marcar/desmarcar completada y reiniciar sin perder lo registrado. Una opción sin destino avanza en línea (ya no es un error de validación).
+- **Normalización idempotente v1→v2**: los guiones viejos (opciones sueltas en la etapa) se migran en memoria al leerlos; el editor nunca ve la forma anterior y la app no reescribe el almacenamiento por sí sola.
+- **Registro de llamada en memoria**: 8 tipos de campo (texto corto/largo, selección única/múltiple, sí/no, fecha, hora, observaciones), valores conservados al navegar entre etapas y resumen final editable. No se vincula a expedientes ni se guarda como historial.
+- **Módulos transversales** (objeciones, inconvenientes, prestaciones) referenciables desde cualquier opción, con las objeciones resolubles por llave \`{OBJECION:id}\`.
+
+### Editor en 8 secciones
+
+- **General, Etapas y preguntas, Opciones, Respuestas sugeridas, Módulos, Campos, Estados y Vista previa/validación** como segmented control (\`role="tablist"\`), con el árbol de flujo siempre visible, la cabecera (nombre, descripción, validación e "Iniciar Speech") fija y el checklist de errores/advertencias a la vista.
+- **Borrador siempre guardable**: se puede salir y volver sin completar; la validación bloquea la ejecución, no la edición.
+- **Mensajes accionables con ubicación** (etapa/pregunta/opción/campo), detección de IDs duplicados, referencias inexistentes y campos inválidos.
+
+### Exportación e importación JSON
+
+- **Envelope versionado v2** con \`type\`, \`version\`, \`fechaExportacion\`, \`appVersion\` y \`speechs[]\`; migración encadenada 0→1→2 y rechazo explícito de formatos futuros.
+- **Importación con vista previa y confirmación**: estrategias por conflicto (agregar, copia, reemplazar, omitir), IDs regenerados en las copias, errores con ubicación y archivo \`.json\`.
+- **Las objeciones viajan en un snapshot del módulo** y se fusionan por ID sin sobrescribir las del usuario. El export no incluye datos personales de la llamada.
+
+### Ejecución y UI
+
+- **Runner rediseñado**: cabecera con progreso y pill "ETAPA n / total", speech en área cómoda con botón copiar, flujo de dos pasos (elegir opción → confirmar "Continuar"), navegación Atrás / Ir a etapa / Marcar completada / Reiniciar, y paneles de Objeciones y Resumen accesibles sin salir de la llamada.
+- **Cierre gateado** cuando hay datos en curso y diseño responsive en todas las secciones.
+- **Renombre visible**: "Speechs Interactivos" pasa a **"Asistente (Interactivo) de Llamadas"** en la navegación, Ayuda, FAQ, glosario, tour y Configuración.
+
+### Guion de ejemplo ART
+
+- **Guion operativo completo** derivado del documento de trabajo: 8 etapas, 9 estados finales, 12 objeciones frecuentes, 3 módulos y las reglas operativas como contenido editable (no codificadas en el motor).
+- **Seed solo desde el estado vacío** ("Crear guion de ejemplo ART"), idempotente por ID, con fusión de las 12 objeciones sin duplicar ni pisar las existentes.
+
+### Calidad
+
+- Tests nuevos/actualizados para modelo v2, IO, runner, editor, vista y ejemplo ART; suite completa y build de producción verificados.
 
 ## [1.10.11] - Transformador de texto, modal del caso por pestañas y reportes solo desde Reporte rápido
 

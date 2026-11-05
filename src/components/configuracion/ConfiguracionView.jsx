@@ -2078,7 +2078,9 @@ export function ConfiguracionView({
           { key: "tips", label: "Tips" },
           { key: "links", label: "Links útiles" },
           { key: "speechs", label: "Speechs" },
-          { key: "speechs-interactivos", label: "Speechs interactivos" },
+          // Release 1.11.0 (§6): renombre visible del módulo en las categorías
+          // de import/export de Útiles.
+          { key: "speechs-interactivos", label: "Asistente de Llamadas" },
           { key: "objeciones", label: "Objeciones" },
           { key: "art", label: "Aseguradoras (ART)" },
           { key: "transito", label: "Tránsito" },
@@ -2784,7 +2786,7 @@ export function ConfiguracionView({
                 </div>
                 <div>
                   <span style={{ color: "var(--color-text-muted)" }}>
-                    Speechs interactivos:
+                    Asistente de Llamadas:
                   </span>{" "}
                   <b style={{ color: "var(--color-text)" }}>
                     {speechsInteractivos?.length || 0}

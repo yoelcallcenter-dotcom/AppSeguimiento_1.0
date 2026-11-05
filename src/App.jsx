@@ -222,6 +222,8 @@ import { casoVacio, hoyISO, uid } from "./utils/helpers";
 import { validateCaso } from "./validators/casoValidator";
 import { exportarPDF } from "./utils/exportPDF";
 import { APP_VERSION } from "./core/version";
+// Release 1.11.0: normalización de lectura de guiones interactivos (v1→v2).
+import { normalizarSpeech } from "./components/utiles/interactivos/interactiveSpeechModel";
 
 /**
  * Serializa la reprogramación elegida en ReporteRapido al formato CITA del caso:
@@ -394,6 +396,18 @@ function AppContent() {
   const [speechsInteractivos, setSpeechsInteractivos] = useStorage(
     "speechs-interactivos-art-tracker",
     []
+  );
+  // Release 1.11.0 (§2/§5): normalización idempotente v1→v2 en LECTURA.
+  // Es NO destructiva: no escribe en storage por sí misma; los guiones
+  // guardados en la forma vieja se muestran y editan ya normalizados y el
+  // primer cambio/importación los persiste en v2. Así el editor nunca ve
+  // guiones v1 con opciones sueltas.
+  const speechsInteractivosVista = useMemo(
+    () =>
+      Array.isArray(speechsInteractivos)
+        ? speechsInteractivos.map((s) => normalizarSpeech(s))
+        : [],
+    [speechsInteractivos]
   );
   const [objeciones, setObjeciones] = useStorage(
     "objeciones-art-tracker",
@@ -1994,7 +2008,7 @@ function AppContent() {
               setLinks={setLinks}
               speechs={speechs}
               setSpeechs={setSpeechs}
-              speechsInteractivos={speechsInteractivos}
+              speechsInteractivos={speechsInteractivosVista}
               setSpeechsInteractivos={setSpeechsInteractivos}
               objeciones={objeciones}
               setObjeciones={setObjeciones}
@@ -2082,7 +2096,7 @@ function AppContent() {
             setLinks={setLinks}
             speechs={speechs}
             setSpeechs={setSpeechs}
-            speechsInteractivos={speechsInteractivos}
+            speechsInteractivos={speechsInteractivosVista}
             setSpeechsInteractivos={setSpeechsInteractivos}
             objeciones={objeciones}
             setObjeciones={setObjeciones}

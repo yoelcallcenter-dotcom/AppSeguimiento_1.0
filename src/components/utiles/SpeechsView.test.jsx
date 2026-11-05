@@ -23,16 +23,17 @@ describe("SpeechsView (pills Clásicos | Interactivos)", () => {
     const pills = screen.getByLabelText("Secciones de Speechs");
     expect(pills).toBeTruthy();
     expect(screen.getByText("Clásicos")).toBeTruthy();
-    expect(screen.getByText("Interactivos")).toBeTruthy();
+    // Release 1.11.0 (§6): el submódulo pasó a llamarse "Asistente de Llamadas".
+    expect(screen.getByText("Asistente de Llamadas")).toBeTruthy();
     expect(screen.getByPlaceholderText("Escribe un nuevo speech...")).toBeTruthy();
     expect(
       screen.queryByText("No hay speechs interactivos. Creá uno con el botón de arriba.")
     ).toBeNull();
   });
 
-  it("cambia a Interactivos y vuelve a Clásicos", () => {
+  it("cambia a Asistente de Llamadas y vuelve a Clásicos", () => {
     renderVista();
-    fireEvent.click(screen.getByText("Interactivos"));
+    fireEvent.click(screen.getByText("Asistente de Llamadas"));
     expect(
       screen.getByText("No hay speechs interactivos. Creá uno con el botón de arriba.")
     ).toBeTruthy();

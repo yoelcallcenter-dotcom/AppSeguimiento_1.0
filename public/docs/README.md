@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.10.11** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.0** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,15 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.0 — Asistente (Interactivo) de Llamadas: etapas, registro y guion ART
+
+- **Rediseño del módulo** (antes "Speechs Interactivos"): guiones por etapas, preguntas y opciones ramificadas, con respuesta sugerida, acción del operador, datos a registrar, módulos transversales, estados finales y reglas operativas editables.
+- **Registro de la llamada** con 8 tipos de campo (texto corto/largo, selección única/múltiple, sí/no, fecha, hora y observaciones), conservado al navegar y resumido en un panel editable al cierre.
+- **Editor en 8 secciones** (General, Etapas y preguntas, Opciones, Respuestas sugeridas, Módulos, Campos, Estados y Vista previa/validación) con árbol de flujo, checklist de errores/advertencias y borradores siempre guardables.
+- **Ejecución asistida** con progreso "ETAPA n / total", copiado del speech, navegación Atrás/Ir a etapa/Marcar completada/Reiniciar y paneles de Objeciones y Resumen sin salir de la llamada.
+- **Importación/exportación JSON v2** con vista previa, estrategias por conflicto (agregar, copia, reemplazar, omitir), migración de formatos anteriores y fusión de objeciones por ID.
+- **Guion ART de ejemplo** (8 etapas, 9 estados, 12 objeciones) disponible solo con la lista vacía mediante "Crear guion de ejemplo ART", sin duplicarse.
 
 ### 1.10.11 — Transformador de texto y modal del caso por pestañas
 
@@ -136,7 +145,7 @@
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más **Speechs Interactivos** — recorridos con pasos y opciones, editor con árbol de flujo y reordenar con flechas, duplicación de speechs/pasos, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, registro de la llamada, editor con árbol de flujo, duplicación, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables `{OPERADOR}`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 

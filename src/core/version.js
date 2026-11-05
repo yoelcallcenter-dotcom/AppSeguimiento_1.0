@@ -25,7 +25,12 @@
 // los modales del caso (alta solo desde Reporte rápido), sin objeciones, sin
 // pills "+N" e iconos en los 13 labels. Fix de fecha del test de recálculo
 // de OperatorLiquidaciones (dependía de que el mes actual fuera octubre).
-export const APP_VERSION = "1.10.11";
+// v1.11.0: rediseño del asistente interactivo de llamadas (antes "Speechs
+// Interactivos"): modelo v2 por etapas/preguntas/ramificaciones, registro de
+// la llamada en memoria, editor en 8 secciones, IO JSON v2 con fusión de
+// objeciones, runner con progreso y guion de ejemplo ART (8 etapas, 9
+// estados, 12 objeciones) sembrable solo desde el estado vacío.
+export const APP_VERSION = "1.11.0";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

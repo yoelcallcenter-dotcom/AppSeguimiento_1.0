@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { InteractivosView } from "./InteractivosView";
-import { serializarSpeechs, FORMATO_TIPO } from "./speechsInteractivosIO";
+import {
+  serializarSpeechs,
+  FORMATO_TIPO,
+  FORMATO_VERSION,
+} from "./speechsInteractivosIO";
 
 const noop = vi.fn();
 
@@ -41,7 +45,7 @@ const speechSoloInicio = {
   steps: [paso("p1", "", "")],
 };
 
-function ConEstado({ inicial = [], objeciones = [] }) {
+function ConEstado({ inicial = [], objeciones = [], setObjeciones }) {
   const [speechs, setSpeechs] = useState(inicial);
   return (
     <InteractivosView
@@ -49,12 +53,38 @@ function ConEstado({ inicial = [], objeciones = [] }) {
       setSpeechs={setSpeechs}
       showToast={noop}
       objeciones={objeciones}
+      setObjeciones={setObjeciones}
     />
   );
 }
 
 const renderVista = (inicial = [], objeciones = []) =>
   render(<ConEstado inicial={inicial} objeciones={objeciones} />);
+
+/**
+ * Harness para verificar el seed de objeciones del ejemplo ART (§7): expone en
+ * el DOM cuántas objeciones hay y con qué ids, porque InteractivosView no las
+ * renderiza (viven en la vista de Objeciones).
+ */
+function ConObjeciones({ inicial = [], objecionesIniciales = [] }) {
+  const [speechs, setSpeechs] = useState(inicial);
+  const [objeciones, setObjeciones] = useState(objecionesIniciales);
+  return (
+    <>
+      <div data-testid="n-objeciones">{objeciones.length}</div>
+      <div data-testid="titulo-obj-1">
+        {objeciones.find((o) => o.id === "art-obj-1")?.titulo || ""}
+      </div>
+      <InteractivosView
+        speechs={speechs}
+        setSpeechs={setSpeechs}
+        showToast={noop}
+        objeciones={objeciones}
+        setObjeciones={setObjeciones}
+      />
+    </>
+  );
+}
 
 describe("InteractivosView (lista)", () => {
   it("muestra estado vacío y contador en cero", () => {
@@ -63,6 +93,43 @@ describe("InteractivosView (lista)", () => {
       screen.getByText("No hay speechs interactivos. Creá uno con el botón de arriba.")
     ).toBeTruthy();
     expect(screen.getByText("0 speechs interactivos")).toBeTruthy();
+  });
+
+  // Release 1.11.0 (§7): el ejemplo ART se ofrece solo con la lista vacía.
+  it("crea el guion de ejemplo ART desde el estado vacío y no repite el botón", () => {
+    renderVista();
+    const seed = screen
+      .getByText("Crear guion de ejemplo ART")
+      .closest("button");
+    expect(seed).toBeTruthy();
+
+    fireEvent.click(seed);
+
+    expect(screen.getByText("Asistente de llamadas ART (ejemplo)")).toBeTruthy();
+    // La lista dejó de estar vacía: el seed ya no se ofrece.
+    expect(screen.queryByText("Crear guion de ejemplo ART")).toBeNull();
+  });
+
+  it("no ofrece el ejemplo ART cuando ya hay guiones", () => {
+    renderVista([speechValido]);
+    expect(screen.queryByText("Crear guion de ejemplo ART")).toBeNull();
+  });
+
+  it("el seed del ejemplo ART fusiona las 12 objeciones sin pisar las existentes", () => {
+    render(
+      <ConObjeciones
+        objecionesIniciales={[
+          { id: "art-obj-1", titulo: "Mi objeción", contenido: "Texto propio" },
+        ]}
+      />
+    );
+    expect(screen.getByTestId("n-objeciones").textContent).toBe("1");
+
+    fireEvent.click(screen.getByText("Crear guion de ejemplo ART"));
+
+    // 1 existente + 11 nuevas = 12; la existente conserva su contenido.
+    expect(screen.getByTestId("n-objeciones").textContent).toBe("12");
+    expect(screen.getByTestId("titulo-obj-1").textContent).toBe("Mi objeción");
   });
 
   it("crea un speech interactivo y abre el editor", () => {
@@ -116,7 +183,10 @@ describe("InteractivosView (lista)", () => {
 });
 
 describe("InteractivosView (editor y validación)", () => {
-  it("valida en vivo: opción sin destino bloquea Iniciar Speech", () => {
+  // Release 1.11.0 (§2.2): una opción SIN destino ya no es error — el motor
+  // avanza linealmente a la etapa siguiente. El error de validación en vivo
+  // ahora lo produce una opción sin TEXTO (y sigue bloqueando Iniciar Speech).
+  it("valida en vivo: opción sin texto bloquea y sin destino avanza lineal", () => {
     renderVista([speechSoloInicio]);
     fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
     expect(screen.getByText("Listo para ejecutar")).toBeTruthy();
@@ -125,14 +195,23 @@ describe("InteractivosView (editor y validación)", () => {
     fireEvent.click(screen.getByLabelText("Paso 1"));
     fireEvent.click(screen.getByText("Agregar opción"));
 
-    fireEvent.change(screen.getByLabelText("Opción 1 texto"), {
-      target: { value: "Continuar" },
-    });
-    expect(screen.getByText(/no tiene destino/)).toBeTruthy();
+    expect(screen.getByText(/no tiene texto/)).toBeTruthy();
     expect(screen.getByText("Iniciar Speech").closest("button").disabled).toBe(
       true
     );
 
+    fireEvent.change(screen.getByLabelText("Opción 1 texto"), {
+      target: { value: "Continuar" },
+    });
+
+    // Sin destino NO es error: el paso avanza de forma lineal.
+    expect(screen.queryByText(/no tiene destino/)).toBeNull();
+    expect(screen.getByText("Listo para ejecutar")).toBeTruthy();
+    expect(screen.getByText("Iniciar Speech").closest("button").disabled).toBe(
+      false
+    );
+
+    // Asignar un destino explícito tampoco rompe la validación.
     const select = screen.getByLabelText("Opción 1 destino");
     const opciones = within(select).getAllByRole("option");
     fireEvent.change(select, { target: { value: opciones[2].value } });
@@ -164,23 +243,32 @@ describe("InteractivosView (ejecución)", () => {
     renderVista([speechValido]);
     fireEvent.click(screen.getByLabelText("Ejecutar speech interactivo"));
 
-    expect(screen.getByText(/PASO 1 \/ 2/)).toBeTruthy();
+    // Release 1.11.0: el runner muestra "ETAPA n / total" (antes "PASO") y
+    // el avance es en dos pasos: elegir la opción y confirmar "Continuar".
+    expect(screen.getByText(/ETAPA 1 \/ 2/)).toBeTruthy();
     expect(screen.getByText("Atrás").closest("button").disabled).toBe(true);
 
+    fireEvent.click(screen.getByText("Continuar")); // elige la opción
+    fireEvent.click(screen.getByText("Continuar")); // confirma y avanza
+    expect(screen.getByText(/ETAPA 2 \/ 2/)).toBeTruthy();
+
+    // Atrás desde la etapa 2 vuelve a la etapa 1 (historial).
+    fireEvent.click(screen.getByText("Atrás"));
+    expect(screen.getByText(/ETAPA 1 \/ 2/)).toBeTruthy();
+
+    // La última etapa sin opciones muestra "Siguiente"; al avanzar se llega
+    // a la pantalla de fin del recorrido.
     fireEvent.click(screen.getByText("Continuar"));
-    expect(screen.getByText(/PASO 2 \/ 2/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Continuar"));
+    fireEvent.click(screen.getByText("Siguiente"));
     expect(screen.getByText("Fin del recorro")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("Atrás"));
-    expect(screen.getByText(/PASO 1 \/ 2/)).toBeTruthy();
-
-    fireEvent.click(screen.getByText("Continuar"));
     fireEvent.click(screen.getByText("Reiniciar"));
-    expect(screen.getByText(/PASO 1 \/ 2/)).toBeTruthy();
+    expect(screen.getByText(/ETAPA 1 \/ 2/)).toBeTruthy();
     expect(screen.getByText("Atrás").closest("button").disabled).toBe(true);
 
     fireEvent.click(screen.getByText("Cerrar"));
-    expect(screen.queryByText(/PASO 1 \/ 2/)).toBeNull();
+    expect(screen.queryByText(/ETAPA 1 \/ 2/)).toBeNull();
   });
 
   it("no permite ejecutar un speech con errores desde la lista", () => {
@@ -260,7 +348,8 @@ describe("InteractivosView (1.9.1 · exportar)", () => {
     const data = JSON.parse(await blobExportado.text());
     expect(data.type).toBe(FORMATO_TIPO);
     expect(data.type).toBe("appseguimiento-interactive-speech");
-    expect(data.version).toBe(1);
+    // Release 1.11.0: el envelope pasó a la versión 2 (preguntas/ramificaciones).
+    expect(data.version).toBe(FORMATO_VERSION);
     expect(data.fechaExportacion).toBeTruthy();
     expect(data.speechs).toHaveLength(1);
     expect(data.speechs[0].id).toBe("s1");
@@ -303,7 +392,7 @@ describe("InteractivosView (1.9.1 · importar)", () => {
     expect(noop).toHaveBeenCalledWith("1 importados · 0 omitidos", "success");
 
     fireEvent.click(screen.getByLabelText("Ejecutar speech interactivo"));
-    expect(screen.getByText(/PASO 1 \/ 2/)).toBeTruthy();
+    expect(screen.getByText(/ETAPA 1 \/ 2/)).toBeTruthy();
   });
 
   it("conflictos: selector por speech con default Omitir y confirmación al reemplazar", async () => {
@@ -396,7 +485,9 @@ describe("InteractivosView (1.9.1 · importar)", () => {
       ...speechValido,
       id: "sH",
       nombre: "Con huérfano",
-      steps: [...speechValido.steps, paso("p9", "Sueltos", "Sobra", [])],
+      // Release 1.11.0: el avance lineal hace alcanzable todo índice >= inicio,
+      // así que el huérfano debe ir ANTES del paso inicial para serlo.
+      steps: [paso("p9", "Sueltos", "Sobra", []), ...speechValido.steps],
     };
     renderVista();
     await importarTexto(serializarSpeechs([conHuerfano]));
@@ -510,7 +601,9 @@ describe("InteractivosView (1.9.1 · editor completo)", () => {
   it("los huérfanos se advierten sin bloquear Iniciar Speech", () => {
     const conHuerfano = {
       ...speechValido,
-      steps: [...speechValido.steps, paso("p9", "Sueltos", "Sobra", [])],
+      // Release 1.11.0: huérfano antes del inicio (el avance lineal alcanza
+      // todo índice posterior al startStepId).
+      steps: [paso("p9", "Sueltos", "Sobra", []), ...speechValido.steps],
     };
     renderVista([conHuerfano]);
     fireEvent.click(screen.getByLabelText("Editar speech interactivo"));
