@@ -7,6 +7,32 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.11.1] - Constructor visual de flujos interactivos
+
+El Asistente (Interactivo) de Llamadas suma una **novena sección** para ver y editar el guion como un diagrama de flujo. No es un editor paralelo ni un segundo modelo de datos: el constructor trabaja sobre el mismo speech v2, con los mismos mutadores, el mismo `onChange` y la misma validación. El editor tradicional, el árbol, la importación/exportación y los guiones existentes siguen intactos.
+
+### Constructor visual (nueva sección)
+
+- **Grafo colapsado y legible**: nodos de Inicio, Etapa, Pregunta/Decisión, Finalización y Fin. Las respuestas son **puertos de salida** de su pregunta (no nodos sueltos), y la respuesta sugerida, la acción, la finalización y los datos se muestran como badges. El guion ART de ejemplo queda en 30 nodos en lugar de ~90, sin perder información.
+- **Edición integrada por tipo de nodo**: el panel de propiedades cambia según el nodo (título y speech de la etapa, texto y obligatoriedad de la pregunta, respuestas con destino/estado/módulo, nombre del estado final, etapa inicial) y reutiliza los mutadores de 1.11.0. Crear, duplicar, mover y eliminar (con confirmación) etapas, preguntas y respuestas.
+- **Conexiones accesibles**: se elige el puerto de una respuesta y luego la etapa, finalización o el Fin del guion de destino (también disponible como `select` en el inspector). Desconectar devuelve la respuesta al avance automático. Las reglas del grafo son idénticas a `resolverDestino`: `finalizaLlamada` gana, el destino válido entra a esa etapa y sin destino avanza en línea.
+- **Lienzo propio con pan, zoom, arrastre y auto-organizar**, sin librerías de diagramas. Las posiciones se guardan en `speech.layout` (opcional y cosmético) y se sanean al importar; mover un nodo no reorganiza el resto.
+- **Deshacer/rehacer local a la sesión** del constructor, con coalescencia de tecleo (una ráfaga en el mismo campo es un solo paso) y snapshots acotados. No toca el storage por fuera del guardado automático del editor.
+- **Validación navegable**: cada error o advertencia lleva al nodo que lo origina. Los errores bloquean la ejecución pero **nunca el guardado del borrador**; las advertencias nuevas (etapas sin preguntas, preguntas sin respuestas, sin finalización, estados sin uso) solo se muestran dentro del constructor para no alterar el checklist histórico del editor tradicional.
+- **Vista previa del recorrido** reutilizando `SpeechRunner` en modo `preview`, sobre el borrador vivo y sin persistir nada. Permite recorrer guiones con errores (con aviso visible), probar ramas y finalizaciones, y cerrar sin confirmación porque no hay una llamada real en curso.
+- **Eliminación segura**: al borrar una etapa se listan las respuestas que apuntan a ella y se elige el nuevo destino (o quitar la conexión), sin dejar referencias rotas.
+
+### Compatibilidad y datos
+
+- **`layout` opcional sin subir el formato**: los archivos exportados siguen siendo v2 y una instalación 1.11.0 los importa ignorando la clave. Un layout corrupto se descarta sin rechazar el guion. `duplicarSpeech` no arrastra posiciones para que la copia se auto-organice.
+- **Sin cambios destructivos**: no se borran funciones ni se reescriben guiones; la normalización v1→v2 y los contratos de validación/advertencias se conservan.
+
+### Calidad
+
+- **36 tests nuevos** para el grafo (mapeo, reglas de conexión, layout y vista ajustada), el historial, el constructor (selección/edición, conectar/desconectar, deshacer/rehacer, auto-organizar, validación navegable, borrado con referencias y vista previa) y el layout en export/import.
+- Suite completa en verde (142 archivos, 1498 tests) y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.11.1** en `src/core/version.js` (`APP_VERSION`), `package.json` y el `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.11.0] - Asistente (Interactivo) de Llamadas: etapas, registro y guion ART de ejemplo
 
 Rediseño completo del módulo antes llamado "Speechs Interactivos". El guion ahora se organiza en etapas, preguntas y opciones ramificadas; el operador puede registrar la llamada, volver atrás, saltar o completar etapas sin perder datos, y exportar/importar los guiones en un JSON versionado. No hay migraciones destructivas: los guiones guardados en el formato anterior se normalizan al leerse y se persisten en el formato nuevo al primer cambio o importación.

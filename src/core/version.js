@@ -30,7 +30,11 @@
 // la llamada en memoria, editor en 8 secciones, IO JSON v2 con fusión de
 // objeciones, runner con progreso y guion de ejemplo ART (8 etapas, 9
 // estados, 12 objeciones) sembrable solo desde el estado vacío.
-export const APP_VERSION = "1.11.0";
+// v1.11.1: constructor visual de flujos como novena sección del asistente:
+// grafo sobre el mismo modelo v2 (opciones como puertos), edición por nodo,
+// conectar/desconectar, auto-organizar con layout opcional, deshacer/rehacer
+// local, validación navegable y vista previa con el runner (sin persistir).
+export const APP_VERSION = "1.11.1";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

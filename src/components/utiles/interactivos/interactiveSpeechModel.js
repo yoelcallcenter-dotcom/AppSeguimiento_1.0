@@ -402,6 +402,69 @@ export function normalizarSpeech(speech) {
 }
 
 // ---------------------------------------------------------------------------
+// Layout del constructor visual (Release 1.11.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Posiciones de los nodos del constructor visual.
+ *
+ * Por qué vive en el speech y no en un store aparte: el constructor es una
+ * vista del MISMO guion (§6 de la release), así que las posiciones viajan con
+ * el export/backup y no se pierden al recargar. Es una propiedad OPCIONAL y
+ * puramente cosmética:
+ * - Los guiones existentes no la traen y se auto-organizan al abrirlos.
+ * - No se sube FORMATO_VERSION: un archivo nuevo importado en 1.11.0 sigue
+ *   siendo válido (la versión anterior ignora la clave).
+ * - Nunca se usa para resolver el recorrido (eso lo hace el modelo real).
+ *
+ * Forma:
+ *   layout: {
+ *     version: 1,
+ *     nodos: { "inicio": {x,y}, "etapa:<id>": {x,y}, ... },
+ *     vista?: { x, y, zoom }   // opcional; el constructor la maneja en sesión
+ *   }
+ */
+export const LAYOUT_VERSION = 1;
+
+const numeroFinito = (n) => typeof n === "number" && Number.isFinite(n);
+
+/**
+ * Sanea un layout externo (import/backup) sin explotar con basura. Devuelve
+ * null si no hay nada aprovechable para que el llamador pueda descartarlo.
+ */
+export function normalizarLayout(layout) {
+  if (!esObjeto(layout)) return null;
+  const nodos = {};
+  Object.keys(esObjeto(layout.nodos) ? layout.nodos : {}).forEach((clave) => {
+    const p = layout.nodos[clave];
+    if (!esObjeto(p) || !numeroFinito(p.x) || !numeroFinito(p.y)) return;
+    // Redondeo: evita decimales largos acumulados por el zoom en el JSON.
+    nodos[clave] = { x: Math.round(p.x), y: Math.round(p.y) };
+  });
+  const resultado = { version: LAYOUT_VERSION, nodos };
+  if (esObjeto(layout.vista)) {
+    resultado.vista = {
+      x: numeroFinito(layout.vista.x) ? layout.vista.x : 0,
+      y: numeroFinito(layout.vista.y) ? layout.vista.y : 0,
+      zoom: numeroFinito(layout.vista.zoom)
+        ? Math.min(2, Math.max(0.25, layout.vista.zoom))
+        : 1,
+    };
+  }
+  return resultado;
+}
+
+/**
+ * Guarda el layout con el mismo contrato que el resto de mutadores: devuelve
+ * un speech nuevo y bumpea versión/fecha (es un cambio persistido del guion).
+ */
+export function actualizarLayout(speech, layout) {
+  const normal = normalizarLayout(layout);
+  if (!normal) return speech;
+  return conCambio({ ...speech, layout: normal });
+}
+
+// ---------------------------------------------------------------------------
 // Utilidades internas de mutación
 // ---------------------------------------------------------------------------
 
@@ -678,6 +741,33 @@ export function moverPregunta(speech, stepId, preguntaId, delta) {
   const nuevas = [...preguntas];
   const [movida] = nuevas.splice(idx, 1);
   nuevas.splice(destino, 0, movida);
+  return conCambio({
+    ...speech,
+    steps: mapPaso(speech, stepId, (paso) => ({ ...paso, preguntas: nuevas })),
+  });
+}
+
+/**
+ * Duplica una pregunta dentro de su etapa (Release 1.11.1, constructor
+ * visual). Conserva texto, obligatoriedad y TODAS las propiedades de sus
+ * opciones (respuesta sugerida, acción, destino, registro…); solo cambia los
+ * ids para que no colisionen. El destino externo (targetStepId) se mantiene a
+ * propósito: la copia sigue apuntando a la misma etapa.
+ */
+export function duplicarPregunta(speech, stepId, preguntaId) {
+  const actual = pasosDe(speech).find((s) => s.id === stepId);
+  if (!actual) return speech;
+  const preguntas = preguntasDe(pasoNormalizado(actual));
+  const idx = preguntas.findIndex((pr) => pr.id === preguntaId);
+  if (idx === -1) return speech;
+  const original = preguntas[idx];
+  const copia = {
+    ...original,
+    id: nuevoId(),
+    opciones: opcionesDe(original).map((op) => ({ ...op, id: nuevoId() })),
+  };
+  const nuevas = [...preguntas];
+  nuevas.splice(idx + 1, 0, copia);
   return conCambio({
     ...speech,
     steps: mapPaso(speech, stepId, (paso) => ({ ...paso, preguntas: nuevas })),
@@ -1088,8 +1178,14 @@ export function duplicarSpeech(speech) {
     })),
   }));
 
+  // Release 1.11.1: la copia NO hereda el layout del constructor visual.
+  // Los ids de etapas/preguntas cambian, así que las posiciones viejas serían
+  // claves huérfanas; al abrir la copia se auto-organiza. El resto del guion
+  // se copia igual que siempre.
+  const { layout: _layoutIgnorado, ...restoSinLayout } = speech;
+
   return {
-    ...speech,
+    ...restoSinLayout,
     id: nuevoId(),
     nombre: `${speech.nombre || ""} (copia)`.trim(),
     fechaCreacion: ahora,
@@ -1137,48 +1233,270 @@ export function pasosAlcanzables(speech) {
   return new Set([...alcanzables].map((i) => steps[i].id));
 }
 
-export function advertenciasSpeech(speech, objeciones) {
-  const advertencias = [];
-  const steps = Array.isArray(speech.steps) ? speech.steps : [];
-  if (!steps.length) return advertencias;
+/**
+ * Diagnósticos ESTRUCTURADOS del guion (Release 1.11.1, constructor visual).
+ *
+ * Por qué existe: `validarSpeech`/`advertenciasSpeech` devolvían strings y el
+ * lienzo necesita saber a qué nodo pertenece cada problema para poder
+ * seleccionarlo. Esta función conserva EXACTAMENTE los mensajes y el orden de
+ * la 1.11.0 (los tests existentes son el contrato) y agrega la ubicación:
+ * `nodoKey`, `stepId`, `preguntaId`, `opcionId`, `campoId`, `estadoFinalId`.
+ *
+ * Severidades:
+ * - "error": impide ejecutar el speech (no impide guardar el borrador).
+ * - "advertencia": no bloquea; ayuda a detectar recorridos incompletos.
+ *
+ * Opciones internas (para no duplicar lógica ni ruido):
+ * - `incluirAdvertencias: false` → solo errores (lo usa validarSpeech).
+ * - `extendidas: false` → solo las advertencias históricas (las usa el editor
+ *   tradicional en el checklist de siempre). Las advertencias nuevas del
+ *   constructor (sin preguntas, sin respuestas, sin finalización, estados sin
+ *   uso) solo se muestran dentro del constructor visual.
+ */
+export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
+  const { incluirAdvertencias = true, extendidas = true } = opciones;
+  const diagnosticos = [];
+  const agregar = (severidad, mensaje, ubicacion = {}) => {
+    diagnosticos.push({
+      id: `diag-${diagnosticos.length + 1}`,
+      severidad,
+      mensaje,
+      nodoKey: ubicacion.nodoKey || null,
+      stepId: ubicacion.stepId || null,
+      preguntaId: ubicacion.preguntaId || null,
+      opcionId: ubicacion.opcionId || null,
+      campoId: ubicacion.campoId || null,
+      estadoFinalId: ubicacion.estadoFinalId || null,
+      moduloId: ubicacion.moduloId || null,
+    });
+  };
+  const error = (mensaje, ubicacion) => agregar("error", mensaje, ubicacion);
+  const advertencia = (mensaje, ubicacion) => agregar("advertencia", mensaje, ubicacion);
+
+  if (!speech || typeof speech !== "object") {
+    error("El speech está vacío o es inválido.", { nodoKey: "inicio" });
+    return diagnosticos;
+  }
+  if (!speech.nombre || !String(speech.nombre).trim()) {
+    error("El speech no tiene nombre.", { nodoKey: "inicio" });
+  }
+  const steps = pasosDe(speech);
+  if (!steps.length) {
+    error("El speech no tiene ningún paso.", { nodoKey: "inicio" });
+  } else if (!speech.startStepId || !steps.some((s) => s.id === speech.startStepId)) {
+    error("No existe el paso inicial (INICIO).", { nodoKey: "inicio" });
+  }
+
+  // IDs únicos en TODO el árbol: etapas, preguntas, opciones, campos,
+  // estados y módulos. Mismo orden de recolección que la 1.11.0.
+  const ids = [];
+  steps.forEach((paso) => {
+    if (!esObjeto(paso)) return;
+    ids.push(paso.id);
+    preguntasDe(paso).forEach((pr) => {
+      ids.push(pr.id);
+      opcionesDe(pr).forEach((op) => ids.push(op.id));
+    });
+    camposDe(paso).forEach((c) => ids.push(c.id));
+  });
+  estadosDe(speech).forEach((e) => ids.push(e.id));
+  modulosDe(speech).forEach((m) => ids.push(m.id));
+  const vistos = new Set();
+  const duplicados = new Set();
+  ids.forEach((id) => {
+    if (typeof id !== "string" || !id) return; // ids rotos los reporta validarEstructura
+    if (vistos.has(id)) duplicados.add(id);
+    vistos.add(id);
+  });
+  if (duplicados.size) {
+    error(`IDs duplicados: ${[...duplicados].join(", ")}.`);
+  }
+
+  const idsEstados = new Set(estadosDe(speech).map((e) => e.id));
+  const idsModulos = new Set(modulosDe(speech).map((m) => m.id));
+
+  steps.forEach((paso, i) => {
+    if (!esObjeto(paso)) return;
+    const etiquetaPaso = `paso ${i + 1}`;
+    const nodoEtapa = `etapa:${paso.id}`;
+    const p = pasoNormalizado(paso);
+
+    // Campos de registro de la etapa (§3/§4.2)
+    camposDe(p).forEach((c, k) => {
+      const nombre = String(c?.nombre || "").trim();
+      const etiquetaCampo = nombre || `campo ${k + 1}`;
+      const ubicacion = { nodoKey: nodoEtapa, stepId: paso.id, campoId: c?.id || null };
+      if (!nombre) {
+        error(`Un campo del ${etiquetaPaso} no tiene nombre.`, ubicacion);
+      }
+      if (!esTipoCampoValido(c?.tipo)) {
+        error(`El campo "${etiquetaCampo}" del ${etiquetaPaso} tiene un tipo inválido.`, ubicacion);
+      }
+      if (
+        (c?.tipo === "seleccion-unica" || c?.tipo === "seleccion-multiple") &&
+        !(Array.isArray(c?.opciones) && c.opciones.filter(Boolean).length)
+      ) {
+        error(`El campo "${etiquetaCampo}" del ${etiquetaPaso} (selección) no tiene opciones.`, ubicacion);
+      }
+    });
+
+    preguntasDe(p).forEach((pr) => {
+      const nodoPregunta = `pregunta:${pr.id}`;
+      opcionesDe(pr).forEach((op) => {
+        const etiqueta = `La opción "${op.texto || "(sin texto)"}" del ${etiquetaPaso}`;
+        const ubicacion = {
+          nodoKey: nodoPregunta,
+          stepId: paso.id,
+          preguntaId: pr.id,
+          opcionId: op.id,
+        };
+        if (!op.texto || !String(op.texto).trim()) {
+          error(`Una opción del ${etiquetaPaso} no tiene texto.`, ubicacion);
+        }
+        // Destino: solo se valida cuando existe (§4.2 "cuando requieran
+        // navegación"); sin destino la opción avanza en línea.
+        if (
+          op.targetStepId !== null &&
+          op.targetStepId !== undefined &&
+          typeof op.targetStepId !== "string"
+        ) {
+          error(`${etiqueta} tiene destino inválido.`, ubicacion);
+        } else if (op.targetStepId && !steps.some((s) => s.id === op.targetStepId)) {
+          error(`${etiqueta} apunta a un paso que no existe.`, ubicacion);
+        }
+        if (op.estadoFinalId && !idsEstados.has(op.estadoFinalId)) {
+          error(`${etiqueta} apunta a un estado final que no existe.`, ubicacion);
+        }
+        if (op.moduloId && !idsModulos.has(op.moduloId)) {
+          error(`${etiqueta} apunta a un módulo que no existe.`, ubicacion);
+        }
+        (Array.isArray(op.asignaciones) ? op.asignaciones : []).forEach((a) => {
+          if (!a || typeof a.campoId !== "string" || !camposDe(p).some((c) => c.id === a.campoId)) {
+            error(`${etiqueta} tiene un dato de registro sin campo válido.`, ubicacion);
+          }
+        });
+      });
+    });
+  });
+
+  if (!incluirAdvertencias) return diagnosticos;
+
+  // --- Advertencias históricas (idénticas a 1.11.0) ----------------------
   if (Array.isArray(objeciones)) {
     const vistas = new Set();
     // Las llaves {OBJECION:id} pueden aparecer en el speech de la etapa, en
     // el texto de la pregunta, en la respuesta sugerida o en las reglas.
-    const textos = reglasDe(speech).slice();
+    const textos = reglasDe(speech).map((texto) => ({ texto, ubicacion: {} }));
     steps.forEach((paso) => {
       const p = pasoNormalizado(paso);
-      if (p.contenido) textos.push(p.contenido);
+      const ubicacionEtapa = { nodoKey: `etapa:${paso?.id}`, stepId: paso?.id };
+      if (p.contenido) textos.push({ texto: p.contenido, ubicacion: ubicacionEtapa });
       preguntasDe(p).forEach((pr) => {
-        if (pr.texto) textos.push(pr.texto);
+        const ubicacionPregunta = {
+          nodoKey: `pregunta:${pr.id}`,
+          stepId: paso?.id,
+          preguntaId: pr.id,
+        };
+        if (pr.texto) textos.push({ texto: pr.texto, ubicacion: ubicacionPregunta });
         opcionesDe(pr).forEach((op) => {
-          if (op.respuestaSugerida) textos.push(op.respuestaSugerida);
+          if (op.respuestaSugerida) {
+            textos.push({
+              texto: op.respuestaSugerida,
+              ubicacion: { ...ubicacionPregunta, opcionId: op.id },
+            });
+          }
         });
       });
     });
-    textos.forEach((texto) => {
+    textos.forEach(({ texto, ubicacion }) => {
       llavesObjecion(texto).forEach((ref) => {
         const clave = ref.toLowerCase();
         if (vistas.has(clave)) return;
         vistas.add(clave);
         if (!buscarObjecion(ref, objeciones)) {
-          advertencias.push(
-            `La llave {OBJECION:${ref}} no corresponde a ninguna objeción cargada.`
+          advertencia(
+            `La llave {OBJECION:${ref}} no corresponde a ninguna objeción cargada.`,
+            ubicacion
           );
         }
       });
     });
   }
   const alcanzables = pasosAlcanzables(speech);
-  if (!steps.some((s) => s.id === speech.startStepId)) return advertencias;
-  steps.forEach((paso, i) => {
-    if (!alcanzables.has(paso.id)) {
-      advertencias.push(
-        `El paso ${i + 1} ("${paso.titulo || "sin título"}") no está conectado desde el inicio (huérfano).`
+  if (steps.some((s) => s.id === speech.startStepId)) {
+    steps.forEach((paso, i) => {
+      if (!alcanzables.has(paso.id)) {
+        advertencia(
+          `El paso ${i + 1} ("${paso.titulo || "sin título"}") no está conectado desde el inicio (huérfano).`,
+          { nodoKey: `etapa:${paso.id}`, stepId: paso.id }
+        );
+      }
+    });
+  }
+
+  if (!extendidas) return diagnosticos;
+
+  // --- Advertencias del constructor visual (1.11.1) ----------------------
+  // No bloquean: un borrador puede tener preguntas sin respuestas o etapas
+  // "slide". Se muestran en el panel del constructor para guiar la edición.
+  let hayFinalizacion = estadosDe(speech).length > 0;
+  const estadosUsados = new Set();
+  steps.forEach((paso) => {
+    preguntasDe(pasoNormalizado(paso)).forEach((pr) => {
+      opcionesDe(pr).forEach((op) => {
+        if (op.finalizaLlamada) {
+          hayFinalizacion = true;
+          if (op.estadoFinalId) estadosUsados.add(op.estadoFinalId);
+        }
+      });
+    });
+  });
+  if (steps.length && !hayFinalizacion) {
+    advertencia(
+      "El guion no tiene estados finales ni respuestas que finalicen la llamada: los recorridos terminan sin un resultado configurado.",
+      { nodoKey: "fin" }
+    );
+  }
+  estadosDe(speech).forEach((e) => {
+    if (!estadosUsados.has(e.id)) {
+      advertencia(
+        `El estado final "${e.nombre || "sin nombre"}" no se usa en ninguna respuesta que finalice la llamada.`,
+        { nodoKey: `fin:${e.id}`, estadoFinalId: e.id }
       );
     }
   });
-  return advertencias;
+  steps.forEach((paso, i) => {
+    const preguntas = preguntasDe(pasoNormalizado(paso));
+    const etiquetaPaso = `paso ${i + 1}`;
+    if (!preguntas.length) {
+      advertencia(
+        `El ${etiquetaPaso} ("${paso.titulo || "sin título"}") no tiene preguntas: el recorrido avanza automáticamente.`,
+        { nodoKey: `etapa:${paso.id}`, stepId: paso.id }
+      );
+      return;
+    }
+    preguntas.forEach((pr) => {
+      if (!opcionesDe(pr).length) {
+        advertencia(
+          `La pregunta "${pr.texto || "sin texto"}" del ${etiquetaPaso} no tiene respuestas: el operador verá "Siguiente".`,
+          { nodoKey: `pregunta:${pr.id}`, stepId: paso.id, preguntaId: pr.id }
+        );
+      }
+    });
+  });
+
+  return diagnosticos;
+}
+
+/**
+ * Compatibilidad 1.11.0: misms array de strings de advertencias, en el mismo
+ * orden. Las advertencias nuevas del constructor quedan fuera a propósito
+ * para no alterar el checklist del editor tradicional ni sus tests.
+ */
+export function advertenciasSpeech(speech, objeciones) {
+  return diagnosticosSpeech(speech, objeciones, { extendidas: false })
+    .filter((d) => d.severidad === "advertencia")
+    .map((d) => d.mensaje);
 }
 
 // ---------------------------------------------------------------------------
@@ -1242,106 +1560,23 @@ export function camposObligatoriosPendientes(speech, stepId, registro = {}) {
 
 /**
  * Validación de activación/uso (§4.2). Permite borradores incompletos en el
- * editor, pero lista todo lo que impide usar el guion. Cambios 1.11.0:
- * - Un destino YA NO es obligatorio (avance lineal §2.2); solo se valida
- *   cuando existe y apunta a algo que no está.
- * - Nuevos chequeos: tipos de campo, nombres de campo, selecciones sin
- *   opciones, referencias a estados/módulos inexistentes y asignaciones
- *   apuntando a campos ajenos.
+ * editor, pero lista todo lo que impide usar el guion.
+ *
+ * 1.11.1: el cuerpo se movió a `diagnosticosSpeech` (misma lógica + ubicación
+ * por nodo para el constructor visual). Se conservan los mensajes y el orden
+ * de 1.11.0: un destino NO es obligatorio (avance lineal §2.2), solo se valida
+ * cuando existe y apunta a algo que no está.
  */
 export function validarSpeech(speech) {
-  if (!speech || typeof speech !== "object") return ["El speech está vacío o es inválido."];
-  const errores = [];
-  if (!speech.nombre || !String(speech.nombre).trim()) {
-    errores.push("El speech no tiene nombre.");
-  }
-  const steps = Array.isArray(speech.steps) ? speech.steps : [];
-  if (!steps.length) {
-    errores.push("El speech no tiene ningún paso.");
-  } else if (!speech.startStepId || !steps.some((s) => s.id === speech.startStepId)) {
-    errores.push("No existe el paso inicial (INICIO).");
-  }
-
-  // IDs únicos en TODO el árbol: etapas, preguntas, opciones, campos,
-  // estados y módulos (§4.2 "que no haya identificadores duplicados").
-  const ids = [];
-  steps.forEach((paso) => {
-    if (!esObjeto(paso)) return;
-    ids.push(paso.id);
-    preguntasDe(paso).forEach((pr) => {
-      ids.push(pr.id);
-      opcionesDe(pr).forEach((op) => ids.push(op.id));
-    });
-    camposDe(paso).forEach((c) => ids.push(c.id));
-  });
-  estadosDe(speech).forEach((e) => ids.push(e.id));
-  modulosDe(speech).forEach((m) => ids.push(m.id));
-  const vistos = new Set();
-  const duplicados = new Set();
-  ids.forEach((id) => {
-    if (typeof id !== "string" || !id) return; // ids rotos los reporta validarEstructura
-    if (vistos.has(id)) duplicados.add(id);
-    vistos.add(id);
-  });
-  if (duplicados.size) {
-    errores.push(`IDs duplicados: ${[...duplicados].join(", ")}.`);
-  }
-
-  const idsEstados = new Set(estadosDe(speech).map((e) => e.id));
-  const idsModulos = new Set(modulosDe(speech).map((m) => m.id));
-
-  steps.forEach((paso, i) => {
-    if (!esObjeto(paso)) return;
-    const etiquetaPaso = `paso ${i + 1}`;
-    const p = pasoNormalizado(paso);
-
-    // Campos de registro de la etapa (§3/§4.2)
-    camposDe(p).forEach((c, k) => {
-      const nombre = String(c?.nombre || "").trim();
-      const etiquetaCampo = nombre || `campo ${k + 1}`;
-      if (!nombre) {
-        errores.push(`Un campo del ${etiquetaPaso} no tiene nombre.`);
-      }
-      if (!esTipoCampoValido(c?.tipo)) {
-        errores.push(`El campo "${etiquetaCampo}" del ${etiquetaPaso} tiene un tipo inválido.`);
-      }
-      if (
-        (c?.tipo === "seleccion-unica" || c?.tipo === "seleccion-multiple") &&
-        !(Array.isArray(c?.opciones) && c.opciones.filter(Boolean).length)
-      ) {
-        errores.push(`El campo "${etiquetaCampo}" del ${etiquetaPaso} (selección) no tiene opciones.`);
-      }
-    });
-
-    preguntasDe(p).forEach((pr) => {
-      opcionesDe(pr).forEach((op) => {
-        const etiqueta = `La opción "${op.texto || "(sin texto)"}" del ${etiquetaPaso}`;
-        if (!op.texto || !String(op.texto).trim()) {
-          errores.push(`Una opción del ${etiquetaPaso} no tiene texto.`);
-        }
-        // Destino: solo se valida cuando existe (§4.2 "cuando requieran
-        // navegación"); sin destino la opción avanza en línea.
-        if (op.targetStepId !== null && op.targetStepId !== undefined && typeof op.targetStepId !== "string") {
-          errores.push(`${etiqueta} tiene destino inválido.`);
-        } else if (op.targetStepId && !steps.some((s) => s.id === op.targetStepId)) {
-          errores.push(`${etiqueta} apunta a un paso que no existe.`);
-        }
-        if (op.estadoFinalId && !idsEstados.has(op.estadoFinalId)) {
-          errores.push(`${etiqueta} apunta a un estado final que no existe.`);
-        }
-        if (op.moduloId && !idsModulos.has(op.moduloId)) {
-          errores.push(`${etiqueta} apunta a un módulo que no existe.`);
-        }
-        (Array.isArray(op.asignaciones) ? op.asignaciones : []).forEach((a) => {
-          if (!a || typeof a.campoId !== "string" || !camposDe(p).some((c) => c.id === a.campoId)) {
-            errores.push(`${etiqueta} tiene un dato de registro sin campo válido.`);
-          }
-        });
-      });
-    });
-  });
-
-  return errores;
+  // Release 1.11.1: la validación real vive en diagnosticosSpeech (con
+  // ubicación por nodo). Este envoltorio conserva el contrato público de
+  // 1.11.0: un array de strings con los mismos mensajes y orden.
+  return diagnosticosSpeech(speech, undefined, {
+    incluirAdvertencias: false,
+    extendidas: false,
+  })
+    .filter((d) => d.severidad === "error")
+    .map((d) => d.mensaje);
 }
 
 /**
@@ -1376,6 +1611,13 @@ export function validarEstructuraSpeech(obj) {
   }
   if ("modulos" in obj && !Array.isArray(obj.modulos)) {
     errores.push("modulos debe ser una lista.");
+  }
+  // Release 1.11.1: el layout del constructor visual es opcional (los guiones
+  // viejos no lo traen). Si viene, debe ser un objeto; su contenido se sanea
+  // con normalizarLayout al importar, sin rechazar el archivo por posiciones
+  // raras (son cosméticas, nunca afectan la ejecución).
+  if ("layout" in obj && obj.layout !== null && (typeof obj.layout !== "object" || Array.isArray(obj.layout))) {
+    errores.push("layout debe ser un objeto.");
   }
 
   const ids = new Set();

@@ -4,6 +4,7 @@ import {
   advertenciasSpeech,
   duplicarSpeech,
   normalizarSpeech,
+  normalizarLayout,
 } from "./interactiveSpeechModel";
 import { APP_VERSION } from "../../../core/version";
 
@@ -29,6 +30,13 @@ import { APP_VERSION } from "../../../core/version";
  *   sobrescribir (§5.3): solo se agregan las que faltan.
  * - Los datos de llamadas (registro en memoria del runner) NUNCA viajan en
  *   el archivo: solo la definición del guion.
+ *
+ * 1.11.1 — constructor visual:
+ * - El guion puede traer `layout` (posiciones de los nodos). Es OPCIONAL y
+ *   cosmético, por eso NO se sube FORMATO_VERSION: un archivo exportado por
+ *   1.11.1 sigue siendo v2 y una instalación 1.11.0 lo importa ignorando la
+ *   clave. Al importar se sanea con normalizarLayout; un layout corrupto se
+ *   descarta sin rechazar el guion.
  */
 
 export const FORMATO_TIPO = "appseguimiento-interactive-speech";
@@ -163,6 +171,24 @@ export function migrarEnvelope(data) {
   }
 }
 
+/**
+ * Release 1.11.1: normaliza el speech y sanea el layout del constructor.
+ * El layout es cosmético: si viene corrupto se descarta en vez de rechazar el
+ * guion completo. Si es válido se conserva para que el diagrama abra igual.
+ */
+function normalizarSpeechImportado(speech) {
+  const normalizado = normalizarSpeech(speech);
+  if (!normalizado || typeof normalizado !== "object" || !("layout" in normalizado)) {
+    return normalizado;
+  }
+  const layout = normalizarLayout(normalizado.layout);
+  if (!layout) {
+    const { layout: _layoutInvalido, ...resto } = normalizado;
+    return resto;
+  }
+  return { ...normalizado, layout };
+}
+
 export function parsearEnvelope(raw) {
   let data;
   try {
@@ -196,7 +222,7 @@ export function parsearEnvelope(raw) {
   // Red de seguridad: aunque el envelope diga v2, cada guion pasa por la
   // normalización idempotente antes de llegar a la vista (§5.2 "no importar
   // archivos parcialmente dañados de manera silenciosa").
-  return { ok: true, speechs: migrado.speechs.map((s) => normalizarSpeech(s)) };
+  return { ok: true, speechs: migrado.speechs.map(normalizarSpeechImportado) };
 }
 
 export function prepararFilasImport(speechs, existentes = [], objeciones = undefined) {

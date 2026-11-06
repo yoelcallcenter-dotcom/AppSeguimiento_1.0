@@ -69,7 +69,12 @@ function valorVacio(campo, v) {
   return v === undefined || v === null || String(v).trim() === "";
 }
 
-export function SpeechRunner({ speech, onClose, objeciones = [] }) {
+export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecucion" }) {
+  // Release 1.11.1: `modo="preview"` reutiliza este motor desde el constructor
+  // visual. La diferencia es solo de presentación/gate: en vista previa se
+  // permite recorrer un BORRADOR con errores de validación (no se ejecuta una
+  // llamada real ni se persiste nada) y se avisa que es una simulación.
+  const esPreview = modo === "preview";
   // Normalización defensiva al montar: un guion guardado en la forma v1
   // (opciones sueltas en la etapa) se ejecuta igual; es idempotente y no
   // reescribe storage (el mismo criterio que App.jsx en el punto de entrada).
@@ -101,6 +106,9 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
   const [modalKey, setModalKey] = useState(0);
 
   const errores = useMemo(() => validarSpeech(guion), [guion]);
+  // En vista previa los errores NO bloquean el recorrido (el borrador puede
+  // estar incompleto a propósito); se muestran como aviso en el subheader.
+  const erroresBloqueantes = esPreview ? [] : errores;
   const { copiar: copiarSpeech, copiado: speechCopiado } = useClipboard();
   const { copiar: copiarRespuesta, copiado: respuestaCopiada } = useClipboard();
 
@@ -114,7 +122,8 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
   const estadosFinales = Array.isArray(guion.estadosFinales) ? guion.estadosFinales : [];
 
   const sinPasos = steps.length === 0;
-  const finRecorrido = errores.length === 0 && !paso && !sinPasos && !finalizada;
+  const finRecorrido =
+    erroresBloqueantes.length === 0 && !paso && !sinPasos && !finalizada;
   const clavePend = pendiente
     ? claveAclaracion(pos.stepId, pos.preguntaIdx, pendiente.id)
     : "";
@@ -255,6 +264,11 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
 
   /** Cierre gateado: solo pide confirmación si hay datos en curso. */
   const cerrar = () => {
+    // En vista previa no hay llamada real: cerrar no pierde datos.
+    if (esPreview) {
+      onClose();
+      return;
+    }
     if (hayDatosEnCurso) {
       setConfirmarCierre(true);
       return;
@@ -296,8 +310,20 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
             className="text-[10px] font-bold uppercase tracking-wider"
             style={{ color: "var(--color-accent)" }}
           >
-            Modo ejecución
+            {esPreview ? "Vista previa" : "Modo ejecución"}
           </span>
+          {esPreview ? (
+            <span
+              className="pill-sm font-bold"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--color-warning) 13.3%, transparent)",
+                color: "var(--color-warning)",
+              }}
+            >
+              SIN GUARDAR
+            </span>
+          ) : null}
           {paso ? (
             <span
               className="pill-sm font-bold"
@@ -370,6 +396,20 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
           {guion.descripcion}
         </div>
       ) : null}
+      {esPreview && errores.length > 0 ? (
+        <div
+          className="rounded p-1.5 text-[10px]"
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--color-warning) 6.7%, transparent)",
+            border: "1px solid var(--color-warning)",
+            color: "var(--color-warning)",
+          }}
+        >
+          Vista previa de un borrador con {errores.length} error(es) de
+          validación: el recorrido puede quedar incompleto. No se guarda nada.
+        </div>
+      ) : null}
       {barraProgreso}
     </div>
   );
@@ -409,14 +449,18 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
       <BtnOutline onClick={reiniciar} icon={RotateCcw} size="sm">
         Reiniciar
       </BtnOutline>
-      <Btn onClick={cerrar} size="sm" ariaLabel="Cerrar llamada">
-        Cerrar
+      <Btn
+        onClick={cerrar}
+        size="sm"
+        ariaLabel={esPreview ? "Cerrar vista previa" : "Cerrar llamada"}
+      >
+        {esPreview ? "Cerrar vista previa" : "Cerrar"}
       </Btn>
     </>
   );
 
   let cuerpo;
-  if (errores.length > 0) {
+  if (erroresBloqueantes.length > 0) {
     cuerpo = (
       <div
         className="rounded-lg p-4 flex items-start gap-2 text-sm"
@@ -478,8 +522,11 @@ export function SpeechRunner({ speech, onClose, objeciones = [] }) {
           <BtnOutline icon={RotateCcw} onClick={reiniciar}>
             Nueva llamada
           </BtnOutline>
-          <Btn onClick={cerrar} ariaLabel="Cerrar llamada">
-            Cerrar
+          <Btn
+            onClick={cerrar}
+            ariaLabel={esPreview ? "Cerrar vista previa" : "Cerrar llamada"}
+          >
+            {esPreview ? "Cerrar vista previa" : "Cerrar"}
           </Btn>
         </div>
       </div>

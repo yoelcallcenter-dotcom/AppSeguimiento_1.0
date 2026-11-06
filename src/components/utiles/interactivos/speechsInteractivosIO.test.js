@@ -151,6 +151,37 @@ describe("speechsInteractivosIO", () => {
     expect(validarSpeech(lista[0])).toEqual([]);
   });
 
+  it("conserva el layout del constructor sin subir la versión del formato", () => {
+    const speech = {
+      ...armarSpeech(),
+      layout: {
+        version: 1,
+        nodos: { "etapa:e1": { x: 10, y: 20 }, inicio: { x: 0, y: 0 } },
+        vista: { x: 4, y: 8, zoom: 1.25 },
+      },
+    };
+    const texto = serializarSpeechs([speech]);
+    const data = JSON.parse(texto);
+    // El layout es cosmético: el archivo sigue siendo v2 (compatible 1.11.0).
+    expect(data.version).toBe(2);
+    expect(data.speechs[0].layout).toEqual(speech.layout);
+
+    const parseado = parsearEnvelope(texto);
+    expect(parseado.ok).toBe(true);
+    expect(parseado.speechs[0].layout).toEqual(speech.layout);
+  });
+
+  it("descarta un layout corrupto sin rechazar el guion", () => {
+    const base = armarSpeech();
+    const conBasura = { ...base, layout: "no-es-un-layout" };
+    const parseado = parsearEnvelope(serializarSpeechs([conBasura]));
+    expect(parseado.ok).toBe(true);
+    expect(parseado.speechs[0]).not.toHaveProperty("layout");
+    // El resto del guion queda intacto e importable.
+    expect(parseado.speechs[0].steps).toHaveLength(base.steps.length);
+    expect(prepararFilasImport(parseado.speechs, [])[0].estado).toBe("nuevo");
+  });
+
   it("nombreArchivoSpeechs sigue el patrón de la app", () => {
     expect(nombreArchivoSpeechs()).toMatch(/^speechs_interactivos_\d{4}-\d{2}-\d{2}\.json$/);
   });

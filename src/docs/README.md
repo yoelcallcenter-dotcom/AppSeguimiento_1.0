@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.11.0** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.1** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,14 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.1 — Constructor visual de flujos interactivos
+
+- **Nueva sección "Constructor visual"** en el Asistente (Interactivo) de Llamadas: el guion se ve como un diagrama sobre el mismo modelo v2, con nodos de inicio, etapa, pregunta/decisión, finalización y fin. Las respuestas son puertos de salida con badges de respuesta sugerida, acción y finalización.
+- **Edición en el lienzo**: crear, seleccionar, duplicar, mover y eliminar (con confirmación) etapas, preguntas y respuestas; conectar un puerto con una etapa, finalización o el Fin del guion y desconectar para volver al avance automático. Las conexiones respetan las mismas reglas que el runner.
+- **Pan, zoom, arrastre y auto-organizar** con posiciones guardadas en un `layout` opcional (el formato de archivo sigue siendo v2), más **deshacer/rehacer** local a la sesión del constructor.
+- **Validación navegable y vista previa**: cada error o advertencia lleva a su nodo; los errores bloquean la ejecución pero no el borrador. La vista previa reutiliza el runner sobre el borrador vivo, sin persistir nada y permitiendo recorrer guiones incompletos.
+- **Editor tradicional intacto**: el árbol, la importación/exportación, la duplicación y los guiones existentes siguen funcionando igual.
 
 ### 1.11.0 — Asistente (Interactivo) de Llamadas: etapas, registro y guion ART
 

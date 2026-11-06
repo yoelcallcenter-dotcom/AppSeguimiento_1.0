@@ -69,6 +69,7 @@ import {
   Flag,
   Eye,
   FileText,
+  Network,
 } from "lucide-react";
 import { Btn } from "../../common/Btn";
 import { BtnOutline } from "../../common/BtnOutline";
@@ -117,6 +118,7 @@ import { resolverObjeciones } from "./resolveObjeciones";
 import { normalizarTexto } from "../../../utils/helpers";
 import { useClipboard } from "../../../hooks/useClipboard";
 import { FlowTree } from "./FlowTree";
+import { ConstructorVisual } from "./constructor/ConstructorVisual";
 
 /** Secciones del editor (§4), en el orden del spec. */
 const SECCIONES = [
@@ -128,6 +130,9 @@ const SECCIONES = [
   { id: "campos", etiqueta: "Campos", icon: ClipboardList },
   { id: "estados", etiqueta: "Estados", icon: Flag },
   { id: "vista", etiqueta: "Vista previa/validación", icon: Eye },
+  // Release 1.11.1: novena sección. Es una VISTA del mismo guion, no un
+  // editor alternativo: comparte `onChange` y la validación de las otras.
+  { id: "constructor", etiqueta: "Constructor visual", icon: Network },
 ];
 
 const etiquetaPaso = (speech, paso, index) => {
@@ -1680,7 +1685,7 @@ export function SpeechEditor({
         Borrador guardado automáticamente: cada cambio se persiste al instante.
       </div>
 
-      {/* 8 secciones (patrón LiquidacionesConfig). */}
+      {/* 9 secciones (patrón LiquidacionesConfig). */}
       <div
         role="tablist"
         aria-label="Secciones del editor"
@@ -1713,28 +1718,42 @@ export function SpeechEditor({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-3 items-start">
-        {/* El árbol SIEMPRE visible: navegación + contexto de etapa. */}
-        <FlowTree
-          speech={guion}
-          pasoId={paso ? paso.id : null}
-          onSelectPaso={setPasoId}
-          onNuevoPaso={handleNuevoPaso}
-          onMoverPaso={handleMoverPaso}
-        />
-
-        <div
-          role="tabpanel"
-          aria-label={seccionActual.etiqueta}
-          className="rounded-lg p-3 space-y-3"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-          }}
-        >
-          {renderSeccion()}
+      {seccion === "constructor" ? (
+        // Release 1.11.1: el constructor ocupa el ancho completo (sin FlowTree)
+        // porque ya dibuja la estructura del guion con navegación propia.
+        <div role="tabpanel" aria-label={seccionActual.etiqueta}>
+          <ConstructorVisual
+            speech={guion}
+            onChange={onChange}
+            objeciones={objeciones}
+            showToast={showToast}
+            onVolverAlEditor={() => setSeccion("etapas")}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-3 items-start">
+          {/* El árbol SIEMPRE visible: navegación + contexto de etapa. */}
+          <FlowTree
+            speech={guion}
+            pasoId={paso ? paso.id : null}
+            onSelectPaso={setPasoId}
+            onNuevoPaso={handleNuevoPaso}
+            onMoverPaso={handleMoverPaso}
+          />
+
+          <div
+            role="tabpanel"
+            aria-label={seccionActual.etiqueta}
+            className="rounded-lg p-3 space-y-3"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            {renderSeccion()}
+          </div>
+        </div>
+      )}
 
       <Modal
         isOpen={eliminando !== null}
