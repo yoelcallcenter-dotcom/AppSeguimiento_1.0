@@ -41,7 +41,7 @@ import { normalizarTexto } from "../../../utils/helpers";
  * camposObligatoriosPendientes del modelo, para que el gate de
  * obligatorios coincida exactamente con lo que se pinta acá).
  */
-export function CampoRegistro({ campo, value, onChange }) {
+function CampoRegistroControl({ campo, value, onChange }) {
   if (!campo) return null;
   const etiqueta = campo.nombre || "(campo sin nombre)";
   const opcionesSel = (Array.isArray(campo.opciones) ? campo.opciones : [])
@@ -143,6 +143,41 @@ export function CampoRegistro({ campo, value, onChange }) {
     );
   }
 
+  // Número (1.11.3): se guarda como string para no romper el registro JSON y
+  // permitir el estado "sin responder" (""), que es distinto de 0.
+  if (campo.tipo === "numero") {
+    return (
+      <Field label={etiqueta}>
+        <TextInput
+          type="number"
+          inputMode="decimal"
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange?.(e.target.value)}
+          placeholder="Número..."
+        />
+      </Field>
+    );
+  }
+
+  // Casilla (1.11.3): booleano real. "Sin marcar" cuenta como vacío en el
+  // gate, así que una casilla obligatoria exige marcarla.
+  if (campo.tipo === "casilla") {
+    return (
+      <label
+        className="flex items-start gap-2 text-sm cursor-pointer"
+        style={{ color: "var(--color-text)" }}
+      >
+        <input
+          type="checkbox"
+          checked={value === true}
+          onChange={(e) => onChange?.(e.target.checked)}
+          style={{ marginTop: 2 }}
+        />
+        <span>{etiqueta}</span>
+      </label>
+    );
+  }
+
   // Texto corto (y cualquier tipo desconocido: se degrada a texto corto para
   // no perder lo que el operador haya escrito).
   return (
@@ -153,6 +188,38 @@ export function CampoRegistro({ campo, value, onChange }) {
         placeholder="Respuesta del trabajador..."
       />
     </Field>
+  );
+}
+
+/**
+ * Envoltorio de CampoRegistro: agrega ayuda y marca de obligatorio sin
+ * duplicar el render de cada tipo. Los tipos multilínea ocupan las dos
+ * columnas de la grilla igual que antes.
+ */
+export function CampoRegistro(props) {
+  const { campo } = props;
+  if (!campo) return null;
+  const ancho =
+    campo.tipo === "texto-largo" || campo.tipo === "observaciones"
+      ? "sm:col-span-2"
+      : "";
+  return (
+    <div className={`space-y-1 ${ancho}`}>
+      <CampoRegistroControl {...props} />
+      {campo.obligatorio ? (
+        <div
+          className="text-[10px] font-bold uppercase tracking-wider"
+          style={{ color: "var(--color-warning)" }}
+        >
+          Obligatorio
+        </div>
+      ) : null}
+      {campo.descripcion ? (
+        <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+          {campo.descripcion}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -259,6 +326,166 @@ export function PanelObjeciones({ open, onClose, objeciones = [], consultadas = 
               </Btn>
             </div>
           ))
+        )}
+      </div>
+    </SidePanel>
+  );
+}
+
+/**
+ * PanelRegistro — panel lateral de la plantilla de registro (1.11.3).
+ * Muestra TODOS los campos visibles (plantilla + etapas), distingue dato
+ * automático de manual, calcula completitud y avisa por obligatorios
+ * pendientes y por datos manuales que quedaron ocultos por una condición.
+ * El speech de la etapa sigue teniendo prioridad visual: este panel se abre
+ * a demanda y nunca reemplaza el área central.
+ */
+export function PanelRegistro({
+  open,
+  onClose,
+  campos = [],
+  visibilidad = {},
+  registro = {},
+  origen = {},
+  incompatibles = [],
+  onChangeCampo,
+  validacion = { completos: 0, total: 0, porcentaje: 100, pendientes: [] },
+}) {
+  const visibles = (Array.isArray(campos) ? campos : []).filter(
+    (c) => c && c.id && visibilidad[c.id] !== false
+  );
+  const ocultosManuales = (Array.isArray(campos) ? campos : []).filter(
+    (c) => c && incompatibles.includes(c.id)
+  );
+  return (
+    <SidePanel
+      isOpen={open}
+      onClose={onClose}
+      title="Registro de la llamada"
+      icon={ClipboardList}
+      footer={
+        <div
+          className="px-4 py-3 border-t flex justify-end"
+          style={{ borderColor: "var(--color-border)" }}
+        >
+          <BtnOutline size="sm" icon={ArrowLeft} onClick={onClose}>
+            Volver a la llamada
+          </BtnOutline>
+        </div>
+      }
+    >
+      <div className="p-4 space-y-4">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span style={{ color: "var(--color-text-muted)" }}>Completitud</span>
+            <span className="font-bold" style={{ color: "var(--color-text)" }}>
+              {validacion.completos}/{validacion.total} · {validacion.porcentaje}%
+            </span>
+          </div>
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={validacion.porcentaje}
+            className="h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: "var(--color-border)" }}
+          >
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${validacion.porcentaje}%`,
+                backgroundColor:
+                  validacion.porcentaje === 100
+                    ? "var(--color-success)"
+                    : "var(--color-accent)",
+              }}
+            />
+          </div>
+        </div>
+
+        {validacion.pendientes.length ? (
+          <div
+            role="alert"
+            className="rounded-lg p-3 text-xs"
+            style={{
+              backgroundColor:
+                "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
+              border: "1px solid var(--color-danger)",
+              color: "var(--color-danger)",
+            }}
+          >
+            Faltan obligatorios:{" "}
+            {validacion.pendientes.map((c) => c.nombre || c.id).join(", ")}.
+          </div>
+        ) : null}
+
+        {ocultosManuales.length ? (
+          <div
+            role="status"
+            className="rounded-lg p-3 text-xs"
+            style={{
+              backgroundColor:
+                "color-mix(in srgb, var(--color-warning) 6.7%, transparent)",
+              border: "1px solid var(--color-warning)",
+              color: "var(--color-warning)",
+            }}
+          >
+            Estos datos escritos a mano ya no corresponden al recorrido actual y
+            se conservan hasta que los revises:{" "}
+            {ocultosManuales.map((c) => c.nombre || c.id).join(", ")}.
+          </div>
+        ) : null}
+
+        {visibles.length ? (
+          visibles.map((c) => (
+            <div
+              key={c.id}
+              className="rounded-lg p-3 space-y-2"
+              style={{
+                backgroundColor: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <CampoRegistro
+                campo={c}
+                value={registro[c.id]}
+                onChange={(v) => onChangeCampo?.(c.id, v)}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="pill-sm font-bold"
+                  style={
+                    origen[c.id] === "auto"
+                      ? {
+                          backgroundColor:
+                            "color-mix(in srgb, var(--color-accent) 13.3%, transparent)",
+                          color: "var(--color-accent)",
+                        }
+                      : {
+                          backgroundColor:
+                            "color-mix(in srgb, var(--color-text-muted) 13.3%, transparent)",
+                          color: "var(--color-text-muted)",
+                        }
+                  }
+                >
+                  {origen[c.id] === "auto" ? "AUTOMÁTICO" : "MANUAL"}
+                </span>
+                {c.pasoId ? (
+                  <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                    Asociado a una etapa
+                  </span>
+                ) : (
+                  <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                    Global
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-sm text-center py-4" style={{ color: "var(--color-text-muted)" }}>
+            Esta llamada no tiene campos de registro.
+          </div>
         )}
       </div>
     </SidePanel>

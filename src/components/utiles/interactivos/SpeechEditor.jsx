@@ -119,6 +119,7 @@ import { normalizarTexto } from "../../../utils/helpers";
 import { useClipboard } from "../../../hooks/useClipboard";
 import { FlowTree } from "./FlowTree";
 import { ConstructorVisual } from "./constructor/ConstructorVisual";
+import { PlantillaRegistroEditor } from "./PlantillaRegistroEditor";
 
 /** Secciones del editor (§4), en el orden del spec. */
 const SECCIONES = [
@@ -128,6 +129,8 @@ const SECCIONES = [
   { id: "respuestas", etiqueta: "Respuestas sugeridas", icon: MessageSquare },
   { id: "modulos", etiqueta: "Módulos", icon: BookOpen },
   { id: "campos", etiqueta: "Campos", icon: ClipboardList },
+  // Release 1.11.3: campos a nivel speech (plantilla) con condiciones y mapeo.
+  { id: "plantilla", etiqueta: "Plantilla de registro", icon: ClipboardList },
   { id: "estados", etiqueta: "Estados", icon: Flag },
   { id: "vista", etiqueta: "Vista previa/validación", icon: Eye },
   // Release 1.11.1: novena sección. Es una VISTA del mismo guion, no un
@@ -1255,7 +1258,7 @@ export function SpeechEditor({
           </div>
           <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
             Se cargan durante la llamada, sobreviven a navegar entre etapas y se
-            ven en el Resumen (§3). 8 tipos disponibles.
+            ven en el Resumen (§3). 10 tipos disponibles.
           </div>
           {camposPaso.length === 0 ? (
             <div className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
@@ -1374,6 +1377,18 @@ export function SpeechEditor({
             ))
           )}
         </div>
+      );
+    }
+
+    // Release 1.11.3: plantilla de registro a nivel speech. Es una vista del
+    // mismo guion; el editor de campos por etapa sigue en la sección anterior.
+    if (seccion === "plantilla") {
+      return (
+        <PlantillaRegistroEditor
+          speech={guion}
+          onChange={onChange}
+          showToast={showToast}
+        />
       );
     }
 

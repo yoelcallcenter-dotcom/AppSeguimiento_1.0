@@ -45,7 +45,12 @@ import { useModal } from "../../../../hooks/useModal";
 import { useClipboard } from "../../../../hooks/useClipboard";
 import { resolverDestino } from "../interactiveSpeechModel";
 import { resolverObjeciones } from "../resolveObjeciones";
-import { PanelObjeciones, PanelResumen, CampoRegistro } from "../RunnerPaneles";
+import {
+  PanelObjeciones,
+  PanelRegistro,
+  PanelResumen,
+  CampoRegistro,
+} from "../RunnerPaneles";
 import {
   clavePosicion,
   respuestaDe,
@@ -136,6 +141,11 @@ export function ModoLlamada({
   objeciones = [],
   sesionInicial = null,
   avisoGuionCambiado = false,
+  // 1.11.3: casos existentes para asociar el registro confirmado. El guardado
+  // lo hace el contenedor (App) sobre el módulo de casos; acá NO se crea una
+  // base paralela ni se inventan casos.
+  casos = [],
+  onGuardarRegistro,
   onGuardar,
   onDescartar,
   onClose,
@@ -148,7 +158,6 @@ export function ModoLlamada({
     pasoIdx,
     pregunta,
     opciones,
-    campos,
     estadosFinales,
     pendiente,
     pendientes,
@@ -163,6 +172,14 @@ export function ModoLlamada({
     enFin,
     respuestas,
     registro,
+    // 1.11.3: plantilla, visibilidad/completitud y confirmación explícita.
+    camposRegistro,
+    visibilidad,
+    origen,
+    incompatibles,
+    validacionRegistro,
+    resumen,
+    confirmada,
     consultadas,
     notas,
     finalizada,
@@ -176,6 +193,9 @@ export function ModoLlamada({
     setNotas,
     registrarConsultada,
     finalizar,
+    confirmar,
+    datosCaso,
+    snapshotHistorial,
     analizarCambio,
     aplicarCambio,
   } = useSesionLlamada({ speech, sesionInicial, onCambio: onGuardar });
@@ -198,6 +218,10 @@ export function ModoLlamada({
   const [saliendo, setSaliendo] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [estadoFinalSel, setEstadoFinalSel] = useState("");
+  // 1.11.3: confirmación del registro y asociación explícita a un caso.
+  const [casoDestinoId, setCasoDestinoId] = useState("");
+  const [guardarParcial, setGuardarParcial] = useState(false);
+  const [errorRegistro, setErrorRegistro] = useState("");
   const [cambioPendiente, setCambioPendiente] = useState(null);
   const [avisoCambioVisible, setAvisoCambioVisible] = useState(
     Boolean(avisoGuionCambiado)
@@ -232,13 +256,21 @@ export function ModoLlamada({
 
   const nombreCampo = useMemo(() => {
     const mapa = {};
-    steps.forEach((s) => {
-      (Array.isArray(s?.camposRegistro) ? s.camposRegistro : []).forEach((c) => {
-        if (c?.id) mapa[c.id] = c.nombre || c.id;
-      });
+    camposRegistro.forEach((c) => {
+      if (c?.id) mapa[c.id] = c.nombre || c.id;
     });
     return mapa;
-  }, [steps]);
+  }, [camposRegistro]);
+
+  // Campos que se muestran junto al speech: los asociados a la etapa actual
+  // y visibles según las condiciones. Los globales viven en el panel Registro.
+  const camposEtapa = useMemo(
+    () =>
+      camposRegistro.filter(
+        (c) => c && visibilidad[c.id] !== false && c.pasoId === paso?.id
+      ),
+    [camposRegistro, visibilidad, paso]
+  );
 
   const destinoLabel = useMemo(() => {
     if (!paso || !pendiente) return "";
@@ -307,11 +339,39 @@ export function ModoLlamada({
   const abrirFinalizar = () => {
     setPanel(null);
     setEstadoFinalSel("");
+    setErrorRegistro("");
     setFinalizando(true);
   };
 
+  /**
+   * Cierre en dos pasos (1.11.3): finalizar el recorrido y después confirmar
+   * el registro. Si faltan obligatorios, se muestra el detalle y NO se cierra
+   * el modal; el operador puede volver al panel de registro o guardar parcial.
+   * El guardado definitivo en el caso se delega al contenedor mediante
+   * `onGuardarRegistro` (módulo de casos existente).
+   */
   const confirmarFinalizar = () => {
+    setErrorRegistro("");
     finalizar(estadoFinalSel);
+    const evento = confirmar({ permitirParcial: guardarParcial });
+    if (evento?.tipo === "registro-incompleto") {
+      setErrorRegistro(
+        (evento.errores || [])
+          .map((e) => `${e.nombre}: ${e.mensaje}`)
+          .join(" ")
+      );
+      return;
+    }
+    const nombreEstado =
+      estadosFinales.find((e) => e && e.id === estadoFinalSel)?.nombre || "";
+    onGuardarRegistro?.({
+      casoId: casoDestinoId,
+      speech: guion,
+      sesion: snapshotHistorial(nombreEstado),
+      resumen: evento?.resumen || resumen,
+      datosCaso: evento?.datosCaso || datosCaso(),
+      parcial: Boolean(evento?.parcial),
+    });
     setFinalizando(false);
     setAvisoGate(false);
   };
@@ -393,9 +453,23 @@ export function ModoLlamada({
           </div>
         )}
         <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-          El resumen de la llamada queda disponible hasta cerrar esta pantalla.
+          {confirmada
+            ? "Registro confirmado. Si asociaste un caso, quedó guardado en su historial."
+            : "El registro todavía no está confirmado: revisá los datos y confirmá el cierre."}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
+          {!confirmada ? (
+            <Btn icon={Check} onClick={abrirFinalizar}>
+              Confirmar registro
+            </Btn>
+          ) : null}
+          <BtnOutline
+            icon={ClipboardList}
+            onClick={() => setPanel("registro")}
+            ariaLabel="Ver registro"
+          >
+            Ver registro
+          </BtnOutline>
           <BtnOutline
             icon={ClipboardList}
             onClick={() => setPanel("resumen")}
@@ -645,16 +719,26 @@ export function ModoLlamada({
           </div>
         )}
 
-        {campos.length ? (
+        {camposEtapa.length ? (
           <section className="space-y-3">
-            <div
-              className="text-[10px] font-bold uppercase tracking-wider"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              Registro de la llamada
+            <div className="flex items-center justify-between gap-2">
+              <div
+                className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Registro de la etapa
+              </div>
+              <button
+                type="button"
+                onClick={() => setPanel("registro")}
+                className="text-[11px] font-semibold hover:underline"
+                style={{ color: "var(--color-accent)" }}
+              >
+                Ver todo el registro
+              </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {campos.map((c) => (
+              {camposEtapa.map((c) => (
                 <CampoRegistro
                   key={c.id}
                   campo={c}
@@ -763,6 +847,14 @@ export function ModoLlamada({
             <BtnOutline
               size="sm"
               icon={ClipboardList}
+              onClick={() => setPanel("registro")}
+              ariaLabel="Abrir registro"
+            >
+              <span className="hidden md:inline">Registro</span>
+            </BtnOutline>
+            <BtnOutline
+              size="sm"
+              icon={ClipboardList}
               onClick={() => setPanel("resumen")}
               ariaLabel="Abrir resumen"
             >
@@ -862,6 +954,17 @@ export function ModoLlamada({
         consultadas={consultadas}
         onCopiada={registrarConsultada}
       />
+      <PanelRegistro
+        open={panel === "registro"}
+        onClose={() => setPanel(null)}
+        campos={camposRegistro}
+        visibilidad={visibilidad}
+        registro={registro}
+        origen={origen}
+        incompatibles={incompatibles}
+        onChangeCampo={setCampo}
+        validacion={validacionRegistro}
+      />
       <PanelResumen
         open={panel === "resumen"}
         onClose={() => setPanel(null)}
@@ -937,7 +1040,88 @@ export function ModoLlamada({
             Confirmá que el trabajador aceptó el estado registrado. No se marca una
             derivación como confirmada sin su aceptación.
           </p>
+
+          {/* 1.11.3: el registro se asocia a un caso EXISTENTE. Sin caso, se
+              puede confirmar la llamada pero no se escribe en el módulo. */}
+          {onGuardarRegistro ? (
+            <Select
+              label="Caso asociado (opcional)"
+              id="caso-registro-modo-llamada"
+              value={casoDestinoId}
+              onChange={(e) => setCasoDestinoId(e.target.value)}
+              placeholder={
+                casos.length
+                  ? "Elegir un caso para guardar el registro"
+                  : "No hay casos cargados"
+              }
+              options={casos.map((c) => ({
+                value: c.id,
+                label: `${c.nombre || "(sin nombre)"}${c.localidad ? ` · ${c.localidad}` : ""}`,
+              }))}
+            />
+          ) : null}
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span style={{ color: "var(--color-text-muted)" }}>Completitud del registro</span>
+              <span className="font-bold" style={{ color: "var(--color-text)" }}>
+                {validacionRegistro.completos}/{validacionRegistro.total} ·{" "}
+                {validacionRegistro.porcentaje}%
+              </span>
+            </div>
+            {validacionRegistro.pendientes.length ? (
+              <div className="text-xs" style={{ color: "var(--color-danger)" }}>
+                Faltan:{" "}
+                {validacionRegistro.pendientes
+                  .map((c) => c.nombre || c.id)
+                  .join(", ")}
+                .
+              </div>
+            ) : null}
+          </div>
+
+          {errorRegistro ? (
+            <div
+              role="alert"
+              className="rounded-lg p-3 text-xs"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--color-danger) 6.7%, transparent)",
+                border: "1px solid var(--color-danger)",
+                color: "var(--color-danger)",
+              }}
+            >
+              {errorRegistro}
+            </div>
+          ) : null}
+
+          <label
+            className="flex items-start gap-2 text-xs cursor-pointer"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            <input
+              type="checkbox"
+              checked={guardarParcial}
+              onChange={(e) => setGuardarParcial(e.target.checked)}
+              style={{ marginTop: 2 }}
+            />
+            <span>
+              Permitir guardado parcial aunque falten datos obligatorios. Quedarán
+              marcados como pendientes en el historial.
+            </span>
+          </label>
+
           <div className="flex flex-wrap items-center gap-2">
+            <BtnOutline
+              size="sm"
+              icon={ClipboardList}
+              onClick={() => {
+                setFinalizando(false);
+                setPanel("registro");
+              }}
+            >
+              Revisar registro
+            </BtnOutline>
             <BtnOutline
               size="sm"
               icon={ClipboardList}

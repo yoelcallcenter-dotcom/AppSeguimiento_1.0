@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.11.2** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.3** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,14 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.3 — Plantillas de registro vinculadas a los speeches
+
+- **Plantilla por speech**: campos con nombre visible, id estable, descripción, tipo (10 tipos: texto, número, fecha, hora, selección, casilla, sí/no y observaciones), obligatoriedad, valor predeterminado, opciones y orden. Se suman a los campos por etapa de 1.11.0 sin duplicar datos.
+- **Condiciones de visibilidad genéricas** (campo + operador + valor) y **vinculación explícita desde el constructor visual**: una respuesta completa campos por id, sin depender de nombres escritos.
+- **Panel Registro en el Modo llamada**: completitud, obligatorios pendientes, datos automáticos vs. manuales, recálculo al cambiar respuestas y aviso de datos manuales que dejaron de corresponder (nunca se borran solos).
+- **Cierre en dos pasos**: resumen editable, confirmación explícita y guardado parcial opcional. El registro se asocia a un **caso existente** (elegido por el operador) y queda en su historial con speech id, versión, fecha/hora, resultado y datos; sin caso no se escribe en el módulo y nunca se crean casos automáticamente.
+- **Compatibilidad**: JSON v2 con plantilla, duplicado con ids nuevos y backups que conservan los registros; el ejemplo ART migra sus campos conservando asociaciones y agrega condiciones/mapeos al caso.
 
 ### 1.11.2 — Modo llamada para ejecutar speeches
 
@@ -161,7 +169,7 @@
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, registro de la llamada, editor con árbol de flujo, duplicación, ejecución paso a paso, **Modo llamada** con llamadas pendientes retomables y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, plantillas de registro con condiciones y mapeo al caso, editor con árbol de flujo, duplicación, ejecución paso a paso, **Modo llamada** con llamadas pendientes retomables y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables `{OPERADOR}`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 

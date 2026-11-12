@@ -1,5 +1,25 @@
 import { sanitizeString } from "../../../utils/sanitize";
 import { buscarObjecion, llavesObjecion } from "./resolveObjeciones";
+// Release 1.11.3: el motor de plantillas es la fuente única de tipos, valores
+// y condiciones. El modelo re-exporta TIPOS_CAMPO para no romper a los
+// consumidores históricos (SpeechEditor, tests, etc.).
+import {
+  TIPOS_CAMPO,
+  esTipoCampoValido,
+  normalizarPlantilla,
+  normalizarCampoPlantilla,
+  crearPlantilla,
+  crearCampoPlantilla,
+  normalizarValorCampo,
+  erroresValorCampo,
+  esCampoDestinoValido,
+  esOperadorValido,
+  normalizarCondiciones,
+  valorVacio,
+  visibilidadCampos,
+} from "./plantillaRegistro";
+
+export { TIPOS_CAMPO, esTipoCampoValido };
 
 /**
  * interactiveSpeechModel.js
@@ -38,24 +58,10 @@ export function nuevoId() {
 }
 
 /**
- * Tipos de campo de registro admitidos (§3). Es la única fuente de verdad:
- * la usa el editor (select de tipos), la validación y el runner.
- * "si-no" se almacena como los strings "si" | "no" | "" (vacío = sin responder).
+ * Tipos de campo de registro: la lista vive en `plantillaRegistro.js`
+ * (fuente única desde 1.11.3). Se conserva el re-export de arriba para que
+ * ningún consumidor existente tenga que cambiar sus imports.
  */
-export const TIPOS_CAMPO = [
-  { tipo: "texto-corto", etiqueta: "Texto corto" },
-  { tipo: "texto-largo", etiqueta: "Texto largo" },
-  { tipo: "seleccion-unica", etiqueta: "Selección única" },
-  { tipo: "seleccion-multiple", etiqueta: "Selección múltiple" },
-  { tipo: "si-no", etiqueta: "Sí / No" },
-  { tipo: "fecha", etiqueta: "Fecha" },
-  { tipo: "hora", etiqueta: "Hora" },
-  { tipo: "observaciones", etiqueta: "Observaciones" },
-];
-
-export function esTipoCampoValido(tipo) {
-  return TIPOS_CAMPO.some((t) => t.tipo === tipo);
-}
 
 // ---------------------------------------------------------------------------
 // Lectores defensivos: nunca explotan con datos incompletos (1.9.3) y
@@ -80,6 +86,57 @@ function opcionesDe(pregunta) {
 
 function camposDe(paso) {
   return Array.isArray(paso?.camposRegistro) ? paso.camposRegistro : [];
+}
+
+/**
+ * Plantilla de registro a nivel speech (1.11.3). Un guion viejo no la trae:
+ * se devuelve una plantilla vacía, SIN inventar campos ni ids. Es la misma
+ * estructura que usan el editor, el runner y la validación.
+ */
+const PLANTILLA_VACIA = Object.freeze({
+  version: 1,
+  nombre: "Registro de la llamada",
+  campos: Object.freeze([]),
+});
+
+function plantillaDe(speech) {
+  return normalizarPlantilla(speech?.plantillaRegistro) || PLANTILLA_VACIA;
+}
+
+/**
+ * Campos de registro efectivos del speech: primero los de la plantilla
+ * (1.11.3) y después los que siguen viviendo por etapa (1.11.0). Se deduplica
+ * por id para que un campo migrado a la plantilla no aparezca dos veces.
+ *
+ * Decisión: no se reescriben los datos del guion al leer. Un guion viejo
+ * mantiene sus campos en las etapas y sigue funcionando igual; el editor
+ * puede moverlos a la plantilla cuando el usuario quiera.
+ */
+export function camposRegistroDeSpeech(speech) {
+  const vistos = new Set();
+  const salida = [];
+  const agregar = (campo) => {
+    if (!campo || typeof campo.id !== "string" || !campo.id || vistos.has(campo.id)) return;
+    vistos.add(campo.id);
+    salida.push(campo);
+  };
+  const plantilla = plantillaDe(speech);
+  [...plantilla.campos]
+    .sort((a, b) => (Number(a?.orden) || 0) - (Number(b?.orden) || 0))
+    .forEach(agregar);
+  pasosDe(speech).forEach((raw) => {
+    camposDe(pasoNormalizado(raw)).forEach(agregar);
+  });
+  return salida;
+}
+
+export function buscarCampoRegistro(speech, campoId) {
+  return camposRegistroDeSpeech(speech).find((c) => c.id === campoId) || null;
+}
+
+/** Datos de la plantilla (nombre/version/campos) ya normalizados. */
+export function plantillaRegistroDeSpeech(speech) {
+  return plantillaDe(speech);
 }
 
 function estadosDe(speech) {
@@ -149,17 +206,35 @@ export function crearOpcion(texto, targetStepId = null) {
   };
 }
 
-export function crearCampoRegistro({ nombre = "", tipo = "texto-corto", obligatorio = false, opciones = [] } = {}) {
-  return {
-    id: nuevoId(),
-    nombre: sanitizeString(String(nombre ?? "").trim()),
-    tipo: esTipoCampoValido(tipo) ? tipo : "texto-corto",
-    obligatorio: Boolean(obligatorio),
-    // Solo los tipos de selección lo usan: lista de valores posibles.
-    opciones: (Array.isArray(opciones) ? opciones : [])
-      .map((o) => sanitizeString(String(o ?? "").trim()))
-      .filter(Boolean),
-  };
+/**
+ * Campo de registro. Desde 1.11.3 acepta la configuración ampliada de la
+ * plantilla (descripción, valor predeterminado, condición de visibilidad,
+ * mapeo explícito a un campo del caso y etapa sugerida). Los guiones viejos
+ * siguen creando campos con la forma mínima de 1.11.0.
+ */
+export function crearCampoRegistro({
+  nombre = "",
+  tipo = "texto-corto",
+  obligatorio = false,
+  opciones = [],
+  descripcion = "",
+  porDefecto = "",
+  visibleSi = [],
+  campoDestino = "",
+  pasoId = null,
+} = {}) {
+  const campo = crearCampoPlantilla({
+    nombre,
+    descripcion,
+    tipo,
+    obligatorio,
+    opciones,
+    porDefecto,
+    visibleSi,
+    campoDestino,
+    pasoId,
+  });
+  return campo;
 }
 
 export function crearEstadoFinal(nombre = "") {
@@ -191,6 +266,11 @@ export function crearSpeechInteractivo({ nombre, descripcion = "" }) {
     estadosFinales: [], // se cargan por guion (§2.5); vacío = sin catálogo
     reglas: [], // reglas operativas como contenido editable (§8)
     modulos: [crearModuloObjeciones()], // objeciones disponibles por defecto
+    // --- v3 (1.11.3) ---
+    // Plantilla de registro a nivel speech. Nace vacía para no alterar el
+    // comportamiento de los guiones nuevos: el registro por etapa sigue
+    // funcionando igual y la plantilla se completa desde el editor.
+    plantillaRegistro: crearPlantilla(),
   };
 }
 
@@ -257,22 +337,30 @@ function normalizarPregunta(pr) {
   };
 }
 
+/**
+ * Normaliza un campo de registro (de etapa o de plantilla): desde 1.11.3 la
+ * forma canónica incluye descripción, valor por defecto, condiciones y mapeo
+ * al caso. Los campos viejos se completan sin perder lo que ya tenían.
+ */
 function normalizarCampo(c) {
   if (!esObjeto(c)) return crearCampoRegistro();
-  const idOk = typeof c.id === "string" && c.id.trim();
-  const nombreOk = typeof c.nombre === "string";
-  const tipoOk = typeof c.tipo === "string";
-  const obligOk = typeof c.obligatorio === "boolean";
-  const opsOk = Array.isArray(c.opciones);
-  if (idOk && nombreOk && tipoOk && obligOk && opsOk) return c;
-  return {
-    ...c,
-    id: idOk ? c.id : nuevoId(),
-    nombre: nombreOk ? c.nombre : "",
-    tipo: tipoOk ? c.tipo : "texto-corto",
-    obligatorio: obligOk ? c.obligatorio : false,
-    opciones: opsOk ? c.opciones : [],
-  };
+  return normalizarCampoPlantilla(c);
+}
+
+/**
+ * Campos de una etapa, con `pasoId` como pista de agrupación para el panel de
+ * registro. No mueve datos ni cambia ids: sólo completa la referencia.
+ */
+function normalizarCamposDePaso(campos, pasoId) {
+  if (!Array.isArray(campos)) return [];
+  let cambio = false;
+  const salida = campos.map((c) => {
+    const norm = normalizarCampo(c);
+    const conPaso = norm.pasoId ? norm : { ...norm, pasoId };
+    if (conPaso !== c) cambio = true;
+    return conPaso;
+  });
+  return cambio ? salida : campos;
 }
 
 /**
@@ -316,14 +404,16 @@ function pasoNormalizado(paso) {
 
   const objetivoOk = typeof resultado.objetivo === "string";
   const camposOk = Array.isArray(resultado.camposRegistro);
-  if (!objetivoOk || !camposOk) {
+  const camposNorm = normalizarCamposDePaso(
+    camposOk ? resultado.camposRegistro : [],
+    resultado.id
+  );
+  if (!objetivoOk || !camposOk || camposNorm !== resultado.camposRegistro) {
     resultado = {
       ...resultado,
       objetivo: objetivoOk ? resultado.objetivo : "",
-      camposRegistro: camposOk ? resultado.camposRegistro.map(normalizarCampo) : [],
+      camposRegistro: camposNorm,
     };
-  } else if (resultado.camposRegistro.some((c, i) => normalizarCampo(c) !== resultado.camposRegistro[i])) {
-    resultado = { ...resultado, camposRegistro: resultado.camposRegistro.map(normalizarCampo) };
   }
 
   const preguntas = preguntasDe(resultado);
@@ -357,6 +447,10 @@ function estaNormalizado(speech) {
   if (!Array.isArray(speech.estadosFinales) || !Array.isArray(speech.reglas) || !Array.isArray(speech.modulos)) {
     return false;
   }
+  // 1.11.3: la plantilla de registro es opcional en guiones viejos, pero una
+  // vez normalizada debe quedar en forma canónica (idempotencia).
+  const plantilla = normalizarPlantilla(speech.plantillaRegistro);
+  if (!plantilla || plantilla !== speech.plantillaRegistro) return false;
   if (speech.estadosFinales.some((e) => normalizarEstado(e) !== e)) return false;
   if (speech.modulos.some((m) => normalizarModulo(m) !== m)) return false;
   if (!Array.isArray(speech.steps)) return true; // sin steps no hay más que normalizar
@@ -397,6 +491,9 @@ export function normalizarSpeech(speech) {
     estadosFinales: estados,
     reglas,
     modulos,
+    // 1.11.3: se agrega la plantilla vacía a los guiones viejos. No se mueven
+    // los campos existentes: se suman en lectura (camposRegistroDeSpeech).
+    plantillaRegistro: normalizarPlantilla(speech.plantillaRegistro) || crearPlantilla(),
     steps,
   };
 }
@@ -935,8 +1032,91 @@ export function crearPasoConectado(speech, stepIdOrigen, opcionId) {
 }
 
 // ---------------------------------------------------------------------------
-// Campos de registro por etapa (§3)
+// Campos de registro por etapa (§3) y plantilla a nivel speech (1.11.3)
 // ---------------------------------------------------------------------------
+
+/**
+ * Aplica sólo las claves presentes en `cambios` a un campo de registro. Es
+ * compartido por los campos de etapa y los de la plantilla para que editar un
+ * campo se comporte igual en los dos lugares (sin dos implementaciones).
+ */
+function aplicarCambiosCampo(campo, cambios = {}) {
+  const siguiente = { ...campo };
+  if (cambios.nombre !== undefined) {
+    siguiente.nombre = sanitizeString(String(cambios.nombre).trim());
+  }
+  if (cambios.descripcion !== undefined) {
+    siguiente.descripcion = sanitizeString(String(cambios.descripcion));
+  }
+  if (cambios.tipo !== undefined && esTipoCampoValido(cambios.tipo)) {
+    // Las opciones se conservan aunque el tipo nuevo no las use: volver a un
+    // tipo de selección no obliga a reescribirlas.
+    siguiente.tipo = cambios.tipo;
+  }
+  if (cambios.obligatorio !== undefined) siguiente.obligatorio = Boolean(cambios.obligatorio);
+  if (cambios.opciones !== undefined) {
+    siguiente.opciones = (Array.isArray(cambios.opciones) ? cambios.opciones : [])
+      .map((o) => sanitizeString(String(o ?? "").trim()))
+      .filter(Boolean);
+  }
+  if (cambios.visibleSi !== undefined) {
+    siguiente.visibleSi = normalizarCondiciones(cambios.visibleSi);
+  }
+  if (cambios.campoDestino !== undefined) {
+    siguiente.campoDestino = esCampoDestinoValido(cambios.campoDestino)
+      ? cambios.campoDestino
+      : "";
+  }
+  if (cambios.pasoId !== undefined) {
+    siguiente.pasoId =
+      typeof cambios.pasoId === "string" && cambios.pasoId ? cambios.pasoId : null;
+  }
+  if (cambios.orden !== undefined && Number.isFinite(Number(cambios.orden))) {
+    siguiente.orden = Number(cambios.orden);
+  }
+  if (cambios.porDefecto !== undefined) {
+    siguiente.porDefecto = normalizarValorCampo(siguiente, cambios.porDefecto);
+  }
+  return siguiente;
+}
+
+/**
+ * Quita TODAS las referencias a un campo que se elimina: asignaciones de
+ * opciones (en cualquier etapa, no solo la dueña) y condiciones de
+ * visibilidad de otros campos (plantilla o etapa). Sin esto, borrar un campo
+ * dejaba condiciones/asociaciones huérfanas que bloqueaban la validación.
+ */
+function purgarReferenciasCampo(speech, campoId) {
+  const purgarCondiciones = (campo) => {
+    if (!Array.isArray(campo?.visibleSi)) return campo;
+    if (!campo.visibleSi.some((c) => c?.campoId === campoId)) return campo;
+    return {
+      ...campo,
+      visibleSi: campo.visibleSi.filter((c) => c?.campoId !== campoId),
+    };
+  };
+  const steps = pasosDe(speech).map((raw) => {
+    const paso = pasoNormalizado(raw);
+    return {
+      ...paso,
+      camposRegistro: camposDe(paso).map(purgarCondiciones),
+      preguntas: preguntasDe(paso).map((pr) => ({
+        ...pr,
+        opciones: opcionesDe(pr).map((op) => {
+          const asignaciones = Array.isArray(op.asignaciones) ? op.asignaciones : [];
+          return asignaciones.some((a) => a?.campoId === campoId)
+            ? { ...op, asignaciones: asignaciones.filter((a) => a?.campoId !== campoId) }
+            : op;
+        }),
+      })),
+    };
+  });
+  const plantilla = plantillaDe(speech);
+  return {
+    steps,
+    plantilla: { ...plantilla, campos: plantilla.campos.map(purgarCondiciones) },
+  };
+}
 
 export function agregarCampo(speech, stepId, datos = {}) {
   return conCambio({
@@ -953,48 +1133,31 @@ export function actualizarCampo(speech, stepId, campoId, cambios = {}) {
     ...speech,
     steps: mapPaso(speech, stepId, (paso) => ({
       ...paso,
-      camposRegistro: camposDe(paso).map((c) => {
-        if (c.id !== campoId) return c;
-        const siguiente = { ...c };
-        if (cambios.nombre !== undefined) siguiente.nombre = sanitizeString(String(cambios.nombre).trim());
-        if (cambios.tipo !== undefined && esTipoCampoValido(cambios.tipo)) {
-          siguiente.tipo = cambios.tipo;
-          // Al cambiar a un tipo sin lista, las opciones dejan de aplicarse
-          // pero se conservan (no destructivo: si vuelve a selección siguen).
-        }
-        if (cambios.obligatorio !== undefined) siguiente.obligatorio = Boolean(cambios.obligatorio);
-        if (cambios.opciones !== undefined) {
-          siguiente.opciones = (Array.isArray(cambios.opciones) ? cambios.opciones : [])
-            .map((o) => sanitizeString(String(o ?? "").trim()))
-            .filter(Boolean);
-        }
-        return siguiente;
-      }),
+      camposRegistro: camposDe(paso).map((c) =>
+        c.id !== campoId ? c : aplicarCambiosCampo(c, cambios)
+      ),
     })),
   });
 }
 
 /**
- * Eliminar un campo además purga las asignaciones de las opciones de la
- * etapa que lo referenciaban (evita referencias rotas al validar).
+ * Eliminar un campo de una etapa purga TODAS sus referencias: asignaciones de
+ * cualquier etapa y condiciones de visibilidad de cualquier campo. Desde
+ * 1.11.3 las asignaciones pueden apuntar a campos de la plantilla, por eso la
+ * purga ya no se limita a la etapa dueña.
  */
 export function eliminarCampo(speech, stepId, campoId) {
   const actual = pasosDe(speech).find((s) => s.id === stepId);
   if (!actual || !camposDe(actual).some((c) => c.id === campoId)) return speech;
+  const purgado = purgarReferenciasCampo(speech, campoId);
   return conCambio({
     ...speech,
-    steps: mapPaso(speech, stepId, (paso) => ({
-      ...paso,
-      camposRegistro: camposDe(paso).filter((c) => c.id !== campoId),
-      preguntas: preguntasDe(paso).map((pr) => ({
-        ...pr,
-        opciones: opcionesDe(pr).map((op) =>
-          Array.isArray(op.asignaciones) && op.asignaciones.some((a) => a.campoId === campoId)
-            ? { ...op, asignaciones: op.asignaciones.filter((a) => a.campoId !== campoId) }
-            : op
-        ),
-      })),
-    })),
+    plantillaRegistro: purgado.plantilla,
+    steps: purgado.steps.map((paso) =>
+      paso.id !== stepId
+        ? paso
+        : { ...paso, camposRegistro: camposDe(paso).filter((c) => c.id !== campoId) }
+    ),
   });
 }
 
@@ -1011,6 +1174,88 @@ export function moverCampo(speech, stepId, campoId, delta) {
   return conCambio({
     ...speech,
     steps: mapPaso(speech, stepId, (paso) => ({ ...paso, camposRegistro: nuevos })),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Plantilla de registro a nivel speech (Release 1.11.3)
+// ---------------------------------------------------------------------------
+
+/** Cambia metadatos de la plantilla (hoy sólo el nombre visible). */
+export function actualizarPlantillaRegistro(speech, cambios = {}) {
+  const plantilla = plantillaDe(speech);
+  const siguiente = { ...plantilla };
+  if (cambios.nombre !== undefined) {
+    const nombre = sanitizeString(String(cambios.nombre).trim());
+    siguiente.nombre = nombre || plantilla.nombre;
+  }
+  return conCambio({ ...speech, plantillaRegistro: siguiente });
+}
+
+/**
+ * Agrega un campo a la plantilla. `pasoId` es opcional: null = campo global
+ * del registro; con id = se muestra/gestiona junto a esa etapa.
+ */
+export function agregarCampoPlantilla(speech, datos = {}) {
+  const plantilla = plantillaDe(speech);
+  const orden = Number.isFinite(Number(datos.orden))
+    ? Number(datos.orden)
+    : plantilla.campos.length;
+  const campo = crearCampoPlantilla({ ...datos, orden });
+  return conCambio({
+    ...speech,
+    plantillaRegistro: { ...plantilla, campos: [...plantilla.campos, campo] },
+  });
+}
+
+export function actualizarCampoPlantilla(speech, campoId, cambios = {}) {
+  const plantilla = plantillaDe(speech);
+  if (!plantilla.campos.some((c) => c.id === campoId)) return speech;
+  return conCambio({
+    ...speech,
+    plantillaRegistro: {
+      ...plantilla,
+      campos: plantilla.campos.map((c) =>
+        c.id !== campoId ? c : aplicarCambiosCampo(c, cambios)
+      ),
+    },
+  });
+}
+
+/**
+ * Elimina un campo de la plantilla y purga sus referencias (asignaciones y
+ * condiciones). La advertencia al usuario la muestra el editor ANTES de
+ * llamar acá; el modelo solo ejecuta la baja consistente.
+ */
+export function eliminarCampoPlantilla(speech, campoId) {
+  const plantilla = plantillaDe(speech);
+  if (!plantilla.campos.some((c) => c.id === campoId)) return speech;
+  const purgado = purgarReferenciasCampo(speech, campoId);
+  return conCambio({
+    ...speech,
+    plantillaRegistro: {
+      ...purgado.plantilla,
+      campos: purgado.plantilla.campos.filter((c) => c.id !== campoId),
+    },
+    steps: purgado.steps,
+  });
+}
+
+/** Reordena la plantilla (delta -1/+1) recalculando `orden` correlativo. */
+export function moverCampoPlantilla(speech, campoId, delta) {
+  const plantilla = plantillaDe(speech);
+  const ordenados = [...plantilla.campos].sort(
+    (a, b) => (Number(a?.orden) || 0) - (Number(b?.orden) || 0)
+  );
+  const idx = ordenados.findIndex((c) => c.id === campoId);
+  const destino = idx + delta;
+  if (idx === -1 || destino < 0 || destino >= ordenados.length) return speech;
+  const [movido] = ordenados.splice(idx, 1);
+  ordenados.splice(destino, 0, movido);
+  const campos = ordenados.map((c, i) => (c.orden === i ? c : { ...c, orden: i }));
+  return conCambio({
+    ...speech,
+    plantillaRegistro: { ...plantilla, campos },
   });
 }
 
@@ -1140,8 +1385,36 @@ export function duplicarSpeech(speech) {
     };
   });
 
+  // 1.11.3: la plantilla se duplica con ids nuevos y se suma al mismo mapa
+  // que los campos de etapa, así las asignaciones y condiciones de la copia
+  // apuntan a la copia y no al guion original.
+  const plantilla = plantillaDe(speech);
+  const camposPlantilla = plantilla.campos.map((c) => {
+    const idNuevo = nuevoId();
+    mapaCampos.set(c.id, idNuevo);
+    return { ...c, id: idNuevo };
+  });
+  const remapearCondiciones = (campo) => ({
+    ...campo,
+    visibleSi: (Array.isArray(campo.visibleSi) ? campo.visibleSi : []).map((c) =>
+      mapaCampos.has(c.campoId) ? { ...c, campoId: mapaCampos.get(c.campoId) } : c
+    ),
+  });
+  const camposPlantillaFinales = camposPlantilla.map((c) =>
+    remapearCondiciones({
+      ...c,
+      pasoId: c.pasoId && mapaSteps.has(c.pasoId) ? mapaSteps.get(c.pasoId) : c.pasoId,
+    })
+  );
+
   const stepsFinales = steps.map((paso) => ({
     ...paso,
+    camposRegistro: camposDe(paso).map((c) =>
+      remapearCondiciones({
+        ...c,
+        pasoId: c.pasoId && mapaSteps.has(c.pasoId) ? mapaSteps.get(c.pasoId) : c.pasoId,
+      })
+    ),
     preguntas: preguntasDe(paso).map((pr) => ({
       ...pr,
       opciones: opcionesDe(pr).map((op) => ({
@@ -1199,6 +1472,8 @@ export function duplicarSpeech(speech) {
     modulos,
     // reglas[] es texto puro: se copia tal cual (mismo contenido, sin ids).
     reglas: reglasDe(speech).slice(),
+    // 1.11.3: plantilla copiada con ids nuevos y referencias re-apuntadas.
+    plantillaRegistro: { ...plantilla, campos: camposPlantillaFinales },
   };
 }
 
@@ -1281,14 +1556,16 @@ export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
     error("El speech no tiene nombre.", { nodoKey: "inicio" });
   }
   const steps = pasosDe(speech);
+  const plantilla = plantillaDe(speech);
+  const camposPlantilla = plantilla.campos;
   if (!steps.length) {
     error("El speech no tiene ningún paso.", { nodoKey: "inicio" });
   } else if (!speech.startStepId || !steps.some((s) => s.id === speech.startStepId)) {
     error("No existe el paso inicial (INICIO).", { nodoKey: "inicio" });
   }
 
-  // IDs únicos en TODO el árbol: etapas, preguntas, opciones, campos,
-  // estados y módulos. Mismo orden de recolección que la 1.11.0.
+  // IDs únicos en TODO el árbol: etapas, preguntas, opciones, campos (etapa
+  // y plantilla), estados y módulos.
   const ids = [];
   steps.forEach((paso) => {
     if (!esObjeto(paso)) return;
@@ -1299,6 +1576,7 @@ export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
     });
     camposDe(paso).forEach((c) => ids.push(c.id));
   });
+  camposPlantilla.forEach((c) => ids.push(c.id));
   estadosDe(speech).forEach((e) => ids.push(e.id));
   modulosDe(speech).forEach((m) => ids.push(m.id));
   const vistos = new Set();
@@ -1315,6 +1593,74 @@ export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
   const idsEstados = new Set(estadosDe(speech).map((e) => e.id));
   const idsModulos = new Set(modulosDe(speech).map((m) => m.id));
 
+  // Todos los campos (plantilla + etapas) para validar condiciones y
+  // asignaciones sin importar dónde viva el campo referenciado.
+  const idsCampos = new Set(
+    [
+      ...camposPlantilla,
+      ...steps.flatMap((paso) =>
+        esObjeto(paso) ? camposDe(pasoNormalizado(paso)) : []
+      ),
+    ]
+      .map((c) => c?.id)
+      .filter((id) => typeof id === "string" && id)
+  );
+
+  /**
+   * Validación común de un campo de registro. `sufijo` mantiene los mensajes
+   * históricos de los campos de etapa y permite hablar de "la plantilla" para
+   * los campos nuevos. No borra ni corrige nada: sólo reporta.
+   */
+  const validarCampoRegistro = (c, { sufijo, ubicacion }) => {
+    const nombre = String(c?.nombre || "").trim();
+    const etiquetaCampo = nombre || "campo sin nombre";
+    if (!nombre) {
+      error(`Un campo ${sufijo} no tiene nombre.`, ubicacion);
+    }
+    if (!esTipoCampoValido(c?.tipo)) {
+      error(`El campo "${etiquetaCampo}" ${sufijo} tiene un tipo inválido.`, ubicacion);
+    }
+    if (
+      (c?.tipo === "seleccion-unica" || c?.tipo === "seleccion-multiple") &&
+      !(Array.isArray(c?.opciones) && c.opciones.filter(Boolean).length)
+    ) {
+      error(`El campo "${etiquetaCampo}" ${sufijo} (selección) no tiene opciones.`, ubicacion);
+    }
+    if (c?.campoDestino && !esCampoDestinoValido(c.campoDestino)) {
+      error(`El campo "${etiquetaCampo}" ${sufijo} apunta a un campo de caso desconocido.`, ubicacion);
+    }
+    if (c?.porDefecto !== undefined && c.porDefecto !== "") {
+      erroresValorCampo(c, normalizarValorCampo(c, c.porDefecto)).forEach((mensaje) => {
+        error(
+          `El valor predeterminado del campo "${etiquetaCampo}" ${sufijo} no es válido: ${mensaje}`,
+          ubicacion
+        );
+      });
+    }
+    (Array.isArray(c?.visibleSi) ? c.visibleSi : []).forEach((cond) => {
+      if (!esOperadorValido(cond?.operador)) {
+        error(`La condición del campo "${etiquetaCampo}" ${sufijo} usa un operador inválido.`, ubicacion);
+        return;
+      }
+      if (!idsCampos.has(cond?.campoId)) {
+        error(
+          `La condición del campo "${etiquetaCampo}" ${sufijo} referencia un campo que no existe.`,
+          ubicacion
+        );
+      }
+    });
+  };
+
+  // Plantilla de registro (1.11.3).
+  camposPlantilla.forEach((c, k) => {
+    const ubicacion = {
+      nodoKey: `plantilla:${c?.id || k}`,
+      stepId: c?.pasoId || null,
+      campoId: c?.id || null,
+    };
+    validarCampoRegistro(c, { sufijo: "de la plantilla", ubicacion });
+  });
+
   steps.forEach((paso, i) => {
     if (!esObjeto(paso)) return;
     const etiquetaPaso = `paso ${i + 1}`;
@@ -1322,22 +1668,9 @@ export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
     const p = pasoNormalizado(paso);
 
     // Campos de registro de la etapa (§3/§4.2)
-    camposDe(p).forEach((c, k) => {
-      const nombre = String(c?.nombre || "").trim();
-      const etiquetaCampo = nombre || `campo ${k + 1}`;
+    camposDe(p).forEach((c) => {
       const ubicacion = { nodoKey: nodoEtapa, stepId: paso.id, campoId: c?.id || null };
-      if (!nombre) {
-        error(`Un campo del ${etiquetaPaso} no tiene nombre.`, ubicacion);
-      }
-      if (!esTipoCampoValido(c?.tipo)) {
-        error(`El campo "${etiquetaCampo}" del ${etiquetaPaso} tiene un tipo inválido.`, ubicacion);
-      }
-      if (
-        (c?.tipo === "seleccion-unica" || c?.tipo === "seleccion-multiple") &&
-        !(Array.isArray(c?.opciones) && c.opciones.filter(Boolean).length)
-      ) {
-        error(`El campo "${etiquetaCampo}" del ${etiquetaPaso} (selección) no tiene opciones.`, ubicacion);
-      }
+      validarCampoRegistro(c, { sufijo: `del ${etiquetaPaso}`, ubicacion });
     });
 
     preguntasDe(p).forEach((pr) => {
@@ -1371,7 +1704,9 @@ export function diagnosticosSpeech(speech, objeciones, opciones = {}) {
           error(`${etiqueta} apunta a un módulo que no existe.`, ubicacion);
         }
         (Array.isArray(op.asignaciones) ? op.asignaciones : []).forEach((a) => {
-          if (!a || typeof a.campoId !== "string" || !camposDe(p).some((c) => c.id === a.campoId)) {
+          // 1.11.3: el campo asignado puede vivir en la plantilla o en
+          // cualquier etapa, no sólo en la etapa dueña de la opción.
+          if (!a || typeof a.campoId !== "string" || !idsCampos.has(a.campoId)) {
             error(`${etiqueta} tiene un dato de registro sin campo válido.`, ubicacion);
           }
         });
@@ -1540,17 +1875,22 @@ export function resolverDestino(speech, stepId, preguntaIdx, opcion) {
  * opcionales"). "si-no" cuenta como respondido con "si" o "no".
  */
 export function camposObligatoriosPendientes(speech, stepId, registro = {}) {
-  const steps = Array.isArray(speech?.steps) ? speech.steps : [];
-  const paso = steps.find((s) => s.id === stepId);
+  const paso = pasosDe(speech).find((s) => s.id === stepId);
   if (!paso) return [];
-  return camposDe(pasoNormalizado(paso))
-    .filter((c) => c && c.obligatorio)
-    .filter((c) => {
-      const v = registro ? registro[c.id] : undefined;
-      if (c.tipo === "seleccion-multiple") return !(Array.isArray(v) && v.length > 0);
-      if (c.tipo === "si-no") return v !== "si" && v !== "no";
-      return v === undefined || v === null || String(v).trim() === "";
-    })
+  const campos = camposRegistroDeSpeech(speech);
+  const visibilidad = visibilidadCampos(campos, registro);
+  return campos
+    .filter(
+      (c) =>
+        c &&
+        c.obligatorio &&
+        visibilidad[c.id] !== false &&
+        // Sólo bloquean los campos de ESTA etapa. Los globales de la
+        // plantilla se validan al confirmar el registro, no en cada avance.
+        (c.pasoId === stepId ||
+          (!c.pasoId && camposDe(pasoNormalizado(paso)).some((x) => x.id === c.id)))
+    )
+    .filter((c) => valorVacio(c, registro ? registro[c.id] : undefined))
     .map((c) => String(c.nombre || "").trim() || "(campo sin nombre)");
 }
 
@@ -1619,8 +1959,19 @@ export function validarEstructuraSpeech(obj) {
   if ("layout" in obj && obj.layout !== null && (typeof obj.layout !== "object" || Array.isArray(obj.layout))) {
     errores.push("layout debe ser un objeto.");
   }
+  // Release 1.11.3: la plantilla de registro es opcional en archivos viejos.
+  // Si viene, debe traer la forma mínima para poder importarla sin ambigüedad.
+  if ("plantillaRegistro" in obj) {
+    const plantilla = obj.plantillaRegistro;
+    if (!plantilla || typeof plantilla !== "object" || Array.isArray(plantilla)) {
+      errores.push("plantillaRegistro debe ser un objeto.");
+    } else if (!Array.isArray(plantilla.campos)) {
+      errores.push("plantillaRegistro.campos debe ser una lista.");
+    }
+  }
 
   const ids = new Set();
+  const camposEstructura = [];
   const duplicados = new Set();
   const anotar = (id) => {
     if (ids.has(id)) duplicados.add(id);
@@ -1694,7 +2045,32 @@ export function validarEstructuraSpeech(obj) {
       if (typeof c.tipo !== "string" || !esTipoCampoValido(c.tipo)) {
         errores.push(`El campo ${j + 1} del paso ${i + 1} tiene tipo inválido.`);
       }
+      camposEstructura.push(c);
     });
+  });
+
+  // Plantilla de registro (opcional, 1.11.3). Se valida después de los pasos
+  // para poder detectar ids duplicados contra todo el guion.
+  const camposPlantilla =
+    obj.plantillaRegistro && Array.isArray(obj.plantillaRegistro.campos)
+      ? obj.plantillaRegistro.campos
+      : [];
+  camposPlantilla.forEach((c, j) => {
+    if (!c || typeof c !== "object" || typeof c.id !== "string" || !c.id) {
+      errores.push(`El campo ${j + 1} de la plantilla no tiene id válido.`);
+      return;
+    }
+    anotar(c.id);
+    if (typeof c.nombre !== "string") {
+      errores.push(`El campo ${j + 1} de la plantilla tiene nombre inválido.`);
+    }
+    if (typeof c.tipo !== "string" || !esTipoCampoValido(c.tipo)) {
+      errores.push(`El campo ${j + 1} de la plantilla tiene tipo inválido.`);
+    }
+    if ("visibleSi" in c && !Array.isArray(c.visibleSi)) {
+      errores.push(`El campo ${j + 1} de la plantilla tiene visibleSi inválido.`);
+    }
+    camposEstructura.push(c);
   });
 
   (Array.isArray(obj.estadosFinales) ? obj.estadosFinales : []).forEach((e, i) => {
@@ -1710,6 +2086,24 @@ export function validarEstructuraSpeech(obj) {
       return;
     }
     anotar(m.id);
+  });
+
+  // Condiciones y mapeos: se validan al final, cuando ya se conocen todos los
+  // ids de campos (plantilla + etapas). Una condición rota no debe importarse.
+  const idsCampos = new Set(camposEstructura.map((c) => c.id).filter(Boolean));
+  camposEstructura.forEach((c, j) => {
+    if (c.campoDestino && !esCampoDestinoValido(c.campoDestino)) {
+      errores.push(`El campo "${c.nombre || j + 1}" apunta a un campo de caso desconocido.`);
+    }
+    (Array.isArray(c.visibleSi) ? c.visibleSi : []).forEach((cond) => {
+      if (!esOperadorValido(cond?.operador)) {
+        errores.push(`El campo "${c.nombre || j + 1}" tiene una condición con operador inválido.`);
+      } else if (!idsCampos.has(cond?.campoId)) {
+        errores.push(
+          `El campo "${c.nombre || j + 1}" tiene una condición que referencia un campo inexistente.`
+        );
+      }
+    });
   });
 
   if (duplicados.size) {

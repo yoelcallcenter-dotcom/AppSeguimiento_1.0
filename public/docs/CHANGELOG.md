@@ -7,6 +7,38 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.11.3] - Plantillas de registro vinculadas a los speeches
+
+El Asistente (Interactivo) de Llamadas suma **plantillas de registro por speech**: el operador define una vez qué datos necesita la llamada y el **Modo llamada** los muestra, los autocompleta desde las respuestas y los guarda en el **caso asociado**. Se integra con el constructor visual (1.11.1) y el Modo llamada (1.11.2) reutilizando el modelo v2 y el módulo de casos existente: no hay IA, dependencias nuevas ni una base de datos paralela.
+
+### Plantilla de registro
+
+- **Campos a nivel speech** con id interno estable: nombre visible, descripción/ayuda, tipo, obligatorio/opcional, valor predeterminado, opciones y orden. Se suman a los campos por etapa de 1.11.0 sin duplicar datos ni romper guiones viejos.
+- **10 tipos**: texto corto/largo, número, fecha, hora, selección única/múltiple, sí/no, casilla y observaciones. Los valores se normalizan y validan por tipo (número, fecha `AAAA-MM-DD`, hora `HH:MM` y opciones contempladas).
+- **Condiciones de visibilidad genéricas**: cualquier campo puede depender de otro con operadores igual/distinto/incluye/no incluye/con valor/sin valor. No hay condiciones hardcodeadas del speech ART.
+- **Vinculación explícita desde el constructor visual**: cada respuesta puede completar uno o varios campos por id (nunca por nombre escrito). Los derivados se recalculan al cambiar respuestas anteriores.
+- **Administración de la plantilla** en el editor: crear, editar, eliminar con advertencia de referencias, ordenar, definir mapeo al caso y probar con la vista previa existente.
+
+### Modo llamada
+
+- **Panel "Registro"** lateral/desplegable con todos los campos visibles, completitud, obligatorios pendientes y distinción **AUTOMÁTICO / MANUAL**. El speech de la etapa mantiene la prioridad visual; los campos asociados a la etapa se muestran junto a la conversación.
+- **Recálculo ante cambios**: al modificar una respuesta se recalcula la visibilidad. Los datos automáticos que dejan de corresponder se limpian; los manuales **nunca se borran solos** y quedan marcados como incompatibles hasta que el operador los revise.
+- **Cierre en dos pasos**: finalizar la llamada y después **confirmar el registro**. El resumen es editable, los obligatorios bloquean salvo que se elija explícitamente un **guardado parcial** (queda como pendiente).
+- **Asociación explícita a un caso existente**: elegido en el cierre, el registro se guarda en `registrosLlamada` del caso y en su historial. Sin caso seleccionado la llamada se confirma igual pero no se escribe en el módulo; **nunca se crean casos automáticamente**. Sólo se completan campos mapeados y vacíos, sin pisar datos manuales.
+- **Historial inmutable**: cada entrada conserva speech id, versión, fecha/hora, estado final, resultado, datos, origen y estado (`recopilado` / `pendiente` / `confirmado`). Editar el speech después no altera registros históricos.
+
+### Validaciones y compatibilidad
+
+- **Validación de configuración y datos**: obligatorios, tipos, opciones inválidas, valores predeterminados, asociaciones huérfanas, condiciones inválidas, referencias inexistentes e ids duplicados. El editor permite borradores incompletos y el cierre admite guardado parcial.
+- **Duplicar e importar/exportar**: la plantilla se copia con ids nuevos y referencias re-apuntadas; el JSON sigue siendo v2 e incluye plantilla, condiciones y mapeos. Los backups normalizan `registrosLlamada` como lista y los archivos viejos se importan sin plantilla (lista vacía).
+- **Ejemplo ART actualizado**: sus campos se migran a la plantilla conservando ids y asociaciones, con condiciones y mapeos al caso (lesión, localidad, estudio, horario, teléfono y observaciones). Sigue siendo válido y normalizable de forma idempotente.
+
+### Calidad
+
+- **Tests nuevos**: motor de plantillas (normalización, defaults, condiciones, validación, resumen y mapeo), integración con el Modo llamada (auto/manual, recálculo, parcial, confirmación e historial) y roundtrip de import/export con plantilla.
+- Suite completa en verde y `npm run build` compila sin errores ni warnings.
+- **Bump a 1.11.3** en `src/core/version.js` (`APP_VERSION`), `package.json` y el `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; `docsContent.js` regenerado (`node scripts/build-docs.js`).
+
 ## [1.11.2] - Modo llamada para ejecutar speeches
 
 El Asistente de Llamadas suma un **Modo llamada**: una pantalla enfocada en la conversación real que ejecuta el mismo guion con el **mismo motor** de la 1.11.0 y permite retomarlo después. La ejecución anterior sigue disponible como **Vista rápida** (play de la tarjeta) y la vista previa del constructor no cambia. No hay IA, dependencias nuevas ni cambios en los speeches.

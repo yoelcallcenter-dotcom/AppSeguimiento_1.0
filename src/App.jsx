@@ -177,8 +177,11 @@ import {
 import {
   computeCaseChanges,
   recordCaseChanges,
+  recordCaseEvent,
   HISTORY_TYPES,
 } from "./core/cases/caseHistory";
+// Release 1.11.3: id de la entrada de registro de llamada guardada en el caso.
+import { generateId } from "./core/cases/caseRepository";
 import { runIntegrityCheck } from "./core/integrity/integrityService";
 import {
   syncCitaEvent,
@@ -1067,6 +1070,138 @@ function AppContent() {
     },
     // catsFiltro (C03): las celebraciones/metas resuelven la categoría success.
     [setCasos, showToast, casos, pushUndo, catsFiltro]
+  );
+
+  /**
+   * Release 1.11.3 — guarda el registro confirmado del Modo llamada dentro del
+   * MÓDULO DE CASOS existente (no hay DB paralela):
+   * - agrega una entrada inmutable a `caso.registrosLlamada` (speech id,
+   *   versión, fecha/hora, resultado, datos y estado de confirmación);
+   * - completa SÓLO los campos del caso mapeados explícitamente (`campoDestino`)
+   *   y que estén vacíos, para no pisar datos cargados a mano;
+   * - deja un evento en `case_history` con el detalle del registro.
+   * Si no hay caso asociado, la llamada ya quedó confirmada en el Modo llamada
+   * pero no se escribe nada acá (nunca se crean casos automáticamente).
+   */
+  const guardarRegistroLlamada = useCallback(
+    async ({ casoId, speech, sesion, resumen, datosCaso, parcial } = {}) => {
+      if (!casoId) {
+        showToast(
+          "Registro confirmado. No se asoció a un caso, así que no se guardó en el módulo de casos.",
+          "info"
+        );
+        return false;
+      }
+      const prev = casos.find((c) => String(c.id) === String(casoId));
+      if (!prev) {
+        showToast("No se encontró el caso asociado al registro.", "error");
+        return false;
+      }
+
+      const datos = Array.isArray(sesion?.datos)
+        ? sesion.datos.map((d) => ({
+            campoId: d.campoId,
+            nombre: d.nombre,
+            tipo: d.tipo,
+            texto: d.texto,
+            origen: d.origen,
+            obligatorio: d.obligatorio,
+          }))
+        : [];
+      const entrada = {
+        id: generateId(),
+        speechId: sesion?.speechId || speech?.id || "",
+        speechNombre: sesion?.speechNombre || speech?.nombre || "",
+        speechVersion:
+          Number(sesion?.speechVersion) || Number(speech?.version) || 0,
+        iniciadaEn: sesion?.iniciadaEn || "",
+        confirmadaEn: sesion?.confirmadaEn || new Date().toISOString(),
+        estadoFinalId: sesion?.estadoFinalId || "",
+        estadoFinal: sesion?.estadoFinal || "",
+        confirmada: Boolean(sesion?.confirmada),
+        finalizada: Boolean(sesion?.finalizada),
+        parcial: Boolean(parcial),
+        // "recopilado" = hay datos; "pendiente" = quedó parcial o sin confirmar.
+        estado: parcial
+          ? "pendiente"
+          : sesion?.confirmada
+          ? "confirmado"
+          : "recopilado",
+        incompatibles: Array.isArray(sesion?.incompatibles)
+          ? sesion.incompatibles.slice()
+          : [],
+        datos,
+        resumen: Array.isArray(resumen)
+          ? resumen.map((r) => ({
+              campoId: r.campoId,
+              nombre: r.nombre,
+              texto: r.texto,
+            }))
+          : [],
+      };
+
+      // Mapeo explícito al caso: sólo completa campos vacíos. Un campo con
+      // valor previo se conserva y la diferencia queda visible en `datos`.
+      const mapeados = {};
+      Object.entries(datosCaso || {}).forEach(([clave, valor]) => {
+        const actual = prev[clave];
+        const vacio =
+          actual === undefined ||
+          actual === null ||
+          (typeof actual === "string" && !actual.trim()) ||
+          (Array.isArray(actual) && actual.length === 0);
+        if (vacio && valor !== undefined && valor !== null && String(valor).trim() !== "") {
+          mapeados[clave] = valor;
+        }
+      });
+
+      const casoFinal = {
+        ...prev,
+        ...mapeados,
+        registrosLlamada: [
+          ...(Array.isArray(prev.registrosLlamada) ? prev.registrosLlamada : []),
+          entrada,
+        ],
+        lastActivityAt: new Date().toISOString(),
+      };
+
+      pushUndo("Registro de llamada guardado");
+      setCasos((lista) =>
+        lista.map((c) => (String(c.id) === String(casoId) ? casoFinal : c))
+      );
+
+      try {
+        await recordCaseEvent({
+          caseId: casoId,
+          type: HISTORY_TYPES.LLAMADA_REGISTRADA,
+          title: "Registro de llamada",
+          description: `${entrada.speechNombre || "Speech"} · ${
+            entrada.estado
+          }${entrada.estadoFinal ? ` · ${entrada.estadoFinal}` : ""}`,
+          source: "automatic",
+          metadata: {
+            registroId: entrada.id,
+            speechId: entrada.speechId,
+            speechVersion: entrada.speechVersion,
+            estado: entrada.estado,
+            parcial: entrada.parcial,
+            campos: mapeados,
+            datos,
+          },
+        });
+      } catch (err) {
+        reportError(err, { context: "guardarRegistroLlamada:historial", silent: true });
+      }
+
+      showToast(
+        parcial
+          ? "Registro guardado como pendiente en el caso."
+          : "Registro de llamada guardado en el caso.",
+        "success"
+      );
+      return true;
+    },
+    [casos, setCasos, pushUndo, showToast]
   );
 
   // F01/F19 (1.10.1): borrado con cascade compartido por el borrado simple
@@ -2040,6 +2175,9 @@ function AppContent() {
               condicionales={condicionales}
               setCondicionales={setCondicionales}
               casos={casos}
+              // Release 1.11.3: persistencia del registro confirmado del Modo
+              // llamada en el módulo de casos existente.
+              onGuardarRegistro={guardarRegistroLlamada}
               showToast={showToast}
             />
           </div>

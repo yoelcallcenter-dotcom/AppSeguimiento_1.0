@@ -44,6 +44,9 @@ export function SpeechsView({
   // Release 1.11.2: llamadas guardadas del Modo llamada (por speech).
   llamadasEnCurso = {},
   setLlamadasEnCurso,
+  // Release 1.11.3: registro confirmado → módulo de casos existente.
+  casos = [],
+  onGuardarRegistro,
 }) {
   const [modo, setModo] = useState("clasicos");
   const [nuevo, setNuevo] = useState("");
@@ -206,6 +209,8 @@ export function SpeechsView({
           setObjeciones={setObjeciones}
           llamadasEnCurso={llamadasEnCurso}
           setLlamadasEnCurso={setLlamadasEnCurso}
+          casos={casos}
+          onGuardarRegistro={onGuardarRegistro}
         />
       ) : (
         <>

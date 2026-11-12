@@ -29,6 +29,7 @@ import {
   duplicarPaso,
   marcarInicio,
   agregarEstadoFinal,
+  camposRegistroDeSpeech,
 } from "../interactiveSpeechModel";
 import { TIPO_NODO, claveFinal } from "./grafoSpeech";
 
@@ -86,6 +87,10 @@ export function PanelPropiedades({
     ? speech.estadosFinales
     : [];
   const modulos = Array.isArray(speech?.modulos) ? speech.modulos : [];
+  // Release 1.11.3: campos de la plantilla + de las etapas. Las asignaciones
+  // de una respuesta pueden apuntar a cualquiera de ellos (vínculo explícito
+  // por id, nunca por nombre escrito).
+  const camposRegistro = camposRegistroDeSpeech(speech);
 
   if (!nodo) {
     return (
@@ -576,6 +581,111 @@ export function PanelPropiedades({
                     options={modulos.map((m) => ({ value: m.id, label: m.titulo }))}
                     aria-label={`Módulo de la respuesta ${i + 1}`}
                   />
+                ) : null}
+                {camposRegistro.length ? (
+                  <div className="space-y-1.5">
+                    <div
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      Datos de registro que completa esta respuesta
+                    </div>
+                    {(Array.isArray(op.asignaciones) ? op.asignaciones : []).map(
+                      (a, ai) => (
+                        <div
+                          key={`${op.id}-asig-${ai}`}
+                          className="flex items-center gap-1.5 flex-wrap"
+                        >
+                          <Select
+                            value={a.campoId || ""}
+                            onChange={(e) => {
+                              const siguientes = (
+                                Array.isArray(op.asignaciones) ? op.asignaciones : []
+                              ).map((x, xi) =>
+                                xi === ai ? { ...x, campoId: e.target.value } : x
+                              );
+                              onAplicar(
+                                actualizarOpcion(speech, paso.id, op.id, {
+                                  asignaciones: siguientes,
+                                }),
+                                null
+                              );
+                            }}
+                            placeholder="Campo del registro"
+                            options={camposRegistro.map((c) => ({
+                              value: c.id,
+                              label: c.nombre || c.id,
+                            }))}
+                            aria-label={`Dato ${ai + 1} de la respuesta ${i + 1}`}
+                          />
+                          <TextInput
+                            value={a.valor === undefined ? "" : String(a.valor)}
+                            onChange={(e) => {
+                              const siguientes = (
+                                Array.isArray(op.asignaciones) ? op.asignaciones : []
+                              ).map((x, xi) =>
+                                xi === ai ? { ...x, valor: e.target.value } : x
+                              );
+                              onAplicar(
+                                actualizarOpcion(speech, paso.id, op.id, {
+                                  asignaciones: siguientes,
+                                }),
+                                null
+                              );
+                            }}
+                            placeholder="Valor a completar"
+                            aria-label={`Valor del dato ${ai + 1} de la respuesta ${i + 1}`}
+                          />
+                          <button
+                            type="button"
+                            aria-label={`Quitar dato ${ai + 1} de la respuesta ${i + 1}`}
+                            onClick={() => {
+                              const siguientes = (
+                                Array.isArray(op.asignaciones) ? op.asignaciones : []
+                              ).filter((_, xi) => xi !== ai);
+                              onAplicar(
+                                actualizarOpcion(speech, paso.id, op.id, {
+                                  asignaciones: siguientes,
+                                }),
+                                null
+                              );
+                            }}
+                            className="p-1 rounded hover:bg-white/5 transition-colors"
+                            style={{ color: "var(--color-danger)" }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )
+                    )}
+                    <BtnOutline
+                      size="sm"
+                      icon={Plus}
+                      onClick={() => {
+                        const usados = new Set(
+                          (Array.isArray(op.asignaciones) ? op.asignaciones : []).map(
+                            (a) => a?.campoId
+                          )
+                        );
+                        const libre = camposRegistro.find((c) => !usados.has(c.id));
+                        if (!libre) return;
+                        onAplicar(
+                          actualizarOpcion(speech, paso.id, op.id, {
+                            asignaciones: [
+                              ...(Array.isArray(op.asignaciones)
+                                ? op.asignaciones
+                                : []),
+                              { campoId: libre.id, valor: "" },
+                            ],
+                          }),
+                          null
+                        );
+                      }}
+                      ariaLabel={`Agregar dato de registro a la respuesta ${i + 1}`}
+                    >
+                      Agregar dato
+                    </BtnOutline>
+                  </div>
                 ) : null}
                 <div className="flex flex-wrap items-center gap-1">
                   <BtnOutline

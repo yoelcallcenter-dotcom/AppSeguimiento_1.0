@@ -40,7 +40,11 @@
 // impacto, finalización revisada y salida de 3 caminos. La ejecución anterior
 // queda como Vista rápida. Las llamadas pendientes viven en localStorage por
 // guion, se excluyen de backups y se limpian con "borrar todo"/útiles.
-export const APP_VERSION = "1.11.2";
+// v1.11.3: plantillas de registro por speech (campos, tipos, condiciones de
+// visibilidad genéricas y mapeo explícito al caso) integradas con el
+// constructor visual y el Modo llamada; recálculo de derivados, distinción
+// auto/manual, guardado parcial y registro confirmado en el módulo de casos.
+export const APP_VERSION = "1.11.3";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

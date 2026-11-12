@@ -45,7 +45,10 @@ export const CONFIG_KEYS = [
 
 export const CASE_REQUIRED_FIELDS = ["nombre", "telefono"];
 
-export const CASE_ARRAY_FIELDS = ["tags", "reporteHistory", "comentarios", "notasVinculadas", "agendaVinculada", "caseHistory"];
+// Release 1.11.3: `registrosLlamada` guarda los registros confirmados del
+// Asistente Interactivo dentro del caso. Se normaliza como lista para que un
+// backup/import viejo o incompleto no rompa el módulo de casos.
+export const CASE_ARRAY_FIELDS = ["tags", "reporteHistory", "comentarios", "notasVinculadas", "agendaVinculada", "caseHistory", "registrosLlamada"];
 
 export const CASE_DATE_FIELDS = [
   "fecha",

@@ -86,6 +86,10 @@ export function InteractivosView({
   // rápida), solo que sin retomar pendientes.
   llamadasEnCurso = {},
   setLlamadasEnCurso,
+  // Release 1.11.3: casos existentes para asociar el registro confirmado y
+  // callback de guardado en el módulo de casos.
+  casos = [],
+  onGuardarRegistro,
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -423,6 +427,8 @@ export function InteractivosView({
         onGuardar={guardarSesion}
         onDescartar={() => descartarSesion(modoLlamada.speechId)}
         onClose={() => setModoLlamada(null)}
+        casos={casos}
+        onGuardarRegistro={onGuardarRegistro}
       />
     ) : null;
 

@@ -27,8 +27,18 @@
 
 import {
   resolverDestino,
-  camposObligatoriosPendientes,
+  camposRegistroDeSpeech,
 } from "../interactiveSpeechModel";
+import {
+  visibilidadCampos,
+  valorVacio,
+  normalizarValorCampo,
+  valoresPorDefecto,
+  validarRegistro,
+  resumenRegistro,
+  formatearValor,
+  esCampoDestinoValido,
+} from "../plantillaRegistro";
 
 export const SESION_VERSION = 1;
 
@@ -100,6 +110,10 @@ export function crearSesion(speech) {
       ? speech.startStepId
       : null) || steps[0]?.id || null;
   const marca = ahoraISO();
+  // 1.11.3: valores predeterminados de la plantilla. Se marcan como `auto`
+  // para que el operador pueda pisarlos y para poder distinguirlos de lo que
+  // escribió a mano en el resumen/historial.
+  const defaults = valoresPorDefecto(camposRegistroDeSpeech(speech));
   return {
     v: SESION_VERSION,
     speechId: String(speech?.id || ""),
@@ -115,12 +129,19 @@ export function crearSesion(speech) {
     enFin: false,
     borradorOpcionId: "",
     respuestas: {},
-    registro: {},
+    registro: defaults.registro,
+    // 1.11.3: distingue dato derivado ("auto") de dato escrito ("manual").
+    origen: defaults.origen,
+    // Campos manuales que quedaron ocultos por las condiciones actuales.
+    incompatibles: [],
     aclaraciones: {},
     completadas: [],
     consultadas: [],
     notas: "",
     finalizada: false,
+    // La confirmación explícita del registro es un paso aparte de finalizar.
+    confirmada: false,
+    confirmadaEn: "",
     estadoFinalId: "",
   };
 }
@@ -154,32 +175,77 @@ export function sesionTocada(sesion) {
 // Asignaciones automáticas (mismas reglas que el runner de 1.11.0)
 // ---------------------------------------------------------------------------
 
-function valorVacio(campo, v) {
-  if (campo?.tipo === "seleccion-multiple") return !(Array.isArray(v) && v.length > 0);
-  if (campo?.tipo === "si-no") return v !== "si" && v !== "no";
-  return v === undefined || v === null || String(v).trim() === "";
+/**
+ * Aplica las asignaciones de una opción. Desde 1.11.3:
+ * - busca el campo en TODA la plantilla del speech (no sólo en la etapa);
+ * - normaliza el valor según el tipo;
+ * - puede actualizar un valor `auto` previo (dato derivado), pero NUNCA pisa
+ *   uno `manual` escrito por el operador.
+ *
+ * Devuelve `{ registro, autos, origen }`; `autos` permite revertir el cambio
+ * al cambiar una respuesta anterior.
+ */
+export function aplicarAsignaciones(speech, pasoId, opcion, registro = {}, origen = {}) {
+  const campos = camposRegistroDeSpeech(speech);
+  const autos = {};
+  const origenNuevo = { ...origen };
+  (Array.isArray(opcion?.asignaciones) ? opcion.asignaciones : []).forEach((a) => {
+    const campo = campos.find((c) => c && c.id === a?.campoId);
+    if (!campo) return;
+    const actual = registro[a.campoId];
+    const puedeEscribir = valorVacio(campo, actual) || origenNuevo[a.campoId] === "auto";
+    if (!puedeEscribir) return;
+    const valor = normalizarValorCampo(campo, a.valor);
+    if (valorVacio(campo, valor)) return;
+    autos[a.campoId] = valor;
+    origenNuevo[a.campoId] = "auto";
+  });
+  return { registro: { ...registro, ...autos }, autos, origen: origenNuevo };
 }
 
 /**
- * Aplica las asignaciones de una opción SOLO sobre campos vacíos. Devuelve el
- * registro nuevo y el mapa `autos` (campoId → valor) para poder revertirlas
- * sin tocar lo que el operador escribió a mano.
+ * Recalcula visibilidad y consistencia del registro:
+ * - un campo oculto con valor AUTOMÁTICO se limpia (nadie lo escribió);
+ * - un campo oculto con valor MANUAL se conserva y se marca `incompatible`
+ *   para que la UI avise antes de finalizar (nunca se borra solo).
  */
-export function aplicarAsignaciones(speech, pasoId, opcion, registro = {}) {
-  const campos = camposDe(buscarPaso(speech, pasoId));
-  const autos = {};
-  (Array.isArray(opcion?.asignaciones) ? opcion.asignaciones : []).forEach((a) => {
-    const campo = campos.find((c) => c && c.id === a?.campoId);
-    if (!campo || !valorVacio(campo, registro[a.campoId])) return;
-    autos[a.campoId] =
-      campo.tipo === "seleccion-multiple"
-        ? String(a.valor ?? "")
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : a.valor ?? "";
+export function reconciliarRegistro(speech, registro = {}, origen = {}) {
+  const campos = camposRegistroDeSpeech(speech);
+  const visibilidad = visibilidadCampos(campos, registro);
+  const siguienteRegistro = { ...registro };
+  const siguienteOrigen = { ...origen };
+  const incompatibles = [];
+  campos.forEach((campo) => {
+    if (!campo?.id || visibilidad[campo.id] !== false) return;
+    if (valorVacio(campo, siguienteRegistro[campo.id])) return;
+    if (siguienteOrigen[campo.id] === "auto") {
+      delete siguienteRegistro[campo.id];
+      delete siguienteOrigen[campo.id];
+      return;
+    }
+    incompatibles.push(campo.id);
   });
-  return { registro: { ...registro, ...autos }, autos };
+  return { registro: siguienteRegistro, origen: siguienteOrigen, incompatibles };
+}
+
+/**
+ * Campos obligatorios pendientes de la etapa actual. Sólo mira campos
+ * visibles y asociados a la etapa (los globales se exigen al finalizar, no
+ * bloquean cada avance).
+ */
+export function obligatoriosPendientesEtapa(speech, pasoId, registro = {}) {
+  const campos = camposRegistroDeSpeech(speech);
+  const visibilidad = visibilidadCampos(campos, registro);
+  return campos
+    .filter(
+      (c) =>
+        c &&
+        c.obligatorio &&
+        visibilidad[c.id] !== false &&
+        (c.pasoId === pasoId || (!c.pasoId && camposDe(buscarPaso(speech, pasoId)).some((x) => x.id === c.id)))
+    )
+    .filter((c) => valorVacio(c, registro ? registro[c.id] : undefined))
+    .map((c) => String(c.nombre || "").trim() || "(campo sin nombre)");
 }
 
 const mismosValores = (a, b) => {
@@ -265,7 +331,8 @@ export function avanzar(sesion, speech) {
     ? opciones.find((o) => o && o.id === sesion.borradorOpcionId) || null
     : null;
 
-  const pendientes = camposObligatoriosPendientes(
+  // 1.11.3: sólo exigen los obligatorios VISIBLES y asociados a la etapa.
+  const pendientes = obligatoriosPendientesEtapa(
     speech,
     sesion.pasoId,
     sesion.registro
@@ -282,12 +349,27 @@ export function avanzar(sesion, speech) {
   }
 
   let registro = sesion.registro;
+  let origen = sesion.origen || {};
+  let incompatibles = sesion.incompatibles || [];
   let autos = {};
   if (opcion) {
-    const aplicado = aplicarAsignaciones(speech, sesion.pasoId, opcion, registro);
+    const aplicado = aplicarAsignaciones(
+      speech,
+      sesion.pasoId,
+      opcion,
+      registro,
+      origen
+    );
     registro = aplicado.registro;
+    origen = aplicado.origen;
     autos = aplicado.autos;
   }
+  // Recalcular visibilidad: si una respuesta nueva escondió un campo auto, se
+  // limpia; si escondió uno manual, queda marcado como incompatible.
+  const conciliado = reconciliarRegistro(speech, registro, origen);
+  registro = conciliado.registro;
+  origen = conciliado.origen;
+  incompatibles = conciliado.incompatibles;
   const respuestas = { ...sesion.respuestas };
   if (opcion) {
     const clave = clavePosicion(sesion.pasoId, sesion.preguntaIdx);
@@ -311,7 +393,10 @@ export function avanzar(sesion, speech) {
     sesion.preguntaIdx,
     opcion
   );
-  const nueva = avanzarA({ ...sesion, registro, respuestas }, destino);
+  const nueva = avanzarA(
+    { ...sesion, registro, origen, incompatibles, respuestas },
+    destino
+  );
   return {
     sesion: nueva,
     evento: { tipo: destino.fin ? "fin" : "avance" },
@@ -381,8 +466,21 @@ export function reiniciarSesion(sesion, speech) {
 // Registro, notas, objeciones y finalización
 // ---------------------------------------------------------------------------
 
-export function setCampoRegistro(sesion, campoId, valor) {
-  return tocar(sesion, { registro: { ...sesion.registro, [campoId]: valor } });
+/**
+ * Edición de un campo por parte del operador. Marca el dato como `manual`
+ * (nunca se borra automáticamente). Si se pasa el `speech`, recalcula al
+ * instante la visibilidad y las incompatibilidades.
+ */
+export function setCampoRegistro(sesion, campoId, valor, speech = null) {
+  const registro = { ...sesion.registro, [campoId]: valor };
+  const origen = { ...(sesion.origen || {}), [campoId]: "manual" };
+  if (!speech) return tocar(sesion, { registro, origen });
+  const conciliado = reconciliarRegistro(speech, registro, origen);
+  return tocar(sesion, {
+    registro: conciliado.registro,
+    origen: conciliado.origen,
+    incompatibles: conciliado.incompatibles,
+  });
 }
 
 export function setAclaracionSesion(sesion, clave, texto) {
@@ -415,6 +513,7 @@ export function toggleCompletada(sesion, pasoId) {
 export function finalizarSesion(sesion, speech, estadoFinalId = "") {
   const paso = buscarPaso(speech, sesion?.pasoId);
   let registro = sesion.registro;
+  let origen = sesion.origen || {};
   const respuestas = { ...sesion.respuestas };
   if (paso && sesion.borradorOpcionId) {
     const { pregunta } = buscarPregunta(paso, sesion.preguntaIdx);
@@ -422,21 +521,136 @@ export function finalizarSesion(sesion, speech, estadoFinalId = "") {
       (o) => o && o.id === sesion.borradorOpcionId
     );
     if (opcion) {
-      const aplicado = aplicarAsignaciones(speech, sesion.pasoId, opcion, registro);
+      const aplicado = aplicarAsignaciones(
+        speech,
+        sesion.pasoId,
+        opcion,
+        registro,
+        origen
+      );
       registro = aplicado.registro;
+      origen = aplicado.origen;
       respuestas[clavePosicion(sesion.pasoId, sesion.preguntaIdx)] = {
         opcionId: opcion.id,
         autos: aplicado.autos,
       };
     }
   }
+  const conciliado = reconciliarRegistro(speech, registro, origen);
   return tocar(sesion, {
-    registro,
+    registro: conciliado.registro,
+    origen: conciliado.origen,
+    incompatibles: conciliado.incompatibles,
     respuestas,
     finalizada: true,
+    // `finalizada` cierra el recorrido; `confirmada` exige el paso explícito
+    // de revisión/confirmación del registro (1.11.3).
+    confirmada: false,
+    confirmadaEn: "",
     estadoFinalId: estadoFinalId || "",
     borradorOpcionId: "",
   });
+}
+
+/**
+ * Validación de cierre: todos los campos visibles, obligatorios y con tipo
+ * válido. No modifica la sesión; la UI muestra el resultado y permite
+ * guardados parciales (el operador decide si confirma igual).
+ */
+export function validarCierreSesion(speech, sesion) {
+  const campos = camposRegistroDeSpeech(speech);
+  return validarRegistro(campos, sesion?.registro || {}, { soloVisibles: true });
+}
+
+/** Resumen editable/datos del registro con origen auto/manual. */
+export function resumenSesion(speech, sesion) {
+  return resumenRegistro(
+    camposRegistroDeSpeech(speech),
+    sesion?.registro || {},
+    sesion?.origen || {}
+  );
+}
+
+/**
+ * Mapeo EXPLÍCITO del registro a campos del caso. Sin `campoDestino` no se
+ * escribe nada: nunca se completan datos del caso por parecido de nombres.
+ */
+export function datosCasoDesdeRegistro(speech, sesion) {
+  const campos = camposRegistroDeSpeech(speech);
+  const visibilidad = visibilidadCampos(campos, sesion?.registro || {});
+  const datos = {};
+  campos.forEach((campo) => {
+    if (!campo?.id || visibilidad[campo.id] === false) return;
+    if (!campo.campoDestino || !esCampoDestinoValido(campo.campoDestino)) return;
+    const valor = sesion?.registro?.[campo.id];
+    if (valorVacio(campo, valor)) return;
+    datos[campo.campoDestino] = formatearValor(campo, valor);
+  });
+  return datos;
+}
+
+/**
+ * Confirmación explícita del registro. Si hay obligatorios pendientes o
+ * valores inválidos NO confirma: devuelve el detalle para que la UI lo
+ * muestre. Es independiente de la finalización del recorrido.
+ */
+export function confirmarSesion(sesion, speech, { permitirParcial = false } = {}) {
+  const validacion = validarCierreSesion(speech, sesion);
+  if (!permitirParcial && validacion.errores.length) {
+    return {
+      sesion,
+      evento: {
+        tipo: "registro-incompleto",
+        errores: validacion.errores,
+        pendientes: validacion.pendientes,
+      },
+    };
+  }
+  const confirmadaEn = ahoraISO();
+  const nueva = tocar(sesion, {
+    finalizada: true,
+    confirmada: true,
+    confirmadaEn,
+  });
+  return {
+    sesion: nueva,
+    evento: {
+      tipo: "registro-confirmado",
+      confirmadaEn,
+      parcial: validacion.errores.length > 0,
+      resumen: resumenSesion(speech, nueva),
+      datosCaso: datosCasoDesdeRegistro(speech, nueva),
+    },
+  };
+}
+
+/**
+ * Snapshot inmutable para adjuntar al caso/historial. Guarda la versión del
+ * guion y los datos tal como estaban al confirmar, para que editar el speech
+ * después no altere registros históricos.
+ */
+export function registroParaHistorial(speech, sesion, { estadoFinal = "" } = {}) {
+  const resumen = resumenSesion(speech, sesion);
+  return {
+    speechId: String(sesion?.speechId || speech?.id || ""),
+    speechNombre: String(speech?.nombre || ""),
+    speechVersion: Number(sesion?.speechVersion) || Number(speech?.version) || 0,
+    iniciadaEn: sesion?.iniciadaEn || "",
+    confirmadaEn: sesion?.confirmadaEn || ahoraISO(),
+    estadoFinalId: sesion?.estadoFinalId || "",
+    estadoFinal,
+    confirmada: Boolean(sesion?.confirmada),
+    finalizada: Boolean(sesion?.finalizada),
+    incompatibles: (sesion?.incompatibles || []).slice(),
+    datos: resumen.map((d) => ({
+      campoId: d.campoId,
+      nombre: d.nombre,
+      tipo: d.tipo,
+      texto: d.texto,
+      origen: d.origen,
+      obligatorio: d.obligatorio,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -563,7 +777,14 @@ export function aplicarCambio(sesion, speech, clave, opcionId) {
     const r = sesion.respuestas?.[c];
     if (r?.autos) Object.assign(autosAAfectar, r.autos);
   });
-  const registro = limpiarAutos({ ...sesion.registro }, autosAAfectar);
+  const registroLimpio = limpiarAutos({ ...sesion.registro }, autosAAfectar);
+  // Los autos que se limpiaron dejan de tener origen "auto".
+  const origen = { ...(sesion.origen || {}) };
+  Object.keys(autosAAfectar).forEach((campoId) => {
+    if (!(campoId in registroLimpio)) delete origen[campoId];
+  });
+  // Visibilidad recalculada tras abandonar respuestas del tramo posterior.
+  const conciliado = reconciliarRegistro(speech, registroLimpio, origen);
 
   // La respuesta nueva queda como BORRADOR: `avanzar` aplica sus asignaciones
   // (sobre campos vacíos) y la confirma con el gate de obligatorios. Así los
@@ -581,7 +802,9 @@ export function aplicarCambio(sesion, speech, clave, opcionId) {
     enFin: false,
     borradorOpcionId: opcionId,
     respuestas,
-    registro,
+    registro: conciliado.registro,
+    origen: conciliado.origen,
+    incompatibles: conciliado.incompatibles,
   });
 
   // Confirmar el avance desde la posición editada (gate incluido).
@@ -677,6 +900,35 @@ export function normalizarSesion(raw, speech) {
     (id) => pasosDe(speech).some((p) => p.id === id)
   );
 
+  // 1.11.3: defaults de la plantilla + origen de cada dato. Los valores
+  // guardados mandan sobre el default; lo que coincide con un `autos` de una
+  // respuesta se considera automático (las sesiones de 1.11.2 no traen
+  // `origen`, así que se reconstruye sin perder información).
+  const campos = camposRegistroDeSpeech(speech);
+  const defaults = valoresPorDefecto(campos);
+  const registroRaw = esObjeto(raw.registro) ? { ...raw.registro } : {};
+  const registro = { ...defaults.registro };
+  Object.keys(registroRaw).forEach((campoId) => {
+    if (registroRaw[campoId] !== undefined) registro[campoId] = registroRaw[campoId];
+  });
+  const idsAuto = new Set();
+  Object.values(respuestas).forEach((r) => {
+    Object.entries(esObjeto(r?.autos) ? r.autos : {}).forEach(([campoId, valor]) => {
+      if (mismosValores(registro[campoId], valor)) idsAuto.add(campoId);
+    });
+  });
+  const origen = {};
+  Object.keys(registro).forEach((campoId) => {
+    const guardado = esObjeto(raw.origen) ? raw.origen[campoId] : undefined;
+    origen[campoId] =
+      guardado === "auto" || guardado === "manual"
+        ? guardado
+        : idsAuto.has(campoId)
+        ? "auto"
+        : "manual";
+  });
+  const conciliado = reconciliarRegistro(speech, registro, origen);
+
   const pasoActual = posRaw ? buscarPaso(speech, posRaw.pasoId) : null;
   const { pregunta: preguntaActual } = pasoActual
     ? buscarPregunta(pasoActual, posRaw.preguntaIdx)
@@ -704,7 +956,9 @@ export function normalizarSesion(raw, speech) {
     enFin: enFinRaw,
     borradorOpcionId: borrador,
     respuestas,
-    registro: esObjeto(raw.registro) ? { ...raw.registro } : {},
+    registro: conciliado.registro,
+    origen: conciliado.origen,
+    incompatibles: conciliado.incompatibles,
     aclaraciones: esObjeto(raw.aclaraciones) ? { ...raw.aclaraciones } : {},
     completadas,
     consultadas: (Array.isArray(raw.consultadas) ? raw.consultadas : []).filter(
@@ -712,6 +966,8 @@ export function normalizarSesion(raw, speech) {
     ),
     notas: typeof raw.notas === "string" ? raw.notas : "",
     finalizada: Boolean(raw.finalizada),
+    confirmada: Boolean(raw.confirmada),
+    confirmadaEn: typeof raw.confirmadaEn === "string" ? raw.confirmadaEn : "",
     estadoFinalId,
   };
   return { ok: true, sesion, guionCambiado, motivo: "" };

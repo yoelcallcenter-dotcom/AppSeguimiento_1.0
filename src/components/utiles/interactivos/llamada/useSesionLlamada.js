@@ -17,14 +17,22 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { normalizarSpeech, validarSpeech, camposObligatoriosPendientes } from "../interactiveSpeechModel";
+import {
+  normalizarSpeech,
+  validarSpeech,
+  camposObligatoriosPendientes,
+  camposRegistroDeSpeech,
+} from "../interactiveSpeechModel";
+import { visibilidadCampos, validarRegistro } from "../plantillaRegistro";
 import {
   aplicarCambio as aplicarCambioPuro,
   analizarCambio as analizarCambioPuro,
   atras as atrasPuro,
   avanzar as avanzarPuro,
   claveAclaracion,
+  confirmarSesion as confirmarSesionPuro,
   crearSesion,
+  datosCasoDesdeRegistro,
   elegirOpcion as elegirOpcionPuro,
   finalizarSesion,
   irAPaso as irAPasoPuro,
@@ -32,6 +40,8 @@ import {
   puedeAtras,
   registrarConsultada as registrarConsultadaPuro,
   reiniciarSesion,
+  registroParaHistorial,
+  resumenSesion,
   sesionTocada,
   setAclaracionSesion,
   setCampoRegistro,
@@ -80,6 +90,22 @@ export function useSesionLlamada({ speech, sesionInicial = null, onCambio } = {}
   const estadosFinales = useMemo(
     () => (Array.isArray(guion.estadosFinales) ? guion.estadosFinales : []),
     [guion]
+  );
+
+  // 1.11.3: campos efectivos (plantilla + etapas), visibilidad y completitud.
+  // El runner sigue usando `campos` (etapa actual) para no cambiar su DOM.
+  const camposRegistro = useMemo(() => camposRegistroDeSpeech(guion), [guion]);
+  const visibilidad = useMemo(
+    () => visibilidadCampos(camposRegistro, sesion.registro),
+    [camposRegistro, sesion.registro]
+  );
+  const validacionRegistro = useMemo(
+    () => validarRegistro(camposRegistro, sesion.registro, { soloVisibles: true }),
+    [camposRegistro, sesion.registro]
+  );
+  const resumen = useMemo(
+    () => resumenSesion(guion, sesion),
+    [guion, sesion]
   );
 
   const pendiente = useMemo(
@@ -162,9 +188,13 @@ export function useSesionLlamada({ speech, sesionInicial = null, onCambio } = {}
     );
   }, []);
 
-  const setCampo = useCallback((campoId, valor) => {
-    setSesion((prev) => setCampoRegistro(prev, campoId, valor));
-  }, []);
+  const setCampo = useCallback(
+    (campoId, valor) => {
+      // `guion` permite recalcular condiciones al editar a mano (1.11.3).
+      setSesion((prev) => setCampoRegistro(prev, campoId, valor, guion));
+    },
+    [guion]
+  );
 
   const setAclaracion = useCallback((clave, texto) => {
     setSesion((prev) => setAclaracionSesion(prev, clave, texto));
@@ -180,8 +210,46 @@ export function useSesionLlamada({ speech, sesionInicial = null, onCambio } = {}
 
   const finalizar = useCallback(
     (estadoFinalId) => {
-      setSesion((prev) => finalizarSesion(prev, guion, estadoFinalId));
+      // Actualiza la ref de forma sincrónica: `confirmar` se llama en el mismo
+      // evento y necesita ver la sesión ya finalizada (1.11.3).
+      const nueva = finalizarSesion(sesionRef.current, guion, estadoFinalId);
+      sesionRef.current = nueva;
+      setSesion(nueva);
+      return nueva;
     },
+    [guion]
+  );
+
+  /**
+   * Confirma el registro (paso explícito de 1.11.3). Devuelve el evento:
+   * `registro-incompleto` si faltan obligatorios, o `registro-confirmado` con
+   * el resumen y el mapeo al caso. `permitirParcial` deja guardar con faltantes
+   * (el operador lo decide en la pantalla de cierre).
+   */
+  const confirmar = useCallback(
+    (opciones = {}) => {
+      const resultado = confirmarSesionPuro(
+        sesionRef.current,
+        guion,
+        opciones
+      );
+      if (resultado.sesion) {
+        sesionRef.current = resultado.sesion;
+        setSesion(resultado.sesion);
+      }
+      return resultado.evento;
+    },
+    [guion]
+  );
+
+  const datosCaso = useCallback(
+    () => datosCasoDesdeRegistro(guion, sesionRef.current),
+    [guion]
+  );
+
+  const snapshotHistorial = useCallback(
+    (estadoFinal) =>
+      registroParaHistorial(guion, sesionRef.current, { estadoFinal }),
     [guion]
   );
 
@@ -230,6 +298,14 @@ export function useSesionLlamada({ speech, sesionInicial = null, onCambio } = {}
     enFin: sesion.enFin,
     respuestas: sesion.respuestas,
     registro: sesion.registro,
+    // 1.11.3: plantilla de registro y estado de completitud.
+    camposRegistro,
+    visibilidad,
+    origen: sesion.origen || {},
+    incompatibles: sesion.incompatibles || [],
+    validacionRegistro,
+    resumen,
+    confirmada: sesion.confirmada,
     aclaraciones: sesion.aclaraciones,
     completadas,
     consultadas: sesion.consultadas,
@@ -250,6 +326,9 @@ export function useSesionLlamada({ speech, sesionInicial = null, onCambio } = {}
     setNotas,
     registrarConsultada,
     finalizar,
+    confirmar,
+    datosCaso,
+    snapshotHistorial,
     analizarCambio,
     aplicarCambio,
   };

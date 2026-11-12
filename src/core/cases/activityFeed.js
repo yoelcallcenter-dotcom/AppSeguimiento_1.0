@@ -84,6 +84,14 @@ function historyEventToActivityItem(ev, caseName) {
         detail: ev.description || ev.metadata?.interactionType || 'Interacción',
         color: '#D9A441',
       };
+    case HISTORY_TYPES.LLAMADA_REGISTRADA:
+      // Release 1.11.3: el feed muestra el speech y el estado del registro.
+      return {
+        ...base,
+        title: caseName,
+        detail: ev.description || 'Registro de llamada',
+        color: '#60A5FA',
+      };
     default:
       return { ...base, title: caseName, detail: ev.description || 'Actividad', color: '#6B7280' };
   }

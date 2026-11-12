@@ -18,6 +18,8 @@ import {
   actualizarPaso,
   agregarPregunta,
   agregarCampo,
+  agregarCampoPlantilla,
+  actualizarCampoPlantilla,
   agregarEstadoFinal,
   actualizarReglas,
   marcarInicio,
@@ -53,6 +55,43 @@ function guionRico() {
 }
 
 describe("speechsInteractivosIO", () => {
+  // Release 1.11.3: la plantilla de registro viaja completa (ids estables,
+  // condiciones y mapeo al caso) y vuelve idéntica tras export/import.
+  it("exporta e importa la plantilla de registro sin perder referencias", () => {
+    let speech = armarSpeech("Con plantilla");
+    speech = agregarCampoPlantilla(speech, {
+      nombre: "Localidad",
+      tipo: "texto-corto",
+      campoDestino: "localidad",
+      porDefecto: "CABA",
+    });
+    const localidadId = speech.plantillaRegistro.campos[0].id;
+    speech = agregarCampoPlantilla(speech, { nombre: "Acepta", tipo: "si-no" });
+    const aceptaId = speech.plantillaRegistro.campos[1].id;
+    speech = actualizarCampoPlantilla(speech, aceptaId, {
+      visibleSi: [
+        { campoId: localidadId, operador: "con-valor", valor: "" },
+      ],
+    });
+
+    const data = JSON.parse(serializarSpeechs([speech]));
+    expect(data.speechs[0].plantillaRegistro.nombre).toBeTruthy();
+    expect(data.speechs[0].plantillaRegistro.campos).toHaveLength(2);
+    expect(data.speechs[0].plantillaRegistro.campos[0].campoDestino).toBe(
+      "localidad"
+    );
+    expect(data.speechs[0].plantillaRegistro.campos[1].visibleSi).toEqual([
+      { campoId: localidadId, operador: "con-valor", valor: "" },
+    ]);
+
+    const parseado = parsearEnvelope(JSON.stringify(data));
+    expect(parseado.ok).toBe(true);
+    expect(parseado.speechs[0].plantillaRegistro).toEqual(
+      speech.plantillaRegistro
+    );
+    expect(validarSpeech(parseado.speechs[0])).toEqual([]);
+  });
+
   it("serializa con envelope v2 (con appVersion) y hace roundtrip completo", () => {
     const speech = armarSpeech();
     const texto = serializarSpeechs([speech]);
@@ -92,6 +131,8 @@ describe("speechsInteractivosIO", () => {
       "id",
       "modulos",
       "nombre",
+      // Release 1.11.3: definición de la plantilla (no datos de llamadas).
+      "plantillaRegistro",
       "reglas",
       "startStepId",
       "steps",

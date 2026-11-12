@@ -721,7 +721,7 @@ describe("opciones v2: respuesta sugerida, acciones y cierre (§2.2/§2.3)", () 
 });
 
 describe("campos de registro por etapa (§3)", () => {
-  it("TIPOS_CAMPO cubre los 8 tipos del spec y esTipoCampoValido los valida", () => {
+  it("TIPOS_CAMPO cubre los tipos del spec (1.11.3 suma número y casilla)", () => {
     expect(TIPOS_CAMPO.map((t) => t.tipo)).toEqual([
       "texto-corto",
       "texto-largo",
@@ -731,6 +731,9 @@ describe("campos de registro por etapa (§3)", () => {
       "fecha",
       "hora",
       "observaciones",
+      // Release 1.11.3: plantillas de registro ampliadas.
+      "numero",
+      "casilla",
     ]);
     expect(esTipoCampoValido("fecha")).toBe(true);
     expect(esTipoCampoValido("voodoo")).toBe(false);

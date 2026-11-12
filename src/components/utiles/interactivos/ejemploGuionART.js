@@ -670,10 +670,72 @@ Muchas gracias por tu tiempo. Espero que puedas continuar bien con tu recuperaci
   ],
 };
 
+/**
+ * Release 1.11.3: migra los campos de etapa del ejemplo a la plantilla a
+ * nivel speech SIN cambiar ids (las asignaciones de las opciones siguen
+ * apuntando a los mismos campos). Cada campo conserva la etapa de origen en
+ * `pasoId`, así el Modo llamada lo muestra junto al speech correspondiente.
+ * Además agrega condiciones y mapeos explícitos al caso: nada se completa por
+ * parecido de nombres.
+ */
+function conPlantillaMigrada(speech) {
+  const campos = [];
+  let orden = 0;
+  const steps = speech.steps.map((paso) => {
+    const propios = Array.isArray(paso.camposRegistro) ? paso.camposRegistro : [];
+    propios.forEach((campo) => {
+      campos.push({ ...campo, pasoId: paso.id, orden: orden++ });
+    });
+    // No se borra información: los datos ya guardados en sesiones usan el id
+    // del campo, no la ubicación, así que moverlos a la plantilla es seguro.
+    return { ...paso, camposRegistro: [] };
+  });
+
+  const porId = new Map(campos.map((c) => [c.id, c]));
+  const configurar = (id, cambios) => {
+    const actual = porId.get(id);
+    if (!actual) return;
+    Object.assign(actual, cambios);
+  };
+
+  // Mapeos explícitos a campos del caso (sólo se completan si están vacíos).
+  configurar("art-e2-c1", { campoDestino: "lesion" });
+  configurar("art-e7-c1", { campoDestino: "localidad" });
+  configurar("art-e7-c3", { campoDestino: "estudioJuridico" });
+  configurar("art-e8-c1", { campoDestino: "horario" });
+  configurar("art-e8-c2", { campoDestino: "telefono" });
+  configurar("art-e8-c4", { campoDestino: "observaciones" });
+
+  // Condiciones genéricas (campo + operador + valor), configurables desde el
+  // editor. No hay ninguna regla hardcodeada del speech ART en el motor.
+  configurar("art-e3-c3", {
+    visibleSi: [{ campoId: "art-e3-c1", operador: "con-valor", valor: "" }],
+  });
+  configurar("art-e7-c3", {
+    visibleSi: [{ campoId: "art-e7-c4", operador: "igual", valor: "si" }],
+  });
+  configurar("art-e8-c1", {
+    visibleSi: [{ campoId: "art-e8-c3", operador: "igual", valor: "si" }],
+  });
+  configurar("art-e8-c4", {
+    visibleSi: [{ campoId: "art-e8-c3", operador: "igual", valor: "si" }],
+  });
+
+  return {
+    ...speech,
+    steps,
+    plantillaRegistro: {
+      version: 1,
+      nombre: "Registro de la llamada ART",
+      campos,
+    },
+  };
+}
+
 export function crearEjemploART() {
   const ahora = new Date().toISOString();
   return {
-    ...JSON.parse(JSON.stringify(base)),
+    ...conPlantillaMigrada(JSON.parse(JSON.stringify(base))),
     fechaCreacion: ahora,
     fechaModificacion: ahora,
   };

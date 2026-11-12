@@ -89,6 +89,9 @@ export function UtilesView({
   condicionales,
   setCondicionales,
   casos,
+  // Release 1.11.3: guarda el registro confirmado del Modo llamada en el caso
+  // asociado (módulo de casos existente). Se propaga hasta ModoLlamada.
+  onGuardarRegistro,
   showToast,
 }) {
   const [subvista, setSubvista] = useState("speechs");
@@ -225,6 +228,9 @@ export function UtilesView({
             // Release 1.11.0 (§5.3): al importar guiones se fusionan las
             // objeciones del archivo en la lista global (sin sobrescribir).
             setObjeciones={setObjeciones}
+            // Release 1.11.3: casos y guardado del registro de llamada.
+            casos={casos}
+            onGuardarRegistro={onGuardarRegistro}
           />
         );
       case "objeciones":

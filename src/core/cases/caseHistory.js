@@ -66,6 +66,9 @@ export const HISTORY_TYPES = {
   EVENT_LINKED: 'event_linked',
   REPORT_ADDED: 'report_added',
   MANUAL_INTERACTION: 'manual_interaction',
+  // Release 1.11.3: registro confirmado de una llamada del Asistente
+  // Interactivo guardado en el caso (no es una DB nueva, es historial).
+  LLAMADA_REGISTRADA: 'llamada_registrada',
   // Sistema de Citas (1.5.0)
   CITA_CREATED: 'cita_created',
   CITA_UPDATED: 'cita_updated',
