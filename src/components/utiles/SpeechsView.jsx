@@ -41,6 +41,9 @@ export function SpeechsView({
   // Release 1.11.0 (§5.3): necesario para fusionar las objeciones que viajan
   // en un archivo importado. Opcional para no romper montajes existentes.
   setObjeciones,
+  // Release 1.11.2: llamadas guardadas del Modo llamada (por speech).
+  llamadasEnCurso = {},
+  setLlamadasEnCurso,
 }) {
   const [modo, setModo] = useState("clasicos");
   const [nuevo, setNuevo] = useState("");
@@ -201,6 +204,8 @@ export function SpeechsView({
           showToast={showToast}
           objeciones={objeciones}
           setObjeciones={setObjeciones}
+          llamadasEnCurso={llamadasEnCurso}
+          setLlamadasEnCurso={setLlamadasEnCurso}
         />
       ) : (
         <>

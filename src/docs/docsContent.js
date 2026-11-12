@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.11.1** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.2** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,14 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.2 — Modo llamada para ejecutar speeches
+
+- **Pantalla enfocada en la llamada**: desde la biblioteca, "Modo llamada" abre la etapa, el speech en tamaño de lectura, la pregunta, la respuesta sugerida y el registro, con breadcrumb de las etapas realmente visitadas (sin porcentajes engañosos).
+- **Un toque elige y "Continuar" confirma**: se puede leer la respuesta y el destino antes de hablar; los datos obligatorios bloquean el avance con un aviso claro.
+- **Apoyo en la misma pantalla**: instrucciones (descripción, objetivo de etapa, reglas y módulos), objeciones (buscar, copiar y marcar consultadas) y resumen editable, sin perder el punto del recorrido.
+- **Finalización revisada y salida segura**: estado final confirmado con revisión previa; al salir se elige entre finalizar, cancelar sin guardar o conservar la llamada como pendiente (badge "Llamada pendiente" y "Retomar" en la biblioteca).
+- **Llamadas pendientes locales por guion**: se validan contra el guion actual (aviso si cambió de versión y descarte seguro si la etapa ya no existe), no viajan en backups y se limpian con "borrar todo". Mismo motor que la **Vista rápida**, sin IA ni dependencias nuevas.
 
 ### 1.11.1 — Constructor visual de flujos interactivos
 
@@ -161,7 +169,7 @@ export const DOC_README = `# AppSeguimiento
 - Pestañas, widgets y métricas configurables.
 
 ### Útiles
-- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, registro de la llamada, editor con árbol de flujo, duplicación, ejecución paso a paso y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
+- **Speechs**: guiones predefinidos con copia al portapapeles y edición directa, más el **Asistente (Interactivo) de Llamadas** — recorridos por etapas, preguntas y opciones ramificadas con respuestas sugeridas, registro de la llamada, editor con árbol de flujo, duplicación, ejecución paso a paso, **Modo llamada** con llamadas pendientes retomables y exportación/importación en JSON versionado (Copia, Reemplazar u Omitir).
 - **Objeciones**, **Conversaciones Sugeridas** (con variables \`{OPERADOR}\`), **Aseguradoras** (ART y Tránsito), **Lesiones**, **Pasos a Seguir**, **Tips**, **Links útiles**.
 - **Estudios Jurídicos**: mapeo por localidad con filtros y condicionales agrupados por estudio.
 
@@ -417,6 +425,39 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.11.2] - Modo llamada para ejecutar speeches
+
+El Asistente de Llamadas suma un **Modo llamada**: una pantalla enfocada en la conversación real que ejecuta el mismo guion con el **mismo motor** de la 1.11.0 y permite retomarlo después. La ejecución anterior sigue disponible como **Vista rápida** (play de la tarjeta) y la vista previa del constructor no cambia. No hay IA, dependencias nuevas ni cambios en los speeches.
+
+### Pantalla de llamada
+
+- **Acceso desde la biblioteca**: la acción principal de cada tarjeta es "Modo llamada"; con una llamada guardada pasa a "Retomar" + "Nueva llamada" + "Descartar", con badge "Llamada pendiente" y fecha del último avance. "Iniciar Speech" del editor abre la misma pantalla.
+- **Lectura enfocada**: overlay de pantalla completa con etapa y objetivo, speech en tamaño de lectura, pregunta/intervención, respuesta sugerida, acción del operador, datos a registrar y registro de la etapa. Sin porcentajes globales ni datos técnicos del constructor.
+- **Un toque elige, "Continuar" confirma**: tocar una opción muestra la respuesta sugerida y el destino real ("Continúa en: Etapa N · …") para poder leer antes de hablar; el avance lo decide siempre \`resolverDestino\` (sin ramas hardcodeadas).
+- **Recorrido honesto**: breadcrumb de las etapas realmente visitadas, sin repetir bucles, más "Etapa X de N del guion" como referencia del guion completo. Atrás, reinicio de la llamada y fin del recorrido con acciones explícitas.
+- **Gate de datos obligatorios**: no se avanza hasta completar los campos obligatorios de la etapa; el aviso enumera los pendientes y usa la misma regla que la Vista rápida.
+- **Apoyo sin salir**: Instrucciones (descripción del guion, objetivo de la etapa, reglas y módulos referenciados), Objeciones (búsqueda, copia y registro de consultadas) y Resumen editable (campos, notas y objeciones consultadas). Cerrar un panel vuelve al mismo punto sin alterar el recorrido.
+- **Finalización revisada**: elegir estado final, ver el resumen y confirmar; el botón queda bloqueado sin estado cuando el guion los define. No se marca una derivación como confirmada sin aceptación explícita.
+- **Cambio de respuesta con impacto**: al cambiar una respuesta anterior se muestran las respuestas posteriores que se descartan y los datos afectados; se aplica solo con confirmación. Los valores escritos a mano se conservan y solo se limpian los autocompletados que siguen intactos.
+- **Salida en 3 caminos**: finalizar, cancelar sin guardar o conservar la llamada para retomarla. El overlay no se cierra por clic afuera ni con Escape sin pasar por esa decisión.
+
+### Llamadas pendientes
+
+- **Persistencia local por guion** en \`llamadas-en-curso-art-tracker\` vía \`useStorage\`: guarda posición, camino, respuestas, registro, notas y objeciones consultadas. No viaja en export/backups, no crea historial oculto y se limpia con "borrar todo", al eliminar los útiles o al eliminar el guion.
+- **Retomado seguro**: la sesión se valida contra el guion actual. Si solo cambió la versión se avisa al retomar; si la etapa, pregunta u opción ya no existe, no se retoma a ciegas: se avisa y se descarta el pendiente roto.
+- **Empezar de cero** con una llamada guardada pide confirmación antes de descartarla.
+
+### Integración y límites
+
+- **Un solo motor**: \`llamada/sesionLlamada.js\` (puro) + \`useSesionLlamada\` concentran navegación, gates, asignaciones, cambio de respuesta y finalización. \`SpeechRunner\` los consume conservando su DOM y aria-labels (Vista rápida y vista previa del constructor); \`ModoLlamada\` reutiliza los mismos paneles (\`RunnerPaneles\`) y helpers.
+- **Integración limitada a propósito**: al finalizar solo se registra el estado final y el resumen en pantalla. No crea ni modifica casos o derivaciones, no envía datos y no agrega un editor paralelo.
+
+### Calidad
+
+- **24 tests nuevos**: motor de sesión (gate, asignaciones, atrás, análisis/aplicación del cambio, finalización, normalización y reinicio), pantalla de llamada (lectura, elección + Continuar, gate, finalización revisada, paneles, cambio de respuesta, salida de 3 caminos y guion cambiado) y biblioteca (abrir/guardar/retomar, nueva llamada confirmada, descartar, borrado en cascada y aviso de versión).
+- Suite completa en verde y \`npm run build\` compila sin errores ni warnings.
+- **Bump a 1.11.2** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y el \`package-lock.json\`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; \`docsContent.js\` regenerado (\`node scripts/build-docs.js\`).
 
 ## [1.11.1] - Constructor visual de flujos interactivos
 

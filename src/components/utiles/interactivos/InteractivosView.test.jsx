@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { InteractivosView } from "./InteractivosView";
 import {
+  crearSesion,
+  elegirOpcion,
+  avanzar,
+  serializarSesion,
+} from "./llamada/sesionLlamada";
+import {
   serializarSpeechs,
   FORMATO_TIPO,
   FORMATO_VERSION,
@@ -668,5 +674,233 @@ describe("InteractivosView (1.9.4 · objeciones vía llaves)", () => {
       "{OBJECION:falta}"
     );
     expect(screen.getByText("Listo para ejecutar")).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Release 1.11.2 · Modo llamada y llamadas pendientes
+// ---------------------------------------------------------------------------
+
+/** Guion v2 mínimo: 2 etapas, una opción con respuesta sugerida. */
+const speechLlamada = {
+  id: "sl",
+  nombre: "Llamada de prueba",
+  descripcion: "Guion para probar el modo llamada",
+  fechaCreacion: "2026-01-01T00:00:00.000Z",
+  fechaModificacion: "2026-01-01T00:00:00.000Z",
+  version: 1,
+  startStepId: "l1",
+  estadosFinales: [{ id: "ef1", nombre: "Derivación coordinada" }],
+  reglas: [],
+  modulos: [],
+  steps: [
+    {
+      id: "l1",
+      titulo: "Apertura",
+      contenido: "Hola, ¿puede hablar?",
+      objetivo: "",
+      orden: 0,
+      camposRegistro: [],
+      preguntas: [
+        {
+          id: "lq1",
+          texto: "¿Sigue?",
+          obligatoria: false,
+          opciones: [
+            {
+              id: "lop1",
+              texto: "Sí, sigue",
+              targetStepId: "l2",
+              orden: 0,
+              respuestaSugerida: "Gracias.",
+              accion: "",
+              datosARegistrar: "",
+              asignaciones: [],
+              requiereAclaracion: false,
+              finalizaLlamada: false,
+              estadoFinalId: "",
+              moduloId: null,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: "l2",
+      titulo: "Cierre",
+      contenido: "Gracias por su tiempo.",
+      objetivo: "",
+      orden: 1,
+      camposRegistro: [],
+      preguntas: [],
+    },
+  ],
+};
+
+/** Sesión de prueba ya avanzada a la etapa 2 (lo que quedaría "pendiente"). */
+function sesionPendienteEnCierre() {
+  let ses = crearSesion(speechLlamada);
+  ses = elegirOpcion(ses, "lop1");
+  ses = avanzar(ses, speechLlamada).sesion;
+  return serializarSesion(ses);
+}
+
+const pendienteDePrueba = (extra = {}) => ({
+  sl: {
+    speechId: "sl",
+    speechNombre: speechLlamada.nombre,
+    speechVersion: speechLlamada.version,
+    actualizadaEn: "2026-01-03T10:00:00.000Z",
+    sesion: sesionPendienteEnCierre(),
+    ...extra,
+  },
+});
+
+/** Harness que expone las llamadas guardadas para poder verificarlas en el DOM. */
+function ConLlamadas({ inicial = [], llamadasIniciales = {} }) {
+  const [speechs, setSpeechs] = useState(inicial);
+  const [llamadas, setLlamadas] = useState(llamadasIniciales);
+  return (
+    <>
+      <div data-testid="n-llamadas">{Object.keys(llamadas || {}).length}</div>
+      <div data-testid="paso-pendiente">
+        {llamadas?.sl?.sesion?.pasoId || ""}
+      </div>
+      <InteractivosView
+        speechs={speechs}
+        setSpeechs={setSpeechs}
+        showToast={noop}
+        objeciones={[]}
+        llamadasEnCurso={llamadas}
+        setLlamadasEnCurso={setLlamadas}
+      />
+    </>
+  );
+}
+
+describe("InteractivosView (1.11.2 · Modo llamada)", () => {
+  it("abre el Modo llamada, guarda el avance y permite retomarlo", async () => {
+    noop.mockClear();
+    render(<ConLlamadas inicial={[speechLlamada]} />);
+
+    // Acción principal de la tarjeta: pantalla enfocada, no el runner modal.
+    fireEvent.click(screen.getByLabelText("Iniciar modo llamada"));
+    expect(
+      screen.getByRole("heading", { name: "Llamada de prueba" })
+    ).toBeTruthy();
+    expect(screen.getByText("Etapa 1 de 2 del guion")).toBeTruthy();
+    // El runner de Vista rápida no se abrió.
+    expect(screen.queryByText(/ETAPA 1 \/ 2/)).toBeNull();
+
+    // Un toque elige y muestra la respuesta; Continuar avanza y persiste.
+    fireEvent.click(screen.getByText("Sí, sigue"));
+    expect(screen.getByText("Gracias.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(screen.getByText("Etapa 2 de 2 del guion")).toBeTruthy();
+    expect(screen.getByTestId("n-llamadas").textContent).toBe("1");
+    expect(screen.getByTestId("paso-pendiente").textContent).toBe("l2");
+
+    // Conservar y salir deja la llamada pendiente visible en la biblioteca.
+    fireEvent.click(screen.getByLabelText("Salir del modo llamada"));
+    const dialogo = screen.getByRole("dialog", { name: "Salir de la llamada" });
+    fireEvent.click(
+      within(dialogo).getByRole("button", { name: "Conservar y salir" })
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "Llamada de prueba" })
+      ).toBeNull()
+    );
+    expect(screen.getByText("Llamada pendiente")).toBeTruthy();
+    expect(screen.getByLabelText("Retomar modo llamada")).toBeTruthy();
+
+    // Retomar vuelve exactamente al punto guardado.
+    fireEvent.click(screen.getByLabelText("Retomar modo llamada"));
+    expect(screen.getByText("Etapa 2 de 2 del guion")).toBeTruthy();
+    expect(screen.getByText("Gracias por su tiempo.")).toBeTruthy();
+  });
+
+  it("iniciar una nueva llamada con una pendiente pide confirmación y la descarta", async () => {
+    render(
+      <ConLlamadas
+        inicial={[speechLlamada]}
+        llamadasIniciales={pendienteDePrueba()}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Iniciar nueva llamada"));
+    const confirmar = screen.getByRole("dialog", { name: "Iniciar nueva llamada" });
+    expect(
+      within(confirmar).getByText(/la llamada guardada se descarta/i)
+    ).toBeTruthy();
+    fireEvent.click(within(confirmar).getByRole("button", { name: "Iniciar nueva" }));
+
+    // La sesión vieja se descartó y la nueva arranca en la etapa 1.
+    expect(screen.getByText("Etapa 1 de 2 del guion")).toBeTruthy();
+    expect(screen.getByTestId("n-llamadas").textContent).toBe("0");
+
+    // Cancelar sin tocar nada no vuelve a crear un pendiente.
+    fireEvent.click(screen.getByLabelText("Salir del modo llamada"));
+    const salir = screen.getByRole("dialog", { name: "Salir de la llamada" });
+    fireEvent.click(within(salir).getByRole("button", { name: "Cancelar sin guardar" }));
+    await waitFor(() => expect(screen.getByTestId("n-llamadas").textContent).toBe("0"));
+  });
+
+  it("descartar la llamada pendiente la quita sin tocar el guion", () => {
+    render(
+      <ConLlamadas
+        inicial={[speechLlamada]}
+        llamadasIniciales={pendienteDePrueba()}
+      />
+    );
+
+    expect(screen.getByText("Llamada pendiente")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Descartar llamada pendiente"));
+
+    expect(screen.getByTestId("n-llamadas").textContent).toBe("0");
+    expect(screen.queryByText("Llamada pendiente")).toBeNull();
+    expect(screen.getByLabelText("Iniciar modo llamada")).toBeTruthy();
+    // El guion sigue en la biblioteca.
+    expect(screen.getByText("Llamada de prueba")).toBeTruthy();
+  });
+
+  it("eliminar el speech borra en cascada su llamada pendiente", async () => {
+    render(
+      <ConLlamadas
+        inicial={[speechLlamada]}
+        llamadasIniciales={pendienteDePrueba()}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Eliminar speech interactivo"));
+    const confirmar = screen.getByRole("dialog", {
+      name: "Eliminar speech interactivo",
+    });
+    fireEvent.click(within(confirmar).getByRole("button", { name: "Eliminar" }));
+
+    await waitFor(() => expect(screen.getByTestId("n-llamadas").textContent).toBe("0"));
+    expect(screen.queryByText("Llamada de prueba")).toBeNull();
+  });
+
+  it("retomar avisa cuando la versión del guion cambió y mantiene el recorrido", () => {
+    noop.mockClear();
+    render(
+      <ConLlamadas
+        inicial={[speechLlamada]}
+        llamadasIniciales={pendienteDePrueba({
+          sesion: { ...sesionPendienteEnCierre(), speechVersion: 0 },
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Retomar modo llamada"));
+    expect(noop).toHaveBeenCalledWith(
+      "El guion cambió: revisá las etapas al retomar.",
+      "info"
+    );
+    expect(
+      screen.getByText(/El guion cambió desde que empezó esta llamada/)
+    ).toBeTruthy();
+    expect(screen.getByText("Etapa 2 de 2 del guion")).toBeTruthy();
   });
 });

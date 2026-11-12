@@ -397,6 +397,12 @@ function AppContent() {
     "speechs-interactivos-art-tracker",
     []
   );
+  // Release 1.11.2 (Modo llamada): sesiones guardadas por speech. Es estado
+  // local de la app: NO viaja en backups/export y se borra con "borrar todo".
+  const [llamadasEnCurso, setLlamadasEnCurso] = useStorage(
+    "llamadas-en-curso-art-tracker",
+    {}
+  );
   // Release 1.11.0 (§2/§5): normalización idempotente v1→v2 en LECTURA.
   // Es NO destructiva: no escribe en storage por sí misma; los guiones
   // guardados en la forma vieja se muestran y editan ya normalizados y el
@@ -957,6 +963,9 @@ function AppContent() {
       saveKey("links-art-tracker", links);
       saveKey("speechs-art-tracker", speechs);
       saveKey("speechs-interactivos-art-tracker", speechsInteractivos);
+      // Release 1.11.2: una llamada pendiente no se pierde si se recarga la
+      // pestaña dentro de la ventana de debounce de useStorage.
+      saveKey("llamadas-en-curso-art-tracker", llamadasEnCurso);
       saveKey("objeciones-art-tracker", objeciones);
       saveKey("art-art-tracker", art);
       saveKey("transito-art-tracker", transito);
@@ -974,6 +983,7 @@ function AppContent() {
     links,
     speechs,
     speechsInteractivos,
+    llamadasEnCurso,
     objeciones,
     art,
     transito,
@@ -1357,6 +1367,9 @@ function AppContent() {
       setTips([]);
       setLinks([]);
       setSpeechs([]);
+      // Release 1.11.2: "borrar todo" elimina también las llamadas en curso
+      // del Modo llamada (memoria + storage vía useStorage).
+      setLlamadasEnCurso({});
       setObjeciones([]);
       setArt([]);
       setTransito([]);
@@ -2010,6 +2023,8 @@ function AppContent() {
               setSpeechs={setSpeechs}
               speechsInteractivos={speechsInteractivosVista}
               setSpeechsInteractivos={setSpeechsInteractivos}
+              llamadasEnCurso={llamadasEnCurso}
+              setLlamadasEnCurso={setLlamadasEnCurso}
               objeciones={objeciones}
               setObjeciones={setObjeciones}
               art={art}
@@ -2098,6 +2113,7 @@ function AppContent() {
             setSpeechs={setSpeechs}
             speechsInteractivos={speechsInteractivosVista}
             setSpeechsInteractivos={setSpeechsInteractivos}
+            setLlamadasEnCurso={setLlamadasEnCurso}
             objeciones={objeciones}
             setObjeciones={setObjeciones}
             art={art}

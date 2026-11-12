@@ -38,6 +38,10 @@ class LocalStorageAdapter {
     // Claves internas/transitorias que NO se respaldan ni restauran.
     this.backupExclude = (key) =>
       key === "app-filters" ||
+      // Release 1.11.2: las llamadas en curso del Modo llamada son estado
+      // local de la sesión. No deben viajar en backups ni restaurarse en otro
+      // dispositivo (decisión de producto: solo el guion es portable).
+      key === "app_llamadas-en-curso-art-tracker" ||
       key.startsWith("tour_") ||
       key === "backup-last-run" ||
       key === "userOperatorCredentials" ||

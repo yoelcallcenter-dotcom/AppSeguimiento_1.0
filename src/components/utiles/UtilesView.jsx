@@ -71,6 +71,9 @@ export function UtilesView({
   setSpeechs,
   speechsInteractivos,
   setSpeechsInteractivos,
+  // Release 1.11.2: llamadas guardadas del Modo llamada.
+  llamadasEnCurso = {},
+  setLlamadasEnCurso,
   objeciones,
   setObjeciones,
   art,
@@ -215,6 +218,8 @@ export function UtilesView({
             setSpeechs={setSpeechs}
             speechsInteractivos={speechsInteractivos}
             setSpeechsInteractivos={setSpeechsInteractivos}
+            llamadasEnCurso={llamadasEnCurso}
+            setLlamadasEnCurso={setLlamadasEnCurso}
             showToast={showToast}
             objeciones={objeciones}
             // Release 1.11.0 (§5.3): al importar guiones se fusionan las

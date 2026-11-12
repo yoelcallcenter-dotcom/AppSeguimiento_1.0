@@ -34,7 +34,13 @@
 // grafo sobre el mismo modelo v2 (opciones como puertos), edición por nodo,
 // conectar/desconectar, auto-organizar con layout opcional, deshacer/rehacer
 // local, validación navegable y vista previa con el runner (sin persistir).
-export const APP_VERSION = "1.11.1";
+// v1.11.2: Modo llamada para ejecutar speeches en llamadas reales con el
+// mismo motor de 1.11.0 (sesionLlamada + useSesionLlamada): pantalla enfocada,
+// breadcrumb del recorrido real, gate de obligatorios, cambio de respuesta con
+// impacto, finalización revisada y salida de 3 caminos. La ejecución anterior
+// queda como Vista rápida. Las llamadas pendientes viven en localStorage por
+// guion, se excluyen de backups y se limpian con "borrar todo"/útiles.
+export const APP_VERSION = "1.11.2";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

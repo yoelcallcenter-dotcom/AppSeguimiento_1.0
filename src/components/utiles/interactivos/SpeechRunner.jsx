@@ -28,7 +28,7 @@
  * la llamada, que es el comportamiento deseado); si el guion trae errores de
  * validación se muestra el listado y NO se ejecuta (igual que la 1.9.x).
  */
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Modal } from "../../common/Modal";
 import { Btn } from "../../common/Btn";
 import { BtnOutline } from "../../common/BtnOutline";
@@ -48,26 +48,10 @@ import {
   BookOpen,
   ChevronRight,
 } from "lucide-react";
-import {
-  validarSpeech,
-  normalizarSpeech,
-  resolverDestino,
-  camposObligatoriosPendientes,
-} from "./interactiveSpeechModel";
 import { resolverObjeciones } from "./resolveObjeciones";
 import { useClipboard } from "../../../hooks/useClipboard";
+import { useSesionLlamada } from "./llamada/useSesionLlamada";
 import { PanelObjeciones, PanelResumen, CampoRegistro } from "./RunnerPaneles";
-
-/** Clave estable de una aclaración: etapa|pregunta|opción (conservada al navegar). */
-const claveAclaracion = (stepId, preguntaIdx, opcionId) =>
-  `${stepId}|${preguntaIdx}|${opcionId}`;
-
-/** ¿El registro no tiene valor útil para este campo? (espejo del modelo). */
-function valorVacio(campo, v) {
-  if (campo?.tipo === "seleccion-multiple") return !(Array.isArray(v) && v.length > 0);
-  if (campo?.tipo === "si-no") return v !== "si" && v !== "no";
-  return v === undefined || v === null || String(v).trim() === "";
-}
 
 export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecucion" }) {
   // Release 1.11.1: `modo="preview"` reutiliza este motor desde el constructor
@@ -75,29 +59,60 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
   // permite recorrer un BORRADOR con errores de validación (no se ejecuta una
   // llamada real ni se persiste nada) y se avisa que es una simulación.
   const esPreview = modo === "preview";
-  // Normalización defensiva al montar: un guion guardado en la forma v1
-  // (opciones sueltas en la etapa) se ejecuta igual; es idempotente y no
-  // reescribe storage (el mismo criterio que App.jsx en el punto de entrada).
-  const guion = useMemo(() => normalizarSpeech(speech) || {}, [speech]);
-  const steps = useMemo(() => (Array.isArray(guion.steps) ? guion.steps : []), [guion]);
 
-  // --- Estado de la llamada (todo en memoria, §3) -------------------------
-  const [pos, setPos] = useState(() => ({
-    stepId: guion.startStepId || steps[0]?.id || null,
-    preguntaIdx: 0,
-  }));
-  const [historial, setHistorial] = useState([]); // posiciones anteriores (Atrás)
-  const [registro, setRegistro] = useState({}); // {campoId: valor}
-  const [completadas, setCompletadas] = useState(() => new Set()); // etapas marcadas
-  const [pendiente, setPendiente] = useState(null); // opción elegida (área de respuesta)
-  const [aclaraciones, setAclaraciones] = useState({}); // borradores por clave
+  // Release 1.11.2: la lógica de la llamada se extrajo a `useSesionLlamada`.
+  // Este componente conserva EXACTAMENTE el mismo DOM/aria-labels de 1.11.0
+  // (sus tests y la vista previa del constructor dependen de ese contrato),
+  // pero la navegación, el registro y la finalización ahora son compartidos
+  // con el Modo llamada. No se pasa `onCambio`: la Vista rápida no persiste.
+  const {
+    guion,
+    steps,
+    errores,
+    paso,
+    pasoIdx,
+    preguntas,
+    pregunta,
+    opciones,
+    campos,
+    estadosFinales,
+    pendiente,
+    pendientes,
+    clavePend,
+    textoAclaracion,
+    bloqueoAclaracion,
+    historial,
+    registro,
+    completadas,
+    consultadas,
+    notas,
+    finalizada,
+    estadoFinalNombre,
+    avanzar: avanzarSesion,
+    atras: atrasSesion,
+    irA,
+    reiniciar: reiniciarSesion,
+    elegir,
+    cambiar,
+    toggleCompletada,
+    setCampo,
+    setAclaracion,
+    setNotas,
+    registrarConsultada,
+    finalizar,
+  } = useSesionLlamada({ speech });
+
+  // En vista previa los errores NO bloquean el recorrido (el borrador puede
+  // estar incompleto a propósito); se muestran como aviso en el subheader.
+  const erroresBloqueantes = esPreview ? [] : errores;
+  const { copiar: copiarSpeech, copiado: speechCopiado } = useClipboard();
+  const { copiar: copiarRespuesta, copiado: respuestaCopiada } = useClipboard();
+
+  // --- Estado SOLO de presentación (no forma parte de la sesión) -----------
   const [avisoGate, setAvisoGate] = useState(false); // ya intentó avanzar con obligatorios pendientes
   const [panel, setPanel] = useState(null); // "objeciones" | "resumen" | null
-  const [consultadas, setConsultadas] = useState([]); // ids de objeciones copiadas
-  const [notas, setNotas] = useState("");
   const [finalizando, setFinalizando] = useState(false); // diálogo de estado final
   const [estadoFinalSel, setEstadoFinalSel] = useState("");
-  const [finalizada, setFinalizada] = useState(false);
   const [confirmarCierre, setConfirmarCierre] = useState(false);
   // El Modal anima su salida ANTES de llamar a onClose: si el cierre queda
   // pendiente de confirmación, remontamos el Modal con key para recuperar su
@@ -105,34 +120,11 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
   // afuera; sin este remount quedaría invisible tras Cancelar).
   const [modalKey, setModalKey] = useState(0);
 
-  const errores = useMemo(() => validarSpeech(guion), [guion]);
-  // En vista previa los errores NO bloquean el recorrido (el borrador puede
-  // estar incompleto a propósito); se muestran como aviso en el subheader.
-  const erroresBloqueantes = esPreview ? [] : errores;
-  const { copiar: copiarSpeech, copiado: speechCopiado } = useClipboard();
-  const { copiar: copiarRespuesta, copiado: respuestaCopiada } = useClipboard();
-
   // --- Derivados de la posición actual ------------------------------------
-  const pasoIdx = steps.findIndex((s) => s.id === pos.stepId);
-  const paso = pasoIdx >= 0 ? steps[pasoIdx] : null;
-  const preguntas = paso && Array.isArray(paso.preguntas) ? paso.preguntas : [];
-  const pregunta = preguntas[pos.preguntaIdx] || null;
-  const opciones = pregunta && Array.isArray(pregunta.opciones) ? pregunta.opciones : [];
-  const campos = paso && Array.isArray(paso.camposRegistro) ? paso.camposRegistro : [];
-  const estadosFinales = Array.isArray(guion.estadosFinales) ? guion.estadosFinales : [];
-
   const sinPasos = steps.length === 0;
   const finRecorrido =
     erroresBloqueantes.length === 0 && !paso && !sinPasos && !finalizada;
-  const clavePend = pendiente
-    ? claveAclaracion(pos.stepId, pos.preguntaIdx, pendiente.id)
-    : "";
-  const textoAclaracion = clavePend ? aclaraciones[clavePend] || "" : "";
-  const pendientes = paso ? camposObligatoriosPendientes(guion, paso.id, registro) : [];
-  const bloqueoAclaracion = Boolean(pendiente?.requiereAclaracion) && !textoAclaracion.trim();
-  const estadoFinalNombre =
-    estadosFinales.find((e) => e.id === estadoFinalSel)?.nombre || "";
-  // "Datos en curso" = algo que se perdería al cerrar (el registro no se
+  // "Datos en curso" = algo que se perdería al cerrar la Vista rápida (no se
   // persiste): solo en ese caso pedimos confirmación de cierre.
   const hayDatosEnCurso =
     !finalizada &&
@@ -149,105 +141,45 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
 
   // --- Acciones del recorrido ---------------------------------------------
 
-  /** Auto-fill de asignaciones de la opción: SOLO en campos vacíos (§2.2). */
-  const aplicarAsignaciones = (opcion) => {
-    const asignaciones = Array.isArray(opcion?.asignaciones) ? opcion.asignaciones : [];
-    if (!asignaciones.length || !paso) return;
-    setRegistro((prev) => {
-      const siguiente = { ...prev };
-      let huboCambio = false;
-      asignaciones.forEach((a) => {
-        const campo = campos.find((c) => c.id === a.campoId);
-        if (!campo || !valorVacio(campo, prev[a.campoId])) return; // nunca pisa lo ya cargado
-        if (campo.tipo === "seleccion-multiple") {
-          // Un valor string se interpreta como lista separada por comas.
-          siguiente[a.campoId] = String(a.valor ?? "")
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean);
-        } else {
-          siguiente[a.campoId] = a.valor ?? "";
-        }
-        huboCambio = true;
-      });
-      return huboCambio ? siguiente : prev;
-    });
-  };
-
   /**
-   * Avanzar: 1) gate de aclaración (botón deshabilitado + guarda), 2) gate
-   * de campos obligatorios (lista visible, sin escape), 3) asignaciones,
-   * 4) finalizaLlamada abre el diálogo de estado, 5) motor resolverDestino.
+   * Avanzar: el gate de aclaración y el de campos obligatorios viven en el
+   * hook. Acá solo se traduce el evento a la UI: lista visible para el gate y
+   * diálogo de estado final para las opciones que cierran la llamada.
    */
   const avanzar = () => {
     if (!paso || bloqueoAclaracion) return;
-    if (pendientes.length) {
+    const evento = avanzarSesion();
+    if (!evento) return;
+    if (evento.tipo === "gate") {
       setAvisoGate(true);
       return;
     }
-    aplicarAsignaciones(pendiente);
-    if (pendiente?.finalizaLlamada) {
+    if (evento.tipo === "finaliza") {
       setPanel(null); // el ConfirmDialog (z-submodal) debe quedar por encima
-      setEstadoFinalSel(pendiente.estadoFinalId || "");
+      setEstadoFinalSel(evento.estadoFinalId || "");
       setFinalizando(true);
       return;
     }
-    const destino = resolverDestino(guion, paso.id, pos.preguntaIdx, pendiente);
     setAvisoGate(false);
-    setHistorial((h) => [...h, pos]);
-    setPendiente(null);
-    setPos(
-      destino.fin
-        ? { stepId: null, preguntaIdx: 0 }
-        : { stepId: destino.stepId, preguntaIdx: destino.preguntaIdx }
-    );
   };
 
   const atras = () => {
-    if (!historial.length) return;
-    setHistorial((h) => h.slice(0, -1));
-    setPos(historial[historial.length - 1]);
-    setPendiente(null);
+    atrasSesion();
     setAvisoGate(false);
   };
 
   const saltar = (stepId) => {
-    if (!stepId || stepId === pos.stepId) return;
-    setHistorial((h) => [...h, pos]);
-    setPos({ stepId, preguntaIdx: 0 });
-    setPendiente(null);
+    irA(stepId);
     setAvisoGate(false);
   };
 
   const reiniciar = () => {
-    setPos({ stepId: guion.startStepId || steps[0]?.id || null, preguntaIdx: 0 });
-    setHistorial([]);
-    setRegistro({});
-    setCompletadas(new Set());
-    setPendiente(null);
-    setAclaraciones({});
+    reiniciarSesion();
     setAvisoGate(false);
-    setConsultadas([]);
-    setNotas("");
-    setFinalizada(false);
-    setEstadoFinalSel("");
     setFinalizando(false);
+    setEstadoFinalSel("");
+    setPanel(null);
   };
-
-  const toggleCompletada = () => {
-    if (!paso) return;
-    setCompletadas((prev) => {
-      const s = new Set(prev);
-      if (s.has(paso.id)) s.delete(paso.id);
-      else s.add(paso.id);
-      return s;
-    });
-  };
-
-  const setCampo = (campoId, valor) => setRegistro((prev) => ({ ...prev, [campoId]: valor }));
-
-  const registrarConsultada = (id) =>
-    setConsultadas((prev) => (prev.includes(id) ? prev : [...prev, id]));
 
   const abrirFinalizar = () => {
     setPanel(null); // ConfirmDialog (z-submodal 60) por debajo de SidePanel (110)
@@ -257,8 +189,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
 
   const confirmarFinalizacion = () => {
     setFinalizando(false);
-    setFinalizada(true);
-    setPendiente(null);
+    finalizar(estadoFinalSel);
     setAvisoGate(false);
   };
 
@@ -650,7 +581,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
                 <button
                   key={op.id}
                   type="button"
-                  onClick={() => setPendiente(op)}
+                  onClick={() => elegir(op.id)}
                   className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors hover:opacity-80"
                   style={{
                     backgroundColor:
@@ -748,7 +679,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
                 <TextInput
                   value={textoAclaracion}
                   onChange={(e) =>
-                    setAclaraciones((prev) => ({ ...prev, [clavePend]: e.target.value }))
+                    setAclaracion(clavePend, e.target.value)
                   }
                   placeholder="Escriba lo que el trabajador aclara..."
                 />
@@ -763,7 +694,7 @@ export function SpeechRunner({ speech, onClose, objeciones = [], modo = "ejecuci
               >
                 {pendiente.finalizaLlamada ? "Finalizar llamada" : "Continuar"}
               </Btn>
-              <BtnOutline onClick={() => setPendiente(null)}>Cambiar</BtnOutline>
+              <BtnOutline onClick={cambiar}>Cambiar</BtnOutline>
             </div>
           </div>
         )}

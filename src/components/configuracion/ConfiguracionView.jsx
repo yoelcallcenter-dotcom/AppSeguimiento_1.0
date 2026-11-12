@@ -194,6 +194,9 @@ export function ConfiguracionView({
   setSpeechs,
   speechsInteractivos,
   setSpeechsInteractivos,
+  // Release 1.11.2: al eliminar útiles también se limpian las llamadas
+  // pendientes del Modo llamada (opcional para no romper montajes viejos).
+  setLlamadasEnCurso,
   objeciones,
   setObjeciones,
   art,
@@ -1118,6 +1121,9 @@ export function ConfiguracionView({
     localStorageAdapter.set("links-art-tracker", []);
     localStorageAdapter.set("speechs-art-tracker", []);
     localStorageAdapter.set("speechs-interactivos-art-tracker", []);
+    // Release 1.11.2: sin guiones no hay contra qué retomar; se limpian las
+    // llamadas en curso del Modo llamada junto con los útiles.
+    localStorageAdapter.set("llamadas-en-curso-art-tracker", {});
     localStorageAdapter.set("objeciones-art-tracker", []);
     localStorageAdapter.set("art-art-tracker", []);
     localStorageAdapter.set("transito-art-tracker", []);
@@ -1136,6 +1142,9 @@ export function ConfiguracionView({
     setLinks([]);
     setSpeechs([]);
     setSpeechsInteractivos([]);
+    // Mantener el estado en memoria alineado con el storage para que un
+    // beforeunload posterior no reescriba llamadas ya borradas.
+    setLlamadasEnCurso?.({});
     setObjeciones([]);
     setArt([]);
     setTransito([]);

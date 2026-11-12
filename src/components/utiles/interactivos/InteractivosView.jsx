@@ -12,6 +12,9 @@ import {
   Archive,
   RotateCcw,
   Sparkles,
+  // Release 1.11.2: acción principal "Modo llamada" y retomar pendiente.
+  Phone,
+  History,
 } from "lucide-react";
 import { Btn } from "../../common/Btn";
 import { BtnOutline } from "../../common/BtnOutline";
@@ -43,6 +46,13 @@ import {
 } from "./ejemploGuionART";
 import { SpeechEditor } from "./SpeechEditor";
 import { SpeechRunner } from "./SpeechRunner";
+// Release 1.11.2 (Modo llamada): la biblioteca guarda/retoma sesiones y abre
+// la pantalla nueva; los helpers puros validan la sesión contra el guion.
+import { ModoLlamada } from "./llamada/ModoLlamada";
+import {
+  normalizarSesion,
+  serializarSesion,
+} from "./llamada/sesionLlamada";
 
 const borradorVacio = { nombre: "", descripcion: "" };
 
@@ -70,6 +80,12 @@ export function InteractivosView({
   // Release 1.11.0 (§5.3): al importar, las objeciones que viajan en el
   // archivo se fusionan en la lista global sin sobrescribir las existentes.
   setObjeciones,
+  // Release 1.11.2: llamadas guardadas por speech ({ [speechId]: { sesion } }).
+  // Viven en el storage de la app, NO viajan en export/backup y se limpian con
+  // "borrar todo". Sin estas props la biblioteca sigue funcionando (Vista
+  // rápida), solo que sin retomar pendientes.
+  llamadasEnCurso = {},
+  setLlamadasEnCurso,
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todos");
@@ -80,6 +96,10 @@ export function InteractivosView({
   const [modalExport, setModalExport] = useState(null);
   const [importData, setImportData] = useState(null);
   const [confirmReemplazo, setConfirmReemplazo] = useState(false);
+  // Modo llamada: { speechId, sesionInicial, avisoGuionCambiado } o null.
+  const [modoLlamada, setModoLlamada] = useState(null);
+  // Empezar de cero con una llamada pendiente exige confirmación explícita.
+  const [confirmNuevaLlamada, setConfirmNuevaLlamada] = useState(null);
 
   const lista = speechs || [];
 
@@ -109,6 +129,90 @@ export function InteractivosView({
   const enEdicion = lista.find((s) => s.id === editandoId) || null;
   const enEjecucion = lista.find((s) => s.id === ejecutandoId) || null;
 
+  // --- Release 1.11.2: Modo llamada y llamadas pendientes ------------------
+  const pendienteDe = (speechId) => llamadasEnCurso?.[speechId] || null;
+
+  const guardarSesion = (sesion) => {
+    if (!modoLlamada || typeof setLlamadasEnCurso !== "function") return;
+    const speech = lista.find((s) => s.id === modoLlamada.speechId);
+    const id = modoLlamada.speechId;
+    setLlamadasEnCurso((prev) => {
+      const next = { ...(prev || {}) };
+      // Una llamada finalizada ya no es pendiente: se quita del storage. El
+      // resumen se mostró en pantalla antes de cerrar (nada de historiales
+      // ocultos, decisión 1.11.2).
+      if (sesion?.finalizada) {
+        delete next[id];
+        return next;
+      }
+      next[id] = {
+        speechId: id,
+        speechNombre: speech?.nombre || "",
+        speechVersion: Number(speech?.version) || 0,
+        actualizadaEn: sesion?.actualizadaEn || new Date().toISOString(),
+        sesion: serializarSesion(sesion),
+      };
+      return next;
+    });
+  };
+
+  const descartarSesion = (speechId) => {
+    if (typeof setLlamadasEnCurso !== "function" || !speechId) return;
+    setLlamadasEnCurso((prev) => {
+      if (!prev || !prev[speechId]) return prev;
+      const next = { ...prev };
+      delete next[speechId];
+      return next;
+    });
+  };
+
+  /**
+   * Abre el Modo llamada. Si hay una sesión guardada, la valida contra el
+   * guion ACTUAL antes de reanudar: si la etapa/opción ya no existe no se
+   * retoma a ciegas (se avisa y se descarta el pendiente roto). Si el guion
+   * solo cambió de versión, se retoma con un aviso.
+   */
+  const abrirModoLlamada = (speechId) => {
+    const speech = lista.find((s) => s.id === speechId);
+    if (!speech) return;
+    const pendiente = pendienteDe(speechId);
+    if (pendiente?.sesion) {
+      const norm = normalizarSesion(pendiente.sesion, speech);
+      if (!norm.ok) {
+        descartarSesion(speechId);
+        showToast(
+          "La llamada pendiente ya no coincide con el guion y no se puede retomar.",
+          "error"
+        );
+        return;
+      }
+      if (norm.guionCambiado) {
+        showToast("El guion cambió: revisá las etapas al retomar.", "info");
+      }
+      setModoLlamada({
+        speechId,
+        sesionInicial: norm.sesion,
+        avisoGuionCambiado: norm.guionCambiado,
+      });
+      return;
+    }
+    setModoLlamada({ speechId, sesionInicial: null, avisoGuionCambiado: false });
+  };
+
+  const iniciarNuevaLlamada = (speechId) => {
+    if (!speechId) return;
+    descartarSesion(speechId);
+    setModoLlamada({ speechId, sesionInicial: null, avisoGuionCambiado: false });
+  };
+
+  const solicitarNuevaLlamada = (speechId) => {
+    if (pendienteDe(speechId)) {
+      setConfirmNuevaLlamada(speechId);
+      return;
+    }
+    iniciarNuevaLlamada(speechId);
+  };
+
   const actualizar = (nuevo) => {
     setSpeechs(lista.map((s) => (s.id === nuevo.id ? nuevo : s)));
   };
@@ -131,6 +235,10 @@ export function InteractivosView({
     setSpeechs(lista.filter((s) => s.id !== id));
     if (editandoId === id) setEditandoId(null);
     if (ejecutandoId === id) setEjecutandoId(null);
+    // Release 1.11.2: borrar el guion borra también su llamada pendiente (ya
+    // no habría contra qué retomarla).
+    descartarSesion(id);
+    if (modoLlamada?.speechId === id) setModoLlamada(null);
     setConfirmEliminar(null);
     showToast("Speech interactivo eliminado", "info");
   };
@@ -295,6 +403,29 @@ export function InteractivosView({
     aplicarImport();
   };
 
+  // Overlay del Modo llamada: se renderiza TANTO sobre la biblioteca como
+  // sobre el editor, para que "Iniciar Speech" abra la misma pantalla.
+  const speechLlamada = modoLlamada
+    ? lista.find((s) => s.id === modoLlamada.speechId) || null
+    : null;
+  const overlayLlamada =
+    modoLlamada && speechLlamada ? (
+      <ModoLlamada
+        // El remount limpia el estado local del motor al cambiar de llamada o
+        // al reiniciar desde cero (misma clave de sesión).
+        key={`${modoLlamada.speechId}:${
+          modoLlamada.sesionInicial?.iniciadaEn || "nueva"
+        }`}
+        speech={speechLlamada}
+        objeciones={objeciones}
+        sesionInicial={modoLlamada.sesionInicial}
+        avisoGuionCambiado={modoLlamada.avisoGuionCambiado}
+        onGuardar={guardarSesion}
+        onDescartar={() => descartarSesion(modoLlamada.speechId)}
+        onClose={() => setModoLlamada(null)}
+      />
+    ) : null;
+
   if (enEdicion) {
     return (
       <div className="space-y-4">
@@ -302,7 +433,10 @@ export function InteractivosView({
           speech={enEdicion}
           onChange={actualizar}
           onVolver={() => setEditandoId(null)}
-          onEjecutar={(id) => setEjecutandoId(id)}
+          // Release 1.11.2: la acción principal del editor abre el Modo
+          // llamada (la Vista previa del propio editor sigue siendo el
+          // recorrido de borrador).
+          onEjecutar={(id) => abrirModoLlamada(id)}
           onExportar={() => exportarGuion(enEdicion)}
           showToast={showToast}
           objeciones={objeciones}
@@ -314,6 +448,7 @@ export function InteractivosView({
             objeciones={objeciones}
           />
         )}
+        {overlayLlamada}
       </div>
     );
   }
@@ -381,6 +516,8 @@ export function InteractivosView({
         {filtrados.map((s) => {
           const errores = validarSpeech(s);
           const pasoCount = (s.steps || []).length;
+          const pendiente = pendienteDe(s.id);
+          const puedeLlamar = errores.length === 0 && !s.archivado;
           return (
             <div
               key={s.id}
@@ -427,26 +564,40 @@ export function InteractivosView({
                       Archivado
                     </span>
                   )}
+                  {/* Release 1.11.2: llamada guardada para retomar. */}
+                  {pendiente ? (
+                    <span
+                      className="pill-sm font-bold flex-shrink-0"
+                      style={{
+                        backgroundColor:
+                          "color-mix(in srgb, var(--color-success) 13.3%, transparent)",
+                        color: "var(--color-success)",
+                      }}
+                      title="Hay una llamada en curso guardada para este guion"
+                    >
+                      Llamada pendiente
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     aria-label="Ejecutar speech interactivo"
-                    disabled={errores.length > 0 || s.archivado}
+                    disabled={!puedeLlamar}
                     title={
                       s.archivado
                         ? "Reactivá el speech para ejecutarlo"
                         : errores.length > 0
                         ? "Corregí los errores antes de ejecutar"
-                        : "Ejecutar"
+                        : "Vista rápida (sin guardar)"
                     }
                     onClick={() => setEjecutandoId(s.id)}
                     className={`p-1 rounded transition-colors ${
-                      errores.length > 0 || s.archivado
+                      !puedeLlamar
                         ? "opacity-40 cursor-not-allowed"
                         : "hover:bg-white/5"
                     }`}
-                    style={{ color: "var(--color-success)" }}
+                    style={{ color: "var(--color-text-muted)" }}
                   >
                     <Play size={14} />
                   </button>
@@ -507,9 +658,76 @@ export function InteractivosView({
                 </div>
               ) : null}
 
+              {/* Release 1.11.2: el Modo llamada es la acción principal de la
+                  tarjeta; el play de arriba queda como Vista rápida. */}
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                {pendiente ? (
+                  <>
+                    <Btn
+                      size="sm"
+                      icon={History}
+                      disabled={!puedeLlamar}
+                      onClick={() => abrirModoLlamada(s.id)}
+                      ariaLabel="Retomar modo llamada"
+                      title={
+                        s.archivado
+                          ? "Reactivá el speech para retomar la llamada"
+                          : errores.length > 0
+                          ? "Corregí los errores antes de retomar"
+                          : "Retomar la llamada guardada"
+                      }
+                    >
+                      Retomar
+                    </Btn>
+                    <BtnOutline
+                      size="sm"
+                      icon={Phone}
+                      disabled={!puedeLlamar}
+                      onClick={() => solicitarNuevaLlamada(s.id)}
+                      ariaLabel="Iniciar nueva llamada"
+                    >
+                      Nueva llamada
+                    </BtnOutline>
+                    <BtnOutline
+                      size="sm"
+                      icon={Trash2}
+                      onClick={() => descartarSesion(s.id)}
+                      ariaLabel="Descartar llamada pendiente"
+                      title="Descartar la llamada pendiente"
+                    >
+                      Descartar
+                    </BtnOutline>
+                  </>
+                ) : (
+                  <Btn
+                    size="sm"
+                    icon={Phone}
+                    disabled={!puedeLlamar}
+                    onClick={() => abrirModoLlamada(s.id)}
+                    ariaLabel="Iniciar modo llamada"
+                    title={
+                      s.archivado
+                        ? "Reactivá el speech para ejecutarlo"
+                        : errores.length > 0
+                        ? "Corregí los errores antes de ejecutar"
+                        : "Abrir el Modo llamada"
+                    }
+                  >
+                    Modo llamada
+                  </Btn>
+                )}
+              </div>
+
               <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
                 {pasoCount} paso{pasoCount !== 1 ? "s" : ""} · modificado{" "}
                 {String(s.fechaModificacion || "").slice(0, 10)}
+                {pendiente ? (
+                  <>
+                    {" · "}
+                    pendiente desde{" "}
+                    {String(pendiente.actualizadaEn || "").slice(0, 10)}
+                  </>
+                ) : null}
               </div>
             </div>
           );
@@ -554,6 +772,23 @@ export function InteractivosView({
         onCancel={() => setConfirmEliminar(null)}
         onConfirm={eliminar}
       />
+
+      {/* Release 1.11.2: empezar de cero con una llamada pendiente descarta
+          esa sesión; se pide confirmación para no perderla por accidente. */}
+      <ConfirmDialog
+        open={confirmNuevaLlamada !== null}
+        title="Iniciar nueva llamada"
+        message="Ya hay una llamada pendiente para este guion. Si iniciás una nueva, la llamada guardada se descarta. ¿Continuar?"
+        confirmLabel="Iniciar nueva"
+        confirmColor="var(--color-danger)"
+        onCancel={() => setConfirmNuevaLlamada(null)}
+        onConfirm={() => {
+          iniciarNuevaLlamada(confirmNuevaLlamada);
+          setConfirmNuevaLlamada(null);
+        }}
+      />
+
+      {overlayLlamada}
 
       <Modal
         isOpen={!!modalNuevo}
