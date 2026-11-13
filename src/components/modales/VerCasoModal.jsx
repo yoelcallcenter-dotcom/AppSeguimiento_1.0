@@ -606,10 +606,14 @@ export function VerCasoModal({
             }}
           >
             {[
-              { id: "herramientas", label: "Herramientas", icon: ClipboardList, conteo: notasFiltradas.length + eventosFiltrados.length, tour: true },
-              { id: "comentarios", label: "Comentarios", icon: MessageSquare, conteo: comentariosLocales.length || 0 },
-              { id: "historial", label: "Historial", icon: Activity, conteo: historial.length },
+              // Release 1.11.4: orden visual definitivo Reportes → Comentarios →
+              // Herramientas → Historial. Los ids, paneles, conteos y acciones
+              // no cambian; la pestaña activa por defecto sigue siendo
+              // Herramientas (comportamiento previo).
               { id: "reportes", label: "Reportes", icon: FileText, conteo: caso.reporteHistory?.length || 0 },
+              { id: "comentarios", label: "Comentarios", icon: MessageSquare, conteo: comentariosLocales.length || 0 },
+              { id: "herramientas", label: "Herramientas", icon: ClipboardList, conteo: notasFiltradas.length + eventosFiltrados.length, tour: true },
+              { id: "historial", label: "Historial", icon: Activity, conteo: historial.length },
             ].map((tab) => {
               const activa = seccionActiva === tab.id;
               const Icono = tab.icon;

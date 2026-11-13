@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.11.3b** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.4** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,14 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.4 — Correcciones generales de calendario, notas y navegación
+
+- **Calendario**: los eventos vinculados muestran un outline con el color del estado **real** del caso (se actualiza al cambiar el estado) y suman una acción para abrir el modal del caso vinculado sin perder la edición del evento. Los eventos sin caso no cambian.
+- **Notas**: vista reorganizada en paneles con mejor jerarquía y responsive, manteniendo todas las funciones y el espacio de escritura. Se conservan los saltos de línea en notas históricas, plantillas, texto pegado, guardado y recuperación (texto plano → párrafos/\`<br>\`, HTML existente intacto).
+- **Modal del caso**: pestañas en orden Reportes → Comentarios → Herramientas → Historial, con contenidos y acciones intactos.
+- **Útiles / Directorios**: orden Estudios Jurídicos → Lesiones → Aseguradoras → Tránsito → ProLegal, solo a nivel de presentación.
+- **Alcance acotado**: no se modifican el asistente interactivo, su constructor visual, la estructura de los casos ni los datos históricos.
 
 ### 1.11.3b — Hotfix de búsqueda en ProLegal
 
@@ -438,6 +446,34 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.11.4] - Correcciones generales de calendario, notas y navegación
+
+Actualización correctiva de módulos generales. No modifica el asistente interactivo de llamadas ni su constructor visual, y no altera la estructura de los casos, los datos históricos ni los módulos fuera del alcance.
+
+### Calendario
+
+- **Borde por estado del caso**: los eventos vinculados muestran un outline con el color del estado **real** del caso (\`relatedCaseIds\`), reutilizando \`getEstadoAccent\` y el catálogo de estados existente. Se actualiza cuando cambia el estado y no duplica la configuración de colores. Los eventos sin caso conservan su apariencia.
+- **Abrir el caso desde el evento**: cada chip incorpora una acción accesible para abrir el modal del caso vinculado. El caso se resuelve por id normalizado (string/número) para evitar referencias obsoletas de \`caseContext\`; si no hay caso no se muestra la acción. El click normal del evento sigue abriendo la edición y no se alteran el drag&drop ni las acciones existentes.
+
+### Notas
+
+- **Rediseño de la vista completa**: paneles de lista y editor con superficie, borde y jerarquía propios; cabecera de acciones, plantilla y etiquetas mejor organizadas; bloque separado de casos vinculados; metadatos al pie y área de escritura que ocupa el alto disponible. En pantallas angostas la lista y el editor se apilan sin perder funciones ni reducir innecesariamente el espacio de escritura.
+- **Saltos de línea conservados**: normalización texto→HTML **solo para mostrar/editar**, sin reescribir el dato hasta guardar. Los saltos simples pasan a \`<br>\`, las líneas vacías separan párrafos y se conservan los saltos consecutivos legítimos. Aplica a notas históricas, plantillas, texto pegado con varios párrafos, guardado y recuperación; el HTML existente se sanitiza y se conserva. Las previews de lista y búsqueda ya no pegan párrafos ni muestran etiquetas.
+
+### Modal del caso
+
+- **Nuevo orden visual de pestañas**: Reportes → Comentarios → Herramientas → Historial. Se conservan íntegramente contenidos, conteos, acciones y relaciones de datos; la pestaña activa por defecto sigue siendo Herramientas.
+
+### Útiles / Directorios
+
+- **Orden de presentación**: Estudios Jurídicos → Lesiones → Aseguradoras → Tránsito → ProLegal. Solo cambia el orden visual (también para usuarios con un orden persistido anterior): no se renombran directorios ni se modifican datos, búsquedas, formularios, acciones, permisos o persistencia.
+
+### Calidad
+
+- **Tests nuevos**: normalización de contenido de notas (texto plano, párrafos, saltos consecutivos, CRLF, HTML, entidades y previews), color por estado real y resolución de casos del calendario, apertura del caso desde el evento sin disparar la edición, orden de pestañas del modal y orden de Directorios.
+- Suite completa en verde (149 archivos / 1579 tests) y \`npm run build\` compila sin errores.
+- **Bump a 1.11.4** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y \`package-lock.json\`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados; \`docsContent.js\` regenerado.
 
 ## [1.11.3b] - Hotfix de búsqueda en ProLegal
 

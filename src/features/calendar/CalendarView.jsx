@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, ExternalLink } from 'lucide-react';
 import { Spinner } from '../../components/common/Spinner';
 import { useCalendarService } from './calendarService';
 import {
@@ -67,17 +67,70 @@ function resolveEventColor(evt) {
   return PRIORITY_COLORS[evt.priority] || PRIORITY_COLORS.medium;
 }
 
-// Resuelve el color del estado del caso vinculado (indicador secundario).
-function resolveCaseStateColor(evt, casoMap, config) {
-  if (evt.caseContext && evt.caseContext.estado) {
-    return getEstadoAccent(config, evt.caseContext.estado);
-  }
-  const linkedCaseId = Array.isArray(evt.relatedCaseIds) ? evt.relatedCaseIds[0] : null;
-  if (linkedCaseId) {
-    const c = casoMap ? casoMap.get(linkedCaseId) : null;
-    if (c && c.estado) return getEstadoAccent(config, c.estado);
+// Resuelve el caso REALMENTE vinculado a un evento.
+// Release 1.11.4: la fuente de verdad es `relatedCaseIds` (el vínculo que
+// mantiene el calendario), NO `caseContext`, que puede quedar obsoleto cuando
+// el caso cambia de estado o de nombre. Los ids se comparan como String porque
+// el store puede guardar números y el calendario strings (o viceversa).
+// Devuelve el primer caso existente o null si el evento no tiene vínculos.
+export function resolveLinkedCase(evt, casoMap) {
+  const ids = Array.isArray(evt?.relatedCaseIds) ? evt.relatedCaseIds : [];
+  if (!casoMap || ids.length === 0) return null;
+  for (const id of ids) {
+    if (id === null || id === undefined) continue;
+    const caso = casoMap.get(String(id));
+    if (caso) return caso;
   }
   return null;
+}
+
+// Resuelve el color del estado del caso vinculado (indicador secundario).
+// Release 1.11.4: se toma SIEMPRE del caso real (`relatedCaseIds`) para que el
+// outline se actualice al cambiar el estado. Solo si el evento no tiene ningún
+// relatedCaseIds se conserva el fallback legado a `caseContext.estado`, para
+// no alterar la apariencia de eventos antiguos sin vínculo formal.
+export function resolveCaseStateColor(evt, casoMap, config) {
+  const linked = resolveLinkedCase(evt, casoMap);
+  if (linked && linked.estado) return getEstadoAccent(config, linked.estado);
+  const ids = Array.isArray(evt?.relatedCaseIds) ? evt.relatedCaseIds : [];
+  if (ids.length === 0 && evt?.caseContext?.estado) {
+    return getEstadoAccent(config, evt.caseContext.estado);
+  }
+  return null;
+}
+
+// Release 1.11.4: borde exterior con el color del estado real del caso.
+// Se usa `outline` (no border) para no alterar el layout del chip y
+// `outlineOffset: '-2px'` para que el contenedor con overflow de las celdas
+// del mes/semana no recorte el trazo. Sin caso vinculado devuelve {} y el
+// evento mantiene exactamente su apariencia anterior.
+export function caseOutlineStyle(caseColor) {
+  if (!caseColor) return {};
+  return { outline: `2px solid ${caseColor}`, outlineOffset: '-2px' };
+}
+
+// Release 1.11.4: acción explícita para abrir el caso vinculado desde el
+// evento sin reemplazar el click de edición. Es un <button> real (accesible)
+// con stopPropagation en click/keydown/mousedown para no disparar el modal de
+// edición ni el drag&drop del chip que lo contiene.
+function OpenCaseAction({ caso, onVerCaso, size = 10, className = '' }) {
+  if (!caso || typeof onVerCaso !== 'function') return null;
+  const nombre = caso.nombre || 'Sin nombre';
+  return (
+    <button
+      type="button"
+      draggable={false}
+      onClick={(e) => { e.stopPropagation(); onVerCaso(caso); }}
+      onKeyDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className={`inline-flex items-center justify-center flex-shrink-0 rounded opacity-70 hover:opacity-100 transition-opacity ${className}`}
+      style={{ color: 'inherit' }}
+      title={`Abrir caso: ${nombre}`}
+      aria-label={`Abrir caso vinculado ${nombre}`}
+    >
+      <ExternalLink size={size} />
+    </button>
+  );
 }
 
 // Muestra la etiqueta de tipo de evento en texto corto (para pills).
@@ -236,7 +289,9 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
 
   // Optimización 1.6.6: un único Map de casos reutilizado por todos los eventos
   // (evita el .find() lineal por cada evento en cada render).
-  const casoMap = useMemo(() => new Map((casos || []).map((c) => [c.id, c])), [casos]);
+  // Release 1.11.4: las claves se normalizan a String para que relatedCaseIds
+  // (números o strings) siempre encuentren el caso real.
+  const casoMap = useMemo(() => new Map((casos || []).map((c) => [String(c.id), c])), [casos]);
   // Optimización 1.6.6: la fecha de hoy es estable durante toda la sesión de vista.
   const todayStr = useMemo(() => toLocalDateStr(new Date()), []);
 
@@ -589,6 +644,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
             {dayEvents.slice(0, 3).map(evt => {
               const color = resolveEventColor(evt);
               const caseColor = resolveCaseStateColor(evt, casoMap, config);
+              const linkedCase = resolveLinkedCase(evt, casoMap);
               const cancelled = evt.status === 'cancelled';
               return (
                 <div
@@ -611,12 +667,16 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                     backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
                     color,
                     borderLeft: `2px solid ${color}`,
+                    ...caseOutlineStyle(caseColor),
                     ...(cancelled ? { opacity: 0.6 } : {}),
                   }}
                 >
                   {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
+                  <OpenCaseAction caso={linkedCase} onVerCaso={onVerCaso} size={9} className="mr-0.5 align-middle" />
                   {priorityBadge(evt)} {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
-                  {evt.caseContext?.nombre && <span className="text-[9px] opacity-70 ml-0.5">{evt.caseContext.nombre}</span>}
+                  {(linkedCase?.nombre || evt.caseContext?.nombre) && (
+                    <span className="text-[9px] opacity-70 ml-0.5">{linkedCase?.nombre || evt.caseContext?.nombre}</span>
+                  )}
                 </div>
               );
             })}
@@ -698,6 +758,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                 {dayEvents.map(evt => {
                   const color = resolveEventColor(evt);
                   const caseColor = resolveCaseStateColor(evt, casoMap, config);
+                  const linkedCase = resolveLinkedCase(evt, casoMap);
                   const cancelled = evt.status === 'cancelled';
                   return (
                     <div
@@ -719,12 +780,16 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                         backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
                         color,
                         borderLeft: `2px solid ${color}`,
+                        ...caseOutlineStyle(caseColor),
                         ...(cancelled ? { opacity: 0.6 } : {}),
                       }}
                     >
                       {caseColor && <span className="inline-block w-1.5 h-1.5 rounded-full mr-0.5 align-middle" style={{ backgroundColor: caseColor }} />}
+                      <OpenCaseAction caso={linkedCase} onVerCaso={onVerCaso} size={9} className="mr-0.5 align-middle" />
                       {priorityBadge(evt)} {formatTime(evt.startDate)} {eventTypeBadge(evt)} {evt.title}
-                      {evt.caseContext?.nombre && <span className="text-[9px] opacity-70 ml-0.5">{evt.caseContext.nombre}</span>}
+                      {(linkedCase?.nombre || evt.caseContext?.nombre) && (
+                        <span className="text-[9px] opacity-70 ml-0.5">{linkedCase?.nombre || evt.caseContext?.nombre}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -777,6 +842,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
             {hourEvents.map(evt => {
               const color = resolveEventColor(evt);
               const caseColor = resolveCaseStateColor(evt, casoMap, config);
+              const linkedCase = resolveLinkedCase(evt, casoMap);
               const cancelled = evt.status === 'cancelled';
               return (
                 <div
@@ -797,6 +863,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                     backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`,
                     color,
                     borderLeft: `3px solid ${color}`,
+                    ...caseOutlineStyle(caseColor),
                     ...(cancelled ? { opacity: 0.6 } : {}),
                   }}
                 >
@@ -805,10 +872,11 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                     {priorityBadge(evt)}
                     {eventTypeBadge(evt)}
                     <span className="truncate">{evt.title}</span>
+                    <OpenCaseAction caso={linkedCase} onVerCaso={onVerCaso} size={11} className="ml-auto" />
                   </div>
-                  {evt.caseContext && evt.caseContext.nombre && (
+                  {(linkedCase?.nombre || evt.caseContext?.nombre) && (
                     <div className="text-[10px] opacity-80 truncate" style={{ color }}>
-                      {evt.caseContext.nombre}
+                      {linkedCase?.nombre || evt.caseContext?.nombre}
                     </div>
                   )}
                   {evt.description && (
@@ -889,8 +957,12 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
         {sorted.map(evt => {
           const color = resolveEventColor(evt);
           const caseColor = resolveCaseStateColor(evt, casoMap, config);
+          const linkedCase = resolveLinkedCase(evt, casoMap);
           const cancelled = evt.status === 'cancelled';
           const original = evt.originalEventId ? rawEventsById.get(evt.originalEventId) : null;
+          const casoNombre = linkedCase?.nombre || evt.caseContext?.nombre;
+          const casoAseguradora = linkedCase?.aseguradora || evt.caseContext?.aseguradora;
+          const casoEstudio = linkedCase?.estudioJuridico || evt.caseContext?.estudio;
           return (
             <div
               key={evt.id}
@@ -905,6 +977,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                 backgroundColor: 'var(--color-surface)',
                 border: '1px solid var(--color-border)',
                 borderLeft: `3px solid ${color}`,
+                ...caseOutlineStyle(caseColor),
               }}
               onClick={() => handleEditEvent(evt)}
               onKeyDown={onKeyActivate(() => handleEditEvent(evt))}
@@ -923,9 +996,9 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                   {eventTypeBadge(evt)}
                   <span className={`truncate ${cancelled ? 'line-through' : ''}`}>{evt.title}</span>
                 </div>
-                {evt.caseContext && (evt.caseContext.nombre || evt.caseContext.aseguradora || evt.caseContext.estudio) && (
+                {(casoNombre || casoAseguradora || casoEstudio) && (
                   <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
-                    {[evt.caseContext.nombre, evt.caseContext.aseguradora, evt.caseContext.estudio]
+                    {[casoNombre, casoAseguradora, casoEstudio]
                       .filter(Boolean).join(' · ')}
                   </div>
                 )}
@@ -960,6 +1033,7 @@ export default function CalendarView({ showToast, onClose, casos = [], config, o
                     {formatTime(evt.startDate)}
                   </span>
                 )}
+                <OpenCaseAction caso={linkedCase} onVerCaso={onVerCaso} size={13} />
               </div>
             </div>
           );

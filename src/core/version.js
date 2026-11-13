@@ -46,7 +46,14 @@
 // auto/manual, guardado parcial y registro confirmado en el módulo de casos.
 // v1.11.3b (hotfix): ProLegal cambió la ruta de su buscador; el acceso desde
 // el nombre del caso pasa de /search a /buscar con el mismo encodeURIComponent.
-export const APP_VERSION = "1.11.3b";
+// v1.11.4: correcciones generales — calendario con outline del estado REAL del
+// caso y apertura del caso desde el evento; notas con rediseño de la vista y
+// conservación de saltos de línea (texto plano, plantillas, pegado y guardado);
+// modal del caso con orden Reportes→Comentarios→Herramientas→Historial; y
+// Directorios en orden Estudios→Lesiones→Aseguradoras→Tránsito→ProLegal.
+// No toca el asistente interactivo, su constructor, los datos ni la estructura
+// de los casos.
+export const APP_VERSION = "1.11.4";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

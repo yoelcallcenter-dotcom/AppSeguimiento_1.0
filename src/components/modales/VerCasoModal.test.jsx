@@ -94,6 +94,24 @@ describe("VerCasoModal · segmented control de secciones (1.10.11)", () => {
     expect(within(pie).queryByText("Calendario")).toBeNull();
   });
 
+  it("las pestañas respetan el orden visual Reportes → Comentarios → Herramientas → Historial", () => {
+    renderModal();
+    const tablist = screen.getByRole("tablist", { name: "Secciones del caso" });
+    const labels = within(tablist)
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent);
+    expect(labels).toEqual([
+      "Reportes (1)",
+      "Comentarios (0)",
+      "Herramientas (0)",
+      "Historial (0)",
+    ]);
+    // La pestaña activa por defecto sigue siendo Herramientas.
+    expect(
+      screen.getByRole("tab", { name: "Herramientas (0)" }).getAttribute("aria-selected")
+    ).toBe("true");
+  });
+
   it("al cambiar de tab solo se ve el panel elegido", () => {
     renderModal();
 

@@ -60,9 +60,26 @@ describe("UtilesView (navegación por grupos)", () => {
     renderVista();
     fireEvent.click(screen.getByText("Directorios"));
     const pills = screen.getByLabelText("Secciones de Útiles");
-    expect(within(pills).getByText("Aseguradoras")).toBeTruthy();
+    expect(within(pills).getByText("Estudios Jurídicos")).toBeTruthy();
     expect(within(pills).queryByText("Speechs")).toBeNull();
-    expect(screen.getByText(/Directorio de aseguradoras/)).toBeTruthy();
+    expect(screen.getByText(/Estudios jurídicos y ámbitos de actuación/)).toBeTruthy();
+  });
+
+  // Release 1.11.4: orden visual de Directorios sin alterar datos ni vistas.
+  it("los directorios se muestran en el orden pedido", () => {
+    renderVista();
+    fireEvent.click(screen.getByText("Directorios"));
+    const pills = screen.getByLabelText("Secciones de Útiles");
+    const labels = within(pills)
+      .getAllByRole("button")
+      .map((b) => b.textContent.replace(/\d+$/, "").trim());
+    expect(labels).toEqual([
+      "Estudios Jurídicos",
+      "Lesiones",
+      "Aseguradoras",
+      "Tránsito",
+      "Prolegal",
+    ]);
   });
 
   it("clic en una sub-sección del grupo cambia a esa sección", () => {

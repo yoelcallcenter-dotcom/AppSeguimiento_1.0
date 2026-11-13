@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
-import { sanitizeHTML } from '../../utils/sanitize';
+import { contenidoNotaAEditor } from './noteContent';
 // v1.10.11: transformación de texto (MAYÚSCULAS/minúsculas/oración/título/
 // alternado/quitar espacios) compartida con la toolbar de TextInput/TextArea.
 import { applyCaseMode } from '../../utils/textCase';
@@ -141,7 +141,7 @@ export default function NotesEditor({ content, onChange, placeholder = 'Escribe 
       Placeholder.configure({ placeholder }),
       Underline,
     ],
-    content: sanitizeHTML(content || ''),
+    content: contenidoNotaAEditor(content),
     onUpdate: ({ editor }) => {
       if (onChange) {
         onChange(editor.getHTML());
@@ -150,14 +150,18 @@ export default function NotesEditor({ content, onChange, placeholder = 'Escribe 
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(sanitizeHTML(content || ''), false);
+    // Release 1.11.4: se compara el contenido NORMALIZADO (texto plano → HTML)
+    // para no recargar el editor en cada render y para que las plantillas y
+    // notas históricas con \n mantengan sus saltos al abrirlas.
+    const normalizado = contenidoNotaAEditor(content);
+    if (editor && normalizado !== editor.getHTML()) {
+      editor.commands.setContent(normalizado, false);
     }
   }, [content, editor]);
 
   return (
     <div
-      className="rounded-md"
+      className="rounded-lg flex flex-col flex-1 min-h-0 overflow-hidden"
       style={{
         backgroundColor: 'var(--color-surface2)',
         border: '1px solid var(--color-border)',
@@ -165,7 +169,7 @@ export default function NotesEditor({ content, onChange, placeholder = 'Escribe 
     >
       <MenuBar editor={editor} />
       <div
-        className="p-3 min-h-[200px] prose prose-sm max-w-none"
+        className="p-4 flex-1 min-h-[220px] overflow-y-auto prose prose-sm max-w-none"
         style={{ color: 'var(--color-text)' }}
       >
         <EditorContent editor={editor} />

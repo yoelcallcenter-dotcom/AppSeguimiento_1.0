@@ -6,6 +6,9 @@ import { EmptyState } from '../../components/common/EmptyState';
 // T4c (1.10.1): Btn para el botón de eliminar de cada fila.
 import { Btn } from '../../components/common/Btn';
 import { onKeyActivate } from '../../utils/a11y';
+// Release 1.11.4: preview y búsqueda legibles — convierte HTML en texto sin
+// pegar párrafos ("holamundo") y conserva el texto original de la nota.
+import { contenidoNotaATexto } from './noteContent';
 
 export default function NotesList({
   notes,
@@ -23,7 +26,7 @@ export default function NotesList({
       const q = query.toLowerCase().trim();
       list = list.filter(n =>
         (n.title || '').toLowerCase().includes(q) ||
-        (n.content || '').toLowerCase().includes(q) ||
+        contenidoNotaATexto(n.content).toLowerCase().includes(q) ||
         (n.tags || []).some(t => t.toLowerCase().includes(q))
       );
     }
@@ -43,7 +46,7 @@ export default function NotesList({
 
   const getPreview = (content) => {
     if (!content) return '(vacio)';
-    const text = content.replace(/<[^>]*>/g, '');
+    const text = contenidoNotaATexto(content);
     return text.slice(0, 100) + (text.length > 100 ? '...' : '');
   };
 

@@ -5,6 +5,8 @@ import { Search, FileText, Plus, X } from 'lucide-react';
 // T4c (1.10.1): Btn para la acción "Nueva" de la paleta de comandos.
 import { Btn } from '../../components/common/Btn';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/bodyScrollLock';
+// Release 1.11.4: preview legible de notas con párrafos HTML/texto.
+import { contenidoNotaATexto } from './noteContent';
 
 export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCreateNote }) {
   const [query, setQuery] = useState('');
@@ -23,7 +25,7 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
   const results = useMemo(() => query.trim()
     ? notes.filter(n =>
         (n.title || '').toLowerCase().includes(query.toLowerCase()) ||
-        (n.content || '').toLowerCase().includes(query.toLowerCase())
+        contenidoNotaATexto(n.content).toLowerCase().includes(query.toLowerCase())
       )
     : notes.slice(0, 10),
   [query, notes]);
@@ -120,7 +122,7 @@ export default function NotesSearch({ isOpen, onClose, notes, onSelectNote, onCr
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{note.title || 'Sin titulo'}</div>
                 <div className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>
-                  {note.content ? note.content.replace(/<[^>]*>/g, '').slice(0, 60) : '(vacio)'}
+                  {note.content ? contenidoNotaATexto(note.content).slice(0, 60) : '(vacio)'}
                 </div>
               </div>
               <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>

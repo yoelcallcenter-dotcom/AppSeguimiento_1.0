@@ -1,6 +1,6 @@
 # AppSeguimiento
 
-**Versión 1.11.3b** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.4** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -16,6 +16,14 @@
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.4 — Correcciones generales de calendario, notas y navegación
+
+- **Calendario**: los eventos vinculados muestran un outline con el color del estado **real** del caso (se actualiza al cambiar el estado) y suman una acción para abrir el modal del caso vinculado sin perder la edición del evento. Los eventos sin caso no cambian.
+- **Notas**: vista reorganizada en paneles con mejor jerarquía y responsive, manteniendo todas las funciones y el espacio de escritura. Se conservan los saltos de línea en notas históricas, plantillas, texto pegado, guardado y recuperación (texto plano → párrafos/`<br>`, HTML existente intacto).
+- **Modal del caso**: pestañas en orden Reportes → Comentarios → Herramientas → Historial, con contenidos y acciones intactos.
+- **Útiles / Directorios**: orden Estudios Jurídicos → Lesiones → Aseguradoras → Tránsito → ProLegal, solo a nivel de presentación.
+- **Alcance acotado**: no se modifican el asistente interactivo, su constructor visual, la estructura de los casos ni los datos históricos.
 
 ### 1.11.3b — Hotfix de búsqueda en ProLegal
 

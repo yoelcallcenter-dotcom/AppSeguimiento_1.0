@@ -43,7 +43,9 @@ const GRUPOS_UTILES = [
     id: "directorios",
     label: "Directorios",
     icon: Building2,
-    items: ["aseguradoras", "mapeo", "lesiones", "transito", "prolegal"],
+    // Release 1.11.4: orden de presentación pedido. Solo cambia el orden:
+    // las claves, vistas, datos, búsquedas y persistencia son las mismas.
+    items: ["mapeo", "lesiones", "aseguradoras", "transito", "prolegal"],
   },
   {
     id: "otros",
@@ -57,6 +59,13 @@ const grupoDeTab = (key) => {
   const grupo = GRUPOS_UTILES.find((g) => g.items.includes(key));
   return grupo ? grupo.id : "otros";
 };
+
+// Release 1.11.4: orden visual de Directorios independiente de la preferencia
+// persistida `utilesTabOrder`. Así el orden pedido (Estudios Jurídicos →
+// Lesiones → Aseguradoras → Tránsito → ProLegal) se cumple también para
+// usuarios con un orden guardado anterior, sin tocar datos ni navegación.
+const DIRECTORIOS_ORDER = ["mapeo", "lesiones", "aseguradoras", "transito", "prolegal"];
+const DIRECTORIOS_POS = new Map(DIRECTORIOS_ORDER.map((key, i) => [key, i]));
 
 export function UtilesView({
   config,
@@ -148,8 +157,16 @@ export function UtilesView({
   const tabs = utilesTabOrder
     .filter((k) => TAB_DEFS[k])
     .map((k) => [k, TAB_DEFS[k].label, TAB_DEFS[k].icon]);
-  const itemsDeGrupo = (grupoId) =>
-    tabs.filter(([k]) => grupoDeTab(k) === grupoId);
+  const itemsDeGrupo = (grupoId) => {
+    const items = tabs.filter(([k]) => grupoDeTab(k) === grupoId);
+    if (grupoId !== "directorios") return items;
+    // Orden fijo de Directorios (presentación únicamente).
+    return [...items].sort(
+      (a, b) =>
+        (DIRECTORIOS_POS.get(a[0]) ?? Number.MAX_SAFE_INTEGER) -
+        (DIRECTORIOS_POS.get(b[0]) ?? Number.MAX_SAFE_INTEGER)
+    );
+  };
   const grupoActivo = grupoDeTab(subvista);
   const cambiarGrupo = (grupoId) => {
     if (grupoId === grupoActivo) return;

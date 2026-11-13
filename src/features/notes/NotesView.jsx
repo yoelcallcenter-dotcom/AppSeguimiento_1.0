@@ -275,18 +275,32 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
         descripcion="Registrá observaciones por caso, con eventos y historial."
         storageKey="notas"
       />
-      <div className="flex flex-1 min-h-0 gap-4">
+      {/* Release 1.11.4 — rediseño de la vista completa:
+          - dos paneles con superficie/borde propios (antes flotaban sobre el fondo);
+          - sidebar con jerarquía clara (contador, acción principal, orden y lista);
+          - editor con cabecera de acciones, metadatos y área de escritura que
+            ocupa todo el alto disponible (no se reduce);
+          - en pantallas angostas se apilan lista y editor (flex-col) sin perder
+            ninguna función. */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 gap-4">
       {/* Sidebar - Lista de notas */}
-      {/* T4c/C03 (1.10.1): header del sidebar en DOS filas. Antes título +
-          Select (min-width 150) + botón "Nueva" competían en un w-80 (320px):
-          el select y las opciones se cortaban a la mitad. Ahora fila 1 =
-          contador + Nueva, fila 2 = orden a todo el ancho (todas las opciones
-          del select entran sin truncar). */}
-      <div className="w-80 flex-shrink-0 flex flex-col">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            Notas ({notes.length})
-          </span>
+      <aside
+        className="w-full md:w-80 md:flex-shrink-0 max-h-64 md:max-h-none flex flex-col rounded-xl p-3 shadow-sm"
+        style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        aria-label="Lista de notas"
+      >
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold flex items-baseline gap-1.5" style={{ color: 'var(--color-text)' }}>
+              Notas
+              <span className="text-[10px] font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                ({notes.length})
+              </span>
+            </div>
+            <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+              Seleccioná una nota para leerla o editarla.
+            </div>
+          </div>
           <Btn onClick={() => handleCreate()} icon={Plus} size="sm">
             Nueva
           </Btn>
@@ -302,7 +316,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
           aria-label="Ordenar notas"
           className="w-full mb-3"
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-0.5">
           <NotesList
             notes={notes}
             selectedId={selectedId}
@@ -310,10 +324,14 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
             onDelete={handleDelete}
           />
         </div>
-      </div>
+      </aside>
 
       {/* Editor */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <section
+        className="flex-1 min-w-0 min-h-0 flex flex-col rounded-xl p-4 shadow-sm"
+        style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        aria-label="Editor de nota"
+      >
         {!selectedNote ? (
           <div className="flex-1 flex items-center justify-center">
             {/* T4b/C03 (1.10.1): EmptyState del set común (icono + mensaje +
@@ -328,122 +346,128 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
             />
           </div>
         ) : (
-          <div className="flex-1 flex flex-col space-y-3">
-            {/* Title */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={selectedNote.title || ''}
-                onChange={e => setSelectedNote(prev => ({ ...prev, title: e.target.value }))}
-                onBlur={() => handleUpdate('title', selectedNote.title)}
-                onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
-                placeholder="Titulo de la nota..."
-                // T4c (1.10.1): min-w-0 para que el título nunca empuje ni
-                // corte los botones de la derecha en paneles angostos.
-                className="flex-1 min-w-0 text-lg font-bold bg-transparent border-none outline-none"
-                style={{ color: 'var(--color-text)' }}
-              />
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {/* T4b/C03 (1.10.1): Btn común en vez de <button> con styles
-                    inline — mismos estados (acento cuando hay cambios sin
-                    guardar / outline apagado) más animate-press y el flash
-                    de éxito de Btn si handleSave devuelve promesa. */}
-                <Btn
-                  onClick={handleSave}
-                  icon={Save}
-                  size="sm"
-                  variant={dirty ? 'accent' : 'outline'}
-                  title="Guardar cambios"
-                >
-                  Guardar
-                </Btn>
-                {/* T4c/C03 (1.10.1): Historial y Crear evento pasan de
-                    <button> crudos (p-1.5 rounded hover:bg-white/5 — forma y
-                    hover distintos de Btn, e invisible en tema claro) a Btn
-                    ghost sm: mismo cuerpo/altura que Guardar, animate-press y
-                    hover del set común. Se conservan TITLES, aria-labels y
-                    aria-pressed del historial (los usa NotesView.test). */}
-                <Btn
-                  onClick={handleShowHistory}
-                  icon={History}
-                  size="sm"
-                  variant="ghost"
-                  title="Historial de versiones"
-                  ariaLabel="Historial de versiones"
-                  aria-pressed={showHistory}
-                  style={showHistory ? { color: 'var(--color-accent)' } : {}}
-                />
-                <Btn
-                  onClick={handleCreateEvent}
-                  icon={CalendarPlus}
-                  size="sm"
-                  variant="ghost"
-                  title="Crear evento desde nota"
-                  ariaLabel="Crear evento desde nota"
-                />
-              </div>
-            </div>
-
-            <TemplateSelector
-              type="nota"
-              config={config}
-              onSelect={(resolved) => {
-                setSelectedNote(prev => ({
-                  ...prev,
-                  title: resolved.title || prev.title,
-                  content: resolved.content || prev.content,
-                  tags: resolved.tags || prev.tags,
-                }));
-                setDirty(true);
-              }}
-            />
-
-            {/* Tags */}
-            <div className="flex items-center gap-1 flex-wrap">
-              {(selectedNote.tags || []).map(tag => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 pill-sm cursor-pointer hover:opacity-70"
-                  style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
-                  onClick={() => handleRemoveTag(tag)}
-                >
-                  {tag} <span className="text-[8px]">&times;</span>
-                </span>
-              ))}
-              <div className="flex items-center gap-1">
+          <div className="flex-1 min-h-0 flex flex-col gap-3">
+            {/* Título + acciones principales */}
+            <header className="flex flex-col gap-2">
+              <div className="flex items-start gap-2">
                 <input
                   type="text"
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); }}
-                  placeholder="Agregar tag..."
-                  // T4c (1.10.1): w-20 → w-28: con "Agregar tag..." a text-[10px]
-                  // el placeholder se cortaba a la mitad.
-                  className="text-[10px] bg-transparent border-none outline-none w-28"
-                  style={{ color: 'var(--color-text-muted)' }}
+                  value={selectedNote.title || ''}
+                  onChange={e => setSelectedNote(prev => ({ ...prev, title: e.target.value }))}
+                  onBlur={() => handleUpdate('title', selectedNote.title)}
+                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                  placeholder="Titulo de la nota..."
+                  // T4c (1.10.1): min-w-0 para que el título nunca empuje ni
+                  // corte los botones de la derecha en paneles angostos.
+                  className="flex-1 min-w-0 text-xl font-bold bg-transparent border-none outline-none"
+                  style={{ color: 'var(--color-text)' }}
                 />
-                {tagInput && (
+                <div className="flex items-center justify-end gap-1 flex-shrink-0 flex-wrap">
+                  {/* T4b/C03 (1.10.1): Btn común en vez de <button> con styles
+                      inline — mismos estados (acento cuando hay cambios sin
+                      guardar / outline apagado) más animate-press y el flash
+                      de éxito de Btn si handleSave devuelve promesa. */}
                   <Btn
+                    onClick={handleSave}
+                    icon={Save}
+                    size="sm"
+                    variant={dirty ? 'accent' : 'outline'}
+                    title="Guardar cambios"
+                  >
+                    Guardar
+                  </Btn>
+                  {/* T4c/C03 (1.10.1): Historial y Crear evento pasan de
+                      <button> crudos (p-1.5 rounded hover:bg-white/5 — forma y
+                      hover distintos de Btn, e invisible en tema claro) a Btn
+                      ghost sm: mismo cuerpo/altura que Guardar, animate-press y
+                      hover del set común. Se conservan TITLES, aria-labels y
+                      aria-pressed del historial (los usa NotesView.test). */}
+                  <Btn
+                    onClick={handleShowHistory}
+                    icon={History}
                     size="sm"
                     variant="ghost"
-                    onClick={handleAddTag}
-                    ariaLabel="Agregar tag"
-                    title="Agregar tag"
-                  >
-                    +
-                  </Btn>
-                )}
+                    title="Historial de versiones"
+                    ariaLabel="Historial de versiones"
+                    aria-pressed={showHistory}
+                    style={showHistory ? { color: 'var(--color-accent)' } : {}}
+                  />
+                  <Btn
+                    onClick={handleCreateEvent}
+                    icon={CalendarPlus}
+                    size="sm"
+                    variant="ghost"
+                    title="Crear evento desde nota"
+                    ariaLabel="Crear evento desde nota"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Linked Cases */}
-            <div className="flex flex-col gap-1">
+              {/* Plantilla + etiquetas: barra de herramientas secundaria */}
+              <div className="flex flex-wrap items-center gap-2">
+                <TemplateSelector
+                  type="nota"
+                  config={config}
+                  onSelect={(resolved) => {
+                    setSelectedNote(prev => ({
+                      ...prev,
+                      title: resolved.title || prev.title,
+                      content: resolved.content || prev.content,
+                      tags: resolved.tags || prev.tags,
+                    }));
+                    setDirty(true);
+                  }}
+                />
+                <div className="flex items-center gap-1 flex-wrap">
+                  {(selectedNote.tags || []).map(tag => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-1 pill-sm cursor-pointer hover:opacity-70"
+                      style={{ backgroundColor: 'color-mix(in srgb, var(--color-accent) 13.3%, transparent)', color: 'var(--color-accent)' }}
+                      onClick={() => handleRemoveTag(tag)}
+                    >
+                      {tag} <span className="text-[8px]">&times;</span>
+                    </span>
+                  ))}
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={e => setTagInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); }}
+                      placeholder="Agregar tag..."
+                      // T4c (1.10.1): w-20 → w-28: con "Agregar tag..." a text-[10px]
+                      // el placeholder se cortaba a la mitad.
+                      className="text-[10px] bg-transparent border-none outline-none w-28"
+                      style={{ color: 'var(--color-text-muted)' }}
+                    />
+                    {tagInput && (
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleAddTag}
+                        ariaLabel="Agregar tag"
+                        title="Agregar tag"
+                      >
+                        +
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* Casos vinculados: bloque propio, separado del contenido */}
+            <div
+              className="flex flex-col gap-1.5 rounded-lg p-2.5"
+              style={{ backgroundColor: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+            >
               <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
                 <Link size={10} /> Casos vinculados
               </div>
               {/* Clickable links to linked cases */}
               {selectedNote.relatedCaseIds && selectedNote.relatedCaseIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-1">
+                <div className="flex flex-wrap gap-1">
                   {selectedNote.relatedCaseIds.map((caseId) => {
                     const linkedCase = casos.find((c) => String(c.id) === String(caseId));
                     if (!linkedCase) return null;
@@ -476,8 +500,10 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
               />
             </div>
 
-            {/* Content Editor */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Content Editor: ocupa el alto restante; el scroll vive dentro
+                del editor para no empujar las acciones ni perder superficie
+                de escritura. */}
+            <div className="flex-1 min-h-0 flex">
               <NotesEditor
                 content={selectedNote.content || ''}
                 onChange={(html) => handleUpdate('content', html)}
@@ -497,15 +523,18 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
             </div>
           </div>
         )}
-      </div>
+      </section>
 
       {/* History sidebar */}
       {showHistory && selectedNote && (
-        <div
+        <aside
           // T4b/C03 (1.10.1): entra con slide del set de animaciones de
           // globals.css (antes aparecía de golpe).
-          className="w-60 flex-shrink-0 rounded-lg p-3 overflow-y-auto animate-slide-in-right"
+          // Release 1.11.4: en pantallas angostas ocupa todo el ancho y no
+          // fuerza al editor a un ancho mínimo incómodo.
+          className="w-full md:w-60 flex-shrink-0 rounded-xl p-3 overflow-y-auto animate-slide-in-right max-h-64 md:max-h-none"
           style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+          aria-label="Historial de versiones"
         >
           <div className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text)' }}>
             Historial ({versions.length})
@@ -542,7 +571,7 @@ export default function NotesView({ showToast, onCreateEvent, casos = [], config
               </button>
             ))}
           </div>
-        </div>
+        </aside>
       )}
 
       {/* Command palette */}
