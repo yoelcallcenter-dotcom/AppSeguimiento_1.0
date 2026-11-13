@@ -7,6 +7,22 @@ Nomenclatura de versiones:
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
 
+## [1.11.3b] - Hotfix de búsqueda en ProLegal
+
+ProLegal actualizó su buscador y la ruta de resultados pasó de `/search` a `/buscar`. El acceso desde el nombre del caso ahora usa la URL vigente: no es un rediseño de ProLegal ni cambia datos del caso.
+
+### Corrección
+
+- **URL de búsqueda**: se arma `https://prolegal.com.ar/buscar?q=<nombre>` con `encodeURIComponent`, en lugar de la ruta anterior. Soporta nombres y apellidos simples o compuestos, tildes, Ñ, espacios múltiples y caracteres especiales.
+- **Nombre intacto**: el nombre almacenado del caso no se modifica ni se reescribe para construir el enlace; sólo se normaliza una copia para la URL.
+- **Alcance acotado**: cambia únicamente la ruta de ProLegal. No se tocan el directorio, los datos de los casos ni otras búsquedas de la aplicación.
+
+### Calidad
+
+- **Tests**: se fijan el formato exacto, la ausencia de `/search` y la codificación de tildes/Ñ/espacios/especiales, más el click real que abre la ventana.
+- Suite de pruebas en verde y `npm run build` compila sin errores.
+- **Bump a 1.11.3b** en `src/core/version.js` (`APP_VERSION`), `package.json` y `package-lock.json`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados.
+
 ## [1.11.3] - Plantillas de registro vinculadas a los speeches
 
 El Asistente (Interactivo) de Llamadas suma **plantillas de registro por speech**: el operador define una vez qué datos necesita la llamada y el **Modo llamada** los muestra, los autocompleta desde las respuestas y los guarda en el **caso asociado**. Se integra con el constructor visual (1.11.1) y el Modo llamada (1.11.2) reutilizando el modelo v2 y el módulo de casos existente: no hay IA, dependencias nuevas ni una base de datos paralela.

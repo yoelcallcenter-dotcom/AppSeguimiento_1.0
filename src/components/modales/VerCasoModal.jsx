@@ -76,6 +76,24 @@ function formatearActividad(ts) {
   })}, ${hora}`;
 }
 
+/**
+ * Release 1.11.3b — ProLegal cambió su buscador y la ruta pasó de
+ * `/search?q=` a `/buscar?q=`. La URL se arma con `encodeURIComponent`
+ * (nunca concatenando a mano) para que tildes, Ñ, espacios múltiples y
+ * caracteres especiales viajen correctamente codificados.
+ *
+ * Importante: NO se altera ni se guarda el nombre del caso; sólo se normaliza
+ * una copia para el enlace (trim + espacios colapsados). Devuelve "" si el
+ * nombre está vacío, para que el llamador muestre el aviso correspondiente.
+ */
+export function construirUrlBusquedaProlegal(nombre) {
+  const nombreLimpio = String(nombre ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!nombreLimpio) return "";
+  return `https://prolegal.com.ar/buscar?q=${encodeURIComponent(nombreLimpio)}`;
+}
+
 export function VerCasoModal({
   caso,
   config,
@@ -279,14 +297,13 @@ export function VerCasoModal({
   };
 
   const handleBuscarProlegal = () => {
-    const nombre = (caso.nombre || "")
-      .trim()
-      .replace(/\s+/g, " ");
-    if (!nombre) {
+    // Release 1.11.3b: la URL vive en un helper puro y testeable. La ruta
+    // vigente de ProLegal es `/buscar` (antes `/search`).
+    const url = construirUrlBusquedaProlegal(caso.nombre);
+    if (!url) {
       if (showToast) showToast("No se puede buscar: el caso no tiene un nombre válido", "warning");
       return;
     }
-    const url = `https://prolegal.com.ar/search?q=${encodeURIComponent(nombre)}`;
     window.open(url, "prolegal-busqueda", "noopener,noreferrer");
   };
 

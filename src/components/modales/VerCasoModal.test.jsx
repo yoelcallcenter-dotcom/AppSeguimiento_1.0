@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { VerCasoModal } from "./VerCasoModal";
+import { VerCasoModal, construirUrlBusquedaProlegal } from "./VerCasoModal";
 import { CONFIG_DEFAULT } from "../../utils/constants";
 
 /**
@@ -189,5 +189,88 @@ describe("VerCasoModal · segmented control de secciones (1.10.11)", () => {
     fireEvent.click(screen.getByText("Cerrar"));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 2000 });
+  });
+});
+
+/**
+ * Release 1.11.3b — hotfix de la búsqueda en ProLegal.
+ * ProLegal pasó de `/search?q=` a `/buscar?q=`. Estos tests fijan el formato
+ * exacto y la codificación URL (tildes, Ñ, espacios múltiples y especiales).
+ */
+describe("ProLegal · URL de búsqueda (1.11.3b)", () => {
+  const BASE = "https://prolegal.com.ar/buscar?q=";
+
+  it("usa la ruta /buscar con el nombre completo codificado", () => {
+    expect(construirUrlBusquedaProlegal("BARRIOS BRENDA SOLEDAD")).toBe(
+      `${BASE}BARRIOS%20BRENDA%20SOLEDAD`
+    );
+  });
+
+  it("no usa la ruta anterior /search", () => {
+    const url = construirUrlBusquedaProlegal("BARRIOS BRENDA SOLEDAD");
+    expect(url).not.toContain("/search");
+    expect(url.startsWith(BASE)).toBe(true);
+  });
+
+  it("soporta nombres y apellidos simples", () => {
+    expect(construirUrlBusquedaProlegal("Juan Perez")).toBe(
+      `${BASE}Juan%20Perez`
+    );
+  });
+
+  it("soporta nombres compuestos y apellidos compuestos", () => {
+    expect(construirUrlBusquedaProlegal("MARÍA DE LOS ÁNGELES GÓMEZ")).toBe(
+      `${BASE}MAR%C3%8DA%20DE%20LOS%20%C3%81NGELES%20G%C3%93MEZ`
+    );
+    expect(construirUrlBusquedaProlegal("DE LA CRUZ FERNÁNDEZ")).toBe(
+      `${BASE}DE%20LA%20CRUZ%20FERN%C3%81NDEZ`
+    );
+  });
+
+  it("codifica tildes y Ñ como UTF-8", () => {
+    expect(construirUrlBusquedaProlegal("José")).toBe(`${BASE}Jos%C3%A9`);
+    expect(construirUrlBusquedaProlegal("Muñoz")).toBe(`${BASE}Mu%C3%B1oz`);
+  });
+
+  it("colapsa espacios múltiples sin tocar el nombre original", () => {
+    const original = "  JUAN   PÉREZ  ";
+    expect(construirUrlBusquedaProlegal(original)).toBe(
+      `${BASE}JUAN%20P%C3%89REZ`
+    );
+    // El string de entrada es inmutable y no se guarda ni reescribe.
+    expect(original).toBe("  JUAN   PÉREZ  ");
+  });
+
+  it("codifica caracteres especiales", () => {
+    expect(construirUrlBusquedaProlegal("O'Brien & Cía. (hijo)")).toBe(
+      `${BASE}O'Brien%20%26%20C%C3%ADa.%20(hijo)`
+    );
+  });
+
+  it("devuelve una URL vacía si no hay nombre", () => {
+    expect(construirUrlBusquedaProlegal("")).toBe("");
+    expect(construirUrlBusquedaProlegal("   ")).toBe("");
+    expect(construirUrlBusquedaProlegal(null)).toBe("");
+    expect(construirUrlBusquedaProlegal(undefined)).toBe("");
+  });
+
+  it("el click en el nombre abre ProLegal con la URL nueva y no modifica el caso", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const casoProlegal = { ...caso, nombre: "BARRIOS BRENDA SOLEDAD" };
+    renderModal({ caso: casoProlegal });
+
+    const enlace = screen.getByRole("button", {
+      name: "Buscar BARRIOS BRENDA SOLEDAD en Prolegal",
+    });
+    fireEvent.click(enlace);
+
+    expect(openSpy).toHaveBeenCalledWith(
+      `${BASE}BARRIOS%20BRENDA%20SOLEDAD`,
+      "prolegal-busqueda",
+      "noopener,noreferrer"
+    );
+    // El dato almacenado del caso queda intacto.
+    expect(casoProlegal.nombre).toBe("BARRIOS BRENDA SOLEDAD");
+    openSpy.mockRestore();
   });
 });

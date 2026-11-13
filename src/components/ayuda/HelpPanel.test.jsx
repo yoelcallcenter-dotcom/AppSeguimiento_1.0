@@ -171,7 +171,9 @@ describe('HelpPanel (lector markdown de Documentación, post 1.10.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Documentación/ }));
     // "**Versión 1.x.y**" del README debe salir como <strong>, no como texto
     // (matcher por regex: no se ata a un número de versión concreto).
-    const hits = screen.getAllByText(/^Versión 1\.\d+\.\d+$/);
+    // Release 1.11.3b: el esquema admite un sufijo de hotfix (letra), así que
+    // el matcher lo contempla sin fijar ninguna versión.
+    const hits = screen.getAllByText(/^Versión 1\.\d+\.\d+[a-z]?$/);
     expect(hits.length).toBeGreaterThan(0);
     expect(hits.some((el) => el.tagName === 'STRONG')).toBe(true);
     // Los títulos "#" del .md se interpretan como encabezados reales.

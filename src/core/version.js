@@ -44,7 +44,9 @@
 // visibilidad genéricas y mapeo explícito al caso) integradas con el
 // constructor visual y el Modo llamada; recálculo de derivados, distinción
 // auto/manual, guardado parcial y registro confirmado en el módulo de casos.
-export const APP_VERSION = "1.11.3";
+// v1.11.3b (hotfix): ProLegal cambió la ruta de su buscador; el acceso desde
+// el nombre del caso pasa de /search a /buscar con el mismo encodeURIComponent.
+export const APP_VERSION = "1.11.3b";
 
 /** Nombre comercial de la aplicaciÃ³n. */
 export const APP_NAME = "AppSeguimiento";

@@ -8,7 +8,7 @@
 
 export const DOC_README = `# AppSeguimiento
 
-**Versión 1.11.3** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
+**Versión 1.11.3b** — Sistema de gestión de casos ART (aseguradoras de riesgo de trabajo) para seguimiento de derivaciones, diseñado para operadores de call center. Aplicación **offline-first / PWA** con datos 100% locales.
 
 ## Stack tecnológico
 
@@ -24,6 +24,11 @@ export const DOC_README = `# AppSeguimiento
 - **Vitest** + jsdom + fake-indexeddb — testing
 
 ## Características principales
+
+### 1.11.3b — Hotfix de búsqueda en ProLegal
+
+- **URL vigente**: el click en el nombre del caso abre \`https://prolegal.com.ar/buscar?q=<nombre>\` (antes \`/search\`), con \`encodeURIComponent\` para tildes, Ñ, espacios múltiples y caracteres especiales.
+- **Datos intactos**: no se modifica el nombre almacenado del caso ni se tocan el directorio y otras búsquedas.
 
 ### 1.11.3 — Plantillas de registro vinculadas a los speeches
 
@@ -433,6 +438,22 @@ Nomenclatura de versiones:
 - 1.0.0 — Release principal
 - 1.0.x — Bug fixes y cambios de UI sin alterar funciones
 - 1.x.0 — Funciones nuevas o correcciones graves
+
+## [1.11.3b] - Hotfix de búsqueda en ProLegal
+
+ProLegal actualizó su buscador y la ruta de resultados pasó de \`/search\` a \`/buscar\`. El acceso desde el nombre del caso ahora usa la URL vigente: no es un rediseño de ProLegal ni cambia datos del caso.
+
+### Corrección
+
+- **URL de búsqueda**: se arma \`https://prolegal.com.ar/buscar?q=<nombre>\` con \`encodeURIComponent\`, en lugar de la ruta anterior. Soporta nombres y apellidos simples o compuestos, tildes, Ñ, espacios múltiples y caracteres especiales.
+- **Nombre intacto**: el nombre almacenado del caso no se modifica ni se reescribe para construir el enlace; sólo se normaliza una copia para la URL.
+- **Alcance acotado**: cambia únicamente la ruta de ProLegal. No se tocan el directorio, los datos de los casos ni otras búsquedas de la aplicación.
+
+### Calidad
+
+- **Tests**: se fijan el formato exacto, la ausencia de \`/search\` y la codificación de tildes/Ñ/espacios/especiales, más el click real que abre la ventana.
+- Suite de pruebas en verde y \`npm run build\` compila sin errores.
+- **Bump a 1.11.3b** en \`src/core/version.js\` (\`APP_VERSION\`), \`package.json\` y \`package-lock.json\`; CHANGELOG (×3 copias byte-idénticas) y README (×3) actualizados.
 
 ## [1.11.3] - Plantillas de registro vinculadas a los speeches
 
